@@ -25,7 +25,7 @@ export type InternalStateManager = {
   clear(groupId: string): Promise<void>
 }
 
-export type EnqueueData<T = unknown> = { topic: string; data: T; messageGroupId?: string }
+export type EnqueueData<T = unknown> = { topic: string; data: T; messageGroupId?: string; delayMs?: number }
 export type Enqueuer<TData> = (event: TData) => Promise<void>
 
 export type ExtractQueueInput<TInput> = Exclude<Exclude<Exclude<TInput, ApiRequest>, MotiaHttpArgs>, undefined>
@@ -62,6 +62,46 @@ export interface FlowContext<TEnqueueData = never, TInput = unknown> {
   logger: Logger
   streams: Streams
   trigger: TriggerInfo
+
+  /**
+   * Enqueue a message with a delay before it becomes visible to consumers.
+   * This is a convenience wrapper around `enqueue` with `delayMs`.
+   *
+   * @param topic - The queue topic to enqueue to
+   * @param data - The data payload
+   * @param delayMs - Delay in milliseconds before the message is enqueued (max 900000 = 15 minutes)
+   *
+   * @example
+   * ```ts
+   * // Delay processing by 30 seconds
+   * await ctx.delay('process-order', orderData, 30_000)
+   * ```
+   */
+  delay: <TData = unknown>(topic: string, data: TData, delayMs: number) => Promise<void>
+
+  /**
+   * Control cron/schedule triggers programmatically.
+   *
+   * @example
+   * ```ts
+   * // Pause a cron trigger
+   * await ctx.cron.pause('trigger-id')
+   *
+   * // Resume it later
+   * await ctx.cron.resume('trigger-id')
+   *
+   * // List all cron jobs
+   * const jobs = await ctx.cron.list()
+   * ```
+   */
+  cron: {
+    /** Pause a cron job by its trigger ID. The schedule continues but executions are skipped. */
+    pause: (triggerId: string) => Promise<{ status: string; id: string }>
+    /** Resume a previously paused cron job. */
+    resume: (triggerId: string) => Promise<{ status: string; id: string }>
+    /** List all registered cron jobs with their current status. */
+    list: () => Promise<Array<{ id: string; function_id: string; paused: boolean }>>
+  }
 
   is: {
     queue: (input: TInput) => input is ExtractQueueInput<TInput>

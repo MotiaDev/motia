@@ -12,8 +12,10 @@ use std::{
 
 use async_trait::async_trait;
 use colored::Colorize;
+use function_macros::{function, service};
 use futures::Future;
 use once_cell::sync::Lazy;
+use serde::Deserialize;
 use serde_json::Value;
 
 use super::{
@@ -21,8 +23,10 @@ use super::{
     structs::{CronAdapter, CronSchedulerAdapter},
 };
 use crate::{
-    engine::{Engine, EngineTrait},
+    engine::{Engine, EngineTrait, Handler, RegisterFunctionRequest},
+    function::FunctionResult,
     modules::module::{AdapterFactory, ConfigurableModule, Module},
+    protocol::ErrorBody,
     trigger::{Trigger, TriggerRegistrator},
 };
 
@@ -31,6 +35,69 @@ pub struct CronCoreModule {
     adapter: Arc<CronAdapter>,
     engine: Arc<Engine>,
     _config: CronModuleConfig,
+}
+
+#[derive(Deserialize)]
+pub struct CronJobIdInput {
+    /// The trigger ID of the cron job to target.
+    id: String,
+}
+
+#[service(name = "cron")]
+impl CronCoreModule {
+    #[function(id = "pause_cron", description = "Pause a cron job by trigger ID")]
+    pub async fn pause_cron(
+        &self,
+        input: CronJobIdInput,
+    ) -> FunctionResult<Option<Value>, ErrorBody> {
+        match self.adapter.pause(&input.id).await {
+            Ok(_) => FunctionResult::Success(Some(
+                serde_json::json!({ "status": "paused", "id": input.id }),
+            )),
+            Err(e) => FunctionResult::Failure(ErrorBody {
+                code: "cron_pause_failed".into(),
+                message: e.to_string(),
+            }),
+        }
+    }
+
+    #[function(
+        id = "resume_cron",
+        description = "Resume a paused cron job by trigger ID"
+    )]
+    pub async fn resume_cron(
+        &self,
+        input: CronJobIdInput,
+    ) -> FunctionResult<Option<Value>, ErrorBody> {
+        match self.adapter.resume(&input.id).await {
+            Ok(_) => FunctionResult::Success(Some(
+                serde_json::json!({ "status": "resumed", "id": input.id }),
+            )),
+            Err(e) => FunctionResult::Failure(ErrorBody {
+                code: "cron_resume_failed".into(),
+                message: e.to_string(),
+            }),
+        }
+    }
+
+    #[function(
+        id = "list_cron_jobs",
+        description = "List all cron jobs with their status"
+    )]
+    pub async fn list_cron_jobs(&self, _input: Value) -> FunctionResult<Option<Value>, ErrorBody> {
+        let jobs = self.adapter.list_jobs().await;
+        let result: Vec<Value> = jobs
+            .into_iter()
+            .map(|(id, function_id, paused)| {
+                serde_json::json!({
+                    "id": id,
+                    "function_id": function_id,
+                    "paused": paused,
+                })
+            })
+            .collect();
+        FunctionResult::Success(Some(serde_json::json!(result)))
+    }
 }
 
 #[async_trait]
@@ -43,7 +110,9 @@ impl Module for CronCoreModule {
         Self::create_with_adapters(engine, config).await
     }
 
-    fn register_functions(&self, _engine: Arc<Engine>) {}
+    fn register_functions(&self, engine: Arc<Engine>) {
+        self.register_functions(engine);
+    }
 
     async fn initialize(&self) -> anyhow::Result<()> {
         tracing::info!("Initializing CronModule");
