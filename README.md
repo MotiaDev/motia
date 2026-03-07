@@ -137,7 +137,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Console
 
-The [iii-console](https://github.com/iii-hq/console) is a developer and operations dashboard for inspecting functions, triggers, traces, and real-time state.
+The [iii-console](console/) is a developer and operations dashboard for inspecting functions, triggers, traces, and real-time state.
 
 ```bash
 iii-cli console
@@ -166,7 +166,7 @@ See the [Quickstart guide](https://iii.dev/docs/quickstart) for step-by-step tut
 
 - [Documentation](https://iii.dev/docs)
 - [CLI](https://github.com/iii-hq/iii-cli)
-- [Console](https://github.com/iii-hq/console)
+- [Console](console/)
 - [Examples](https://github.com/iii-hq/iii-examples)
 - [Contributing](CONTRIBUTING.md)
 
