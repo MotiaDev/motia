@@ -151,6 +151,69 @@ This runs the Function every 6 hours. The `expression` field uses standard cron 
 
 The Function executes automatically on the defined schedule. The Engine handles scheduling, no external cron daemon needed.
 
+## Controlling Cron Jobs at Runtime
+
+You can dynamically **pause**, **resume**, and **list** cron jobs without redeploying or changing cron expressions.
+
+### Using Motia Framework (`ctx.cron`)
+
+Inside any step handler, use `ctx.cron` to control cron jobs:
+
+```typescript title="control-cron.step.ts"
+import { step, http } from 'motia'
+
+export default step(
+  {
+    name: 'control-cron',
+    triggers: [http('POST', '/cron/control')],
+    enqueues: [],
+  },
+  async ({ request }, ctx) => {
+    const { action, triggerId } = request.body
+
+    switch (action) {
+      case 'pause':
+        // Pause a cron job — it stays registered but skips executions
+        await ctx.cron.pause(triggerId)
+        return { status: 200, body: { message: `Paused ${triggerId}` } }
+
+      case 'resume':
+        // Resume a paused cron job
+        await ctx.cron.resume(triggerId)
+        return { status: 200, body: { message: `Resumed ${triggerId}` } }
+
+      case 'list':
+        // List all cron jobs and their paused status
+        const jobs = await ctx.cron.list()
+        return { status: 200, body: { jobs } }
+    }
+  },
+)
+```
+
+### Using the SDK directly
+
+```typescript title="cron-control-sdk.ts"
+import { init } from 'iii-sdk'
+
+const iii = init('ws://localhost:49134')
+
+// Pause a cron job by its trigger ID
+await iii.call('pause_cron', { id: 'my-trigger-id' })
+
+// Resume it later
+await iii.call('resume_cron', { id: 'my-trigger-id' })
+
+// List all cron jobs
+const jobs = await iii.call('list_cron_jobs', {})
+// => [{ id: '...', function_id: '...', paused: false }, ...]
+```
+
+<Callout title="Trigger IDs" type="info">
+The trigger ID is assigned when a cron trigger is registered. In Motia, it follows the pattern
+`steps::<step-name>::trigger::cron(<expression>)`. Use `ctx.cron.list()` to discover trigger IDs.
+</Callout>
+
 {/* TODO: Uncomment once the Cron module reference page exists */}
 {/* <Callout title="See also" type="info">
   For advanced scheduling options, see the [Cron module reference](/docs/modules/module-cron).
