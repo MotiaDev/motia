@@ -10,6 +10,9 @@ target/
 .env.production.local
 .vscode/
 
+.coverage
+coverage/
+htmlcov/
 .DS_Store
 
 data/
