@@ -400,10 +400,12 @@ impl EngineBuilder {
     }
 
     pub async fn destroy(self) -> anyhow::Result<()> {
+        tracing::warn!("Shutting down engine and destroying modules");
         for module in self.modules.iter() {
             tracing::debug!("Destroying module: {}", module.name());
             module.destroy().await?;
         }
+        tracing::warn!("Engine shutdown complete");
         Ok(())
     }
 
