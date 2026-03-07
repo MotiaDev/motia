@@ -173,7 +173,7 @@ github_api() {
   curl -fsSL $api_headers "$1"
 }
 
-TAG_PREFIX="iii/v"
+TAG_PREFIX="v"
 
 if [ -n "$VERSION" ]; then
   echo "installing version: $VERSION"
@@ -188,15 +188,15 @@ else
   json_list=$(github_api "$api_url")
   if command -v jq >/dev/null 2>&1; then
     json=$(printf '%s' "$json_list" \
-      | jq -c 'first(.[] | select(.prerelease == false and (.tag_name | startswith("iii/v"))))')
+      | jq -c 'first(.[] | select(.prerelease == false and (.tag_name | startswith("v"))))')
     if [ "$json" = "null" ] || [ -z "$json" ]; then
       err "no stable iii release found"
     fi
   else
     _tag=$(printf '%s' "$json_list" \
-      | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"iii/v[^"]+"' \
+      | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"v[^"]+"' \
       | head -n 1 \
-      | sed -E 's/.*"(iii\/v[^"]+)".*/\1/')
+      | sed -E 's/.*"(v[^"]+)".*/\1/')
     if [ -z "$_tag" ]; then
       err "could not determine latest release"
     fi
