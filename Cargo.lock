@@ -1764,6 +1764,7 @@ dependencies = [
  "sha2",
  "subtle",
  "tokio",
+ "tokio-tungstenite",
  "tower",
  "tower-http",
  "tracing",

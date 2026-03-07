@@ -1,0 +1,21 @@
+[coverage]
+all-features = true
+fail-under = 70
+packages = ["iii"]
+# Keep the gate focused on unit-testable engine code.
+# External integration adapters, the binary entrypoint, and the SDK crate
+# are better covered by dedicated integration/e2e checks.
+exclude-files = [
+  "engine/src/main.rs",
+  "engine/src/modules/cron/adapters/redis_adapter.rs",
+  "engine/src/modules/pubsub/adapters/redis_adapter.rs",
+  "engine/src/modules/queue/adapters/bridge.rs",
+  "engine/src/modules/queue/adapters/rabbitmq/*.rs",
+  "engine/src/modules/queue/adapters/redis_adapter.rs",
+  "engine/src/modules/state/adapters/bridge.rs",
+  "engine/src/modules/state/adapters/redis_adapter.rs",
+  "engine/src/modules/stream/adapters/bridge.rs",
+  "engine/src/modules/stream/adapters/redis_adapter.rs",
+  # SDK crate — has its own test coverage
+  "sdk/*",
+]

@@ -14,3 +14,22 @@ pub struct StateModuleConfig {
     #[serde(default)]
     pub adapter: Option<AdapterEntry>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn default_state_config() {
+        let config: StateModuleConfig = serde_json::from_value(json!({})).unwrap();
+        assert!(config.adapter.is_none());
+    }
+
+    #[test]
+    fn state_config_with_adapter() {
+        let json = json!({"adapter": {"class": "redis", "config": {"url": "redis://localhost"}}});
+        let config: StateModuleConfig = serde_json::from_value(json).unwrap();
+        assert_eq!(config.adapter.unwrap().class, "redis");
+    }
+}
