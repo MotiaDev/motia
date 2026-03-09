@@ -8,11 +8,10 @@ interface SpanErrorsTabProps {
 
 export function SpanErrorsTab({ span }: SpanErrorsTabProps) {
   const { copiedKey, copy } = useCopyToClipboard()
-  const hasError = span.status === 'error'
-
   const exceptionEvent = span.events?.find(
     (e) => e.name === 'exception' || e.name?.startsWith('exception'),
   )
+  const hasError = span.status === 'error' || !!exceptionEvent
   const eventAttrs = exceptionEvent?.attributes ?? {}
 
   const errorMessage = span.attributes?.['error.message'] as string | undefined

@@ -160,9 +160,11 @@ pub async fn execute_traced_request(
                 .set_attribute(KeyValue::new("error.type", err.to_string()));
             cx.span()
                 .set_status(opentelemetry::trace::Status::error(err.to_string()));
+            let backtrace = std::backtrace::Backtrace::force_capture();
             cx.span().add_event("exception", vec![
-                KeyValue::new("exception.type", err.to_string()),
+                KeyValue::new("exception.type", "reqwest::Error"),
                 KeyValue::new("exception.message", err.to_string()),
+                KeyValue::new("exception.stacktrace", backtrace.to_string()),
             ]);
             cx.span().end();
             Err(err)

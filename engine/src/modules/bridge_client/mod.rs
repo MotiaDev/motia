@@ -127,7 +127,7 @@ impl Module for BridgeClientModule {
                     {
                         Ok(result) => FunctionResult::Success(Some(result)),
                         Err(err) => {
-                            dbg!(&err);
+                            tracing::error!(error = ?err, "Bridge call_with_timeout failed");
                             FunctionResult::Failure(ErrorBody {
                                 code: "bridge_error".into(),
                                 message: err.to_string(),
@@ -164,7 +164,7 @@ impl Module for BridgeClientModule {
                     };
 
                     if let Err(err) = bridge.call_void(&invoke.function_id, invoke.data) {
-                        dbg!(&err);
+                        tracing::error!(error = ?err, "Bridge call_void failed");
                         return FunctionResult::Failure(ErrorBody {
                             code: "bridge_error".into(),
                             message: err.to_string(),
@@ -205,7 +205,7 @@ impl Module for BridgeClientModule {
                         {
                             Ok(result) => FunctionResult::Success(Some(result)),
                             Err(err) => {
-                                dbg!(&err);
+                                tracing::error!(error = ?err, "Bridge call_with_timeout failed");
                                 FunctionResult::Failure(ErrorBody {
                                     code: "bridge_error".into(),
                                     message: err.to_string(),

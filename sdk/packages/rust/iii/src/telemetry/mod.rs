@@ -347,7 +347,7 @@ where
             let span = cx.span();
             span.set_status(Status::error(err.to_string()));
 
-            let backtrace = std::backtrace::Backtrace::capture();
+            let backtrace = std::backtrace::Backtrace::force_capture();
             span.add_event("exception", vec![
                 KeyValue::new("exception.type", "Error"),
                 KeyValue::new("exception.message", err.to_string()),
@@ -417,6 +417,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn test_with_span_error_records_exception_event() {
         use opentelemetry::trace::Tracer;
         use opentelemetry_sdk::trace::{InMemorySpanExporter, SdkTracerProvider};
@@ -439,7 +440,10 @@ mod tests {
         let spans = exporter.get_finished_spans().unwrap();
         assert!(!spans.is_empty(), "expected at least 1 span");
 
-        let span = &spans[0];
+        let span = spans
+            .iter()
+            .find(|s| s.name == "test-error-span")
+            .expect("should find test-error-span");
         let exc_event = span
             .events
             .iter()
@@ -479,6 +483,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial_test::serial]
     async fn test_with_span_success_no_exception_event() {
         use opentelemetry_sdk::trace::{InMemorySpanExporter, SdkTracerProvider};
 
@@ -500,7 +505,10 @@ mod tests {
         let spans = exporter.get_finished_spans().unwrap();
         assert!(!spans.is_empty(), "expected at least 1 span");
 
-        let span = &spans[0];
+        let span = spans
+            .iter()
+            .find(|s| s.name == "test-ok-span")
+            .expect("should find test-ok-span");
         let exc_event = span.events.iter().find(|e| e.name == "exception");
         assert!(
             exc_event.is_none(),

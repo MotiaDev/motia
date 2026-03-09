@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import traceback
 import platform
 import random
 import uuid
@@ -380,10 +381,15 @@ class III:
                 context=parent_ctx,
                 kind=trace.SpanKind.SERVER,
             ) as span:
-                result = await handler(data)
-                span.set_status(trace.StatusCode.OK)
-                response_traceparent = self._inject_traceparent()
-                return result, response_traceparent
+                try:
+                    result = await handler(data)
+                    span.set_status(trace.StatusCode.OK)
+                    response_traceparent = self._inject_traceparent()
+                    return result, response_traceparent
+                except Exception as e:
+                    span.record_exception(e)
+                    span.set_status(trace.StatusCode.ERROR)
+                    raise
         except ImportError:
             return await handler(data), None
 
@@ -436,7 +442,6 @@ class III:
         except Exception as e:
             log.exception("Failed to resolve channel refs")
             if invocation_id:
-                import traceback
                 await self._send(
                     InvocationResultMessage(
                         invocation_id=invocation_id,
@@ -470,7 +475,6 @@ class III:
             )
         except Exception as e:
             log.exception(f"Error in handler {path}")
-            import traceback
             await self._send(
                 InvocationResultMessage(
                     invocation_id=invocation_id,

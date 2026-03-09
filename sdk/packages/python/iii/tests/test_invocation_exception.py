@@ -27,9 +27,8 @@ async def test_invoke_with_context_records_exception_with_stacktrace():
     try:
         client = III.__new__(III)
         client._functions = {}
-        client._pending_invocations = {}
-        client._channels = {}
-        client._outbound = asyncio.Queue()
+        client._pending = {}
+        client._queue = []
         client._running = False
 
         async def failing_handler(data):
@@ -76,9 +75,8 @@ async def test_invoke_with_context_success_no_exception():
     try:
         client = III.__new__(III)
         client._functions = {}
-        client._pending_invocations = {}
-        client._channels = {}
-        client._outbound = asyncio.Queue()
+        client._pending = {}
+        client._queue = []
         client._running = False
 
         async def success_handler(data):

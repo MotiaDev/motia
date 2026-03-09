@@ -828,7 +828,7 @@ impl StreamCoreModule {
             }
             Err(error) => FunctionResult::Failure(ErrorBody {
                 message: format!("Failed to update value: {}", error),
-                code: "STREAM_SET_ERROR".to_string(),
+                code: "STREAM_UPDATE_ERROR".to_string(),
                 stacktrace: None,
             }),
         }

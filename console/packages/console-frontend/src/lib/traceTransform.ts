@@ -112,9 +112,17 @@ function getSpanStatus(status: StoredSpan['status']): 'ok' | 'error' | 'unset' {
 function attributesToRecord(
   attributes: Array<[string, unknown]> | Record<string, unknown> | undefined,
 ): Record<string, unknown> {
-  if (!attributes) return {}
-  if (!Array.isArray(attributes)) return attributes
-  const record: Record<string, unknown> = {}
+  if (!attributes) return Object.create(null) as Record<string, unknown>
+
+  const record: Record<string, unknown> = Object.create(null)
+
+  if (!Array.isArray(attributes)) {
+    for (const [key, value] of Object.entries(attributes)) {
+      record[key] = value
+    }
+    return record
+  }
+
   for (const item of attributes) {
     if (Array.isArray(item) && item.length >= 2) {
       record[String(item[0])] = item[1]

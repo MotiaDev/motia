@@ -584,12 +584,10 @@ pub async fn dynamic_handler(
         tracing::Span::current().record("http.response.status_code", 404u16);
         tracing::Span::current().record("otel.status_code", "ERROR");
 
-        let backtrace = std::backtrace::Backtrace::capture();
         tracing::error!(
             exception.type = "NotFoundError",
             exception.message = %format!("Route not found: {} {}", method, actual_path),
-            exception.stacktrace = %backtrace,
-            "Route not found"
+            "Route not found: {} {}", method, actual_path
         );
 
         (StatusCode::NOT_FOUND, "Not Found").into_response()

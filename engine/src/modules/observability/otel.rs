@@ -1260,18 +1260,27 @@ fn extract_service_name(resource: &Option<OtlpResource>) -> String {
 /// Convert an OtlpKeyValue to an opentelemetry KeyValue.
 fn otlp_kv_to_key_value(kv: &OtlpKeyValue) -> Option<KeyValue> {
     let val = kv.value.as_ref()?;
-    let value = if let Some(s) = &val.string_value {
-        opentelemetry::Value::String(s.clone().into())
-    } else if let Some(i) = val.int_value {
-        opentelemetry::Value::I64(i)
-    } else if let Some(d) = val.double_value {
-        opentelemetry::Value::F64(d)
-    } else if let Some(b) = val.bool_value {
-        opentelemetry::Value::Bool(b)
-    } else {
-        return None;
-    };
-    Some(KeyValue::new(kv.key.clone(), value))
+
+    if let Some(s) = &val.string_value {
+        return Some(KeyValue::new(kv.key.clone(), opentelemetry::Value::String(s.clone().into())));
+    }
+    if let Some(i) = val.int_value {
+        return Some(KeyValue::new(kv.key.clone(), opentelemetry::Value::I64(i)));
+    }
+    if let Some(d) = val.double_value {
+        return Some(KeyValue::new(kv.key.clone(), opentelemetry::Value::F64(d)));
+    }
+    if let Some(b) = val.bool_value {
+        return Some(KeyValue::new(kv.key.clone(), opentelemetry::Value::Bool(b)));
+    }
+
+    // Nested structures: serialize to JSON string representation
+    if val.kvlist_value.is_some() || val.array_value.is_some() {
+        let json_str = val.to_string_value();
+        return Some(KeyValue::new(kv.key.clone(), opentelemetry::Value::String(json_str.into())));
+    }
+
+    None
 }
 
 /// Convert parsed OTLP spans to SpanData for export via the OTel SDK pipeline.

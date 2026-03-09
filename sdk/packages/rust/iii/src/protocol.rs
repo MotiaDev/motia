@@ -246,6 +246,7 @@ pub struct FunctionMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct ErrorBody {
     pub code: String,
     pub message: String,

@@ -1139,6 +1139,8 @@ impl III {
             let result = handler(data).await;
 
             // Record span status based on result
+            #[allow(unused_mut)]
+            let mut error_stacktrace: Option<String> = None;
             #[cfg(feature = "otel")]
             {
                 use opentelemetry::trace::{Status, TraceContextExt};
@@ -1148,11 +1150,13 @@ impl III {
                     Ok(_) => span.set_status(Status::Ok),
                     Err(err) => {
                         span.set_status(Status::error(err.to_string()));
+                        let stacktrace = std::backtrace::Backtrace::force_capture().to_string();
                         span.add_event("exception", vec![
                             KeyValue::new("exception.type", "InvocationError"),
                             KeyValue::new("exception.message", err.to_string()),
-                            KeyValue::new("exception.stacktrace", format!("{:?}", err)),
+                            KeyValue::new("exception.stacktrace", stacktrace.clone()),
                         ]);
+                        error_stacktrace = Some(stacktrace);
                     }
                 }
             }
@@ -1185,7 +1189,7 @@ impl III {
                         error: Some(ErrorBody {
                             code: "invocation_failed".to_string(),
                             message: err.to_string(),
-                            stacktrace: Some(std::backtrace::Backtrace::force_capture().to_string()),
+                            stacktrace: error_stacktrace.or_else(|| Some(std::backtrace::Backtrace::force_capture().to_string())),
                         }),
                         traceparent: resp_tp,
                         baggage: resp_bg,
