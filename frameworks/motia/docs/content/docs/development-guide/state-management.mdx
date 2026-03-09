@@ -201,13 +201,13 @@ export const config = {
   flows: ['order-processing'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { state, enqueue, logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { state, enqueue, logger }) => {
   const orderId = crypto.randomUUID()
 
   const order = {
     id: orderId,
-    items: req.body.items,
-    total: req.body.total,
+    items: request.body.items,
+    total: request.body.total,
     status: 'pending',
     createdAt: new Date().toISOString()
   }
@@ -233,25 +233,27 @@ export const handler: Handlers<typeof config> = async (req, { state, enqueue, lo
 ```python
 import uuid
 from datetime import datetime
+from typing import Any
+from motia import ApiRequest, ApiResponse, FlowContext
 
-async def handler(req, context):
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
     order_id = str(uuid.uuid4())
 
     order = {
         "id": order_id,
-        "items": req.get("body", {}).get("items"),
-        "total": req.get("body", {}).get("total"),
+        "items": request.body.get("items"),
+        "total": request.body.get("total"),
         "status": "pending",
         "created_at": datetime.now().isoformat()
     }
 
     # Store in state
-    await context.state.set("orders", order_id, order)
+    await ctx.state.set("orders", order_id, order)
 
-    context.logger.info("Order created", {"orderId": order_id})
+    ctx.logger.info("Order created", {"orderId": order_id})
 
     # Trigger processing
-    await context.enqueue({
+    await ctx.enqueue({
         "topic": "order.created",
         "data": {"orderId": order_id}
     })
@@ -263,13 +265,13 @@ async def handler(req, context):
 <Tab value='JavaScript'>
 
   ```javascript
-export const handler = async (req, { state, enqueue, logger }) => {
+export const handler = async ({ request }, { state, enqueue, logger }) => {
   const orderId = crypto.randomUUID()
 
   const order = {
     id: orderId,
-    items: req.body.items,
-    total: req.body.total,
+    items: request.body.items,
+    total: request.body.total,
     status: 'pending',
     createdAt: new Date().toISOString()
   }

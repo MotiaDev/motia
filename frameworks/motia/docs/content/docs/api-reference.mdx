@@ -475,8 +475,8 @@ export const config = {
   enqueues: ['user.created'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, ctx) => {
-  const { name, email } = req.body
+export const handler: Handlers<typeof config> = async ({ request }, ctx) => {
+  const { name, email } = request.body
   const userId = crypto.randomUUID()
 
   await ctx.enqueue({
@@ -496,8 +496,8 @@ export const handler: Handlers<typeof config> = async (req, ctx) => {
 <Tab value='JavaScript'>
 
 ```javascript
-export const handler = async (req, ctx) => {
-  const { name, email } = req.body
+export const handler = async ({ request }, ctx) => {
+  const { name, email } = request.body
   const userId = crypto.randomUUID()
 
   await ctx.enqueue({
@@ -518,22 +518,24 @@ export const handler = async (req, ctx) => {
 
 ```python
 import uuid
+from typing import Any
+from motia import ApiRequest, ApiResponse, FlowContext, http
 
-async def handler(req, context):
-    name = req.get("body", {}).get("name")
-    email = req.get("body", {}).get("email")
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+    name = request.body.get("name")
+    email = request.body.get("email")
     user_id = str(uuid.uuid4())
 
-    await context.enqueue({
+    await ctx.enqueue({
         "topic": "user.created",
         "data": {"user_id": user_id, "email": email}
     })
 
-    return {
-        "status": 201,
-        "body": {"id": user_id, "name": name, "email": email},
-        "headers": {"X-Request-ID": context.trace_id}
-    }
+    return ApiResponse(
+        status=201,
+        body={"id": user_id, "name": name, "email": email},
+        headers={"X-Request-ID": ctx.trace_id}
+    )
 ```
 
 </Tab>
@@ -718,7 +720,7 @@ export const config = {
 
 export const handler: Handlers<typeof config> = async (input, ctx) => {
   return ctx.match({
-    http: async (request) => {
+    http: async ({ request }) => {
       const { userId } = request.body
       await syncUser(userId, ctx)
       return { status: 200, body: { synced: true } }
@@ -743,7 +745,7 @@ export const handler: Handlers<typeof config> = async (input, ctx) => {
 ```javascript
 export const handler = async (input, ctx) => {
   return ctx.match({
-    http: async (request) => {
+    http: async ({ request }) => {
       const { userId } = request.body
       await syncUser(userId, ctx)
       return { status: 200, body: { synced: true } }
@@ -1134,7 +1136,7 @@ Unique ID for tracking requests across Steps.
 <Tab value='TypeScript'>
 
 ```typescript
-export const handler: Handlers<typeof config> = async (req, { traceId, logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { traceId, logger }) => {
   logger.info('Processing request', { traceId })
   return { status: 200, body: { traceId } }
 }
@@ -1144,7 +1146,7 @@ export const handler: Handlers<typeof config> = async (req, { traceId, logger })
 <Tab value='JavaScript'>
 
 ```javascript
-export const handler = async (req, { traceId, logger }) => {
+export const handler = async ({ request }, { traceId, logger }) => {
   logger.info('Processing request', { traceId })
   return { status: 200, body: { traceId } }
 }
@@ -1154,9 +1156,12 @@ export const handler = async (req, { traceId, logger }) => {
 <Tab value='Python'>
 
 ```python
-async def handler(req, context):
-    context.logger.info("Processing request", {"trace_id": context.trace_id})
-    return {"status": 200, "body": {"trace_id": context.trace_id}}
+from typing import Any
+from motia import ApiRequest, ApiResponse, FlowContext
+
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+    ctx.logger.info("Processing request", {"trace_id": ctx.trace_id})
+    return ApiResponse(status=200, body={"trace_id": ctx.trace_id})
 ```
 
 </Tab>
@@ -1215,8 +1220,8 @@ Intercepts API requests before and after the handler.
 ```typescript
 import { ApiMiddleware } from 'motia'
 
-export const authMiddleware: ApiMiddleware = async (req, ctx, next) => {
-  const token = req.headers.authorization
+export const authMiddleware: ApiMiddleware = async ({ request }, ctx, next) => {
+  const token = request.headers.authorization
 
   if (!token) {
     return { status: 401, body: { error: 'Unauthorized' } }
@@ -1230,8 +1235,8 @@ export const authMiddleware: ApiMiddleware = async (req, ctx, next) => {
 <Tab value='JavaScript'>
 
 ```javascript
-const authMiddleware = async (req, ctx, next) => {
-  const token = req.headers.authorization
+const authMiddleware = async ({ request }, ctx, next) => {
+  const token = request.headers.authorization
 
   if (!token) {
     return { status: 401, body: { error: 'Unauthorized' } }
@@ -1245,8 +1250,8 @@ const authMiddleware = async (req, ctx, next) => {
 <Tab value='Python'>
 
 ```python
-async def auth_middleware(req, context, next_fn):
-    token = req.get("headers", {}).get("authorization")
+async def auth_middleware(request, context, next_fn):
+    token = request.headers.get("authorization")
 
     if not token:
         return {"status": 401, "body": {"error": "Unauthorized"}}
@@ -1258,7 +1263,7 @@ async def auth_middleware(req, context, next_fn):
 </Tabs>
 
 **Parameters:**
-- `req` - Request object
+- `{ request, response }` - The `MotiaHttpArgs` object containing request and response
 - `ctx` - Context object
 - `next` - Function to call the next middleware/handler
 
@@ -1268,16 +1273,30 @@ async def auth_middleware(req, context, next_fn):
 
 ---
 
-## Request Object (HttpRequest)
+## Handler Input (MotiaHttpArgs)
 
-HTTP handlers receive a request object with these fields.
+HTTP handlers receive a `MotiaHttpArgs` object containing `request` and `response`. Destructure what you need.
 
 ```typescript
-interface HttpRequest<TBody = unknown> {
+interface MotiaHttpArgs<TBody = unknown> {
+  request: MotiaHttpRequest<TBody>
+  response: MotiaHttpResponse
+}
+
+interface MotiaHttpRequest<TBody = unknown> {
   pathParams: Record<string, string>
   queryParams: Record<string, string | string[]>
   body: TBody
   headers: Record<string, string | string[]>
+  method: string
+  requestBody: ChannelReader
+}
+
+type MotiaHttpResponse = {
+  status: (statusCode: number) => void
+  headers: (headers: Record<string, string>) => void
+  stream: NodeJS.WritableStream
+  close: () => void
 }
 ```
 
@@ -1285,12 +1304,12 @@ interface HttpRequest<TBody = unknown> {
 <Tab value='TypeScript'>
 
 ```typescript
-export const handler: Handlers<typeof config> = async (req, ctx) => {
-  const userId = req.pathParams.id
-  const page = req.queryParams.page
-  const limit = req.queryParams.limit
-  const { name, email } = req.body
-  const auth = req.headers.authorization
+export const handler: Handlers<typeof config> = async ({ request }, ctx) => {
+  const userId = request.pathParams.id
+  const page = request.queryParams.page
+  const limit = request.queryParams.limit
+  const { name, email } = request.body
+  const auth = request.headers.authorization
 
   return { status: 200, body: { userId, name } }
 }
@@ -1300,12 +1319,12 @@ export const handler: Handlers<typeof config> = async (req, ctx) => {
 <Tab value='JavaScript'>
 
 ```javascript
-export const handler = async (req, ctx) => {
-  const userId = req.pathParams.id
-  const page = req.queryParams.page
-  const limit = req.queryParams.limit
-  const { name, email } = req.body
-  const auth = req.headers.authorization
+export const handler = async ({ request }, ctx) => {
+  const userId = request.pathParams.id
+  const page = request.queryParams.page
+  const limit = request.queryParams.limit
+  const { name, email } = request.body
+  const auth = request.headers.authorization
 
   return { status: 200, body: { userId, name } }
 }
@@ -1315,35 +1334,45 @@ export const handler = async (req, ctx) => {
 <Tab value='Python'>
 
 ```python
-async def handler(req, context):
-    user_id = req.get("pathParams", {}).get("id")
-    page = req.get("queryParams", {}).get("page")
-    limit = req.get("queryParams", {}).get("limit")
-    body = req.get("body", {})
-    name = body.get("name")
-    email = body.get("email")
-    auth = req.get("headers", {}).get("authorization")
+from typing import Any
+from motia import ApiRequest, ApiResponse, FlowContext
 
-    return {"status": 200, "body": {"user_id": user_id, "name": name}}
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+    user_id = request.path_params.get("id")
+    page = request.query_params.get("page")
+    limit = request.query_params.get("limit")
+    name = request.body.get("name")
+    email = request.body.get("email")
+    auth = request.headers.get("authorization")
+
+    return ApiResponse(status=200, body={"user_id": user_id, "name": name})
 ```
 
 </Tab>
 </Tabs>
 
-**Fields:**
-- `pathParams` - Object with path parameters (e.g., `:id` from `/users/:id`)
-- `queryParams` - Object with query string params (values can be string or array)
+**`request` fields:**
+- `pathParams` / `path_params` (Python) - Object with path parameters (e.g., `:id` from `/users/:id`)
+- `queryParams` / `query_params` (Python) - Object with query string params (values can be string or array)
 - `body` - Parsed request body (validated against `bodySchema` if defined)
 - `headers` - Object with request headers (values can be string or array)
+- `method` - HTTP method string
+- `requestBody` / `request_body` (Python) - Raw request body stream (for SSE / streaming)
+
+**`response` fields (for SSE / streaming):**
+- `status(code)` - Set HTTP status code
+- `headers(headers)` - Set response headers
+- `stream` / `writer.stream` (Python) - Writable stream for sending data
+- `close()` - Close the response stream
 
 ---
 
-## Response Object (HttpResponse)
+## Response Object (ApiResponse)
 
 HTTP handlers must return an object with these fields.
 
 ```typescript
-type HttpResponse<TStatus extends number, TBody> = {
+type ApiResponse<TStatus extends number = number, TBody = any> = {
   status: TStatus
   headers?: Record<string, string>
   body: TBody
@@ -1382,14 +1411,16 @@ return {
 <Tab value='Python'>
 
 ```python
-return {
-    "status": 200,
-    "body": {"id": "123", "name": "Alice"},
-    "headers": {
+from motia import ApiResponse
+
+return ApiResponse(
+    status=200,
+    body={"id": "123", "name": "Alice"},
+    headers={
         "Cache-Control": "max-age=3600",
         "X-Custom-Header": "value"
     }
-}
+)
 ```
 
 </Tab>
@@ -1399,6 +1430,113 @@ return {
 - `status` - HTTP status code (200, 201, 400, 404, 500, etc.)
 - `body` - Response data (will be JSON-encoded automatically)
 - `headers` - Optional custom headers
+
+---
+
+## Server-Sent Events (SSE)
+
+HTTP handlers can stream responses using Server-Sent Events. Instead of returning a response object, use the `response` object from `MotiaHttpArgs` to set headers and write to the stream.
+
+<Tabs items={['TypeScript', 'Python']}>
+<Tab value='TypeScript'>
+
+```typescript title="src/sse-example.step.ts"
+import { type Handlers, http, type StepConfig } from 'motia'
+
+export const config = {
+  name: 'SSE Example',
+  description: 'Streams data back to the client as SSE',
+  flows: ['sse-example'],
+  triggers: [http('POST', '/sse')],
+  enqueues: [],
+} as const satisfies StepConfig
+
+export const handler: Handlers<typeof config> = async ({ request, response }, { logger }) => {
+  logger.info('SSE request received')
+
+  response.status(200)
+  response.headers({
+    'content-type': 'text/event-stream',
+    'cache-control': 'no-cache',
+    connection: 'keep-alive',
+  })
+
+  const chunks: string[] = []
+  for await (const chunk of request.requestBody.stream) {
+    chunks.push(Buffer.from(chunk).toString('utf-8'))
+  }
+  const body = chunks.join('').trim()
+
+  const items = ['alpha', 'bravo', 'charlie']
+  for (const item of items) {
+    response.stream.write(`event: item\ndata: ${JSON.stringify({ item })}\n\n`)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+  }
+
+  response.stream.write(`event: done\ndata: ${JSON.stringify({ total: items.length })}\n\n`)
+  response.close()
+}
+```
+
+</Tab>
+<Tab value='Python'>
+
+```python title="src/sse_example_step.py"
+import asyncio
+import json
+from typing import Any
+
+from motia import MotiaHttpArgs, FlowContext, http
+
+config = {
+    "name": "SSE Example",
+    "description": "Streams data back to the client as SSE",
+    "flows": ["sse-example"],
+    "triggers": [
+        http("POST", "/sse"),
+    ],
+    "enqueues": [],
+}
+
+async def handler(args: MotiaHttpArgs[Any], ctx: FlowContext[Any]) -> None:
+    request = args.request
+    response = args.response
+
+    ctx.logger.info("SSE request received")
+
+    await response.status(200)
+    await response.headers({
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        "connection": "keep-alive",
+    })
+
+    raw_chunks: list[str] = []
+    async for chunk in request.request_body.stream:
+        if isinstance(chunk, bytes):
+            raw_chunks.append(chunk.decode("utf-8", errors="replace"))
+        else:
+            raw_chunks.append(str(chunk))
+    payload = "".join(raw_chunks).strip()
+
+    items = ["alpha", "bravo", "charlie"]
+    for item in items:
+        response.writer.stream.write(f"event: item\ndata: {json.dumps({'item': item})}\n\n".encode("utf-8"))
+        await asyncio.sleep(0.5)
+
+    response.writer.stream.write(f"event: done\ndata: {json.dumps({'total': len(items)})}\n\n".encode("utf-8"))
+    response.close()
+```
+
+</Tab>
+</Tabs>
+
+**Key differences from standard HTTP handlers:**
+- Destructure both `request` and `response` from the first argument
+- Use `response.status()` and `response.headers()` to set the status and headers
+- Write SSE-formatted data to `response.stream` (TS/JS) or `response.writer.stream` (Python)
+- Call `response.close()` when done streaming
+- Do **not** return a response object — the response is streamed directly
 
 ---
 

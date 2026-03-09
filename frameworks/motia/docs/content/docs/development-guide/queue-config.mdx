@@ -164,8 +164,8 @@ When enqueuing to FIFO queues, pass a `messageGroupId`:
 <Tab value='TypeScript'>
 
 ```typescript
-export const handler: Handlers<typeof config> = async (req, { enqueue }) => {
-  const { orderId, customerId } = req.body
+export const handler: Handlers<typeof config> = async ({ request }, { enqueue }) => {
+  const { orderId, customerId } = request.body
 
   await enqueue({
     topic: 'order.created',
@@ -179,9 +179,12 @@ export const handler: Handlers<typeof config> = async (req, { enqueue }) => {
 <Tab value='Python'>
 
 ```python
-async def handler(req, ctx):
-    order_id = req.body["orderId"]
-    customer_id = req.body["customerId"]
+from typing import Any
+from motia import ApiRequest, ApiResponse, FlowContext
+
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+    order_id = request.body["orderId"]
+    customer_id = request.body["customerId"]
 
     await ctx.enqueue({
         "topic": "order.created",
@@ -194,8 +197,8 @@ async def handler(req, ctx):
 <Tab value='JavaScript'>
 
 ```javascript
-export const handler = async (req, { enqueue }) => {
-  const { orderId, customerId } = req.body
+export const handler = async ({ request }, { enqueue }) => {
+  const { orderId, customerId } = request.body
 
   await enqueue({
     topic: 'order.created',
