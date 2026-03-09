@@ -299,6 +299,8 @@ class III:
             return
         exc = task.exception()
         if exc:
+            if isinstance(exc, _TraceContextError) and exc.__cause__:
+                exc = exc.__cause__
             log.error(f"Error in fire-and-forget send: {exc}")
 
     async def _handle_message(self, raw: str | bytes) -> None:

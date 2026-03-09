@@ -2648,6 +2648,42 @@ impl OtlpLogsExporter {
     }
 
     /// Build OTLP ExportLogsServiceRequest JSON
+    /// Convert a serde_json::Value to an OTLP AnyValue JSON representation,
+    /// preserving nested objects (kvlistValue) and arrays (arrayValue).
+    fn json_value_to_otlp_any_value(value: &serde_json::Value) -> serde_json::Value {
+        match value {
+            serde_json::Value::String(s) => serde_json::json!({"stringValue": s}),
+            serde_json::Value::Number(n) => {
+                if n.is_i64() {
+                    serde_json::json!({"intValue": n.to_string()})
+                } else {
+                    serde_json::json!({"doubleValue": n})
+                }
+            }
+            serde_json::Value::Bool(b) => serde_json::json!({"boolValue": b}),
+            serde_json::Value::Object(map) => {
+                let values: Vec<serde_json::Value> = map
+                    .iter()
+                    .map(|(k, v)| {
+                        serde_json::json!({
+                            "key": k,
+                            "value": Self::json_value_to_otlp_any_value(v)
+                        })
+                    })
+                    .collect();
+                serde_json::json!({"kvlistValue": {"values": values}})
+            }
+            serde_json::Value::Array(arr) => {
+                let values: Vec<serde_json::Value> = arr
+                    .iter()
+                    .map(Self::json_value_to_otlp_any_value)
+                    .collect();
+                serde_json::json!({"arrayValue": {"values": values}})
+            }
+            serde_json::Value::Null => serde_json::json!({"stringValue": ""}),
+        }
+    }
+
     fn build_otlp_logs_request(&self, logs: &[StoredLog]) -> serde_json::Value {
         let log_records: Vec<serde_json::Value> = logs
             .iter()
@@ -2675,21 +2711,9 @@ impl OtlpLogsExporter {
                     .attributes
                     .iter()
                     .map(|(key, value)| {
-                        let attr_value = match value {
-                            serde_json::Value::String(s) => serde_json::json!({"stringValue": s}),
-                            serde_json::Value::Number(n) => {
-                                if n.is_i64() {
-                                    serde_json::json!({"intValue": n.to_string()})
-                                } else {
-                                    serde_json::json!({"doubleValue": n})
-                                }
-                            }
-                            serde_json::Value::Bool(b) => serde_json::json!({"boolValue": b}),
-                            _ => serde_json::json!({"stringValue": value.to_string()}),
-                        };
                         serde_json::json!({
                             "key": key,
-                            "value": attr_value
+                            "value": Self::json_value_to_otlp_any_value(value)
                         })
                     })
                     .collect();
