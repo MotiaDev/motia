@@ -201,7 +201,7 @@ class ApiRequest(BaseModel, Generic[TBody]):
 class ApiResponse(BaseModel, Generic[TOutput]):
     status: int
     body: Any
-    headers: dict[str, str] = {}
+    headers: dict[str, str] = Field(default_factory=dict)
 ```
 
 ---

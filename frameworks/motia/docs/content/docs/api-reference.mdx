@@ -1273,9 +1273,10 @@ async def auth_middleware(request, context, next_fn):
 
 ---
 
-## Handler Input (MotiaHttpArgs)
+## Handler Input
 
-HTTP handlers receive a `MotiaHttpArgs` object containing `request` and `response`. Destructure what you need.
+TypeScript and JavaScript handlers receive `MotiaHttpArgs` (containing `request` and `response`).
+Python handlers use `ApiRequest` for standard responses and only use `MotiaHttpArgs` for streaming/SSE handlers.
 
 ```typescript
 interface MotiaHttpArgs<TBody = unknown> {

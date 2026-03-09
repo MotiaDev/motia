@@ -90,7 +90,7 @@ If you don't call `next()`, the request stops. The handler never runs.
         "name": "ProtectedEndpoint",
         "description": "A protected API endpoint",
         "triggers": [
-            {**http("GET", "/protected"), "middleware": [auth_middleware]},
+            http("GET", "/protected", middleware=[auth_middleware]),
         ],
         "enqueues": [],
     }
@@ -164,11 +164,13 @@ Await `next()` to get the response, then modify it:
     ```python
     async def add_headers_middleware(request, context, next_fn):
         response = await next_fn()
+        if response is None:
+            return None
 
-        headers = response.get("headers", {})
+        headers = dict(response.headers) if response.headers else {}
         headers["X-Request-Id"] = context.trace_id
 
-        return {**response, "headers": headers}
+        return ApiResponse(status=response.status, body=response.body, headers=headers)
     ```
   </Tab>
 </Tabs>
@@ -233,16 +235,16 @@ Middleware can attach data to the `req` object, making it available to your hand
     ```
   </Tab>
   <Tab value="Python">
-    Add data to the request object:
+    Store auth data on the context object:
 
     ```python
     async def auth_middleware(request, context, next_fn):
-        request.user = {"id": "123", "role": "admin"}
+        context.user = {"id": "123", "role": "admin"}
         return await next_fn()
 
     async def handler(request, context):
-        user = getattr(request, "user", None)
-        return {"status": 200, "body": {"user": user}}
+        user = getattr(context, "user", None)
+        return ApiResponse(status=200, body={"user": user})
     ```
   </Tab>
 </Tabs>
@@ -296,6 +298,8 @@ Catch errors from handlers:
   </Tab>
   <Tab value="Python">
     ```python
+    from pydantic import ValidationError
+
     async def error_middleware(request, context, next_fn):
         try:
             return await next_fn()

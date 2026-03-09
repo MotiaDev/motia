@@ -258,7 +258,7 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
         "data": {"orderId": order_id}
     })
 
-    return {"status": 201, "body": order}
+    return ApiResponse(status=201, body=order)
   ```
 
   </Tab>

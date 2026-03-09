@@ -191,6 +191,8 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
         "data": {"orderId": order_id, "customerId": customer_id},
         "messageGroupId": customer_id
     })
+
+    return ApiResponse(status=202, body={"status": "queued"})
 ```
 
 </Tab>

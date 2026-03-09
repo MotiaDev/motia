@@ -48,9 +48,8 @@ export const config = {
 
 export const handler: Handlers<typeof config> = async (req, { logger }) => {
   const userId = req.pathParams.id
-  const { name } = req.body
   logger.info('Getting user', { userId })
-  return { status: 200, body: { id: userId, name } }
+  return { status: 200, body: { id: userId } }
 }
 ```
 
@@ -70,9 +69,8 @@ export const config = {
 
 export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
   const userId = request.pathParams.id
-  const { name } = request.body
   logger.info('Getting user', { userId })
-  return { status: 200, body: { id: userId, name } }
+  return { status: 200, body: { id: userId } }
 }
 ```
 
