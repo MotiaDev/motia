@@ -233,7 +233,7 @@ impl RestApiCoreModule {
         for entry in routers_registry.iter() {
             let path = Self::build_router_for_axum(&entry.http_path);
 
-            let method = entry.http_method.clone();
+            let method = entry.http_method.to_ascii_uppercase();
             let path_for_extension = entry.http_path.clone();
             router = match method.as_str() {
                 "GET" => router.route(
