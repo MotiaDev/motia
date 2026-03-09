@@ -136,7 +136,7 @@ This project uses a dual licensing model. The engine runtime (`engine/`) is lice
 
 By submitting a contribution, you agree that your contribution will be licensed under the applicable license for the component you are contributing to.
 
-See [LICENSE.md](LICENSE.md) for the full breakdown.
+See [NOTICE.md](NOTICE.md) for the full breakdown.
 
 ## Project Structure
 

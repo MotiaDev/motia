@@ -4,17 +4,19 @@ build-backend = "hatchling.build"
 
 [project]
 name = "motia"
-version = "1.0.0rc26"
+version = "1.0.1rc1"
 description = "Motia framework for III Engine"
 authors = [{ name = "III" }]
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
 

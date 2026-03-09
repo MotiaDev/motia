@@ -2,6 +2,7 @@
   "name": "motia-docs",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "prepare-docs": "node scripts/prepare-docs.js",
     "dev": "next dev",

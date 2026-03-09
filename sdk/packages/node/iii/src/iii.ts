@@ -898,4 +898,5 @@ class Sdk implements ISdk {
   }
 }
 
-export const init = (address: string, options?: InitOptions): ISdk => new Sdk(address, options)
+export const registerWorker = (address: string, options?: InitOptions): ISdk =>
+  new Sdk(address, options)
