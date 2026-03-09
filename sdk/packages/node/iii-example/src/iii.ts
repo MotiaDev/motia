@@ -1,10 +1,10 @@
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 import { version } from '../package.json'
 
 // Engine WebSocket URL - used for both III and telemetry
 const engineWsUrl = process.env.III_BRIDGE_URL ?? 'ws://localhost:49134'
 
-export const iii = init(engineWsUrl, {
+export const iii = registerWorker(engineWsUrl, {
   otel: {
     enabled: true,
     serviceName: 'iii-example',
