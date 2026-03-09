@@ -28,7 +28,7 @@ removal of cost centers with reduced switching costs, and faster delivery of bac
 
 ## How iii achieves this
 
-iii unifies any backend stack with a single engine and three primitives: **Function**, **Trigger**, and **Worker**.
+iii unifies any backend stack with a single engine and two primitives: **Function** and **Trigger**.
 
 This results in the ability to:
 
@@ -37,7 +37,7 @@ This results in the ability to:
 - **Always stay in sync with Workers:** When a new function is registered with iii every other part of the stack can use it. Workers can dynamically unregister Functions too, allowing rolling upgrades without manual registry or config updates. No service registry, and no config files. iii always knows what the entire system can do.
 
 <Callout title="Why this matters" type="info">
-  React simplified the frontend with Component and Context. iii does the same for the backend with Function, Trigger, and Discovery. One mental model for every backend system.
+  React simplified the frontend with Component and Context. iii does the same for the backend with Function and Trigger — supported by Discovery, which keeps the entire system in sync. One mental model for every backend system.
 </Callout>
 
 ## Getting Started
