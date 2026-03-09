@@ -1049,6 +1049,7 @@ impl III {
                 Some(error) => Err(IIIError::Remote {
                     code: error.code,
                     message: error.message,
+                    stacktrace: error.stacktrace,
                 }),
                 None => Ok(result.unwrap_or(Value::Null)),
             };
@@ -1090,7 +1091,11 @@ impl III {
             if let Some(invocation_id) = invocation_id {
                 let (resp_tp, resp_bg) = inject_trace_headers();
 
-                let error = ErrorBody { code, message, stacktrace: None };
+                let error = ErrorBody {
+                    code,
+                    message,
+                    stacktrace: None,
+                };
                 let result = self.send_message(Message::InvocationResult {
                     invocation_id,
                     function_id,
@@ -1143,19 +1148,22 @@ impl III {
             let mut error_stacktrace: Option<String> = None;
             #[cfg(feature = "otel")]
             {
-                use opentelemetry::trace::{Status, TraceContextExt};
                 use opentelemetry::KeyValue;
+                use opentelemetry::trace::{Status, TraceContextExt};
                 let span = otel_cx.span();
                 match &result {
                     Ok(_) => span.set_status(Status::Ok),
                     Err(err) => {
                         span.set_status(Status::error(err.to_string()));
                         let stacktrace = std::backtrace::Backtrace::force_capture().to_string();
-                        span.add_event("exception", vec![
-                            KeyValue::new("exception.type", "InvocationError"),
-                            KeyValue::new("exception.message", err.to_string()),
-                            KeyValue::new("exception.stacktrace", stacktrace.clone()),
-                        ]);
+                        span.add_event(
+                            "exception",
+                            vec![
+                                KeyValue::new("exception.type", "InvocationError"),
+                                KeyValue::new("exception.message", err.to_string()),
+                                KeyValue::new("exception.stacktrace", stacktrace.clone()),
+                            ],
+                        );
                         error_stacktrace = Some(stacktrace);
                     }
                 }
@@ -1189,7 +1197,9 @@ impl III {
                         error: Some(ErrorBody {
                             code: "invocation_failed".to_string(),
                             message: err.to_string(),
-                            stacktrace: error_stacktrace.or_else(|| Some(std::backtrace::Backtrace::force_capture().to_string())),
+                            stacktrace: error_stacktrace.or_else(|| {
+                                Some(std::backtrace::Backtrace::force_capture().to_string())
+                            }),
                         }),
                         traceparent: resp_tp,
                         baggage: resp_bg,

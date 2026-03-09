@@ -1183,7 +1183,16 @@ impl OtlpAnyValue {
             Some(serde_json::Value::Number(serde_json::Number::from(value)))
         } else if let Some(value) = self.double_value {
             Some(serde_json::Value::Number(
-                serde_json::Number::from_f64(value).unwrap_or_else(|| serde_json::Number::from(0)),
+                match serde_json::Number::from_f64(value) {
+                    Some(n) => n,
+                    None => {
+                        tracing::warn!(
+                            float_value = value,
+                            "non-finite float (NaN/Infinity) in OTLP attribute, falling back to 0"
+                        );
+                        serde_json::Number::from(0)
+                    }
+                },
             ))
         } else {
             self.bool_value.map(serde_json::Value::Bool)
@@ -1262,7 +1271,10 @@ fn otlp_kv_to_key_value(kv: &OtlpKeyValue) -> Option<KeyValue> {
     let val = kv.value.as_ref()?;
 
     if let Some(s) = &val.string_value {
-        return Some(KeyValue::new(kv.key.clone(), opentelemetry::Value::String(s.clone().into())));
+        return Some(KeyValue::new(
+            kv.key.clone(),
+            opentelemetry::Value::String(s.clone().into()),
+        ));
     }
     if let Some(i) = val.int_value {
         return Some(KeyValue::new(kv.key.clone(), opentelemetry::Value::I64(i)));
@@ -1277,7 +1289,10 @@ fn otlp_kv_to_key_value(kv: &OtlpKeyValue) -> Option<KeyValue> {
     // Nested structures: serialize to JSON string representation
     if val.kvlist_value.is_some() || val.array_value.is_some() {
         let json_str = val.to_string_value();
-        return Some(KeyValue::new(kv.key.clone(), opentelemetry::Value::String(json_str.into())));
+        return Some(KeyValue::new(
+            kv.key.clone(),
+            opentelemetry::Value::String(json_str.into()),
+        ));
     }
 
     None
@@ -5204,14 +5219,17 @@ mod tests {
         tracer.in_span("error-span", |cx| {
             let span = cx.span();
             span.set_status(Status::error("test error"));
-            span.add_event("exception", vec![
-                opentelemetry::KeyValue::new("exception.type", "TestError"),
-                opentelemetry::KeyValue::new("exception.message", "something went wrong"),
-                opentelemetry::KeyValue::new(
-                    "exception.stacktrace",
-                    "at test_fn (test.rs:42)\nat main (main.rs:1)",
-                ),
-            ]);
+            span.add_event(
+                "exception",
+                vec![
+                    opentelemetry::KeyValue::new("exception.type", "TestError"),
+                    opentelemetry::KeyValue::new("exception.message", "something went wrong"),
+                    opentelemetry::KeyValue::new(
+                        "exception.stacktrace",
+                        "at test_fn (test.rs:42)\nat main (main.rs:1)",
+                    ),
+                ],
+            );
         });
 
         let _ = provider.force_flush();

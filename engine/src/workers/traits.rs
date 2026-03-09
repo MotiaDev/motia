@@ -102,10 +102,8 @@ impl FunctionHandler for Worker {
 
             match send_result {
                 Ok(_) => {
-                    self.invocations
-                        .write()
-                        .await
-                        .insert(invocation_id.unwrap());
+                    let id = invocation_id.unwrap_or_else(Uuid::new_v4);
+                    self.invocations.write().await.insert(id);
                     FunctionResult::Deferred
                 }
                 Err(err) => FunctionResult::Failure(ErrorBody {

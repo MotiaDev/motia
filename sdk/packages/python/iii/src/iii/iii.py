@@ -369,29 +369,37 @@ class III:
         try:
             from opentelemetry import context as otel_context
             from opentelemetry import propagate, trace
-            carrier: dict[str, str] = {}
-            if traceparent:
-                carrier["traceparent"] = traceparent
-            if baggage:
-                carrier["baggage"] = baggage
-            parent_ctx = propagate.extract(carrier) if carrier else otel_context.get_current()
-            tracer = trace.get_tracer("iii-python-sdk")
-            with tracer.start_as_current_span(
-                f"call {handler.__name__}",
-                context=parent_ctx,
-                kind=trace.SpanKind.SERVER,
-            ) as span:
-                try:
-                    result = await handler(data)
-                    span.set_status(trace.StatusCode.OK)
-                    response_traceparent = self._inject_traceparent()
-                    return result, response_traceparent
-                except Exception as e:
-                    span.record_exception(e)
-                    span.set_status(trace.StatusCode.ERROR)
-                    raise
+
+            otel_available = True
         except ImportError:
+            otel_available = False
+
+        if not otel_available:
             return await handler(data), None
+
+        carrier: dict[str, str] = {}
+        if traceparent:
+            carrier["traceparent"] = traceparent
+        if baggage:
+            carrier["baggage"] = baggage
+        parent_ctx = propagate.extract(carrier) if carrier else otel_context.get_current()
+        tracer = trace.get_tracer("iii-python-sdk")
+        with tracer.start_as_current_span(
+            f"call {handler.__name__}",
+            context=parent_ctx,
+            kind=trace.SpanKind.SERVER,
+        ) as span:
+            try:
+                result = await handler(data)
+                span.set_status(trace.StatusCode.OK)
+                response_traceparent = self._inject_traceparent()
+                return result, response_traceparent
+            except Exception as e:
+                span.record_exception(e)
+                span.set_status(trace.StatusCode.ERROR, str(e))
+                response_traceparent = self._inject_traceparent()
+                e.__traceparent__ = response_traceparent  # type: ignore[attr-defined]
+                raise
 
     def _resolve_channels(self, data: Any) -> Any:
         """Recursively resolve StreamChannelRef objects into ChannelReader/ChannelWriter instances."""
@@ -475,11 +483,13 @@ class III:
             )
         except Exception as e:
             log.exception(f"Error in handler {path}")
+            response_traceparent = getattr(e, "__traceparent__", None)
             await self._send(
                 InvocationResultMessage(
                     invocation_id=invocation_id,
                     function_id=path,
                     error={"code": "invocation_failed", "message": str(e), "stacktrace": traceback.format_exc()},
+                    traceparent=response_traceparent,
                 )
             )
 

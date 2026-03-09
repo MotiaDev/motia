@@ -348,11 +348,14 @@ where
             span.set_status(Status::error(err.to_string()));
 
             let backtrace = std::backtrace::Backtrace::force_capture();
-            span.add_event("exception", vec![
-                KeyValue::new("exception.type", "Error"),
-                KeyValue::new("exception.message", err.to_string()),
-                KeyValue::new("exception.stacktrace", backtrace.to_string()),
-            ]);
+            span.add_event(
+                "exception",
+                vec![
+                    KeyValue::new("exception.type", "Error"),
+                    KeyValue::new("exception.message", err.to_string()),
+                    KeyValue::new("exception.stacktrace", backtrace.to_string()),
+                ],
+            );
 
             Err(err)
         }

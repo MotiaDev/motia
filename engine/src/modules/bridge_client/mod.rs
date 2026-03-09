@@ -253,6 +253,7 @@ impl Module for BridgeClientModule {
                         Err(err) => Err(IIIError::Remote {
                             code: err.code,
                             message: err.message,
+                            stacktrace: err.stacktrace,
                         }),
                     }
                 }

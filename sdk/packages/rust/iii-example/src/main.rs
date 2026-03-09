@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use iii_sdk::{IIIError, InitOptions, OtelConfig, Streams, UpdateBuilder, UpdateOp, register_worker};
+use iii_sdk::{
+    IIIError, InitOptions, OtelConfig, Streams, UpdateBuilder, UpdateOp, register_worker,
+};
 use serde_json::json;
 
 mod http_example;

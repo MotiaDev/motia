@@ -131,7 +131,11 @@ impl HttpInvoker {
                 .and_then(|v| v.as_str())
                 .unwrap_or("HTTP request failed")
                 .to_string();
-            return ErrorBody { code, message, stacktrace: None };
+            return ErrorBody {
+                code,
+                message,
+                stacktrace: None,
+            };
         }
 
         ErrorBody {
