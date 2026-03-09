@@ -27,7 +27,7 @@ modules:
           mode: "concurrent"            # "fifo" or "concurrent" (default: "concurrent")
 ```
 
-These are global defaults. Individual workers can override `max_attempts`, `backoff_ms`, `concurrency`, and `mode` per subscription (see step 4).
+These are global defaults. Individual workers can override `maxRetries`, `backoffDelayMs`, `concurrency`, and `type` per subscription (see step 4).
 
 ### 2. Enqueue work
 
