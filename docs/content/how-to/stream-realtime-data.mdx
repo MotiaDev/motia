@@ -21,7 +21,7 @@ modules:
         class: modules::stream::adapters::KvStore
         config:
           store_method: file_based  # Options: in_memory, file_based
-          # file_path: ./data/stream_store  # required for file_based
+          file_path: ./data/stream_store  # required for file_based
         # class: modules::stream::adapters::RedisAdapter
         # config:
         #   redis_url: redis://localhost:6379
@@ -42,7 +42,7 @@ modules:
 ```typescript title="stream-writer.ts"
 import { init, getContext } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'chat::send' }, async (input) => {
   const { logger } = getContext()
