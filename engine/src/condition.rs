@@ -110,6 +110,7 @@ mod tests {
         let engine = MockEngine::returning_err(ErrorBody {
             code: "fail".into(),
             message: "boom".into(),
+            stacktrace: None,
         });
         let result = check_condition(&engine, "cond", json!({})).await;
         assert!(result.is_err());
