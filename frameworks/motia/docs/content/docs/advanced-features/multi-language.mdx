@@ -80,8 +80,8 @@ export const config = {
   flows: ['review-pipeline'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { enqueue }) => {
-  await enqueue({ topic: 'review.submitted', data: { text: req.body.text } })
+export const handler: Handlers<typeof config> = async ({ request }, { enqueue }) => {
+  await enqueue({ topic: 'review.submitted', data: { text: request.body.text } })
   return { status: 202, body: { status: 'processing' } }
 }
 ```

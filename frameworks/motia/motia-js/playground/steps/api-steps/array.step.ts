@@ -35,7 +35,7 @@ export const config = {
   enqueues: ['process-food-order'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (request, { logger, enqueue }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { logger, enqueue }) => {
   logger.info('Step 01 - Processing API Step', { body: request.body })
 
   const [{ pet, foodOrder }] = request.body || [{}]

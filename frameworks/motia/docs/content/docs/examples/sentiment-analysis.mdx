@@ -73,8 +73,8 @@ Our application will be composed of four steps. Let's explore each one.
       flows: ['sentiment-demo'],
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async (req, { enqueue, logger }) => {
-      const { text } = req.body
+    export const handler: Handlers<typeof config> = async ({ request }, { enqueue, logger }) => {
+      const { text } = request.body
 
       logger.info('[AnalyzeSentimentAPI] Received text', { text })
 

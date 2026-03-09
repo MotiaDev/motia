@@ -80,8 +80,8 @@ Our application consists of seven specialized steps, each handling a specific pa
       flows: ['rag-workflow'],
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async (req, { enqueue, logger }) => {
-      const { folderPath } = req.body
+    export const handler: Handlers<typeof config> = async ({ request }, { enqueue, logger }) => {
+      const { folderPath } = request.body
       const streamId = uuidv4()
 
       logger.info('Starting PDF processing pipeline', { folderPath, streamId })
@@ -468,8 +468,8 @@ Our application consists of seven specialized steps, each handling a specific pa
       flows: ['rag-workflow'],
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async (req, { logger }) => {
-      const { query, limit = 3 } = req.body
+    export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
+      const { query, limit = 3 } = request.body
 
       logger.info('Processing RAG query', { query, limit })
 
