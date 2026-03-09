@@ -165,7 +165,7 @@ Open the [iii development console](https://iii.dev/docs) and click on your flow.
 Every request gets a unique `traceId`. This lets you follow a single request through your entire flow.
 
 ```typescript
-export const handler: Handlers<typeof config> = async (req, { logger, traceId, enqueue }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { logger, traceId, enqueue }) => {
   logger.info('Order started', { traceId })
 
   await enqueue({
