@@ -70,9 +70,26 @@ async def test_api_handler_creates_span(otel_exporter, mock_bridge, mock_context
 
         # Get the registered handler
         api_handler = mock_bridge.register_function.call_args_list[0][0][1]
+        response_writer = MagicMock()
+        response_writer.send_message_async = AsyncMock()
+        response_writer.close = MagicMock()
+        response_writer.stream = MagicMock()
+        response_writer.stream.write = MagicMock()
+        request_body_reader = MagicMock()
 
         # Call the handler with a mock request
-        result = await api_handler({"method": "GET", "path": "/test", "body": None, "headers": {}})
+        result = await api_handler(
+            {
+                "method": "GET",
+                "path": "/test",
+                "path_params": {},
+                "query_params": {},
+                "body": None,
+                "headers": {},
+                "response": response_writer,
+                "request_body": request_body_reader,
+            }
+        )
 
     assert result["status_code"] == 200
 
@@ -185,7 +202,24 @@ async def test_trace_id_uses_otel_trace_id(otel_exporter, mock_bridge, mock_cont
         motia.add_step(config, "steps/test_step.py", handler)
 
         api_handler = mock_bridge.register_function.call_args_list[0][0][1]
-        await api_handler({"method": "GET", "path": "/trace", "body": None, "headers": {}})
+        response_writer = MagicMock()
+        response_writer.send_message_async = AsyncMock()
+        response_writer.close = MagicMock()
+        response_writer.stream = MagicMock()
+        response_writer.stream.write = MagicMock()
+        request_body_reader = MagicMock()
+        await api_handler(
+            {
+                "method": "GET",
+                "path": "/trace",
+                "path_params": {},
+                "query_params": {},
+                "body": None,
+                "headers": {},
+                "response": response_writer,
+                "request_body": request_body_reader,
+            }
+        )
 
     assert captured_trace_id is not None
     # OTel trace IDs are 32 hex characters

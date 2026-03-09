@@ -106,6 +106,12 @@ async def test_ctx_enqueue_uses_enqueue_for_api_triggers(mock_bridge: MagicMock,
         motia = Motia()
         motia.add_step(config, "steps/test_step.py", handler)
         registered_handler = mock_bridge.register_function.call_args_list[0][0][1]
+        response_writer = MagicMock()
+        response_writer.send_message_async = AsyncMock()
+        response_writer.close = MagicMock()
+        response_writer.stream = MagicMock()
+        response_writer.stream.write = MagicMock()
+        request_body_reader = MagicMock()
         await registered_handler(
             {
                 "path": "/orders",
@@ -114,6 +120,8 @@ async def test_ctx_enqueue_uses_enqueue_for_api_triggers(mock_bridge: MagicMock,
                 "query_params": {},
                 "body": {"hello": "world"},
                 "headers": {},
+                "response": response_writer,
+                "request_body": request_body_reader,
             }
         )
 

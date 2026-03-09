@@ -1,6 +1,7 @@
 """Tests for W3C traceparent propagation through _handle_invoke."""
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from iii.iii import III, InitOptions
 from iii.telemetry import init_otel, shutdown_otel
