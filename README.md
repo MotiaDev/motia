@@ -28,10 +28,12 @@ One config file. One process. Everything discoverable. Think of it the way React
 
 ```bash
 curl -fsSL https://install.iii.dev/iii/main/install.sh | sh
-iii-cli start
+iii-cli start --use-default-config
 ```
 
 Your engine is running at `ws://localhost:49134` with HTTP API at `http://localhost:3111`.
+
+For a project-backed setup, create `config.yaml` in your working directory or pass `iii-cli start --config /path/to/config.yaml`.
 
 ### Connect a worker
 
