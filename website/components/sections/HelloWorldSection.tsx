@@ -25,19 +25,20 @@ const NodeIcon = () => (
 );
 
 // Code snippets
-const pythonCode = `from iii import init
+const pythonCode = `from iii import III
 import torch
 
-iii = init("ws://localhost:49134")
+iii = III("ws://localhost:49134")
+await iii.connect()
 
 async def predict(input: dict) -> dict:
     tensor = torch.tensor(input["data"])
     result = model(tensor)
     return {"predictions": result.tolist()}
 
-iii.register_function("ml.predict", predict)`;
+iii.register_function("ml::predict", predict)`;
 
-const rustCode = `use iii_sdk::{init, InitOptions, Value, IIIError};
+const rustCode = `use iii_sdk::{III, Value, IIIError};
 use serde_json::json;
 
 async fn transform(input: Value) -> Result<Value, IIIError> {
@@ -48,9 +49,10 @@ async fn transform(input: Value) -> Result<Value, IIIError> {
 
 #[tokio::main]
 async fn main() -> Result<(), IIIError> {
-    let iii = init("ws://localhost:49134", InitOptions::default())?;
+    let iii = III::new("ws://localhost:49134");
+    iii.connect().await?;
 
-    iii.register_function("data.transform", transform);
+    iii.register_function("data::transform", transform);
 
     Ok(())
 }`;
@@ -60,12 +62,12 @@ const nodeCode = `import { init } from "iii-sdk";
 const iii = init("ws://localhost:49134");
 
 const transformed = await iii.trigger(
-  "data.transform",
+  "data::transform",
   [1.0, 2.0, 3.0]
 );
 
 const prediction = await iii.trigger(
-  "ml.predict",
+  "ml::predict",
   { data: transformed }
 );`;
 
@@ -99,8 +101,8 @@ export function HelloWorldSection({
       language: "rust",
     },
     {
-      title: "Node.js Consumer",
-      subtitle: "Consumer",
+      title: "Node.js Orchestrator",
+      subtitle: "Orchestrator",
       icon: NodeIcon,
       code: nodeCode,
       color: "text-iii-success",
