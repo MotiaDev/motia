@@ -28,16 +28,17 @@ removal of cost centers with reduced switching costs, and faster delivery of bac
 
 ## How iii achieves this
 
-iii unifies any backend stack with a single engine and two primitives: **Function**, and **Trigger**.
+iii unifies any backend stack with three primitives: **Functions**, **Triggers**, and **Workers**.
 
-Then it's a single process (or set of processes) that handles everything:
+This results in the ability to:
 
 - **Write Functions in any language:** Use TypeScript, Python, or Rust. Mix them freely. Everything is just a Function.
-- **Triggers handle any event:** An HTTP request, a cron schedule, a queue message, a state change, a stream event. They all work the same way: a Trigger fires, iii invokes your Function.
-- **Discovery keeps everything in sync:** When a new function is registered with iii every other part of the stack can use it. Functions can deregister dynamically too, allowing rolling upgrades without manual registry or config updates. No service registry, and no config files. iii always knows what the entire system can do.
+- **Handle any event with Triggers:** A function call, an HTTP request, a cron schedule, a queue message, a state change, a stream event. They all work the same way: a Trigger fires, iii invokes your Function.
+- **Always stay in sync with Workers:** When a new function is registered with iii every other part of the stack can use it. Workers can dynamically unregister Functions too, allowing rolling upgrades without manual registry or config updates. No service registry, and no config files. iii always knows what the entire system can do.
 
 <Callout title="Why this matters" type="info">
-  React simplified the frontend with Component and Context. iii does the same for the backend with Function, Trigger, and Discovery. One mental model for every backend system.
+  React simplified the frontend with Component and Context. iii does the same for the backend with Function, Trigger, and Worker.
+  One mental model for every backend system.
 </Callout>
 
 ## Getting Started
