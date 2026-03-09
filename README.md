@@ -187,4 +187,4 @@ The iii project uses a dual licensing model:
 
 The engine runtime is licensed under the Elastic License 2.0 (ELv2). All SDKs, frameworks, CLI, console, documentation, and the website are licensed under the Apache License 2.0.
 
-See [LICENSE](LICENSE) for details.
+See [LICENSE.md](LICENSE.md) for details.
