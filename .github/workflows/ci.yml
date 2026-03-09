@@ -146,11 +146,11 @@ jobs:
             sleep 2
           done
 
-      - name: Run tests
+      - name: Run tests with coverage
         env:
           III_BRIDGE_URL: ws://localhost:49199
           III_HTTP_URL: http://localhost:3199
-        run: pnpm --filter iii-sdk test
+        run: pnpm --filter iii-sdk test:coverage
 
       - name: Stop III Engine
         if: always()
@@ -217,7 +217,7 @@ jobs:
             sleep 2
           done
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: sdk/packages/python/iii
         env:
           III_BRIDGE_URL: ws://localhost:49199

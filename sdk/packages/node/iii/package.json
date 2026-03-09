@@ -17,6 +17,7 @@
   "scripts": {
     "build": "tsdown",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest"
   },
   "exports": {
@@ -56,6 +57,7 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.0",
     "@types/ws": "^8.18.1",
     "tsdown": "^0.17.0",
     "typescript": "^5.9.3",
