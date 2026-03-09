@@ -114,3 +114,91 @@ impl FunctionHandler for Worker {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use tokio::sync::mpsc;
+
+    fn make_worker() -> (Worker, mpsc::Receiver<Outbound>) {
+        let (tx, rx) = mpsc::channel(16);
+        (Worker::new(tx), rx)
+    }
+
+    #[tokio::test]
+    async fn register_trigger_sends_message() {
+        let (worker, mut rx) = make_worker();
+        let trigger = Trigger {
+            id: "t1".into(),
+            trigger_type: "http".into(),
+            function_id: "fn1".into(),
+            config: json!({}),
+            worker_id: None,
+        };
+        worker.register_trigger(trigger).await.unwrap();
+        let msg = rx.recv().await.unwrap();
+        match msg {
+            Outbound::Protocol(Message::RegisterTrigger {
+                id,
+                trigger_type,
+                function_id,
+                ..
+            }) => {
+                assert_eq!(id, "t1");
+                assert_eq!(trigger_type, "http");
+                assert_eq!(function_id, "fn1");
+            }
+            _ => panic!("Expected RegisterTrigger message"),
+        }
+    }
+
+    #[tokio::test]
+    async fn unregister_trigger_sends_message() {
+        let (worker, mut rx) = make_worker();
+        let trigger = Trigger {
+            id: "t2".into(),
+            trigger_type: "cron".into(),
+            function_id: "fn2".into(),
+            config: json!({}),
+            worker_id: None,
+        };
+        worker.unregister_trigger(trigger).await.unwrap();
+        let msg = rx.recv().await.unwrap();
+        match msg {
+            Outbound::Protocol(Message::UnregisterTrigger { id, trigger_type }) => {
+                assert_eq!(id, "t2");
+                assert_eq!(trigger_type, Some("cron".into()));
+            }
+            _ => panic!("Expected UnregisterTrigger message"),
+        }
+    }
+
+    #[tokio::test]
+    async fn handle_function_returns_deferred() {
+        let (worker, mut rx) = make_worker();
+        let inv_id = Uuid::new_v4();
+        let result = worker
+            .handle_function(Some(inv_id), "fn1".into(), json!({"key": "val"}))
+            .await;
+        assert!(matches!(result, FunctionResult::Deferred));
+
+        let msg = rx.recv().await.unwrap();
+        match msg {
+            Outbound::Protocol(Message::InvokeFunction {
+                invocation_id,
+                function_id,
+                data,
+                ..
+            }) => {
+                assert_eq!(invocation_id, Some(inv_id));
+                assert_eq!(function_id, "fn1");
+                assert_eq!(data, json!({"key": "val"}));
+            }
+            _ => panic!("Expected InvokeFunction message"),
+        }
+
+        // Verify invocation was tracked
+        assert!(worker.invocations.read().await.contains(&inv_id));
+    }
+}
