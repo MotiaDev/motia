@@ -838,6 +838,7 @@ const HighlightedCodeBlock: React.FC<HighlightedCodeBlockProps> = ({
       lowerLine.includes("new bull") ||
       lowerLine.includes("createclient") ||
       lowerLine.includes("connect(") ||
+      lowerLine.includes("init(") ||
       lowerLine.startsWith("@") || // Decorators
       lowerLine.startsWith("#["); // Rust attributes
 

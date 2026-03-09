@@ -43,6 +43,33 @@ async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
     return ApiResponse(status=201, body={"id": "123"})
 ```
 
+### Channel-based HTTP (Streaming)
+
+```python
+import json
+from typing import Any
+
+from motia import FlowContext, MotiaHttpArgs, http
+
+config = {
+    "name": "HttpChannelEcho",
+    "triggers": [http("POST", "/http-channel/echo")],
+}
+
+async def handler(args: MotiaHttpArgs[Any], ctx: FlowContext[Any]) -> None:
+    request = args.request
+    response = args.response
+
+    chunks: list[bytes] = []
+    async for chunk in request.request_body.stream:
+        chunks.append(chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8"))
+
+    await response.status(200)
+    await response.headers({"content-type": "application/json"})
+    response.writer.stream.write(json.dumps({"receivedBytes": len(b"".join(chunks))}).encode("utf-8"))
+    response.close()
+```
+
 ### Streams
 
 ```python
