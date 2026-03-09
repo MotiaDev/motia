@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { init, Logger } from '../src/index'
+import { registerWorker, Logger } from '../src/index'
 import { initOtel, shutdownOtel, getTracer, getMeter, getLogger } from '../src/telemetry'
 import { iii } from './utils'
 
@@ -9,8 +9,8 @@ beforeAll(() => {
 
 describe('Package Exports', () => {
   it('should export main SDK symbols', () => {
-    expect(init).toBeDefined()
-    expect(typeof init).toBe('function')
+    expect(registerWorker).toBeDefined()
+    expect(typeof registerWorker).toBe('function')
     expect(Logger).toBeDefined()
   })
 

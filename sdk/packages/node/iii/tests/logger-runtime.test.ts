@@ -35,8 +35,8 @@ beforeEach(() => emit.mockReset())
 
 it('keeps an active span context for handlers when tracer setup is disabled', async () => {
   vi.resetModules()
-  const { init, Logger } = await import('../src/index')
-  const sdk = init('ws://example.test', { otel: { enabled: false } }) as any
+  const { registerWorker, Logger } = await import('../src/index')
+  const sdk = registerWorker('ws://example.test', { otel: { enabled: false } }) as any
 
   sdk.registerFunction({ id: 'demo.handler' }, async () => {
     new Logger().info('inside handler')
