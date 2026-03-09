@@ -1,6 +1,7 @@
 ![iii - One Engine, Three Primitives](engine/assets/banner.jpg)
 
-[![License](https://img.shields.io/badge/license-ELv2-blue.svg)](LICENSE)
+[![Engine License](https://img.shields.io/badge/engine-ELv2-blue.svg)](engine/LICENSE)
+[![SDK License](https://img.shields.io/badge/sdk-Apache--2.0-green.svg)](sdk/LICENSE)
 [![Docker](https://img.shields.io/docker/v/iiidev/iii?label=docker)](https://hub.docker.com/r/iiidev/iii)
 [![npm](https://img.shields.io/npm/v/iii-sdk?label=npm)](https://www.npmjs.com/package/iii-sdk)
 [![PyPI](https://img.shields.io/pypi/v/iii-sdk?label=pypi)](https://pypi.org/project/iii-sdk/)
@@ -137,7 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Console
 
-The [iii-console](https://github.com/iii-hq/console) is a developer and operations dashboard for inspecting functions, triggers, traces, and real-time state.
+The [iii-console](console/) is a developer and operations dashboard for inspecting functions, triggers, traces, and real-time state.
 
 ```bash
 iii-cli console
@@ -166,10 +167,24 @@ See the [Quickstart guide](https://iii.dev/docs/quickstart) for step-by-step tut
 
 - [Documentation](https://iii.dev/docs)
 - [CLI](https://github.com/iii-hq/iii-cli)
-- [Console](https://github.com/iii-hq/console)
+- [Console](console/)
 - [Examples](https://github.com/iii-hq/iii-examples)
 - [Contributing](CONTRIBUTING.md)
 
 ## License
 
-[Elastic License 2.0 (ELv2)](LICENSE)
+The iii project uses a dual licensing model:
+
+| Directory        | License              |
+| ---------------- | -------------------- |
+| `engine/`        | [Elastic License 2.0](engine/LICENSE) |
+| `sdk/`           | [Apache License 2.0](sdk/LICENSE) |
+| `cli/`           | [Apache License 2.0](cli/LICENSE) |
+| `console/`       | [Apache License 2.0](console/LICENSE) |
+| `frameworks/`    | [Apache License 2.0](frameworks/motia/LICENSE) |
+| `docs/`          | [Apache License 2.0](docs/LICENSE) |
+| `website/`       | [Apache License 2.0](website/LICENSE) |
+
+The engine runtime is licensed under the Elastic License 2.0 (ELv2). All SDKs, frameworks, CLI, console, documentation, and the website are licensed under the Apache License 2.0.
+
+See [LICENSE.md](LICENSE.md) for details.

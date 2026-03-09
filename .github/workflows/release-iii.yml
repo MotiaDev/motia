@@ -261,6 +261,21 @@ jobs:
       SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
 
   # ──────────────────────────────────────────────────────────────
+  # Docker
+  # ──────────────────────────────────────────────────────────────
+
+  docker-engine:
+    name: Docker Engine
+    needs: [setup, engine-release]
+    if: ${{ !failure() && !cancelled() && needs.setup.outputs.is_prerelease != 'true' }}
+    uses: ./.github/workflows/docker-engine.yml
+    with:
+      release_tag: ${{ needs.setup.outputs.tag }}
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  # ──────────────────────────────────────────────────────────────
   # Homebrew
   # ──────────────────────────────────────────────────────────────
 
@@ -326,6 +341,7 @@ jobs:
       - sdk-npm
       - sdk-py
       - sdk-rust
+      - docker-engine
       - homebrew-engine
       - homebrew-console
     runs-on: ubuntu-latest
@@ -343,6 +359,7 @@ jobs:
           SDK_NPM_RESULT: ${{ needs.sdk-npm.result }}
           SDK_PY_RESULT: ${{ needs.sdk-py.result }}
           SDK_RUST_RESULT: ${{ needs.sdk-rust.result }}
+          DOCKER_RESULT: ${{ needs.docker-engine.result }}
           BREW_ENGINE_RESULT: ${{ needs.homebrew-engine.result }}
           BREW_CONSOLE_RESULT: ${{ needs.homebrew-console.result }}
         run: |
@@ -365,6 +382,7 @@ jobs:
           LINES="$LINES$(icon "$SDK_RUST_RESULT") SDK Rust\n"
 
           if [[ "$IS_PRERELEASE" != "true" ]]; then
+            LINES="$LINES$(icon "$DOCKER_RESULT") Docker\n"
             LINES="$LINES$(icon "$BREW_ENGINE_RESULT") Homebrew (iii)\n"
             LINES="$LINES$(icon "$BREW_CONSOLE_RESULT") Homebrew (iii-console)\n"
           fi

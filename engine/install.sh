@@ -173,7 +173,7 @@ github_api() {
   curl -fsSL $api_headers "$1"
 }
 
-TAG_PREFIX="iii/v"
+TAG_PREFIX="v"
 
 if [ -n "$VERSION" ]; then
   echo "installing version: $VERSION"
@@ -188,15 +188,15 @@ else
   json_list=$(github_api "$api_url")
   if command -v jq >/dev/null 2>&1; then
     json=$(printf '%s' "$json_list" \
-      | jq -c 'first(.[] | select(.prerelease == false and (.tag_name | startswith("iii/v"))))')
+      | jq -c 'first(.[] | select(.prerelease == false and (.tag_name | startswith("v"))))')
     if [ "$json" = "null" ] || [ -z "$json" ]; then
       err "no stable iii release found"
     fi
   else
     _tag=$(printf '%s' "$json_list" \
-      | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"iii/v[^"]+"' \
+      | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"v[^"]+"' \
       | head -n 1 \
-      | sed -E 's/.*"(iii\/v[^"]+)".*/\1/')
+      | sed -E 's/.*"(v[^"]+)".*/\1/')
     if [ -z "$_tag" ]; then
       err "could not determine latest release"
     fi
@@ -207,13 +207,15 @@ fi
 
 if command -v jq >/dev/null 2>&1; then
   asset_url=$(printf '%s' "$json" \
-    | jq -r --arg target "$target" '.assets[] | select(.name | test($target)) | .browser_download_url' \
+    | jq -r --arg bn "$BIN_NAME" --arg target "$target" \
+      '.assets[] | select((.name | startswith($bn + "-" + $target)) and (.name | test("\\.(tar\\.gz|tgz|zip)$"))) | .browser_download_url' \
     | head -n 1)
 else
   asset_url=$(printf '%s' "$json" \
     | grep -oE '"browser_download_url"[[:space:]]*:[[:space:]]*"[^"]+"' \
     | sed -E 's/.*"([^"]+)".*/\1/' \
-    | grep "$target" \
+    | grep -F "$BIN_NAME-$target" \
+    | grep -E '\.(tar\.gz|tgz|zip)$' \
     | head -n 1)
 fi
 

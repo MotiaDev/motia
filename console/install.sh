@@ -380,7 +380,7 @@ if [[ -z "$binary_path" ]]; then
     _bare="${_bare#v}"
     check_version "$_bare"
     printf "${MUTED}Installing ${NC}%s ${MUTED}version: ${NC}%s\n" "$BIN_NAME" "$requested_version"
-    _tag="iii/v${_bare}"
+    _tag="v${_bare}"
     api_url="https://api.github.com/repos/$REPO/releases/tags/$_tag"
     json=$(github_api "$api_url") || err "release tag not found: $requested_version (tried tag: $_tag)"
   else
@@ -389,13 +389,13 @@ if [[ -z "$binary_path" ]]; then
     json_list=$(github_api "$api_url") || err "failed to fetch releases from $REPO"
     if command -v jq >/dev/null 2>&1; then
       json=$(printf '%s' "$json_list" \
-        | jq -c 'first(.[] | select(.prerelease == false and (.tag_name | startswith("iii/v"))))')
+        | jq -c 'first(.[] | select(.prerelease == false and (.tag_name | startswith("v"))))')
       [[ "$json" == "null" || -z "$json" ]] && err "no stable iii release found"
     else
       _tag=$(printf '%s' "$json_list" \
-        | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"iii/v[^"]+"' \
+        | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"v[^"]+"' \
         | head -n 1 \
-        | sed -E 's/.*"(iii\/v[^"]+)".*/\1/')
+        | sed -E 's/.*"(v[^"]+)".*/\1/')
       [[ -z "$_tag" ]] && err "could not determine latest release"
       api_url="https://api.github.com/repos/$REPO/releases/tags/$_tag"
       json=$(github_api "$api_url") || err "failed to fetch release $_tag"
@@ -425,14 +425,14 @@ if [[ -z "$binary_path" ]]; then
   # Extract asset URL for the target (exclude .sha256 checksum files)
   if command -v jq >/dev/null 2>&1; then
     asset_url=$(printf '%s' "$json" \
-      | jq -r --arg target "$target" \
-        '.assets[] | select((.name | contains($target)) and (.name | test("\\.(tar\\.gz|tgz|zip)$"))) | .browser_download_url' \
+      | jq -r --arg bn "$BIN_NAME" --arg target "$target" \
+        '.assets[] | select((.name | startswith($bn + "-" + $target)) and (.name | test("\\.(tar\\.gz|tgz|zip)$"))) | .browser_download_url' \
       | head -n 1)
   else
     asset_url=$(printf '%s' "$json" \
       | grep -oE '"browser_download_url"[[:space:]]*:[[:space:]]*"[^"]+"' \
       | sed -E 's/.*"([^"]+)".*/\1/' \
-      | grep -F "$target" \
+      | grep -F "$BIN_NAME-$target" \
       | grep -E '\.(tar\.gz|tgz|zip)$' \
       | head -n 1)
   fi
