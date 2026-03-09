@@ -1,6 +1,7 @@
 {
   "name": "motia-monorepo",
   "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm run build && pnpm --filter=@iii/motia-example dev",
