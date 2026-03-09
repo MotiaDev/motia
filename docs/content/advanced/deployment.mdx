@@ -22,19 +22,23 @@ cargo install iii-engine
 
 The engine accepts the following CLI arguments:
 
-| Argument    | Short | Default       | Description                |
-| ----------- | ----- | ------------- | -------------------------- |
-| `--config`  | `-c`  | `iii-config.yaml` | Path to configuration file |
-| `--version` | `-v`  | -             | Print version and exit     |
+| Argument               | Short | Default       | Description                                 |
+| ---------------------- | ----- | ------------- | ------------------------------------------- |
+| `--config`             | `-c`  | `config.yaml` | Path to configuration file                  |
+| `--use-default-config` | -     | -             | Start with built-in defaults instead of a config file |
+| `--version`            | `-v`  | -             | Print version and exit                      |
 
 Start the engine:
 
 ```bash
-# Using default iii-config.yaml
+# Load ./config.yaml
 iii
 
+# Explicitly run with built-in defaults instead of a config file
+iii --use-default-config
+
 # With custom config
-iii --config /path/to/iii-config.yaml
+iii --config /path/to/config.yaml
 
 # Check version
 iii --version
@@ -98,7 +102,7 @@ The quickest way to get started is pulling the pre-built image:
 docker pull iiidev/iii:latest
 
 docker run -p 3111:3111 -p 49134:49134 \
-  -v ./iii-config.yaml:/app/iii-config.yaml:ro \
+  -v ./config.yaml:/app/config.yaml:ro \
   iiidev/iii:latest
 ```
 
@@ -220,7 +224,7 @@ modules:
       exporter: memory
 ```
 
-Additional modules (Streams, Events, Queue) require external adapters such as Redis or RabbitMQ. See the [Configuration File](#configuration-file) section for examples.
+For scale-out or production durability, modules such as Streams and Queue typically use external adapters such as Redis or RabbitMQ. See the [Configuration File](#configuration-file) section for examples.
 
 ## Production Checklist
 
@@ -232,7 +236,7 @@ Running the iii container with minimal privileges:
 docker run --read-only --tmpfs /tmp \
   --cap-drop=ALL --cap-add=NET_BIND_SERVICE \
   --security-opt=no-new-privileges:true \
-  -v ./iii-config.yaml:/app/iii-config.yaml:ro \
+  -v ./config.yaml:/app/config.yaml:ro \
   iiidev/iii:latest
 ```
 
@@ -259,15 +263,11 @@ curl http://localhost:3111/health
 nc -zv 127.0.0.1 49134
 ```
 
-## Default Modules
+## Built-in Defaults
 
-If no configuration file is provided, the engine loads these default modules:
+When you start the engine with `iii --use-default-config`, it loads the modules registered as enabled by default in the current build, including the core REST API, queue, cron, pub/sub, state, stream, and KV modules.
 
-- **RestApiModule** - Host: 127.0.0.1, Port: 3111
-- **QueueModule** - Redis at localhost:6379
-- **OtelModule** - Observability (traces, metrics, logs)
-- **CronModule** - Built-in KV or Redis at localhost:6379
-- **StreamModule** - Stream API at 127.0.0.1:3112
+Queue and Stream use their built-in adapters under this mode. For custom ports, observability, or production adapters such as Redis or RabbitMQ, provide an explicit `config.yaml`.
 
 ## Startup Flow
 
@@ -276,17 +276,19 @@ graph TD
     Start([Run iii Binary]) --> Args[Parse CLI Args]
     Args --> CheckVer{Version Flag?}
     CheckVer -->|Yes| PrintVer[Print Version] --> Exit([Exit])
-    CheckVer -->|No| InitLog[Initialize<br/>Logging]
+    CheckVer -->|No| Mode{--use-default-config?}
 
-    InitLog --> LoadConfig[Load Config<br/>File]
+    Mode -->|Yes| InitDefaultLog[Initialize Default Logging]
+    InitDefaultLog --> LoadDefaults[Load Built-in Defaults]
+    Mode -->|No| InitConfigLog[Initialize Logging from Config]
+    InitConfigLog --> LoadConfig[Load Config File]
     LoadConfig -->|Success| ApplyConfig[Apply Modules]
-    LoadConfig -->|Failure| Fallback[Use Defaults]
+    LoadConfig -->|Missing or invalid| ExitErr[Exit with error and hint]
 
+    LoadDefaults --> ApplyConfig
     ApplyConfig --> BuildEngine[Build Engine]
-    Fallback --> BuildEngine
-
-    BuildEngine --> Bind[Bind<br/>127.0.0.1:49134]
-    Bind --> Serve[Serve WebSocket]
+    BuildEngine --> Bind[Bind Ports]
+    Bind --> Serve[Serve Engine]
 ```
 
 ## Multi-Instance Deployment

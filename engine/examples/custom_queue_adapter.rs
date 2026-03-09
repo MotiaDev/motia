@@ -308,6 +308,7 @@ impl FunctionHandler for CustomQueueModule {
 // 5. Register module and run
 // =============================================================================
 
+#[allow(deprecated)]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     iii::logging::init_log("config.yaml");

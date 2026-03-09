@@ -56,8 +56,10 @@ command -v iii && iii --version
 ### Start the engine
 
 ```bash
-iii-cli start
+iii-cli start --use-default-config
 ```
+
+For a project-backed setup, create `config.yaml` in your working directory or run `iii-cli start --config /path/to/config.yaml`.
 
 Open the console:
 
@@ -176,7 +178,7 @@ iii-cli console
 | Observability  | `OtelModule`           | OpenTelemetry traces, metrics, and logs with OTLP export          | No      |
 | Shell          | `ExecModule`           | File watcher that runs shell commands on change                   | No      |
 
-If `config.yaml` is missing, the engine loads all default modules. Queue and Stream adapters fall back to the built-in KV store; add Redis for production use.
+To run with built-in defaults, start the engine with `--use-default-config`. Otherwise the engine expects `config.yaml` (or a path passed with `--config`) and exits if the file is missing. Queue and Stream use their built-in adapters by default; switch to Redis or RabbitMQ in `config.yaml` for production.
 
 ## SDKs
 
