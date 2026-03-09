@@ -2674,10 +2674,8 @@ impl OtlpLogsExporter {
                 serde_json::json!({"kvlistValue": {"values": values}})
             }
             serde_json::Value::Array(arr) => {
-                let values: Vec<serde_json::Value> = arr
-                    .iter()
-                    .map(Self::json_value_to_otlp_any_value)
-                    .collect();
+                let values: Vec<serde_json::Value> =
+                    arr.iter().map(Self::json_value_to_otlp_any_value).collect();
                 serde_json::json!({"arrayValue": {"values": values}})
             }
             serde_json::Value::Null => serde_json::json!({"stringValue": ""}),
