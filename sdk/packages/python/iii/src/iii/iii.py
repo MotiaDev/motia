@@ -4,9 +4,9 @@ import asyncio
 import json
 import logging
 import os
-import traceback
 import platform
 import random
+import traceback
 import uuid
 from dataclasses import dataclass
 from importlib.metadata import version
@@ -40,6 +40,14 @@ from .types import Channel, RemoteFunctionData, RemoteTriggerTypeData, is_channe
 RemoteFunctionHandler = Callable[[Any], Awaitable[Any]]
 
 log = logging.getLogger("iii.iii")
+
+
+class _TraceContextError(Exception):
+    """Wraps a handler exception with the response traceparent from the active span."""
+
+    def __init__(self, traceparent: str | None) -> None:
+        self.traceparent = traceparent
+
 
 IIIConnectionState = Literal["disconnected", "connecting", "connected", "reconnecting", "failed"]
 
@@ -398,8 +406,7 @@ class III:
                 span.record_exception(e)
                 span.set_status(trace.StatusCode.ERROR, str(e))
                 response_traceparent = self._inject_traceparent()
-                e.__traceparent__ = response_traceparent  # type: ignore[attr-defined]
-                raise
+                raise _TraceContextError(response_traceparent) from e
 
     def _resolve_channels(self, data: Any) -> Any:
         """Recursively resolve StreamChannelRef objects into ChannelReader/ChannelWriter instances."""
@@ -481,15 +488,24 @@ class III:
                     traceparent=response_traceparent,
                 )
             )
+        except _TraceContextError as te:
+            original = te.__cause__
+            log.exception(f"Error in handler {path}")
+            await self._send(
+                InvocationResultMessage(
+                    invocation_id=invocation_id,
+                    function_id=path,
+                    error={"code": "invocation_failed", "message": str(original), "stacktrace": traceback.format_exc()},
+                    traceparent=te.traceparent,
+                )
+            )
         except Exception as e:
             log.exception(f"Error in handler {path}")
-            response_traceparent = getattr(e, "__traceparent__", None)
             await self._send(
                 InvocationResultMessage(
                     invocation_id=invocation_id,
                     function_id=path,
                     error={"code": "invocation_failed", "message": str(e), "stacktrace": traceback.format_exc()},
-                    traceparent=response_traceparent,
                 )
             )
 

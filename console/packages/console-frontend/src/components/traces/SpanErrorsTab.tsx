@@ -17,9 +17,13 @@ export function SpanErrorsTab({ span }: SpanErrorsTabProps) {
   const errorMessage = span.attributes?.['error.message'] as string | undefined
   const errorType = span.attributes?.['error.type'] as string | undefined
   const errorStack = span.attributes?.['error.stack'] as string | undefined
-  const exceptionMessage = (span.attributes?.['exception.message'] ?? eventAttrs['exception.message']) as string | undefined
-  const exceptionType = (span.attributes?.['exception.type'] ?? eventAttrs['exception.type']) as string | undefined
-  const exceptionStacktrace = (span.attributes?.['exception.stacktrace'] ?? eventAttrs['exception.stacktrace']) as string | undefined
+  const exceptionMessage = (span.attributes?.['exception.message'] ??
+    eventAttrs['exception.message']) as string | undefined
+  const exceptionType = (span.attributes?.['exception.type'] ?? eventAttrs['exception.type']) as
+    | string
+    | undefined
+  const exceptionStacktrace = (span.attributes?.['exception.stacktrace'] ??
+    eventAttrs['exception.stacktrace']) as string | undefined
 
   const displayMessage = errorMessage || exceptionMessage
   const displayType = errorType || exceptionType

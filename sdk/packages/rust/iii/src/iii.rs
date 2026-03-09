@@ -1154,13 +1154,30 @@ impl III {
                 match &result {
                     Ok(_) => span.set_status(Status::Ok),
                     Err(err) => {
-                        span.set_status(Status::error(err.to_string()));
-                        let stacktrace = std::backtrace::Backtrace::force_capture().to_string();
+                        let (exc_type, exc_message, stacktrace) = match err {
+                            IIIError::Remote {
+                                code,
+                                message,
+                                stacktrace,
+                            } => (
+                                code.clone(),
+                                message.clone(),
+                                stacktrace.clone().unwrap_or_else(|| {
+                                    std::backtrace::Backtrace::force_capture().to_string()
+                                }),
+                            ),
+                            other => (
+                                "InvocationError".to_string(),
+                                other.to_string(),
+                                std::backtrace::Backtrace::force_capture().to_string(),
+                            ),
+                        };
+                        span.set_status(Status::error(exc_message.clone()));
                         span.add_event(
                             "exception",
                             vec![
-                                KeyValue::new("exception.type", "InvocationError"),
-                                KeyValue::new("exception.message", err.to_string()),
+                                KeyValue::new("exception.type", exc_type),
+                                KeyValue::new("exception.message", exc_message),
                                 KeyValue::new("exception.stacktrace", stacktrace.clone()),
                             ],
                         );
@@ -1190,20 +1207,36 @@ impl III {
                         traceparent: resp_tp,
                         baggage: resp_bg,
                     },
-                    Err(err) => Message::InvocationResult {
-                        invocation_id,
-                        function_id,
-                        result: None,
-                        error: Some(ErrorBody {
-                            code: "invocation_failed".to_string(),
-                            message: err.to_string(),
-                            stacktrace: error_stacktrace.or_else(|| {
-                                Some(std::backtrace::Backtrace::force_capture().to_string())
-                            }),
-                        }),
-                        traceparent: resp_tp,
-                        baggage: resp_bg,
-                    },
+                    Err(err) => {
+                        let error_body = match err {
+                            IIIError::Remote {
+                                code,
+                                message,
+                                stacktrace,
+                            } => ErrorBody {
+                                code,
+                                message,
+                                stacktrace: stacktrace.or(error_stacktrace).or_else(|| {
+                                    Some(std::backtrace::Backtrace::force_capture().to_string())
+                                }),
+                            },
+                            other => ErrorBody {
+                                code: "invocation_failed".to_string(),
+                                message: other.to_string(),
+                                stacktrace: error_stacktrace.or_else(|| {
+                                    Some(std::backtrace::Backtrace::force_capture().to_string())
+                                }),
+                            },
+                        };
+                        Message::InvocationResult {
+                            invocation_id,
+                            function_id,
+                            result: None,
+                            error: Some(error_body),
+                            traceparent: resp_tp,
+                            baggage: resp_bg,
+                        }
+                    }
                 };
 
                 let _ = iii.send_message(message);

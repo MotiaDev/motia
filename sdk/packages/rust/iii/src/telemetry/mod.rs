@@ -422,7 +422,6 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial]
     async fn test_with_span_error_records_exception_event() {
-        use opentelemetry::trace::Tracer;
         use opentelemetry_sdk::trace::{InMemorySpanExporter, SdkTracerProvider};
 
         let exporter = InMemorySpanExporter::default();

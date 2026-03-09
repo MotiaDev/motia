@@ -1152,10 +1152,51 @@ impl OtlpArrayValue {
     }
 }
 
+/// Deserialize an i64 that may arrive as a JSON number or a quoted string (OTLP protobuf int64).
+fn deserialize_int64_string_or_number<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de;
+
+    struct Int64Visitor;
+
+    impl<'de> de::Visitor<'de> for Int64Visitor {
+        type Value = Option<i64>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("an integer or a string containing an integer")
+        }
+
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
+            Ok(Some(v))
+        }
+
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
+            i64::try_from(v).map(Some).map_err(de::Error::custom)
+        }
+
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+            v.parse::<i64>().map(Some).map_err(de::Error::custom)
+        }
+
+        fn visit_none<E: de::Error>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+
+        fn visit_unit<E: de::Error>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+    }
+
+    deserializer.deserialize_any(Int64Visitor)
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpAnyValue {
     string_value: Option<String>,
+    #[serde(deserialize_with = "deserialize_int64_string_or_number", default)]
     int_value: Option<i64>,
     double_value: Option<f64>,
     bool_value: Option<bool>,

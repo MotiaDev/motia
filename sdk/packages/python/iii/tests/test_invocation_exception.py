@@ -8,6 +8,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from iii import III
+from iii.iii import _TraceContextError
 
 
 @pytest.mark.asyncio
@@ -34,10 +35,12 @@ async def test_invoke_with_context_records_exception_with_stacktrace():
         async def failing_handler(data):
             raise ValueError("test invocation error")
 
-        with pytest.raises(ValueError, match="test invocation error"):
+        with pytest.raises(_TraceContextError) as exc_info:
             await client._invoke_with_context(
                 failing_handler, {"key": "value"}, None, None
             )
+        assert isinstance(exc_info.value.__cause__, ValueError)
+        assert "test invocation error" in str(exc_info.value.__cause__)
 
         spans = exporter.get_finished_spans()
         assert len(spans) >= 1, "expected at least 1 span"
