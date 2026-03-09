@@ -144,5 +144,5 @@ subtle = "2.6"
 mockall = "0.13"
 serial_test = "3"
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
-tempfile = "3"
 tokio-tungstenite = "0.28"
+tempfile = "3"
