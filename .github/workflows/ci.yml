@@ -408,7 +408,7 @@ jobs:
 
       - name: Run tests
         working-directory: frameworks/motia/motia-py/packages/motia
-        run: uv run pytest
+        run: uv run pytest --cov=src --cov-report=term-missing --cov-fail-under=70
 
       - name: Stop III Engine
         if: always()
