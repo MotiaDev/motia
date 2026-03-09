@@ -145,4 +145,4 @@ mockall = "0.13"
 serial_test = "3"
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
 tempfile = "3"
-tokio-tungstenite = "0.24"
+tokio-tungstenite = "0.28"

@@ -145,7 +145,9 @@ async fn wait_for_worker_ready(ws_url: &str) {
             };
             let _ = socket
                 .send(WsMessage::Text(
-                    serde_json::to_string(&probe).expect("serialize probe"),
+                    serde_json::to_string(&probe)
+                        .expect("serialize probe")
+                        .into(),
                 ))
                 .await;
 
@@ -190,7 +192,8 @@ async fn run_service_worker(ws_url: String) {
                 metadata: None,
                 invocation: None,
             })
-            .expect("serialize RegisterFunction"),
+            .expect("serialize RegisterFunction")
+            .into(),
         ))
         .await
         .expect("send RegisterFunction");
@@ -206,7 +209,9 @@ async fn run_service_worker(ws_url: String) {
                     Message::Ping => {
                         socket
                             .send(WsMessage::Text(
-                                serde_json::to_string(&Message::Pong).expect("serialize Pong"),
+                                serde_json::to_string(&Message::Pong)
+                                    .expect("serialize Pong")
+                                    .into(),
                             ))
                             .await
                             .expect("send Pong");
@@ -230,7 +235,8 @@ async fn run_service_worker(ws_url: String) {
                         socket
                             .send(WsMessage::Text(
                                 serde_json::to_string(&response)
-                                    .expect("serialize InvocationResult"),
+                                    .expect("serialize InvocationResult")
+                                    .into(),
                             ))
                             .await
                             .expect("send InvocationResult");
@@ -260,7 +266,9 @@ async fn invoke_and_wait(
     };
     writer
         .send(WsMessage::Text(
-            serde_json::to_string(&msg).expect("serialize InvokeFunction"),
+            serde_json::to_string(&msg)
+                .expect("serialize InvokeFunction")
+                .into(),
         ))
         .await
         .expect("send InvokeFunction");
@@ -283,7 +291,9 @@ async fn invoke_and_wait(
                     Message::Ping => {
                         writer
                             .send(WsMessage::Text(
-                                serde_json::to_string(&Message::Pong).expect("serialize Pong"),
+                                serde_json::to_string(&Message::Pong)
+                                    .expect("serialize Pong")
+                                    .into(),
                             ))
                             .await
                             .expect("send Pong");

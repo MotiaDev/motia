@@ -157,7 +157,8 @@ async fn run_worker(ws_url: String, route_count: usize) {
                     metadata: None,
                     invocation: None,
                 })
-                .expect("serialize RegisterFunction"),
+                .expect("serialize RegisterFunction")
+                .into(),
             ))
             .await
             .expect("send RegisterFunction");
@@ -173,7 +174,8 @@ async fn run_worker(ws_url: String, route_count: usize) {
                         "http_method": "POST",
                     }),
                 })
-                .expect("serialize RegisterTrigger"),
+                .expect("serialize RegisterTrigger")
+                .into(),
             ))
             .await
             .expect("send RegisterTrigger");
@@ -201,7 +203,9 @@ async fn run_worker(ws_url: String, route_count: usize) {
                     Message::WorkerRegistered { .. } => {}
                     Message::Ping => {
                         let _ = outbound_tx.send(WsMessage::Text(
-                            serde_json::to_string(&Message::Pong).expect("serialize Pong"),
+                            serde_json::to_string(&Message::Pong)
+                                .expect("serialize Pong")
+                                .into(),
                         ));
                     }
                     Message::InvokeFunction {
@@ -225,7 +229,9 @@ async fn run_worker(ws_url: String, route_count: usize) {
                         };
 
                         let _ = outbound_tx.send(WsMessage::Text(
-                            serde_json::to_string(&response).expect("serialize InvocationResult"),
+                            serde_json::to_string(&response)
+                                .expect("serialize InvocationResult")
+                                .into(),
                         ));
                     }
                     _ => {}
