@@ -105,6 +105,7 @@ Key ports:
 | `pnpm build` | Build all packages (uses tsdown) |
 | `pnpm dev` | Build + run playground with iii engine |
 | `pnpm test` | Run unit tests (motia package) |
+| `pnpm test:coverage` | Run unit tests with coverage (motia package) |
 | `pnpm test:ci` | Run all tests including integration |
 | `pnpm lint` | Lint with Biome |
 | `pnpm lint:fix` | Auto-fix lint issues |
@@ -128,6 +129,12 @@ Key ports:
 
    ```bash
    pnpm build && pnpm lint && pnpm test
+   ```
+
+   Coverage command:
+
+   ```bash
+   pnpm test:coverage
    ```
 
 4. Commit, push, and open a pull request.

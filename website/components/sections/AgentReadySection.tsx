@@ -56,7 +56,7 @@ const { logger } = getContext()
 const tools = await iii.listFunctions()
 
 iii.registerFunction(
-  { id: "agent::research" },
+  { id: "agent.research" },
   async ({ query }) => {
     const response = await callLLM(query, { tools })
 
@@ -71,10 +71,9 @@ iii.registerFunction(
     return response
   }
 )`,
-      python: `from iii import III, get_context
+      python: `from iii import init, get_context
 
-iii = III(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
-await iii.connect()
+iii = init(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
 
 async def research_handler(input):
     logger = get_context().logger
@@ -88,16 +87,15 @@ async def research_handler(input):
         response = await call_llm(input["query"], tools=tools, tool_result=result)
     return response
 
-iii.register_function("agent::research", research_handler)`,
-      rust: `use iii_sdk::{III, get_context};
+iii.register_function("agent.research", research_handler)`,
+      rust: `use iii_sdk::{init, InitOptions, get_context};
 
-let iii = III::new("ws://localhost:49134");
-iii.connect().await?;
+let iii = init("ws://localhost:49134", InitOptions::default())?;
 let logger = get_context().logger;
 let tools = iii.list_functions().await?;
 
 iii.register_function(
-    RegisterFunctionInput { id: "agent::research".into(), ..Default::default() },
+    RegisterFunctionInput { id: "agent.research".into(), ..Default::default() },
     |input| async move {
         let mut response = call_llm(&input.query, &tools).await?;
 
@@ -259,7 +257,7 @@ iii.register_function("orders::process", process_order)`,
       typescript: `import { init } from "iii-sdk"
 const iii = init(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
 
-iii.registerFunction({ id: "api::users" }, async (req) => {
+iii.registerFunction({ id: "api.users" }, async (req) => {
   const user = await db.createUser(req)
   iii.triggerVoid("publish", { topic: "user.created", data: user })
   return user
@@ -267,19 +265,18 @@ iii.registerFunction({ id: "api::users" }, async (req) => {
 
 iii.registerTrigger({
   type: "http",
-  function_id: "api::users",
-  config: { api_path: "users", http_method: "POST" }
+  function_id: "api.users",
+  config: { api_path: "/users", http_method: "POST" }
 })
 
 iii.registerTrigger({
   type: "subscribe",
-  function_id: "ml::onboarding",
+  function_id: "ml.onboarding",
   config: { topic: "user.created" }
 })`,
-      python: `from iii import III, get_context
+      python: `from iii import init, get_context
 
-iii = III(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
-await iii.connect()
+iii = init(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
 
 async def predict_handler(input):
     logger = get_context().logger
@@ -292,19 +289,18 @@ async def recommend_handler(input):
     embeddings = await get_embeddings(input["user"])
     return vector_db.search(embeddings, top_k=10)
 
-iii.register_function("ml::onboarding", predict_handler)
-iii.register_function("ml::recommend", recommend_handler)`,
-      rust: `use iii_sdk::III;
+iii.register_function("ml.onboarding", predict_handler)
+iii.register_function("ml.recommend", recommend_handler)`,
+      rust: `use iii_sdk::{init, InitOptions};
 
-let iii = III::new("ws://localhost:49134");
-iii.connect().await?;
+let iii = init("ws://localhost:49134", InitOptions::default())?;
 
 iii.register_function(
-    reg("transform::images"), |input| async move {
+    reg("transform.images"), |input| async move {
         let image = decode_image(&input.data)?;
         let resized = image.resize(800, 600, FilterType::Lanczos3);
         let compressed = encode_webp(&resized, 85)?;
-        iii.trigger("storage::upload", json!({
+        iii.trigger("storage.upload", json!({
             "key": input.key, "data": compressed
         })).await?;
         Ok(json!({"size": compressed.len()}))
@@ -312,7 +308,7 @@ iii.register_function(
 )?;
 
 iii.register_function(
-    reg("transform::video"), |input| async move {
+    reg("transform.video"), |input| async move {
         let frames = extract_frames(&input.data, 30)?;
         Ok(json!({"frames": frames.len()}))
     },

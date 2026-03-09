@@ -1,4 +1,4 @@
-export { init, type InitOptions } from './iii'
+export { registerWorker, type InitOptions } from './iii'
 
 export { getContext, withContext, type Context } from './context'
 export { Logger } from './logger'

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use iii_sdk::{InitOptions, OtelConfig, Streams, UpdateBuilder, UpdateOp, init};
+use iii_sdk::{InitOptions, OtelConfig, Streams, UpdateBuilder, UpdateOp, register_worker};
 use serde_json::json;
 
 mod http_example;
@@ -8,7 +8,7 @@ mod http_example;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let iii_iii_url = std::env::var("REMOTE_III_URL").unwrap_or("ws://127.0.0.1:49134".into());
-    let iii = init(
+    let iii = register_worker(
         &iii_iii_url,
         InitOptions {
             otel: Some(OtelConfig::default()),

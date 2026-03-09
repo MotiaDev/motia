@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { init, getContext, withContext, Logger } from '../src/index'
+import { registerWorker, getContext, withContext, Logger } from '../src/index'
 import { initOtel, shutdownOtel, getTracer, getMeter, getLogger } from '../src/telemetry'
 
 describe('Package Exports', () => {
   it('should export main SDK symbols', () => {
-    expect(init).toBeDefined()
-    expect(typeof init).toBe('function')
+    expect(registerWorker).toBeDefined()
+    expect(typeof registerWorker).toBe('function')
     expect(getContext).toBeDefined()
     expect(withContext).toBeDefined()
     expect(Logger).toBeDefined()

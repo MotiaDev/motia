@@ -224,10 +224,10 @@ export const config = {
   flows: ['todo-app'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { logger, streams }) => {
-  logger.info('Creating new todo', { body: req.body })
+export const handler: Handlers<typeof config> = async ({ request }, { logger, streams }) => {
+  logger.info('Creating new todo', { body: request.body })
 
-  const { description, dueDate } = req.body
+  const { description, dueDate } = request.body
   const todoId = `todo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
 
   if (!description) {

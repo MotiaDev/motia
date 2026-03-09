@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { InitOptions, ISdk } from 'iii-sdk'
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 
 type OtelConfig = NonNullable<InitOptions['otel']>
 
@@ -30,7 +30,7 @@ function readProjectName(): string | undefined {
 }
 
 const createIII = (otelConfig?: Partial<OtelConfig>) => {
-  return init(engineWsUrl, {
+  return registerWorker(engineWsUrl, {
     otel: {
       enabled: true,
       serviceName: 'motia',

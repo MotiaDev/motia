@@ -32,6 +32,12 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+
+      - name: Run coverage
+        run: cargo tarpaulin --locked --fail-under 70
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -408,7 +414,7 @@ jobs:
 
       - name: Run tests
         working-directory: frameworks/motia/motia-py/packages/motia
-        run: uv run pytest
+        run: uv run pytest --cov=src --cov-report=term-missing --cov-fail-under=70
 
       - name: Stop III Engine
         if: always()

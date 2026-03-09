@@ -1,6 +1,6 @@
 {
   "name": "iii-sdk",
-  "version": "0.4.1",
+  "version": "0.8.0",
   "private": false,
   "publishConfig": {
     "access": "public"
@@ -10,7 +10,10 @@
   "license": "Apache-2.0",
   "type": "module",
   "description": "III SDK for Node.js",
-  "keywords": ["iii", "sdk"],
+  "keywords": [
+    "iii",
+    "sdk"
+  ],
   "scripts": {
     "build": "tsdown",
     "test": "vitest run",

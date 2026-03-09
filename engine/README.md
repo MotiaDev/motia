@@ -1,40 +1,51 @@
-# iii: A WebSocket-based backend orchestration system
+![iii - One Engine, Three Primitives](assets/banner.jpg)
 
 [![License](https://img.shields.io/badge/license-ELv2-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/docker/v/iiidev/iii?label=docker)](https://hub.docker.com/r/iiidev/iii)
+[![npm](https://img.shields.io/npm/v/iii-sdk?label=npm)](https://www.npmjs.com/package/iii-sdk)
+[![PyPI](https://img.shields.io/pypi/v/iii-sdk?label=pypi)](https://pypi.org/project/iii-sdk/)
+[![Crates.io](https://img.shields.io/crates/v/iii-sdk?label=crates.io)](https://crates.io/crates/iii-sdk)
 
-iii (pronounced "three eye") unifies your existing backend stack with a single engine and two primitives: Function, and Trigger.
+## What is iii
 
-No more gluing together separate tools for APIs, queues, cron, state, and real-time communication.
-iii gives you all of that out of the box.
+You start building a backend and immediately need six different tools: an API framework, a task queue, a cron scheduler, pub/sub, a state store, and an observability pipeline. Each has its own config, its own deployment, its own failure modes. A simple "process this, then notify that" workflow touches three services before you write any business logic.
+
+iii replaces all of that with a single engine and two primitives: **Function** and **Trigger**.
+
+A Function is anything that does work. A Trigger is what causes it to run - an HTTP request, a cron schedule, a queue message, a state change. You write the function, declare what triggers it, and the engine handles discovery, routing, retries, and observability.
+
+One config file. One process. Everything discoverable. Think of it the way React gave frontend a single model for UI - iii gives your backend a single model for execution.
 
 ## Three Concepts
 
 | Concept       | What it does                                                                                                                                                                                                                                                                                                                                                                     |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Function**  | A function is anything that can be called to do work it receives input, and optionally returns output. It can exist anywhere be it locally, on cloud, on serverless, or even as a 3rd party HTTP endpoint. All functionality deconstructs into the same function. It can mutate state, invoke other functions, modify databases, and do anything that a typical function can do. |
-| **Trigger**   | A trigger is what causes a Function to run — either explicitly from code, or automatically from an event source. For example: HTTP route, cron schedule, queue topic, state change, or stream event                                                                                                                                                                              |
-| **Discovery** | A system for automatically registering and deregistering functions and triggers without configuration. It makes discovered functionality available across the entire backend application stack.                                                                                                                                                                                  |
+| **Function**  | A unit of work. It receives input and optionally returns output. It can exist anywhere: locally, in the cloud, on serverless, or as a third-party HTTP endpoint. It can mutate state, invoke other functions, and modify databases. |
+| **Trigger**   | What causes a Function to run - explicitly from code, or automatically from an event source. Examples: HTTP route, cron schedule, queue topic, state change, stream event. |
+| **Discovery** | Functions and triggers register and deregister themselves without configuration. Once discovered, they are available across the entire backend. |
 
 ## Quick Start
 
-### 1. Install the engine
+### Install
 
 ```bash
 curl -fsSL https://install.iii.dev/iii/main/install.sh | sh
 ```
 
-It's also possible to override the installation directory:
+This installs both the engine and iii-cli.
+
+<details>
+<summary>Override install directory or pin a version</summary>
 
 ```bash
 curl -fsSL https://install.iii.dev/iii/main/install.sh | BIN_DIR=$HOME/.local/bin sh
 ```
 
-Or install a specific version:
-
 ```bash
-curl -fsSL https://install.iii.dev/iii/main/install.sh | sh -s -- v0.6.3
+curl -fsSL https://install.iii.dev/iii/main/install.sh | sh -s -- v0.7.0
 ```
+
+</details>
 
 Verify:
 
@@ -42,15 +53,25 @@ Verify:
 command -v iii && iii --version
 ```
 
-### 2. Start the engine
+### Start the engine
 
 ```bash
-iii
+iii-cli start --use-default-config
 ```
 
-### 3. Connect a worker
+For a project-backed setup, create `config.yaml` in your working directory or run `iii-cli start --config /path/to/config.yaml`.
 
-#### Node.js
+Open the console:
+
+```bash
+iii-cli console
+```
+
+Your engine is running at `ws://localhost:49134` with HTTP API at `http://localhost:3111`.
+
+## Connect a Worker
+
+### Node.js
 
 ```bash
 npm install iii-sdk
@@ -72,42 +93,46 @@ iii.registerTrigger({
 });
 ```
 
-#### Python
+<details>
+<summary>Python</summary>
 
 ```bash
 pip install iii-sdk
 ```
 
 ```python
-from iii import III
-
-iii = III("ws://localhost:49134")
-
-async def add(data):
-    return {"sum": data["a"] + data["b"]}
-
-iii.register_function("math.add", add)
+import asyncio
+from iii import init
 
 async def main():
-    await iii.connect()
+    iii = init("ws://localhost:49134")
+
+    async def add(data):
+        return {"sum": data["a"] + data["b"]}
+
+    iii.register_function("math.add", add)
 
     iii.register_trigger(
         type="http",
         function_id="math.add",
         config={"api_path": "add", "http_method": "POST"}
     )
+
+asyncio.run(main())
 ```
 
-#### Rust
+</details>
+
+<details>
+<summary>Rust</summary>
 
 ```rust
-use iii_sdk::III;
+use iii_sdk::{init, InitOptions};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
+    let iii = init("ws://127.0.0.1:49134", InitOptions::default())?;
 
     iii.register_function("math.add", |input| async move {
         let a = input.get("a").and_then(|v| v.as_i64()).unwrap_or(0);
@@ -124,20 +149,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+</details>
+
 Your function is now live at `http://localhost:3111/add`.
+
+## Console
+
+The [iii-console](https://github.com/iii-hq/console) is a developer and operations dashboard for inspecting functions, triggers, traces, and real-time state. Launch it with:
+
+```bash
+iii-cli console
+```
+
+![iii console dashboard](https://raw.githubusercontent.com/iii-hq/docs/main/public/docs/console/dashboard-dark.png)
 
 ## Modules
 
-| Module        | Rust struct     | What it does                                         |
-| ------------- | --------------- | ---------------------------------------------------- |
-| HTTP          | `RestApiModule` | Maps HTTP routes to functions via `http` triggers    |
-| Queue         | `QueueModule`   | Redis-backed publish/subscribe job queue             |
-| Cron          | `CronModule`    | Distributed cron scheduling with lock coordination   |
-| Stream        | `StreamModule`  | Real-time state sync over WebSocket                  |
-| Observability | `OtelModule`    | Structured logging, OpenTelemetry traces and metrics |
-| Shell         | `ExecModule`    | File watcher that runs commands on change            |
+| Module         | Class                  | What it does                                                      | Default |
+| -------------- | ---------------------- | ----------------------------------------------------------------- | ------- |
+| HTTP API       | `RestApiModule`        | Maps HTTP routes to functions via `http` triggers with CORS       | Yes     |
+| Queue          | `QueueModule`          | Message queue with pluggable adapters (built-in, Redis, RabbitMQ) | Yes     |
+| Cron           | `CronModule`           | Scheduled job execution with cron expression triggers             | Yes     |
+| Stream         | `StreamModule`         | Real-time bidirectional streaming over WebSocket                  | Yes     |
+| Pub/Sub        | `PubSubModule`         | Topic-based event publishing and subscription                     | Yes     |
+| State          | `StateModule`          | Distributed state management with get/set/delete and state triggers | Yes     |
+| KV Server      | `KvServer`             | Built-in key-value store used by other modules                    | Yes     |
+| HTTP Functions | `HttpFunctionsModule`  | Proxy for invoking external HTTP endpoints as functions            | No      |
+| Observability  | `OtelModule`           | OpenTelemetry traces, metrics, and logs with OTLP export          | No      |
+| Shell          | `ExecModule`           | File watcher that runs shell commands on change                   | No      |
 
-If `config.yaml` is missing, the engine loads defaults: HTTP, Queue, Cron, Stream, and Observability. Queue and Stream expect Redis at `redis://localhost:6379`.
+To run with built-in defaults, start the engine with `--use-default-config`. Otherwise the engine expects `config.yaml` (or a path passed with `--config`) and exits if the file is missing. Queue and Stream use their built-in adapters by default; switch to Redis or RabbitMQ in `config.yaml` for production.
+
+## SDKs
+
+| Language | Package                                            | Install               |
+| -------- | -------------------------------------------------- | --------------------- |
+| Node.js  | [`iii-sdk`](https://www.npmjs.com/package/iii-sdk) | `npm install iii-sdk` |
+| Python   | [`iii-sdk`](https://pypi.org/project/iii-sdk/)     | `pip install iii-sdk` |
+| Rust     | [`iii-sdk`](https://crates.io/crates/iii-sdk)      | Add to `Cargo.toml`   |
 
 ## Docker
 
@@ -182,14 +231,6 @@ See the [Caddy documentation](https://caddyserver.com/docs/) for TLS and reverse
 | 3111  | HTTP API                       |
 | 3112  | Stream API                     |
 | 9464  | Prometheus metrics             |
-
-## SDKs
-
-| Language | Package                                            | Install               |
-| -------- | -------------------------------------------------- | --------------------- |
-| Node.js  | [`iii-sdk`](https://www.npmjs.com/package/iii-sdk) | `npm install iii-sdk` |
-| Python   | [`iii-sdk`](https://pypi.org/project/iii-sdk/)     | `pip install iii-sdk` |
-| Rust     | [`iii-sdk`](https://crates.io/crates/iii-sdk)      | Add to `Cargo.toml`   |
 
 ## Configuration
 
@@ -244,13 +285,18 @@ docker build -t iii:local .                        # production (distroless)
 docker build -f Dockerfile.debug -t iii:debug .    # debug (Debian + shell)
 ```
 
-The Docker images include distroless runtime (no shell, minimal attack surface), non-root user execution, Trivy vulnerability scanning in CI, SBOM attestation, and build provenance.
+Docker image security: distroless runtime (no shell), non-root execution, Trivy scanning in CI, SBOM attestation, and build provenance.
+
+## Examples
+
+See the [Quickstart guide](https://iii.dev/docs/quickstart) for step-by-step tutorials.
 
 ## Resources
 
 - [Documentation](https://iii.dev/docs)
-- [Examples](https://github.com/iii-hq/iii-examples)
+- [CLI](https://github.com/iii-hq/iii-cli)
 - [Console](https://github.com/iii-hq/console)
+- [Examples](https://github.com/iii-hq/iii-examples)
 - [SDKs](https://github.com/iii-hq/sdk)
 
 ## License
