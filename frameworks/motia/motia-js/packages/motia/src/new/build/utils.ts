@@ -78,8 +78,25 @@ const flowContext = <EnqueueData, TInput = unknown>(
 ): FlowContext<EnqueueData, TInput> => {
   const { logger, trace } = getContext()
   const traceId = trace?.spanContext().traceId ?? crypto.randomUUID()
-  const enqueue: Enqueuer<EnqueueData> = async (queue: EnqueueData): Promise<void> =>
-    getInstance().call('enqueue', queue)
+  const enqueue: Enqueuer<EnqueueData> = async (queue: EnqueueData): Promise<void> => {
+    // biome-ignore lint/suspicious/noExplicitAny: map delayMs to delay_ms for engine compatibility
+    const payload: any = { topic: (queue as any).topic, data: (queue as any).data }
+    if ((queue as any).messageGroupId) payload.messageGroupId = (queue as any).messageGroupId
+    if ((queue as any).delayMs) payload.delay_ms = (queue as any).delayMs
+    return getInstance().call('enqueue', payload)
+  }
+
+  const delay = async <TData = unknown>(topic: string, data: TData, delayMs: number): Promise<void> =>
+    getInstance().call('enqueue', { topic, data, delay_ms: delayMs })
+
+  const cronControl = {
+    pause: async (triggerId: string): Promise<{ status: string; id: string }> =>
+      getInstance().call('pause_cron', { id: triggerId }),
+    resume: async (triggerId: string): Promise<{ status: string; id: string }> =>
+      getInstance().call('resume_cron', { id: triggerId }),
+    list: async (): Promise<Array<{ id: string; function_id: string; paused: boolean }>> =>
+      getInstance().call('list_cron_jobs', {}),
+  }
 
   const context: FlowContext<EnqueueData, TInput> = {
     enqueue,
@@ -88,6 +105,8 @@ const flowContext = <EnqueueData, TInput = unknown>(
     logger,
     streams: streamManager.streams,
     trigger,
+    delay,
+    cron: cronControl,
 
     is: {
       queue: (inp: TInput): inp is ExtractQueueInput<TInput> => trigger.type === 'queue',

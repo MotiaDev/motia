@@ -145,8 +145,7 @@ pub fn service(attr: TokenStream, item: TokenStream) -> TokenStream {
                         .sig
                         .inputs
                         .iter()
-                        .skip_while(|arg| matches!(arg, syn::FnArg::Receiver(_)))
-                        .next()
+                        .find(|arg| !matches!(arg, syn::FnArg::Receiver(_)))
                     {
                         Some(syn::FnArg::Typed(pat_type)) => {
                             let ty = &*pat_type.ty;

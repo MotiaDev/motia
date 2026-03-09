@@ -41,7 +41,15 @@ pub struct QueueCoreModule {
 pub struct QueueInput {
     topic: String,
     data: Value,
+    /// Optional delay in milliseconds before the message is enqueued.
+    /// When set, the engine will wait `delay_ms` milliseconds before publishing.
+    /// Maximum allowed value: 900000 (15 minutes).
+    #[serde(default)]
+    delay_ms: Option<u64>,
 }
+
+/// Maximum allowed delay: 15 minutes (in milliseconds)
+const MAX_DELAY_MS: u64 = 900_000;
 
 #[service(name = "queue")]
 impl QueueCoreModule {
@@ -58,6 +66,18 @@ impl QueueCoreModule {
             });
         }
 
+        if let Some(delay) = input.delay_ms
+            && delay > MAX_DELAY_MS
+        {
+            return FunctionResult::Failure(ErrorBody {
+                code: "delay_too_large".into(),
+                message: format!(
+                    "delay_ms cannot exceed {} ms (15 minutes), got {}",
+                    MAX_DELAY_MS, delay
+                ),
+            });
+        }
+
         // Record the queue topic on the current span for trace visibility
         let current_span = tracing::Span::current();
         current_span.set_attribute("messaging.destination.name", topic.clone());
@@ -67,6 +87,27 @@ impl QueueCoreModule {
         let ctx = current_span.context();
         let traceparent = inject_traceparent_from_context(&ctx);
         let baggage = inject_baggage_from_context(&ctx);
+
+        if let Some(delay) = input.delay_ms
+            && delay > 0
+        {
+            tracing::debug!(
+                topic = %topic,
+                delay_ms = delay,
+                "Scheduling delayed enqueue"
+            );
+            current_span.set_attribute("messaging.delay_ms", delay as i64);
+
+            tokio::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+                let _ = adapter
+                    .enqueue(&topic, event_data, traceparent, baggage)
+                    .await;
+                crate::modules::telemetry::collector::track_queue_emit();
+            });
+
+            return FunctionResult::Success(None);
+        }
 
         tracing::debug!(topic = %topic, traceparent = ?traceparent, baggage = ?baggage, "Enqueuing message with trace context");
         let _ = adapter

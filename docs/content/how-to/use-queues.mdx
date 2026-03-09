@@ -417,6 +417,59 @@ iii.register_trigger("queue", "orders::high-value-alert", json!({
 
 The producer returns immediately after enqueueing. The queue adapter distributes the message to all subscribed functions, which process it independently on their own workers. If a consumer fails, it does not affect the producer or other consumers.
 
+## Delayed Enqueue
+
+You can delay message delivery by specifying a `delay_ms` (milliseconds) when enqueuing. The engine holds the message for the specified duration before publishing it to consumers. Maximum delay: **15 minutes** (900,000 ms).
+
+### Using Motia Framework (`ctx.delay`)
+
+```typescript title="delayed-step.step.ts"
+import { step, http, queue } from 'motia'
+
+export default step(
+  {
+    name: 'send-reminder',
+    triggers: [http('POST', '/reminders')],
+    enqueues: ['reminder.send'],
+  },
+  async ({ request }, ctx) => {
+    const { userId, message } = request.body
+
+    // Send a reminder after 5 minutes
+    await ctx.delay('reminder.send', { userId, message }, 5 * 60 * 1000)
+
+    return { status: 200, body: { scheduled: true } }
+  },
+)
+```
+
+### Using `enqueue` with `delayMs`
+
+You can also pass `delayMs` directly through `ctx.enqueue`:
+
+```typescript title="delayed-enqueue.step.ts"
+await ctx.enqueue({
+  topic: 'order.follow-up',
+  data: { orderId: '123' },
+  delayMs: 30_000, // 30 seconds
+})
+```
+
+### Using the SDK directly
+
+```typescript title="delayed-enqueue-sdk.ts"
+iii.triggerVoid('enqueue', {
+  topic: 'order.follow-up',
+  data: { orderId: '123' },
+  delay_ms: 30000, // 30 seconds
+})
+```
+
+<Callout title="Delay limits" type="warn">
+The maximum `delay_ms` value is **900,000** (15 minutes). For longer delays, consider using a cron trigger
+with a condition check, or enqueue a delayed message that re-enqueues itself with the remaining delay.
+</Callout>
+
 ## Queue vs triggerVoid
 
 | | `enqueue` | `triggerVoid()` |

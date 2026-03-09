@@ -41,6 +41,8 @@ pub(crate) struct CronJobInfo {
     #[allow(dead_code)]
     pub condition_function_id: Option<String>,
     pub task_handle: JoinHandle<()>,
+    /// When true, the job loop skips execution until resumed.
+    pub paused: Arc<AtomicBool>,
 }
 
 pub struct CronAdapter {
@@ -79,6 +81,7 @@ impl CronAdapter {
         schedule: Schedule,
         function_id: String,
         condition_function_id: Option<String>,
+        paused: Arc<AtomicBool>,
     ) -> JoinHandle<()> {
         let scheduler = Arc::clone(&self.adapter);
         let engine = Arc::clone(&self.engine);
@@ -125,6 +128,15 @@ impl CronAdapter {
                 if *shutdown_rx.borrow() {
                     tracing::info!(job_id = %job_id, "Cron job shutting down");
                     break;
+                }
+
+                // Check if the job is paused
+                if paused.load(Ordering::SeqCst) {
+                    tracing::debug!(
+                        job_id = %job_id,
+                        "Cron job is paused, skipping execution"
+                    );
+                    continue;
                 }
 
                 // Try to acquire the distributed lock
@@ -246,6 +258,8 @@ impl CronAdapter {
             function_id.cyan()
         );
 
+        let paused = Arc::new(AtomicBool::new(false));
+
         // Start the cron job
         let task_handle = self
             .start_cron_job(
@@ -253,6 +267,7 @@ impl CronAdapter {
                 schedule.clone(),
                 function_id.to_string(),
                 condition_function_id.clone(),
+                Arc::clone(&paused),
             )
             .await;
 
@@ -266,6 +281,7 @@ impl CronAdapter {
                 function_id: function_id.to_string(),
                 condition_function_id,
                 task_handle,
+                paused,
             },
         );
 
@@ -312,6 +328,65 @@ impl CronAdapter {
             }
             self.adapter.release_lock(&id).await;
         }
+    }
+
+    /// Pause a cron job by its trigger ID. The job loop continues but skips executions.
+    pub async fn pause(&self, id: &str) -> anyhow::Result<()> {
+        let jobs = self.jobs.read().await;
+        if let Some(job_info) = jobs.get(id) {
+            job_info.paused.store(true, Ordering::SeqCst);
+            tracing::info!(
+                "{} Cron job {} → {}",
+                "[PAUSED]".yellow(),
+                id.purple(),
+                job_info.function_id.cyan()
+            );
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Cron job '{}' not found", id))
+        }
+    }
+
+    /// Resume a previously paused cron job.
+    pub async fn resume(&self, id: &str) -> anyhow::Result<()> {
+        let jobs = self.jobs.read().await;
+        if let Some(job_info) = jobs.get(id) {
+            job_info.paused.store(false, Ordering::SeqCst);
+            tracing::info!(
+                "{} Cron job {} → {}",
+                "[RESUMED]".green(),
+                id.purple(),
+                job_info.function_id.cyan()
+            );
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Cron job '{}' not found", id))
+        }
+    }
+
+    /// Check if a cron job is currently paused.
+    #[allow(dead_code)]
+    pub async fn is_paused(&self, id: &str) -> anyhow::Result<bool> {
+        let jobs = self.jobs.read().await;
+        if let Some(job_info) = jobs.get(id) {
+            Ok(job_info.paused.load(Ordering::SeqCst))
+        } else {
+            Err(anyhow::anyhow!("Cron job '{}' not found", id))
+        }
+    }
+
+    /// List all cron jobs with their status (id, function_id, paused).
+    pub async fn list_jobs(&self) -> Vec<(String, String, bool)> {
+        let jobs = self.jobs.read().await;
+        jobs.values()
+            .map(|j| {
+                (
+                    j.id.clone(),
+                    j.function_id.clone(),
+                    j.paused.load(Ordering::SeqCst),
+                )
+            })
+            .collect()
     }
 }
 
@@ -411,5 +486,66 @@ mod tests {
         // Verify all tasks are finished and map is drained
         let jobs = adapter.jobs.read().await;
         assert!(jobs.is_empty(), "All jobs should be drained after shutdown");
+    }
+
+    #[tokio::test]
+    async fn pause_and_resume_cron_job() {
+        let engine = test_engine();
+        let adapter = CronAdapter::new(Arc::new(NoopSchedulerAdapter), engine);
+
+        adapter
+            .register("job-1", "0 0 * * * *", "fn-1", None)
+            .await
+            .unwrap();
+
+        // Initially not paused
+        assert!(!adapter.is_paused("job-1").await.unwrap());
+
+        // Pause
+        adapter.pause("job-1").await.unwrap();
+        assert!(adapter.is_paused("job-1").await.unwrap());
+
+        // Resume
+        adapter.resume("job-1").await.unwrap();
+        assert!(!adapter.is_paused("job-1").await.unwrap());
+
+        adapter.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn pause_nonexistent_job_returns_error() {
+        let engine = test_engine();
+        let adapter = CronAdapter::new(Arc::new(NoopSchedulerAdapter), engine);
+
+        assert!(adapter.pause("nonexistent").await.is_err());
+        assert!(adapter.resume("nonexistent").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn list_jobs_returns_correct_state() {
+        let engine = test_engine();
+        let adapter = CronAdapter::new(Arc::new(NoopSchedulerAdapter), engine);
+
+        adapter
+            .register("job-1", "0 0 * * * *", "fn-1", None)
+            .await
+            .unwrap();
+        adapter
+            .register("job-2", "0 30 * * * *", "fn-2", None)
+            .await
+            .unwrap();
+
+        adapter.pause("job-1").await.unwrap();
+
+        let jobs = adapter.list_jobs().await;
+        assert_eq!(jobs.len(), 2);
+
+        let job1 = jobs.iter().find(|(id, _, _)| id == "job-1").unwrap();
+        assert!(job1.2, "job-1 should be paused");
+
+        let job2 = jobs.iter().find(|(id, _, _)| id == "job-2").unwrap();
+        assert!(!job2.2, "job-2 should not be paused");
+
+        adapter.shutdown().await;
     }
 }
