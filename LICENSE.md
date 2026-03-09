@@ -27,7 +27,7 @@ All other components are licensed under the Apache License 2.0:
 - `docs/`        — Documentation site
 - `website/`     — Project website
 
-See the `LICENSE` file in each directory for the full license text.
+See the `LICENSE` file in each directory (e.g. `frameworks/motia/LICENSE`) for the full license text.
 
 Summary
 -------
