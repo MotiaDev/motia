@@ -76,7 +76,7 @@ import { init, getContext } from "iii-sdk"
 const iii = init(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
 
 iii.registerFunction(
-  { id: "users::create" },
+  { id: "users.create" },
   async (input) => {
     const { logger } = getContext()
     logger.info("Creating user", { email: input.email })
@@ -86,52 +86,48 @@ iii.registerFunction(
 
 iii.registerTrigger({
   type: "http",
-  function_id: "users::create",
-  config: { api_path: "users", http_method: "POST" }
+  function_id: "users.create",
+  config: { api_path: "/users", http_method: "POST" }
 })
 \`\`\`
 
 ## Python
 \`\`\`python
-from iii import III, get_context
+from iii import init, get_context
 
-iii = III(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
-await iii.connect()
+iii = init(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
 
 async def create_user(input):
     logger = get_context().logger
     logger.info("Creating user", { "email": input["email"] })
     return { "id": "123", "email": input["email"] }
 
-iii.register_function("users::create", create_user)
+iii.register_function("users.create", create_user)
 
 iii.register_trigger(
     "http",
-    "users::create",
-    { "api_path": "users", "http_method": "POST" }
+    "users.create",
+    { "api_path": "/users", "http_method": "POST" }
 )
 \`\`\`
 
 ## Rust
 \`\`\`rust
-use iii_sdk::{III, get_context};
+use iii_sdk::{init, InitOptions, get_context};
 use serde_json::json;
 
-let iii = III::new("ws://localhost:49134");
-iii.connect().await?;
+let iii = init("ws://localhost:49134", InitOptions::default())?;
 
-iii.register_function("users::create", |input| async move {
+iii.register_function("users.create", |input| async move {
     let logger = get_context().logger();
     let email = input["email"].as_str().unwrap_or("");
     logger.info(&format!("Creating user: {}", email));
     Ok(json!({ "id": "123", "email": email }))
 });
 
-iii.register_trigger(Trigger {
-    trigger_type: "http".into(),
-    function_id: "users::create".into(),
-    config: json!({ "api_path": "users", "http_method": "POST" }),
-});
+iii.register_trigger("http", "users.create", json!({
+    "api_path": "/users", "http_method": "POST"
+}))?;
 \`\`\`
 
 ## Core SDK Methods

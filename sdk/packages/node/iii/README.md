@@ -1,100 +1,87 @@
-# III SDK for Node.js
+# iii-sdk
 
-## Installation
+Node.js / TypeScript SDK for the [iii engine](https://github.com/iii-hq/iii).
+
+[![npm](https://img.shields.io/npm/v/iii-sdk)](https://www.npmjs.com/package/iii-sdk)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](../../../LICENSE)
+
+## Install
 
 ```bash
 npm install iii-sdk
 ```
 
-## Usage
+## Hello World
 
 ```javascript
-import { III } from 'iii-sdk'
+import { init } from 'iii-sdk'
 
-/**
- * Make sure the III Core Instance is up and Running on the given URL.
- */
-const iii = new III(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = init('ws://localhost:49134')
 
-iii.registerFunction({ id: 'myFunction' }, (req) => {
-  return { status_code: 200, body: { message: 'Hello, world!' } }
+iii.registerFunction({ id: 'greet' }, async (input) => {
+  return { message: `Hello, ${input.name}!` }
 })
 
 iii.registerTrigger({
   type: 'http',
-  function_id: 'myFunction',
-  config: { api_path: 'myApiPath', http_method: 'POST' },
+  function_id: 'greet',
+  config: { api_path: '/greet', http_method: 'POST' },
 })
+
+const result = await iii.trigger('greet', { name: 'world' })
 ```
+
+## API
+
+| Operation                | Signature                                            | Description                                                  |
+| ------------------------ | ---------------------------------------------------- | ------------------------------------------------------------ |
+| Initialize               | `init(url, options?)`                                | Create and connect to the engine. Returns an `ISdk` instance |
+| Register function        | `iii.registerFunction({ id }, handler)`              | Register a function that can be invoked by name              |
+| Register trigger         | `iii.registerTrigger({ type, function_id, config })` | Bind a trigger (HTTP, cron, queue, etc.) to a function       |
+| Invoke (await)           | `await iii.trigger(id, data, timeoutMs?)`            | Invoke a function and wait for the result                    |
+| Invoke (fire-and-forget) | `iii.triggerVoid(id, data)`                          | Invoke a function without waiting (fire-and-forget)          |
 
 ### Registering Functions
 
-III Allows you to register functions that can be invoked by other services.
-
 ```javascript
-iii.registerFunction({ id: 'myFunction' }, (req) => {
-  // ... do something
-  return { status_code: 200, body: { message: 'Hello, world!' } }
+iii.registerFunction({ id: 'orders.create' }, async (input) => {
+  return { status_code: 201, body: { id: '123', item: input.body.item } }
 })
 ```
 
 ### Registering Triggers
 
-III Allows you to register triggers that can be invoked by other services.
-
 ```javascript
 iii.registerTrigger({
   type: 'http',
-  function_id: 'myFunction',
-  config: { api_path: 'myApiPath', http_method: 'POST' },
+  function_id: 'orders.create',
+  config: { api_path: '/orders', http_method: 'POST' },
 })
-```
-
-### Registering Trigger Types
-
-Triggers are mostly created by III Core Modules, but you can also create your own triggers
-
-```javascript
-iii.registerTrigger_type(
-  {
-    /**
-     * This is the id of the trigger type, it's unique.
-     * Then, you can register a trigger by calling the registerTrigger method.
-     */
-    id: 'myTrigger_type',
-    description: 'My trigger type',
-  },
-  {
-    /**
-     * Trigger config has: id, function_id, and config.
-     * Your logic should know what to do with the config.
-     */
-    registerTrigger: async (config) => {
-      // ... do something
-    },
-    unregisterTrigger: async (config) => {
-      // ... do something
-    },
-  },
-)
 ```
 
 ### Invoking Functions
 
-III Allows you to invoke functions, they can be functions from the Core Modules or
-functions registered by workers.
-
 ```javascript
-const result = await iii.call('myFunction', { param1: 'value1' })
-console.log(result)
+const result = await iii.trigger('orders.create', { item: 'widget' })
+
+iii.triggerVoid('analytics.track', { event: 'page_view' })
 ```
 
-### Invoking Functions Async
+## Node Modules
 
-III Allows you to invoke functions asynchronously, they can be functions from the Core Modules or functions registered by workers.
+| Import              | What it provides                      |
+| ------------------- | ------------------------------------- |
+| `iii-sdk`           | Core SDK (`init`, types)              |
+| `iii-sdk/stream`    | Stream client for real-time state     |
+| `iii-sdk/state`     | State client for key-value operations |
+| `iii-sdk/telemetry` | OpenTelemetry integration             |
 
-```javascript
-iii.callVoid('myFunction', { param1: 'value1' })
-```
+## Deprecated
 
-This means the Engine won't hold the execution of the function, it will return immediately. Which means the function will be executed in the background.
+`call()` and `callVoid()` are deprecated aliases for `trigger()` and `triggerVoid()`. They still work but will be removed in a future release.
+
+## Resources
+
+- [Documentation](https://iii.dev/docs)
+- [iii Engine](https://github.com/iii-hq/iii)
+- [Examples](https://github.com/iii-hq/iii-examples)

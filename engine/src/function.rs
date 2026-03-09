@@ -82,6 +82,12 @@ impl FunctionsRegistry {
             "[REGISTERED]".green(),
             function_id.purple()
         );
+        if self.functions.contains_key(&function_id) {
+            tracing::warn!(
+                "Function {} is already registered. Overwriting.",
+                function_id.purple()
+            );
+        }
         self.functions.insert(function_id, function);
     }
 

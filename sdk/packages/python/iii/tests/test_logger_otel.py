@@ -1,7 +1,6 @@
 """Tests for OTel-bridge behavior of Logger."""
 from unittest.mock import patch
 
-
 import pytest
 
 

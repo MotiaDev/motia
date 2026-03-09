@@ -43,6 +43,33 @@ async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
     return ApiResponse(status=201, body={"id": "123"})
 ```
 
+### Channel-based HTTP (Streaming)
+
+```python
+import json
+from typing import Any
+
+from motia import FlowContext, MotiaHttpArgs, http
+
+config = {
+    "name": "HttpChannelEcho",
+    "triggers": [http("POST", "/http-channel/echo")],
+}
+
+async def handler(args: MotiaHttpArgs[Any], ctx: FlowContext[Any]) -> None:
+    request = args.request
+    response = args.response
+
+    chunks: list[bytes] = []
+    async for chunk in request.request_body.stream:
+        chunks.append(chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8"))
+
+    await response.status(200)
+    await response.headers({"content-type": "application/json"})
+    response.writer.stream.write(json.dumps({"receivedBytes": len(b"".join(chunks))}).encode("utf-8"))
+    response.close()
+```
+
 ### Streams
 
 ```python
@@ -76,21 +103,28 @@ uv publish --index cloudsmith dist/*
 
 ## Testing
 
-### Running Integration Tests
-
-Integration tests require a running III Engine instance. Make sure to have it built or installed before running tests.
-
 1. Install dev dependencies:
    ```bash
-   cd motia && uv sync --all-extras
-
+   uv sync --extra dev
    ```
 
-   ```
-3. Run tests:
+2. Run the unit test suite:
    ```bash
-   uv run pytest
+   uv run pytest -m "not integration"
    ```
+
+3. Run the unit test suite with coverage:
+   ```bash
+   uv run pytest -m "not integration" --cov=src/motia --cov-report=term-missing
+   ```
+
+### Running Integration Tests
+
+Integration tests require a running III Engine instance on the test ports below.
+
+```bash
+uv run pytest -m integration
+```
 
 ### Test Configuration
 
@@ -101,6 +135,8 @@ Tests use non-default ports to avoid conflicts:
 Set `III_ENGINE_PATH` environment variable to point to the III engine binary.
 
 ### Test Coverage
+
+The coverage command above measures the unit-testable Python package code under `src/motia`.
 
 The integration test suite covers:
 - Bridge connection and function registration
