@@ -131,6 +131,30 @@ jobs:
       SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
 
   # ──────────────────────────────────────────────────────────────
+  # CLI Binary
+  # ──────────────────────────────────────────────────────────────
+
+  cli-release:
+    name: CLI Binary Release
+    needs: [setup, create-iii-release]
+    if: ${{ !failure() && !cancelled() }}
+    uses: ./.github/workflows/_rust-binary.yml
+    with:
+      bin_name: iii-cli
+      manifest_path: cli/Cargo.toml
+      tag_name: ${{ needs.setup.outputs.tag }}
+      is_prerelease: ${{ needs.setup.outputs.is_prerelease == 'true' }}
+      skip_create_release: true
+      dry_run: ${{ needs.setup.outputs.dry_run == 'true' }}
+      slack_thread_ts: ${{ needs.setup.outputs.slack_ts }}
+      slack_label: CLI Binary
+    secrets:
+      III_CI_APP_ID: ${{ secrets.III_CI_APP_ID }}
+      III_CI_APP_PRIVATE_KEY: ${{ secrets.III_CI_APP_PRIVATE_KEY }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+
+  # ──────────────────────────────────────────────────────────────
   # Console Binary
   # ──────────────────────────────────────────────────────────────
 
@@ -237,6 +261,21 @@ jobs:
       SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
 
   # ──────────────────────────────────────────────────────────────
+  # Docker
+  # ──────────────────────────────────────────────────────────────
+
+  docker-engine:
+    name: Docker Engine
+    needs: [setup, engine-release]
+    if: ${{ !failure() && !cancelled() && needs.setup.outputs.is_prerelease != 'true' }}
+    uses: ./.github/workflows/docker-engine.yml
+    with:
+      release_tag: ${{ needs.setup.outputs.tag }}
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  # ──────────────────────────────────────────────────────────────
   # Homebrew
   # ──────────────────────────────────────────────────────────────
 
@@ -297,10 +336,12 @@ jobs:
     needs:
       - setup
       - engine-release
+      - cli-release
       - console-release
       - sdk-npm
       - sdk-py
       - sdk-rust
+      - docker-engine
       - homebrew-engine
       - homebrew-console
     runs-on: ubuntu-latest
@@ -313,10 +354,12 @@ jobs:
           IS_PRERELEASE: ${{ needs.setup.outputs.is_prerelease }}
           DRY_RUN: ${{ needs.setup.outputs.dry_run }}
           ENGINE_RESULT: ${{ needs.engine-release.result }}
+          CLI_RESULT: ${{ needs.cli-release.result }}
           CONSOLE_RESULT: ${{ needs.console-release.result }}
           SDK_NPM_RESULT: ${{ needs.sdk-npm.result }}
           SDK_PY_RESULT: ${{ needs.sdk-py.result }}
           SDK_RUST_RESULT: ${{ needs.sdk-rust.result }}
+          DOCKER_RESULT: ${{ needs.docker-engine.result }}
           BREW_ENGINE_RESULT: ${{ needs.homebrew-engine.result }}
           BREW_CONSOLE_RESULT: ${{ needs.homebrew-console.result }}
         run: |
@@ -332,17 +375,19 @@ jobs:
           OVERALL="success"
 
           LINES="$LINES$(icon "$ENGINE_RESULT") Engine Binary\n"
+          LINES="$LINES$(icon "$CLI_RESULT") CLI Binary\n"
           LINES="$LINES$(icon "$CONSOLE_RESULT") Console Binary\n"
           LINES="$LINES$(icon "$SDK_NPM_RESULT") SDK Node\n"
           LINES="$LINES$(icon "$SDK_PY_RESULT") SDK Python\n"
           LINES="$LINES$(icon "$SDK_RUST_RESULT") SDK Rust\n"
 
           if [[ "$IS_PRERELEASE" != "true" ]]; then
+            LINES="$LINES$(icon "$DOCKER_RESULT") Docker\n"
             LINES="$LINES$(icon "$BREW_ENGINE_RESULT") Homebrew (iii)\n"
             LINES="$LINES$(icon "$BREW_CONSOLE_RESULT") Homebrew (iii-console)\n"
           fi
 
-          for r in "$ENGINE_RESULT" "$CONSOLE_RESULT" "$SDK_NPM_RESULT" "$SDK_PY_RESULT" "$SDK_RUST_RESULT"; do
+          for r in "$ENGINE_RESULT" "$CLI_RESULT" "$CONSOLE_RESULT" "$SDK_NPM_RESULT" "$SDK_PY_RESULT" "$SDK_RUST_RESULT"; do
             [[ "$r" != "success" && "$r" != "skipped" ]] && OVERALL="failure"
           done
 

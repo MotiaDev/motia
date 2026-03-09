@@ -1,6 +1,7 @@
 {
   "name": "iii-monorepo",
   "private": true,
+  "license": "SEE LICENSE IN NOTICE.md",
   "scripts": {
     "build": "turbo run build",
     "build:node": "turbo run build --filter=iii-sdk --filter=motia --filter=console-frontend",

@@ -7,18 +7,20 @@ The structure of the project is as follows:
 │       ├── rust/              # Rust SDK (iii-sdk on crates.io)
 │       ├── node/              # Node.js SDK (iii-sdk on npm)
 │       └── python/            # Python SDK (iii-sdk on PyPI)
-├── frameworks/                # Frameworks built on top of the SDK
-│   └── motia/                 # Motia Framework
-│       ├── motia-js/          # Motia JavaScript Framework
-│       │   └── playground/    # Motia TS Examples Playground
-│       ├── motia-py/          # Motia Python Framework
-│       │   └── playground/    # Motia Python Examples Playground
-│       └── docs/              # Motia Documentation powered by Fumadocs/MDX
+├── motia/                     # Motia Framework
+│   ├── motia-js/              # Motia JavaScript Framework
+│   │   └── playground/        # Motia TS Examples Playground
+│   └── motia-py/              # Motia Python Framework
+│       └── playground/        # Motia Python Examples Playground
 ├── console/                   # iii Console powered by React and Rust
 │   └── packages/
 │       ├── console-frontend/  # React frontend (embedded in binary)
 │       └── console-rust/      # Rust binary (iii-console)
 ├── docs/                      # iii Documentation powered by Fumadocs/MDX
+├── motia-docs/                # Motia Documentation powered by Fumadocs/MDX
+├── website/                   # iii Website powered by Vite
+├── motia-cloud-api/           # Motia Cloud API powered by Motia Framework
+├── chessarena/                # Chess Arena powered by Motia Framework
 └── .github/workflows/         # Unified CI/CD pipelines
 ```
 
@@ -41,10 +43,10 @@ Engine (Rust binary)
 Console (Rust binary + React frontend)
   └── depends on → SDK Rust (iii-sdk crate, workspace path reference)
 
-Motia JS (npm package, frameworks/motia/motia-js)
+Motia JS (npm package)
   └── depends on → SDK Node (iii-sdk npm, workspace:^ protocol)
 
-Motia Python (PyPI package, frameworks/motia/motia-py)
+Motia Python (PyPI package)
   └── depends on → SDK Python (iii-sdk PyPI, uv editable source)
 ```
 

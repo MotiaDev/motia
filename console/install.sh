@@ -7,13 +7,13 @@ set -euo pipefail
 # Install the iii-console binary from GitHub releases.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/iii-hq/console/main/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/iii-hq/console/main/install.sh | bash -s -- -v 0.1.3
+#   curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/console/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/console/install.sh | bash -s -- -v 0.1.3
 # =============================================================================
 
 # --- Constants ----------------------------------------------------------------
 
-REPO="${REPO:-iii-hq/console}"
+REPO="${REPO:-iii-hq/iii}"
 BIN_NAME="${BIN_NAME:-iii-console}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 
@@ -88,7 +88,7 @@ OPTIONS:
     --no-modify-path            Skip adding the install directory to PATH
 
 ENVIRONMENT VARIABLES:
-    REPO            GitHub repository          (default: iii-hq/console)
+    REPO            GitHub repository          (default: iii-hq/iii)
     BIN_NAME        Binary name                (default: iii-console)
     INSTALL_DIR     Installation directory      (default: \$HOME/.local/bin)
     TARGET          Override platform target    (e.g. aarch64-apple-darwin)
@@ -96,13 +96,13 @@ ENVIRONMENT VARIABLES:
 
 EXAMPLES:
     # Install latest version
-    curl -fsSL https://raw.githubusercontent.com/iii-hq/console/main/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/console/install.sh | bash
 
     # Install specific version
-    curl -fsSL https://raw.githubusercontent.com/iii-hq/console/main/install.sh | bash -s -- -v 0.1.3
+    curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/console/install.sh | bash -s -- -v 0.1.3
 
     # Install to custom directory
-    INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/iii-hq/console/main/install.sh | bash
+    INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/iii-hq/iii/main/console/install.sh | bash
 
     # Install from local binary
     ./install.sh -b ./target/release/iii-console
@@ -153,8 +153,8 @@ done
 
 # Validate requested_version format if provided (semver-like with optional pre-release)
 if [[ -n "$requested_version" ]]; then
-  # Strip leading v for validation
-  local_ver="${requested_version#v}"
+  local_ver="${requested_version#iii/}"
+  local_ver="${local_ver#v}"
   if [[ ! "$local_ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
     err "invalid version format: $requested_version (expected: X.Y.Z or X.Y.Z-pre)"
   fi
@@ -368,25 +368,7 @@ if [[ -z "$binary_path" ]]; then
       fi
     fi
 
-    # AVX2 / baseline detection for x86_64
-    baseline_suffix=""
-    if [[ "$arch" == "x86_64" ]]; then
-      has_avx2=false
-      if [[ "$uname_s" == "Linux" ]]; then
-        if [[ -f /proc/cpuinfo ]] && grep -q avx2 /proc/cpuinfo 2>/dev/null; then
-          has_avx2=true
-        fi
-      elif [[ "$uname_s" == "Darwin" ]]; then
-        if [[ "$(sysctl -n hw.optional.avx2_0 2>/dev/null || echo 0)" == "1" ]]; then
-          has_avx2=true
-        fi
-      fi
-      if [[ "$has_avx2" == "false" ]]; then
-        baseline_suffix="-baseline"
-      fi
-    fi
-
-    target="${arch}-${os}${baseline_suffix}"
+    target="${arch}-${os}"
   fi
 
   # --- Release fetching -------------------------------------------------------
@@ -394,25 +376,30 @@ if [[ -z "$binary_path" ]]; then
   json=""
 
   if [[ -n "$requested_version" ]]; then
-    # Check if this version is already installed before making API calls
-    check_version "${requested_version#v}"
+    _bare="${requested_version#iii/}"
+    _bare="${_bare#v}"
+    check_version "$_bare"
     printf "${MUTED}Installing ${NC}%s ${MUTED}version: ${NC}%s\n" "$BIN_NAME" "$requested_version"
-    api_url="https://api.github.com/repos/$REPO/releases/tags/$requested_version"
-    if json=$(github_api "$api_url" 2>/dev/null); then
-      : # success
-    else
-      # If the tag didn't have a v prefix, try with one
-      if [[ "${requested_version#v}" == "$requested_version" ]]; then
-        api_url="https://api.github.com/repos/$REPO/releases/tags/v$requested_version"
-        json=$(github_api "$api_url") || err "release tag not found: $requested_version"
-      else
-        err "release tag not found: $requested_version"
-      fi
-    fi
+    _tag="v${_bare}"
+    api_url="https://api.github.com/repos/$REPO/releases/tags/$_tag"
+    json=$(github_api "$api_url") || err "release tag not found: $requested_version (tried tag: $_tag)"
   else
     printf "${MUTED}Installing ${NC}%s ${MUTED}latest version${NC}\n" "$BIN_NAME"
-    api_url="https://api.github.com/repos/$REPO/releases/latest"
-    json=$(github_api "$api_url") || err "failed to fetch latest release from $REPO"
+    api_url="https://api.github.com/repos/$REPO/releases?per_page=20"
+    json_list=$(github_api "$api_url") || err "failed to fetch releases from $REPO"
+    if command -v jq >/dev/null 2>&1; then
+      json=$(printf '%s' "$json_list" \
+        | jq -c 'first(.[] | select(.prerelease == false and (.tag_name | startswith("v"))))')
+      [[ "$json" == "null" || -z "$json" ]] && err "no stable iii release found"
+    else
+      _tag=$(printf '%s' "$json_list" \
+        | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"v[^"]+"' \
+        | head -n 1 \
+        | sed -E 's/.*"(v[^"]+)".*/\1/')
+      [[ -z "$_tag" ]] && err "could not determine latest release"
+      api_url="https://api.github.com/repos/$REPO/releases/tags/$_tag"
+      json=$(github_api "$api_url") || err "failed to fetch release $_tag"
+    fi
   fi
 
   # Extract version from tag_name (strip leading v)
@@ -424,13 +411,13 @@ if [[ -z "$binary_path" ]]; then
       | sed -E 's/.*"([^"]+)".*/\1/' \
       | head -n 1)
   fi
+  specific_version="${specific_version#iii/}"
   specific_version="${specific_version#v}"
 
   if [[ -z "$specific_version" ]]; then
     err "could not determine version from release response"
   fi
 
-  # For "latest" requests, check if already installed after resolving the version
   if [[ -z "$requested_version" ]]; then
     check_version "$specific_version"
   fi
@@ -438,14 +425,14 @@ if [[ -z "$binary_path" ]]; then
   # Extract asset URL for the target (exclude .sha256 checksum files)
   if command -v jq >/dev/null 2>&1; then
     asset_url=$(printf '%s' "$json" \
-      | jq -r --arg target "$target" \
-        '.assets[] | select((.name | contains($target)) and (.name | test("\\.(tar\\.gz|tgz|zip)$"))) | .browser_download_url' \
+      | jq -r --arg bn "$BIN_NAME" --arg target "$target" \
+        '.assets[] | select((.name | startswith($bn + "-" + $target)) and (.name | test("\\.(tar\\.gz|tgz|zip)$"))) | .browser_download_url' \
       | head -n 1)
   else
     asset_url=$(printf '%s' "$json" \
       | grep -oE '"browser_download_url"[[:space:]]*:[[:space:]]*"[^"]+"' \
       | sed -E 's/.*"([^"]+)".*/\1/' \
-      | grep -F "$target" \
+      | grep -F "$BIN_NAME-$target" \
       | grep -E '\.(tar\.gz|tgz|zip)$' \
       | head -n 1)
   fi

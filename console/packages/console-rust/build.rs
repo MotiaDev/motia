@@ -26,7 +26,7 @@ fn main() {
 
         // Run vite build via pnpm from workspace root
         let build_result = Command::new("pnpm")
-            .current_dir(&workspace_root)
+            .current_dir(workspace_root)
             .args(["run", "build:binary"])
             .status();
 

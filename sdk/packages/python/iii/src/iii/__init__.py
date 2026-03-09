@@ -38,11 +38,11 @@ from .types import (
     HttpRequest,
     HttpResponse,
     RemoteFunctionHandler,
-    is_channel_ref,
 )
+from .utils import http, is_channel_ref
 
 
-def init(address: str, options: InitOptions | None = None) -> III:
+def register_worker(address: str, options: InitOptions | None = None) -> III:
     """Create an III client and auto-start its connection task."""
     client = III(address, options)
 
@@ -50,7 +50,7 @@ def init(address: str, options: InitOptions | None = None) -> III:
         loop = asyncio.get_running_loop()
     except RuntimeError as exc:
         raise RuntimeError(
-            "iii.init() requires an active asyncio event loop. "
+            "iii.register_worker() requires an active asyncio event loop. "
             "Call it inside async code or use `client = III(...); await client.connect()`"
         ) from exc
 
@@ -75,7 +75,7 @@ def configure_logging(level: int = logging.INFO, format: str | None = None) -> N
 __all__ = [
     # Core
     "III",
-    "init",
+    "register_worker",
     "InitOptions",
     "ReconnectionConfig",
     "IIIConnectionState",
@@ -90,6 +90,7 @@ __all__ = [
     "ApiResponse",
     "HttpRequest",
     "HttpResponse",
+    "http",
     # Channel types
     "Channel",
     "ChannelWriter",

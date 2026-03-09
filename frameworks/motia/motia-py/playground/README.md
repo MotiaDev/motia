@@ -37,6 +37,7 @@ playground/
 ├── README.md                   # This file
 └── steps/                      # Example workflows and triggers
     ├── __init__.py
+    ├── api_steps/              # HTTP API examples (SSE + HTTP channels)
     ├── conditions/             # Conditional trigger examples
     ├── greetings/              # API CRUD + summary flow examples
     ├── multi_trigger/          # Single/multi trigger examples (API/Event/Cron)
@@ -52,9 +53,26 @@ This example showcases Motia's event-driven workflow capabilities with a simple 
 
 - **Event Steps**: React to events like `todo.created`, `todo.updated`, `todo.deleted`
 - **API Steps**: Expose REST endpoints for CRUD operations
+- **HTTP Channels**: Read request body streams and stream custom responses
 - **Stream State**: Manage todo items using Motia's stream-based state management
 - **Multi-trigger Steps**: Handle multiple event types in a single step
 - **Conditional Logic**: Demonstrate conditional step execution
+
+## HTTP Channel Example
+
+The `steps/api_steps/http_channel_echo_step.py` step demonstrates channel-based
+HTTP handling with `MotiaHttpArgs`:
+
+- Reads request chunks from `request.request_body.stream`
+- Streams response bytes with `response.writer.stream`
+
+Try it with:
+
+```bash
+curl -X POST http://localhost:3000/http-channel/echo \
+  -H "content-type: application/json" \
+  -d '{"message":"hello channel","items":[1,2,3]}'
+```
 
 ## Documentation
 
