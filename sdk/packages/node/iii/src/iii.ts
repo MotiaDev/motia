@@ -218,15 +218,22 @@ class Sdk implements ISdk {
             const parentContext = extractContext(traceparent, baggage)
 
             return context.with(parentContext, () =>
-              withSpan(`call ${message.id}`, { kind: SpanKind.SERVER }, async () => await handler(input)),
+              withSpan(
+                `call ${message.id}`,
+                { kind: SpanKind.SERVER },
+                async () => await handler(input),
+              ),
             )
           }
 
-          const traceId = crypto.randomUUID().replaceAll('-', '')
-          const spanId = crypto.randomUUID().replaceAll('-', '').slice(0, 16)
+          const traceId = crypto.randomUUID().replace(/-/g, '')
+          const spanId = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
           const syntheticSpan = trace.wrapSpanContext({ traceId, spanId, traceFlags: 1 })
 
-          return context.with(trace.setSpan(context.active(), syntheticSpan), async () => await handler(input))
+          return context.with(
+            trace.setSpan(context.active(), syntheticSpan),
+            async () => await handler(input),
+          )
         },
       })
     } else {
