@@ -7,7 +7,6 @@ import {
   Eye,
   EyeOff,
   GitBranch,
-  List,
   Pause,
   Play,
   RefreshCw,
@@ -25,7 +24,7 @@ import { TraceHeader } from '@/components/traces/TraceHeader'
 import { TraceMap } from '@/components/traces/TraceMap'
 import { ViewSwitcher, type ViewType } from '@/components/traces/ViewSwitcher'
 import { WaterfallChart } from '@/components/traces/WaterfallChart'
-import { WorkflowView } from '@/components/traces/WorkflowView'
+import { WorkflowChain } from '@/components/traces/WorkflowView'
 import { Badge, Button } from '@/components/ui/card'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { Pagination } from '@/components/ui/pagination'
@@ -86,6 +85,7 @@ const SPAN_PANEL_DEFAULT = 400
 const PANEL_MIN_WIDTH = 280
 const PANEL_MAX_WIDTH = 900
 const LIVE_INTERVAL = 3000
+const RELATED_FETCH_WINDOW = 300_000 // 5 min window for related enqueue traces
 const clampPanelWidth = (w: number) => Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, w))
 
 function TracesPage() {
@@ -97,7 +97,6 @@ function TracesPage() {
   const [hasOtelConfigured, setHasOtelConfigured] = useState(false)
 
   const [isPaused, setIsPaused] = useState(false)
-  const [viewMode, setViewMode] = useState<'list' | 'workflows'>('list')
 
   const [activeView, setActiveView] = useState<ViewType>('waterfall')
   const [selectedSpan, setSelectedSpan] = useState<VisualizationSpan | null>(null)
@@ -106,10 +105,16 @@ function TracesPage() {
   const [spansError, setSpansError] = useState<string | null>(null)
 
   const [chainCache, setChainCache] = useState<Map<string, TraceCacheEntry>>(new Map())
+  const chainCacheRef = useRef(chainCache)
+  chainCacheRef.current = chainCache
   const chainFetchingRef = useRef(new Set<string>())
 
   const prevTraceIdsRef = useRef(new Set<string>())
   const newTraceIdsRef = useRef(new Set<string>())
+
+  // Freeze the list when the user hovers so live updates don't shift items
+  const listHoveredRef = useRef(false)
+  const pendingTracesRef = useRef<TraceGroup[] | null>(null)
 
   const {
     filters: filterState,
@@ -207,6 +212,17 @@ function TracesPage() {
           console.warn('[Traces] treeToWaterfallData returned null')
           setSpansError('Failed to process span data')
         }
+
+        // Also cache enqueue info for workflow chain building
+        setChainCache((prev) => {
+          if (prev.has(traceId)) return prev
+          const next = new Map(prev)
+          next.set(traceId, {
+            chain: extractServiceChain(data.roots),
+            enqueueInfo: extractEnqueueInfo(data.roots),
+          })
+          return next
+        })
       } else {
         console.warn('[Traces] No roots found for trace:', traceId)
         setSpansError('No span data available for this trace')
@@ -245,13 +261,20 @@ function TracesPage() {
           for (const id of newIds) {
             if (!prevIds.has(id)) fresh.add(id)
           }
+          prevTraceIdsRef.current = newIds
+
+          // If the user is hovering over the list, stash the update for later
+          if (listHoveredRef.current) {
+            pendingTracesRef.current = traces
+            return
+          }
+
           newTraceIdsRef.current = fresh
           if (fresh.size > 0) {
             setTimeout(() => {
               newTraceIdsRef.current = new Set()
             }, 1500)
           }
-          prevTraceIdsRef.current = newIds
           setTraceGroups(traces)
           setHasOtelConfigured(true)
         }
@@ -260,6 +283,18 @@ function TracesPage() {
       // Silent poll — swallow errors
     }
   }, [getFilterOnlyParams, showSystem, mapSpanToTraceGroup])
+
+  // Flush pending trace updates when the mouse leaves the list
+  const handleListMouseLeave = useCallback(() => {
+    listHoveredRef.current = false
+    const pending = pendingTracesRef.current
+    if (pending) {
+      pendingTracesRef.current = null
+      newTraceIdsRef.current = new Set<string>()
+      setTraceGroups(pending)
+      setHasOtelConfigured(true)
+    }
+  }, [])
 
   const selectedTraceIdRef = useRef(selectedTraceId)
   selectedTraceIdRef.current = selectedTraceId
@@ -298,7 +333,111 @@ function TracesPage() {
     [loadTraceSpans],
   )
 
+  // Fetch a single trace tree on hover (lazy enrichment)
+  const handleTraceHover = useCallback((group: TraceGroup) => {
+    if (chainCacheRef.current.has(group.traceId) || chainFetchingRef.current.has(group.traceId))
+      return
+    chainFetchingRef.current.add(group.traceId)
+    fetchTraceTree(group.traceId)
+      .then((data) => {
+        setChainCache((prev) => {
+          if (prev.has(group.traceId)) return prev
+          const next = new Map(prev)
+          next.set(group.traceId, {
+            chain: data.roots?.length
+              ? extractServiceChain(data.roots)
+              : [group.services[0] || 'unknown'],
+            enqueueInfo: data.roots?.length ? extractEnqueueInfo(data.roots) : null,
+          })
+          return next
+        })
+      })
+      .catch(() => {})
+      .finally(() => {
+        chainFetchingRef.current.delete(group.traceId)
+      })
+  }, [])
+
   const selectedTrace = traceGroups.find((g) => g.traceId === selectedTraceId)
+
+  // Fetch related enqueue trace trees when a trace is selected (for workflow chain)
+  useEffect(() => {
+    if (!selectedTraceId) return
+    const selected = traceGroups.find((t) => t.traceId === selectedTraceId)
+    if (!selected || selected.functionId !== 'enqueue') return
+
+    const candidates = traceGroups.filter(
+      (t) =>
+        t.functionId === 'enqueue' &&
+        t.traceId !== selectedTraceId &&
+        Math.abs(t.startTime - selected.startTime) < RELATED_FETCH_WINDOW &&
+        !chainCache.has(t.traceId) &&
+        !chainFetchingRef.current.has(t.traceId),
+    )
+
+    if (candidates.length === 0) return
+    const batch = candidates.slice(0, 30)
+    for (const t of batch) chainFetchingRef.current.add(t.traceId)
+
+    Promise.allSettled(
+      batch.map((t) =>
+        fetchTraceTree(t.traceId).then((data) => ({
+          traceId: t.traceId,
+          chain: data.roots?.length
+            ? extractServiceChain(data.roots)
+            : [t.services[0] || 'unknown'],
+          enqueueInfo: data.roots?.length ? extractEnqueueInfo(data.roots) : null,
+        })),
+      ),
+    ).then((results) => {
+      const entries: [string, TraceCacheEntry][] = []
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          entries.push([r.value.traceId, { chain: r.value.chain, enqueueInfo: r.value.enqueueInfo }])
+          chainFetchingRef.current.delete(r.value.traceId)
+        }
+      }
+      if (entries.length) {
+        setChainCache((prev) => {
+          const next = new Map(prev)
+          for (const [k, v] of entries) next.set(k, v)
+          return next
+        })
+      }
+    })
+  }, [selectedTraceId, traceGroups, chainCache])
+
+  // Build the workflow chain for the selected trace from cached data
+  const selectedWorkflowChain = useMemo(() => {
+    if (!selectedTraceId) return null
+    const selected = traceGroups.find((t) => t.traceId === selectedTraceId)
+    if (!selected || selected.functionId !== 'enqueue') return null
+
+    const infoMap = new Map<string, EnqueueInfo>()
+    for (const [traceId, entry] of chainCache) {
+      if (entry.enqueueInfo) infoMap.set(traceId, entry.enqueueInfo)
+    }
+    if (!infoMap.has(selectedTraceId)) return null
+
+    const runs = buildWorkflowRuns(
+      traceGroups
+        .filter(
+          (t) =>
+            t.functionId === 'enqueue' &&
+            Math.abs(t.startTime - selected.startTime) < RELATED_FETCH_WINDOW,
+        )
+        .map((t) => ({
+          traceId: t.traceId,
+          startTime: t.startTime,
+          endTime: t.endTime ?? t.startTime + (t.duration ?? 0),
+          duration: t.duration ?? 0,
+          status: (t.status === 'error' ? 'error' : 'ok') as 'ok' | 'error',
+        })),
+      infoMap,
+    )
+
+    return runs.find((r) => r.steps.some((s) => s.traceId === selectedTraceId)) ?? null
+  }, [selectedTraceId, traceGroups, chainCache])
 
   const filteredTraces = useMemo(() => {
     return traceGroups.filter((group) => {
@@ -330,68 +469,6 @@ function TracesPage() {
       selectTrace(null)
     }
   }, [pagedTraces, selectedTraceId, selectTrace])
-
-  // Batch-fetch service chains and enqueue info for visible (or all workflow) traces
-  useEffect(() => {
-    const source = viewMode === 'workflows' ? filteredTraces : pagedTraces
-    const uncached = source.filter(
-      (t) => !chainCache.has(t.traceId) && !chainFetchingRef.current.has(t.traceId),
-    )
-    if (!uncached.length) return
-
-    const toFetch = viewMode === 'workflows' ? uncached.slice(0, 20) : uncached
-
-    for (const t of toFetch) {
-      chainFetchingRef.current.add(t.traceId)
-    }
-
-    Promise.allSettled(
-      toFetch.map((t) =>
-        fetchTraceTree(t.traceId).then((data) => ({
-          traceId: t.traceId,
-          chain: data.roots?.length
-            ? extractServiceChain(data.roots)
-            : [t.services[0] || 'unknown'],
-          enqueueInfo: data.roots?.length ? extractEnqueueInfo(data.roots) : null,
-        })),
-      ),
-    ).then((results) => {
-      const newEntries: [string, TraceCacheEntry][] = []
-      for (const r of results) {
-        if (r.status === 'fulfilled') {
-          newEntries.push([
-            r.value.traceId,
-            { chain: r.value.chain, enqueueInfo: r.value.enqueueInfo },
-          ])
-          chainFetchingRef.current.delete(r.value.traceId)
-        }
-      }
-      if (newEntries.length) {
-        setChainCache((prev) => {
-          const next = new Map(prev)
-          for (const [k, v] of newEntries) next.set(k, v)
-          return next
-        })
-      }
-    })
-  }, [viewMode, filteredTraces, pagedTraces, chainCache])
-
-  const workflowRuns = useMemo(() => {
-    const infoMap = new Map<string, EnqueueInfo>()
-    for (const [traceId, entry] of chainCache) {
-      if (entry.enqueueInfo) infoMap.set(traceId, entry.enqueueInfo)
-    }
-    return buildWorkflowRuns(
-      filteredTraces.map((t) => ({
-        traceId: t.traceId,
-        startTime: t.startTime,
-        endTime: t.endTime ?? t.startTime + (t.duration ?? 0),
-        duration: t.duration ?? 0,
-        status: (t.status === 'error' ? 'error' : 'ok') as 'ok' | 'error',
-      })),
-      infoMap,
-    )
-  }, [filteredTraces, chainCache])
 
   const stats = useMemo(
     () => ({
@@ -516,32 +593,6 @@ function TracesPage() {
         </div>
 
         <div className="flex items-center gap-1.5 md:gap-2">
-          <div className="flex items-center rounded-md border border-border overflow-hidden mr-1">
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={`h-6 md:h-7 px-2 text-[10px] md:text-xs flex items-center gap-1 transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-dark-gray text-foreground'
-                  : 'text-muted hover:text-foreground'
-              }`}
-            >
-              <List className="w-3 h-3" />
-              <span className="hidden md:inline">List</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('workflows')}
-              className={`h-6 md:h-7 px-2 text-[10px] md:text-xs flex items-center gap-1 transition-colors ${
-                viewMode === 'workflows'
-                  ? 'bg-dark-gray text-foreground'
-                  : 'text-muted hover:text-foreground'
-              }`}
-            >
-              <GitBranch className="w-3 h-3" />
-              <span className="hidden md:inline">Workflows</span>
-            </button>
-          </div>
           <Button
             variant={isPaused ? 'accent' : 'ghost'}
             size="sm"
@@ -603,7 +654,13 @@ function TracesPage() {
         <div
           className={`flex flex-col flex-1 overflow-hidden ${selectedSpan && waterfallData ? 'hidden' : ''}`}
         >
-          <div className="flex-1 overflow-y-auto">
+          <div
+            className="flex-1 overflow-y-auto"
+            onMouseEnter={() => {
+              listHoveredRef.current = true
+            }}
+            onMouseLeave={handleListMouseLeave}
+          >
             {isLoading && traceGroups.length === 0 ? (
               <div className="flex items-center justify-center h-32">
                 <RefreshCw className="w-5 h-5 text-muted animate-spin" />
@@ -634,8 +691,6 @@ function TracesPage() {
                   )}
                 </div>
               </div>
-            ) : viewMode === 'workflows' ? (
-              <WorkflowView runs={workflowRuns} onSelectTrace={(id) => selectTrace(id)} />
             ) : (
               pagedTraces.map((group) => {
                 const isSelected = selectedTraceId === group.traceId
@@ -646,6 +701,7 @@ function TracesPage() {
                   <button
                     key={group.traceId}
                     type="button"
+                    onMouseEnter={() => handleTraceHover(group)}
                     onClick={() => selectTrace(isSelected ? null : group.traceId)}
                     className={`w-full p-3 border-b border-border text-left transition-colors
                       ${isSelected ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-dark-gray/50'}
@@ -703,7 +759,7 @@ function TracesPage() {
             )}
           </div>
 
-          {viewMode === 'list' && filteredTraces.length > 0 && (
+          {filteredTraces.length > 0 && (
             <div className="flex-shrink-0 bg-background/95 backdrop-blur border-t border-border px-3 py-2">
               <Pagination
                 currentPage={filterState.page}
@@ -781,6 +837,14 @@ function TracesPage() {
                     }}
                     onSpanClick={setSelectedSpan}
                   />
+
+                  {selectedWorkflowChain && selectedWorkflowChain.steps.length > 1 && (
+                    <WorkflowChain
+                      steps={selectedWorkflowChain.steps}
+                      selectedTraceId={selectedTrace.traceId}
+                      onSelectTrace={selectTrace}
+                    />
+                  )}
 
                   <div className="border-b border-[#1D1D1D] px-4 py-2.5">
                     <ViewSwitcher currentView={activeView} onViewChange={setActiveView} />
