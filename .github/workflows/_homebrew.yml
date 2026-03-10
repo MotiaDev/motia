@@ -233,8 +233,11 @@ jobs:
       - name: Test formula locally
         env:
           BIN_NAME: ${{ inputs.bin_name }}
+          FORMULA_FILE: ${{ inputs.formula_path }}
         run: |
-          brew tap iii-hq/tap "$GITHUB_WORKSPACE/homebrew-tap"
+          brew tap iii-hq/tap
+          cp "$GITHUB_WORKSPACE/homebrew-tap/${FORMULA_FILE}" \
+            "$(brew --repo iii-hq/tap)/${FORMULA_FILE}"
           brew audit --new "iii-hq/tap/${BIN_NAME}" || true
           brew install "iii-hq/tap/${BIN_NAME}"
           "${BIN_NAME}" --version
