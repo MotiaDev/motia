@@ -17,7 +17,7 @@ from .iii import get_instance
 from .schema_utils import schema_to_json_schema
 from .step import StepDefinition
 from .streams import Stream
-from .tracing import instrument_bridge, operation_span, record_exception, set_span_ok, step_span
+from .tracing import instrument_bridge, record_exception, set_span_ok, step_span
 from .types import (
     ApiRequest,
     ApiTrigger,

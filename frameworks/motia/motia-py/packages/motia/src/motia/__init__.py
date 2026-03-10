@@ -7,6 +7,7 @@ except ImportError:
     ChannelWriter = None
 
 from . import tracing
+from .enqueue import enqueue
 from .guards import (
     get_api_triggers,
     get_cron_triggers,
@@ -26,12 +27,11 @@ from .guards import (
 )
 from .iii import get_instance, init_iii
 from .loader import generate_step_id
+from .logger import logger
 from .multi_trigger import MultiTriggerStepBuilder, multi_trigger_step
 from .runtime import Motia
 from .schema_utils import schema_to_json_schema
 from .setup_step_endpoint import setup_step_endpoint
-from .enqueue import enqueue
-from .logger import logger
 from .state import StateManager, stateManager
 from .step import StepBuilder, StepDefinition, step
 from .streams import Stream
