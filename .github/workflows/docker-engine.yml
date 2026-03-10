@@ -13,6 +13,11 @@ on:
         description: 'Release tag to build from (e.g., v1.2.3)'
         required: true
         type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
 
 permissions:
   contents: read
