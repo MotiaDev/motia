@@ -15,7 +15,7 @@ each result in state so it can be aggregated later by a cron job.
 {/* TODO: Remove once addressed */}
 <Callout title="Persistence in Python & Rust APIs" type="info">
 You may notice that currently the Node API has no code around persistence while Python and Rust do.
-This will be addrssed shortly so that a single initialization step is all that will be required in all languages.
+This will be addressed shortly so that a single initialization step is all that will be required in all languages.
 </Callout>
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
@@ -515,43 +515,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   Queue messaging uses `enqueue` — a built-in function, no trigger registration needed: `iii.trigger('enqueue', { topic: 'user.created', data: {...} })`. See the [Queue module](/docs/modules/module-queue) for details.
 </Callout> */}
 
-#### Removing Triggers
-
-`registerTrigger()` returns a handle so you can remove the trigger later:
-
-<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
-<Tab value="Node / TypeScript">
-```typescript title="unregister.ts"
-const t = iii.registerTrigger({
-  type: 'http',
-  function_id: 'fn::id',
-  config: { api_path: '/ping', http_method: 'GET' }
-})
-t.unregister()
-```
-</Tab>
-<Tab value="Python">
-```python title="unregister.py"
-t = iii.register_trigger(
-  type="http",
-  function_id="fn::id",
-  config={"api_path": "/ping", "http_method": "GET"}
-)
-t.unregister()
-```
-</Tab>
-<Tab value="Rust">
-```rust title="unregister.rs"
-let t = iii.register_trigger(
-  "http",
-  "fn::id",
-  json!({"api_path": "/ping", "http_method": "GET"}),
-)?;
-t.unregister();
-```
-</Tab>
-</Tabs>
-
 ## Trigger Types
 
 | Type | Fires when | Config fields | Module |
@@ -609,6 +572,65 @@ iii.register_function("math::double", |input| async move {
 The triggering Function doesn't know what language the target is written in or where it's running.
 
 Once a Function is registered, every other part of the system can discover and trigger it. See [Discovery](/docs/primitives-and-concepts/discovery) for how this works, including built-in functions the engine provides.
+
+## Unregistering Functions and Triggers
+
+Both `registerFunction` and `registerTrigger` return a reference with an `unregister()` method.
+Calling it removes the registration from the engine so the function or trigger stops receiving invocations.
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="unregister.ts"
+const fn = iii.registerFunction({ id: 'orders.create' }, async (input) => {
+  return { status_code: 201, body: { id: '123', item: input.body.item } }
+})
+
+const trigger = iii.registerTrigger('orders.create', 'http', {
+  method: 'POST',
+  path: '/orders',
+})
+
+// Later, when no longer needed:
+fn.unregister()
+trigger.unregister()
+```
+</Tab>
+<Tab value="Python">
+```python title="unregister.py"
+async def create_order(data):
+    return {"status_code": 201, "body": {"id": "123", "item": data["body"]["item"]}}
+
+fn_ref = iii.register_function("orders.create", create_order)
+
+trigger = iii.register_trigger("orders.create", "http", {
+    "method": "POST",
+    "path": "/orders",
+})
+
+# Later, when no longer needed:
+fn_ref.unregister()
+trigger.unregister()
+```
+</Tab>
+<Tab value="Rust">
+```rust title="unregister.rs"
+let fn_ref = iii.register_function("orders.create", |input| async move {
+    let item = input["body"]["item"].as_str().unwrap_or("");
+    Ok(json!({ "status_code": 201, "body": { "id": "123", "item": item } }))
+});
+
+let trigger = iii.register_trigger(
+    "orders.create",
+    "http",
+    json!({ "method": "POST", "path": "/orders" }),
+)?;
+
+// Later, when no longer needed:
+fn_ref.unregister();
+trigger.unregister();
+```
+</Tab>
+</Tabs>
 
 ## init, Function, and Trigger Registration is Synchronous
 
@@ -731,16 +753,3 @@ Logging, tracing, and metrics. The Observability module is disabled by default a
 | `engine::alerts::evaluate` | Manually evaluate alerts | — |
 | `engine::rollups::list` | Get pre-aggregated metrics | `start_time` (optional), `end_time` (optional), `level` (optional), `metric_name` (optional) |
 | `engine::sampling::rules` | Get sampling rules | — |
-
-### KV Server
-
-Low-level key-value operations with indexed storage.
-
-| Function | Purpose | Parameters |
-|----------|---------|------------|
-| `kv_server::get` | Get value by key | `index`, `key` |
-| `kv_server::set` | Set value by key | `index`, `key`, `value` |
-| `kv_server::delete` | Delete value by key | `index`, `key` |
-| `kv_server::update` | Update value with operations | `index`, `key`, `ops` |
-| `kv_server::list` | List all values in index | `index` |
-| `kv_server::list_keys_with_prefix` | List keys with prefix | `prefix` |
