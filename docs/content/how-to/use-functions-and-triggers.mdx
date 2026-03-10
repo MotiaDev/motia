@@ -790,16 +790,3 @@ Logging, tracing, and metrics. The Observability module is disabled by default a
 | `engine::alerts::evaluate` | Manually evaluate alerts | — |
 | `engine::rollups::list` | Get pre-aggregated metrics | `start_time` (optional), `end_time` (optional), `level` (optional), `metric_name` (optional) |
 | `engine::sampling::rules` | Get sampling rules | — |
-
-### KV Server
-
-Low-level key-value operations with indexed storage.
-
-| Function | Purpose | Parameters |
-|----------|---------|------------|
-| `kv_server::get` | Get value by key | `index`, `key` |
-| `kv_server::set` | Set value by key | `index`, `key`, `value` |
-| `kv_server::delete` | Delete value by key | `index`, `key` |
-| `kv_server::update` | Update value with operations | `index`, `key`, `ops` |
-| `kv_server::list` | List all values in index | `index` |
-| `kv_server::list_keys_with_prefix` | List keys with prefix | `prefix` |
