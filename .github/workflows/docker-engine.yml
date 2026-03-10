@@ -16,7 +16,7 @@ on:
     secrets:
       DOCKERHUB_USERNAME:
         required: true
-      DOCKERHUB_TOKEN:
+      DOCKERHUB_PASSWORD:
         required: true
 
 permissions:
@@ -135,7 +135,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
         continue-on-error: true
 
       - name: Create and push multi-platform manifest (GHCR)
@@ -160,7 +160,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: ${{ env.DOCKERHUB_REPO }}:${{ needs.setup.outputs.version }}
+          image-ref: ${{ env.GHCR_REPO }}:${{ needs.setup.outputs.version }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -175,7 +175,7 @@ jobs:
       - name: Check for critical vulnerabilities
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: ${{ env.DOCKERHUB_REPO }}:${{ needs.setup.outputs.version }}
+          image-ref: ${{ env.GHCR_REPO }}:${{ needs.setup.outputs.version }}
           format: 'table'
           severity: 'CRITICAL'
           exit-code: '1'
@@ -204,7 +204,7 @@ jobs:
         continue-on-error: true
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         run: |
           REPO="${{ env.DOCKERHUB_REPO }}"
           TOKEN=$(curl -s -u "${DOCKERHUB_USERNAME}:${DOCKERHUB_PASSWORD}" \
