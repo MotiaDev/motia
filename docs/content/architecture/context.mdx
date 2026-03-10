@@ -17,21 +17,21 @@ When the engine invokes a Function, the SDK makes a **Context** available for th
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-import { init, getContext } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init('ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'orders::create' },
   async (data) => {
-    const ctx = getContext()
+    const logger = new Logger()
 
-    ctx.logger.info('Creating order', { items: data.items.length })
-    ctx.logger.warn('Low stock detected', { sku: 'ABC-123' })
+    logger.info('Creating order', { items: data.items.length })
+    logger.warn('Low stock detected', { sku: 'ABC-123' })
 
     const result = await processOrder(data)
 
-    ctx.logger.info('Order created', { orderId: result.id })
+    logger.info('Order created', { orderId: result.id })
     return result
   },
 )
@@ -39,16 +39,16 @@ iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III, get_context
+from iii import III
 
 iii = III('ws://localhost:49134')
 
 async def create_order(data):
-    ctx = get_context()
+    logger = Logger()
 
-    ctx.logger.info('Creating order', {'items': len(data['items'])})
+    logger.info('Creating order', {'items': len(data['items'])})
     result = await process_order(data)
-    ctx.logger.info('Order created', {'orderId': result['id']})
+    logger.info('Order created', {'orderId': result['id']})
 
     return result
 
@@ -57,18 +57,18 @@ iii.register_function('orders::create', create_order)
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{III, get_context};
+use iii_sdk::{III, Logger};
 use serde_json::json;
 
 iii.register_function("orders::create", |data| async move {
-    let ctx = get_context();
+    let logger = Logger();
 
-    ctx.logger.info("Creating order", Some(json!({
+    logger.info("Creating order", Some(json!({
         "items": data["items"].as_array().map(|a| a.len()),
     })));
 
     let result = process_order(&data).await?;
-    ctx.logger.info("Order created", Some(json!({ "orderId": result.id })));
+    logger.info("Order created", Some(json!({ "orderId": result.id })));
 
     Ok(result)
 });
@@ -80,11 +80,11 @@ iii.register_function("orders::create", |data| async move {
 
 Context and the SDK object serve different purposes:
 
-| | Context (`getContext()`) | SDK (`iii`) |
+| | Context (`new Logger()`) | SDK (`iii`) |
 |---|---|---|
 | **Scope** | Per-invocation | Application-wide |
 | **Provides** | Logger, trace span | trigger, triggerVoid, registerFunction, registerTrigger |
-| **Accessed via** | `getContext()` inside a handler | `init()` return value |
+| **Accessed via** | `new Logger()` inside a handler | `init()` return value |
 
 To invoke other Functions or access engine modules (state, stream, queue), use the SDK object:
 
@@ -94,8 +94,8 @@ const iii = init('ws://localhost:49134')
 iii.registerFunction(
   { id: 'users::create' },
   async (data) => {
-    const ctx = getContext()
-    ctx.logger.info('Creating user', { name: data.name })
+    const logger = new Logger()
+    logger.info('Creating user', { name: data.name })
 
     const user = await createUser(data)
 
@@ -116,7 +116,7 @@ iii.registerFunction(
 ```
 
 <Callout title="Automatic correlation" type="info">
-  Every `ctx.logger` call is automatically correlated with the current trace. In the iii Console, you can click a trace span to see all logs emitted during that invocation.
+  Every `logger` call is automatically correlated with the current trace. In the iii Console, you can click a trace span to see all logs emitted during that invocation.
 </Callout>
 
 <Card icon={<Activity />} title="Observability" href="/docs/modules/module-observability">

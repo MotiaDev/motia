@@ -321,7 +321,7 @@ The `iii-sdk` package provides additional entry points:
 
 | Import path | Contents |
 |---|---|
-| `iii-sdk` | `init`, `getContext`, `withContext`, `Logger`, `ISdk`, `ApiRequest`, `ApiResponse` |
+| `iii-sdk` | `init`, `Logger`, `OTel context`, `Logger`, `ISdk`, `ApiRequest`, `ApiResponse` |
 | `iii-sdk/stream` | `IStream` and all stream types (`StreamGetInput`, `StreamSetInput`, `UpdateOp`, etc.) |
 | `iii-sdk/state` | State management types |
 | `iii-sdk/telemetry` | OpenTelemetry utilities (`initOtel`, `getTracer`, `getMeter`, `withSpan`, etc.) |
@@ -366,10 +366,10 @@ type IIIConnectionState =
 ## Context
 
 ```typescript
-import { getContext } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
-const ctx = getContext()
-ctx.logger.info('Processing started')
+const logger = new Logger()
+logger.info('Processing started')
 ```
 
-The `getContext()` function returns the current `Context` (with `logger` and `trace`) from within a function handler.
+The `new Logger()` function returns the current `Context` (with `logger` and `trace`) from within a function handler.

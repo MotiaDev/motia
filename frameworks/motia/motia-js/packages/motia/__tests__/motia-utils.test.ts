@@ -4,6 +4,7 @@ import { cron, http, queue, state, stream } from '../src/triggers'
 const mockRegisterFunction = jest.fn()
 const mockRegisterTrigger = jest.fn()
 const mockCall = jest.fn()
+const mockLogger = { warn: jest.fn(), info: jest.fn(), error: jest.fn(), debug: jest.fn() }
 
 jest.mock('../src/new/iii', () => ({
   getInstance: () => ({
@@ -14,12 +15,15 @@ jest.mock('../src/new/iii', () => ({
 }))
 
 jest.mock('iii-sdk', () => ({
-  getContext: () => ({
-    logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn(), debug: jest.fn() },
-    trace: { spanContext: () => ({ traceId: 'test-trace-id' }) },
-  }),
+  Logger: function MockLogger() {
+    return mockLogger
+  },
   http: (callback: (...args: unknown[]) => unknown) => callback,
-}))
+}), { virtual: true })
+
+jest.mock('iii-sdk/telemetry', () => ({
+  currentTraceId: () => 'test-trace-id',
+}), { virtual: true })
 
 jest.mock('../src/new/setup-step-endpoint', () => ({
   setupStepEndpoint: jest.fn(),

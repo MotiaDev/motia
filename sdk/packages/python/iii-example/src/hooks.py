@@ -1,21 +1,21 @@
 from typing import Any, Awaitable, Callable
 
-from iii import III, ApiRequest, ApiResponse, FunctionInfo, get_context
+from iii import III, ApiRequest, ApiResponse, FunctionInfo, Logger
 
 
 def use_api(
     iii: III,
     config: dict[str, Any],
-    handler: Callable[[ApiRequest[Any], Any], Awaitable[ApiResponse[Any]]],
+    handler: Callable[[ApiRequest[Any], Logger], Awaitable[ApiResponse[Any]]],
 ) -> None:
     api_path = config["api_path"]
     http_method = config["http_method"]
     function_id = f"api.{http_method.lower()}.{api_path}"
+    logger = Logger(function_name=function_id)
 
     async def wrapped(data: Any) -> dict[str, Any]:
         req = ApiRequest(**data) if isinstance(data, dict) else data
-        ctx = get_context()
-        result = await handler(req, ctx)
+        result = await handler(req, logger)
         return result.model_dump(by_alias=True)
 
     iii.register_function(function_id, wrapped)

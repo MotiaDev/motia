@@ -11,8 +11,8 @@ useApi(
     description: 'Create a new todo',
     metadata: { tags: ['todo'] },
   },
-  async (req, ctx) => {
-    ctx.logger.info('Creating new todo', { body: req.body })
+  async (req, logger) => {
+    logger.info('Creating new todo', { body: req.body })
 
     const { description, dueDate } = req.body
     const todoId = `todo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
@@ -42,19 +42,19 @@ useApi(
     description: 'Delete a todo',
     metadata: { tags: ['todo'] },
   },
-  async (req, ctx) => {
+  async (req, logger) => {
     const { todoId } = req.body
 
-    ctx.logger.info('Deleting todo', { body: req.body })
+    logger.info('Deleting todo', { body: req.body })
 
     if (!todoId) {
-      ctx.logger.error('todoId is required')
+      logger.error('todoId is required')
       return { status_code: 400, body: { error: 'todoId is required' } }
     }
 
     await streams.delete('todo', 'inbox', todoId)
 
-    ctx.logger.info('Todo deleted successfully', { todoId })
+    logger.info('Todo deleted successfully', { todoId })
 
     return {
       status_code: 200,
@@ -71,20 +71,20 @@ useApi(
     description: 'Update a todo',
     metadata: { tags: ['todo2'] },
   },
-  async (req, ctx) => {
+  async (req, logger) => {
     const todoId = req.path_params.id
     const existingTodo = todoId ? await streams.get<Todo | null>('todo', 'inbox', todoId) : null
 
-    ctx.logger.info('Updating todo', { body: req.body, todoId })
+    logger.info('Updating todo', { body: req.body, todoId })
 
     if (!existingTodo) {
-      ctx.logger.error('Todo not found')
+      logger.error('Todo not found')
       return { status_code: 404, body: { error: 'Todo not found' } }
     }
 
     const todo = await streams.set<Todo>('todo', 'inbox', todoId, { ...existingTodo, ...req.body })
 
-    ctx.logger.info('Todo updated successfully', { todoId })
+    logger.info('Todo updated successfully', { todoId })
 
     return { status_code: 200, body: todo, headers: { 'Content-Type': 'application/json' } }
   },
@@ -92,8 +92,8 @@ useApi(
 
 useApi(
   { api_path: 'state', http_method: 'POST', description: 'Set application state' },
-  async (req, ctx) => {
-    ctx.logger.info('Creating new todo', { body: req.body })
+  async (req, logger) => {
+    logger.info('Creating new todo', { body: req.body })
 
     const { description, dueDate } = req.body
     const todoId = `todo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
@@ -118,8 +118,8 @@ useApi(
 
 useApi(
   { api_path: 'state/:id', http_method: 'GET', description: 'Get state by ID' },
-  async (req, ctx) => {
-    ctx.logger.info('Getting todo', { ...req.path_params })
+  async (req, logger) => {
+    logger.info('Getting todo', { ...req.path_params })
 
     const todoId = req.path_params.id
     const todo = await state.get<Todo | null>({ scope: 'todo', key: todoId })

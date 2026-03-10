@@ -54,7 +54,7 @@ async def test_handle_invoke_restores_trace_context_from_traceparent():
     # Real W3C traceparent: trace_id = 4bf92f3577b34da6a3ce929d0e0e4736
     fake_traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
 
-    # Use a non-None invocation_id with mocked _send so _invoke_with_context is awaited
+    # Use a non-None invocation_id with mocked _send so _invoke_with_otel_context is awaited
     with patch.object(client, "_send", new_callable=AsyncMock):
         await client._handle_invoke(
             invocation_id="test-invocation-id",

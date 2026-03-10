@@ -4,8 +4,9 @@ import type {
   HttpRequest as IIIHttpRequest,
   HttpResponse as IIIHttpResponse,
 } from 'iii-sdk'
-import { getContext, http as iiiHttp } from 'iii-sdk'
+import { Logger, http as iiiHttp } from 'iii-sdk'
 import type { StreamAuthInput, StreamJoinLeaveEvent } from 'iii-sdk/stream'
+import { currentTraceId } from 'iii-sdk/telemetry'
 import { isApiTrigger, isCronTrigger, isQueueTrigger, isStateTrigger, isStreamTrigger } from '../../guards'
 import type {
   ApiMiddleware,
@@ -76,8 +77,8 @@ const flowContext = <EnqueueData, TInput = unknown>(
   trigger: TriggerInfo,
   input?: TInput,
 ): FlowContext<EnqueueData, TInput> => {
-  const { logger, trace } = getContext()
-  const traceId = trace?.spanContext().traceId ?? crypto.randomUUID()
+  const logger = new Logger()
+  const traceId = currentTraceId() ?? crypto.randomUUID()
   const enqueue: Enqueuer<EnqueueData> = async (queue: EnqueueData): Promise<void> =>
     getInstance().call('enqueue', queue)
 
