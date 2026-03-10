@@ -97,6 +97,7 @@ impl FunctionHandler for Worker {
                     data: input,
                     traceparent,
                     baggage,
+                    action: None,
                 }))
                 .await;
 

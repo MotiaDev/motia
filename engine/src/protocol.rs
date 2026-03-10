@@ -31,6 +31,13 @@ fn default_http_method() -> HttpMethod {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
+pub enum TriggerAction {
+    Enqueue { queue: String },
+    Void,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum Message {
     RegisterTriggerType {
         id: String,
@@ -78,6 +85,8 @@ pub enum Message {
         /// W3C baggage header for cross-cutting context propagation
         #[serde(skip_serializing_if = "Option::is_none")]
         baggage: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        action: Option<TriggerAction>,
     },
     InvocationResult {
         invocation_id: Uuid,
@@ -193,7 +202,7 @@ pub struct StreamChannelRef {
 
 #[cfg(test)]
 mod tests {
-    use super::Message;
+    use super::{Message, TriggerAction};
     use crate::{
         invocation::{auth::HttpAuthConfig, method::HttpMethod},
         protocol::HttpInvocationRef,
@@ -276,5 +285,110 @@ mod tests {
             }
             _ => panic!("unexpected message variant"),
         }
+    }
+
+    #[test]
+    fn deserialize_invoke_function_with_enqueue_action() {
+        let raw = r#"{
+            "type": "invokefunction",
+            "invocation_id": null,
+            "function_id": "payment.process",
+            "data": {"amount": 100},
+            "action": {"type": "enqueue", "queue": "payment"}
+        }"#;
+        let message: Message = serde_json::from_str(raw).expect("message should deserialize");
+
+        match message {
+            Message::InvokeFunction {
+                function_id,
+                action,
+                ..
+            } => {
+                assert_eq!(function_id, "payment.process");
+                match action {
+                    Some(TriggerAction::Enqueue { queue }) => {
+                        assert_eq!(queue, "payment");
+                    }
+                    other => panic!("expected Enqueue action, got {other:?}"),
+                }
+            }
+            _ => panic!("unexpected message variant"),
+        }
+    }
+
+    #[test]
+    fn deserialize_invoke_function_with_void_action() {
+        let raw = r#"{
+            "type": "invokefunction",
+            "invocation_id": null,
+            "function_id": "audit.log",
+            "data": {"event": "login"},
+            "action": {"type": "void"}
+        }"#;
+        let message: Message = serde_json::from_str(raw).expect("message should deserialize");
+
+        match message {
+            Message::InvokeFunction {
+                function_id,
+                action,
+                ..
+            } => {
+                assert_eq!(function_id, "audit.log");
+                assert!(
+                    matches!(action, Some(TriggerAction::Void)),
+                    "expected Void action, got {action:?}"
+                );
+            }
+            _ => panic!("unexpected message variant"),
+        }
+    }
+
+    #[test]
+    fn deserialize_invoke_function_without_action() {
+        let raw = r#"{
+            "type": "invokefunction",
+            "invocation_id": null,
+            "function_id": "sync.call",
+            "data": {}
+        }"#;
+        let message: Message = serde_json::from_str(raw).expect("message should deserialize");
+
+        match message {
+            Message::InvokeFunction {
+                function_id,
+                action,
+                ..
+            } => {
+                assert_eq!(function_id, "sync.call");
+                assert!(action.is_none(), "expected no action, got {action:?}");
+            }
+            _ => panic!("unexpected message variant"),
+        }
+    }
+
+    #[test]
+    fn serialize_invoke_function_without_action_omits_field() {
+        let msg = Message::InvokeFunction {
+            invocation_id: None,
+            function_id: "test.fn".to_string(),
+            data: serde_json::json!({}),
+            traceparent: None,
+            baggage: None,
+            action: None,
+        };
+        let json = serde_json::to_string(&msg).expect("message should serialize");
+
+        assert!(
+            !json.contains("\"action\""),
+            "action field should be omitted when None, got: {json}"
+        );
+        assert!(
+            !json.contains("\"traceparent\""),
+            "traceparent field should be omitted when None, got: {json}"
+        );
+        assert!(
+            !json.contains("\"baggage\""),
+            "baggage field should be omitted when None, got: {json}"
+        );
     }
 }

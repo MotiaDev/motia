@@ -301,6 +301,7 @@ impl Engine {
                 data,
                 traceparent,
                 baggage,
+                action: _,
             } => {
                 tracing::debug!(
                     worker_id = %worker.id,
@@ -1306,6 +1307,7 @@ mod tests {
             data: serde_json::json!({"input": "test"}),
             traceparent: None,
             baggage: None,
+            action: None,
         };
 
         engine
@@ -1353,6 +1355,7 @@ mod tests {
             data: json!({ "value": 1 }),
             traceparent: None,
             baggage: None,
+            action: None,
         };
 
         engine
@@ -1417,6 +1420,7 @@ mod tests {
             data: json!({ "value": 2 }),
             traceparent: None,
             baggage: None,
+            action: None,
         };
 
         engine
@@ -1464,6 +1468,7 @@ mod tests {
             data: json!({}),
             traceparent: None,
             baggage: None,
+            action: None,
         };
 
         engine
