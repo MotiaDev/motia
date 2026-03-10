@@ -1832,7 +1832,7 @@ dependencies = [
 
 [[package]]
 name = "iii"
-version = "0.8.0"
+version = "0.8.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1853,7 +1853,7 @@ dependencies = [
  "hostname",
  "http-body-util",
  "iana-time-zone",
- "iii-sdk 0.8.0",
+ "iii-sdk 0.8.3",
  "indexmap",
  "inventory",
  "lapin",
@@ -1917,7 +1917,7 @@ dependencies = [
 
 [[package]]
 name = "iii-console"
-version = "0.8.0"
+version = "0.8.3"
 dependencies = [
  "anyhow",
  "axum",
@@ -1937,7 +1937,7 @@ dependencies = [
 name = "iii-example"
 version = "0.0.0"
 dependencies = [
- "iii-sdk 0.8.0",
+ "iii-sdk 0.8.3",
  "reqwest",
  "serde",
  "serde_json",
@@ -1971,7 +1971,7 @@ dependencies = [
 
 [[package]]
 name = "iii-sdk"
-version = "0.8.0"
+version = "0.8.3"
 dependencies = [
  "async-trait",
  "futures-util",
