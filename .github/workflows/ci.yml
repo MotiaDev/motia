@@ -49,13 +49,13 @@ jobs:
       # - name: Run clippy
       #   run: cargo clippy -p iii -p function-macros -p iii-sdk --all-targets --all-features -- -D warnings
 
-      - name: Build release
-        run: cargo build -p iii --release
+      - name: Build
+        run: cargo build -p iii
 
       - uses: actions/upload-artifact@v4
         with:
           name: iii-binary
-          path: target/release/iii
+          path: target/debug/iii
           retention-days: 1
 
   engine-build-matrix:
@@ -431,7 +431,6 @@ jobs:
 
   console-ci:
     name: Console Build
-    needs: build-engine
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
