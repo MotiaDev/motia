@@ -163,8 +163,8 @@ impl Module for BridgeClientModule {
                         }
                     };
 
-                    if let Err(err) = bridge.call_void(&invoke.function_id, invoke.data) {
-                        tracing::error!(error = ?err, "Bridge call_void failed");
+                    if let Err(err) = bridge.trigger(&invoke.function_id, invoke.data, iii_sdk::TriggerAction::void()).await {
+                        tracing::error!(error = ?err, "Bridge fire-and-forget failed");
                         return FunctionResult::Failure(ErrorBody {
                             code: "bridge_error".into(),
                             message: err.to_string(),

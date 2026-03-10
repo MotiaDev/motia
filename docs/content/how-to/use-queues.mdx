@@ -115,7 +115,7 @@ iii.register_function("orders::create", move |input| {
         });
 
         // Enqueue to the 'payment' queue
-        iii.trigger_with_action(
+        iii.trigger(
             "orders::process-order",
             order,
             TriggerAction::enqueue("payment"),
@@ -221,7 +221,7 @@ async def process_order(order):
 iii.register_function("orders::process-order", |order| async move {
     // ...charge the customer...
 
-    iii.trigger_with_action(
+    iii.trigger(
         "notifications::send",
         json!({ "orderId": order["id"], "type": "payment-confirmed" }),
         TriggerAction::enqueue("default"),
@@ -274,7 +274,7 @@ iii.trigger('payments::process', {
 <Tab value="Rust">
 ```rust
 // The 'transaction_id' field in the data is used for FIFO ordering
-iii.trigger_with_action(
+iii.trigger(
     "payments::process",
     json!({
         "transaction_id": "txn-abc-123",
@@ -317,7 +317,7 @@ iii.trigger('notifications::send-email',
 use iii_sdk::TriggerAction;
 
 // Fire-and-forget — no queue, no response
-iii.trigger_with_action(
+iii.trigger(
     "notifications::send-email",
     json!({ "to": "user@example.com", "subject": "Hello" }),
     TriggerAction::void(),
@@ -354,7 +354,7 @@ print('Order created', result['orderId'])
 let result = iii.trigger("orders::create", json!({
     "items": ["item-1", "item-2"],
     "total": 99.99,
-})).await?;
+}), ()).await?;
 println!("Order created: {}", result["orderId"]);
 ```
 </Tab>
@@ -416,14 +416,14 @@ iii.trigger('send-notification', data,
 use iii_sdk::{III, TriggerAction};
 
 // Direct call (request/response)
-let result = iii.trigger("get-order", json!({ "id": "123" })).await?;
+let result = iii.trigger("get-order", json!({ "id": "123" }), ()).await?;
 
 // Enqueue to named queue (fire-and-forget)
-iii.trigger_with_action("process-order", order_data,
+iii.trigger("process-order", order_data,
     TriggerAction::enqueue("payment")).await?;
 
 // Void (fire-and-forget, no queue)
-iii.trigger_with_action("send-notification", data,
+iii.trigger("send-notification", data,
     TriggerAction::void()).await?;
 ```
 </Tab>
@@ -503,7 +503,7 @@ iii.register_trigger("queue", "orders::process-payment", json!({
 
 ```rust title="After (Named Queues)"
 // New: enqueue directly to the target function via a named queue
-iii.trigger_with_action(
+iii.trigger(
     "orders::process-payment",
     order,
     TriggerAction::enqueue("payment"),
@@ -544,7 +544,7 @@ iii.trigger_void("send-notification", data)?;
 ```
 
 ```rust title="After"
-iii.trigger_with_action("send-notification", data,
+iii.trigger("send-notification", data,
     TriggerAction::void()).await?;
 ```
 </Tab>

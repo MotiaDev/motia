@@ -65,6 +65,58 @@ impl TriggerAction {
     }
 }
 
+/// Options for `trigger()`. Mirrors the options object in the Node/Python SDKs.
+///
+/// You can construct this directly or use the ergonomic `From` impls:
+/// - `()` → default options (no action, default timeout)
+/// - `Duration` → custom timeout, no action
+/// - `TriggerAction` → fire-and-forget with the given action
+#[derive(Debug, Clone, Default)]
+pub struct TriggerOptions {
+    pub timeout: Option<std::time::Duration>,
+    pub action: Option<TriggerAction>,
+}
+
+impl TriggerOptions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+
+    pub fn with_action(mut self, action: TriggerAction) -> Self {
+        self.action = Some(action);
+        self
+    }
+}
+
+impl From<()> for TriggerOptions {
+    fn from(_: ()) -> Self {
+        Self::default()
+    }
+}
+
+impl From<std::time::Duration> for TriggerOptions {
+    fn from(timeout: std::time::Duration) -> Self {
+        Self {
+            timeout: Some(timeout),
+            action: None,
+        }
+    }
+}
+
+impl From<TriggerAction> for TriggerOptions {
+    fn from(action: TriggerAction) -> Self {
+        Self {
+            timeout: None,
+            action: Some(action),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Message {

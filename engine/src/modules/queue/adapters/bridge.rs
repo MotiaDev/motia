@@ -113,7 +113,8 @@ impl QueueAdapter for BridgeAdapter {
         let input = Self::build_enqueue_payload(topic, data);
         if let Err(e) = self
             .bridge
-            .call_void(Self::queue_enqueue_function_id(), input)
+            .trigger(Self::queue_enqueue_function_id(), input, iii_sdk::TriggerAction::void())
+            .await
         {
             tracing::error!(error = %e, topic = %topic, "Failed to enqueue message via bridge");
         }
@@ -259,7 +260,7 @@ impl QueueAdapter for BridgeAdapter {
             "function_id": function_id,
             "data": data,
         });
-        if let Err(e) = self.bridge.call_void("enqueue_to_queue", payload) {
+        if let Err(e) = self.bridge.trigger("enqueue_to_queue", payload, iii_sdk::TriggerAction::void()).await {
             tracing::error!(error = %e, queue = %queue_name, "Failed to enqueue via bridge");
         }
     }
