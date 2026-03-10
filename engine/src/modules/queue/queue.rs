@@ -22,7 +22,7 @@ use super::{QueueAdapter, SubscriberQueueConfig, config::QueueModuleConfig};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::{
-    engine::{Engine, EngineTrait, Handler, RegisterFunctionRequest},
+    engine::{Engine, EngineTrait, Handler, QueueEnqueuer, RegisterFunctionRequest},
     function::FunctionResult,
     modules::module::{AdapterFactory, ConfigurableModule, Module},
     protocol::ErrorBody,
@@ -126,6 +126,21 @@ impl QueueCoreModule {
     }
 }
 
+#[async_trait]
+impl QueueEnqueuer for QueueCoreModule {
+    async fn enqueue_to_named_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: Value,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+    ) -> anyhow::Result<()> {
+        self.enqueue_to_named_queue(queue_name, function_id, data, traceparent, baggage)
+            .await
+    }
+}
+
 impl TriggerRegistrator for QueueCoreModule {
     fn register_trigger(
         &self,
@@ -224,6 +239,26 @@ impl Module for QueueCoreModule {
     async fn initialize(&self) -> anyhow::Result<()> {
         tracing::info!("Initializing QueueModule");
 
+        // Validate config at startup
+        self._config.validate()?;
+
+        // Store reference on engine for dispatch access
+        self.engine
+            .set_queue_module(Arc::new(self.clone()))
+            .await;
+
+        // Start a worker for each named queue
+        for (name, config) in &self._config.queue_configs {
+            tracing::info!(
+                queue = %name,
+                r#type = %config.r#type,
+                concurrency = %config.concurrency,
+                "Starting named queue"
+            );
+            self.adapter.start_named_queue(name, config).await;
+        }
+
+        // Register the queue trigger type (backward compat)
         let trigger_type = TriggerType {
             id: "queue".to_string(),
             _description: "Queue core module".to_string(),
@@ -506,6 +541,14 @@ mod tests {
 
         async fn dlq_count(&self, _topic: &str) -> anyhow::Result<u64> {
             Ok(0)
+        }
+
+        async fn start_named_queue(
+            &self,
+            _queue_name: &str,
+            _config: &super::super::config::NamedQueueConfig,
+        ) {
+            // no-op for tests
         }
     }
 

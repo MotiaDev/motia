@@ -31,6 +31,23 @@ use crate::{
     workers::{Worker, WorkerRegistry},
 };
 
+/// Abstraction for enqueuing messages to named queues.
+///
+/// This trait decouples the Engine from the concrete QueueCoreModule
+/// so that dispatch routing can push work onto a named queue without
+/// creating a circular dependency.
+#[async_trait::async_trait]
+pub trait QueueEnqueuer: Send + Sync {
+    async fn enqueue_to_named_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: serde_json::Value,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+    ) -> anyhow::Result<()>;
+}
+
 /// Magic prefix for OTLP binary frames (used by SDKs for trace spans)
 const OTLP_WS_PREFIX: &[u8] = b"OTLP";
 /// Magic prefix for metrics binary frames (used by SDKs for OTEL metrics)
@@ -139,7 +156,7 @@ pub trait EngineTrait: Send + Sync {
         F: Future<Output = FunctionResult<Option<Value>, ErrorBody>> + Send + 'static;
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct Engine {
     pub worker_registry: Arc<WorkerRegistry>,
     pub functions: Arc<FunctionsRegistry>,
@@ -147,6 +164,13 @@ pub struct Engine {
     pub service_registry: Arc<ServicesRegistry>,
     pub invocations: Arc<InvocationHandler>,
     pub channel_manager: Arc<ChannelManager>,
+    pub queue_module: Arc<tokio::sync::RwLock<Option<Arc<dyn QueueEnqueuer>>>>,
+}
+
+impl Default for Engine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Engine {
@@ -158,7 +182,12 @@ impl Engine {
             service_registry: Arc::new(ServicesRegistry::new()),
             invocations: Arc::new(InvocationHandler::new()),
             channel_manager: Arc::new(ChannelManager::new()),
+            queue_module: Arc::new(tokio::sync::RwLock::new(None)),
         }
+    }
+
+    pub async fn set_queue_module(&self, module: Arc<dyn QueueEnqueuer>) {
+        *self.queue_module.write().await = Some(module);
     }
 
     async fn send_msg(&self, worker: &Worker, msg: Message) -> bool {
@@ -218,6 +247,134 @@ impl Engine {
                 stacktrace: None,
             }))
         }
+    }
+
+    /// Spawns the standard invoke-function flow as a background task.
+    ///
+    /// When `invocation_id` is `Some`, an `InvocationResult` is sent back
+    /// to the caller once the function completes.  When `None`, the call
+    /// is fire-and-forget (used by the `Void` action).
+    fn spawn_invoke_function(
+        &self,
+        worker: &Worker,
+        function_id: &str,
+        data: &Value,
+        traceparent: &Option<String>,
+        baggage: &Option<String>,
+        invocation_id: Option<Uuid>,
+    ) {
+        let span = tracing::info_span!(
+            "handle_invocation",
+            otel.name = %format!("handle_invocation {}", function_id),
+            worker_id = %worker.id,
+            function_id = %function_id,
+            invocation_id = ?invocation_id,
+            otel.kind = "server",
+            otel.status_code = tracing::field::Empty,
+        )
+        .with_parent_headers(traceparent.as_deref(), baggage.as_deref());
+
+        let engine = self.clone();
+        let worker = worker.clone();
+        let function_id = function_id.to_string();
+
+        // Add caller's worker_id to invocation data as standard metadata
+        let data = {
+            let mut data = data.clone();
+            if let Some(obj) = data.as_object_mut() {
+                obj.insert(
+                    "_caller_worker_id".to_string(),
+                    serde_json::json!(worker.id.to_string()),
+                );
+            }
+            data
+        };
+        let incoming_traceparent = traceparent.clone();
+        let incoming_baggage = baggage.clone();
+
+        tokio::spawn(
+            async move {
+                let result = engine
+                    .remember_invocation(
+                        &worker,
+                        invocation_id,
+                        &function_id,
+                        data,
+                        incoming_traceparent.clone(),
+                        incoming_baggage.clone(),
+                    )
+                    .await;
+
+                if let Some(invocation_id) = invocation_id {
+                    let current_ctx = tracing::Span::current().context();
+                    let response_traceparent =
+                        inject_traceparent_from_context(&current_ctx).or(incoming_traceparent);
+                    let response_baggage =
+                        inject_baggage_from_context(&current_ctx).or(incoming_baggage);
+
+                    match result {
+                        Ok(result) => match result {
+                            Ok(result) => {
+                                tracing::Span::current().record("otel.status_code", "OK");
+                                engine
+                                    .send_msg(
+                                        &worker,
+                                        Message::InvocationResult {
+                                            invocation_id,
+                                            function_id: function_id.clone(),
+                                            result: result.clone(),
+                                            error: None,
+                                            traceparent: response_traceparent.clone(),
+                                            baggage: response_baggage.clone(),
+                                        },
+                                    )
+                                    .await;
+                            }
+                            Err(err) => {
+                                tracing::Span::current().record("otel.status_code", "ERROR");
+                                engine
+                                    .send_msg(
+                                        &worker,
+                                        Message::InvocationResult {
+                                            invocation_id,
+                                            function_id: function_id.clone(),
+                                            result: None,
+                                            error: Some(err.clone()),
+                                            traceparent: response_traceparent.clone(),
+                                            baggage: response_baggage.clone(),
+                                        },
+                                    )
+                                    .await;
+                            }
+                        },
+                        Err(err) => {
+                            tracing::Span::current().record("otel.status_code", "ERROR");
+                            tracing::error!(error = ?err, "Error remembering invocation");
+                            engine
+                                .send_msg(
+                                    &worker,
+                                    Message::InvocationResult {
+                                        invocation_id,
+                                        function_id: function_id.clone(),
+                                        result: None,
+                                        error: Some(ErrorBody {
+                                            code: "invocation_error".into(),
+                                            message: err.to_string(),
+                                            stacktrace: None,
+                                        }),
+                                        traceparent: response_traceparent,
+                                        baggage: response_baggage,
+                                    },
+                                )
+                                .await;
+                        }
+                    }
+
+                    worker.remove_invocation(&invocation_id).await;
+                }
+            }
+            .instrument(span),
+        );
     }
 
     async fn router_msg(&self, worker: &Worker, msg: &Message) -> anyhow::Result<()> {
@@ -301,7 +458,7 @@ impl Engine {
                 data,
                 traceparent,
                 baggage,
-                action: _,
+                action,
             } => {
                 tracing::debug!(
                     worker_id = %worker.id,
@@ -309,130 +466,116 @@ impl Engine {
                     function_id = %function_id,
                     traceparent = ?traceparent,
                     baggage = ?baggage,
+                    action = ?action,
                     payload = ?data,
                     "InvokeFunction"
                 );
 
-                // Create a span that's linked to the incoming trace context (if any)
-                let span = tracing::info_span!(
-                    "handle_invocation",
-                    otel.name = %format!("handle_invocation {}", function_id),
-                    worker_id = %worker.id,
-                    function_id = %function_id,
-                    invocation_id = ?invocation_id,
-                    otel.kind = "server",
-                    otel.status_code = tracing::field::Empty,
-                )
-                .with_parent_headers(traceparent.as_deref(), baggage.as_deref());
+                match action {
+                    Some(crate::protocol::TriggerAction::Enqueue { queue }) => {
+                        let engine = self.clone();
+                        let worker = worker.clone();
+                        let invocation_id = *invocation_id;
+                        let function_id = function_id.to_string();
+                        let queue = queue.to_string();
+                        let data = data.clone();
+                        let traceparent = traceparent.clone();
+                        let baggage = baggage.clone();
 
-                let engine = self.clone();
-                let worker = worker.clone();
-                let invocation_id = *invocation_id;
-                let function_id = function_id.to_string();
+                        let span = tracing::info_span!(
+                            "enqueue_action",
+                            otel.name = %format!("enqueue {} → {}", function_id, queue),
+                            function_id = %function_id,
+                            queue = %queue,
+                        )
+                        .with_parent_headers(traceparent.as_deref(), baggage.as_deref());
 
-                // Add caller's worker_id to invocation data as standard metadata
-                let data = {
-                    let mut data = data.clone();
-                    if let Some(obj) = data.as_object_mut() {
-                        obj.insert(
-                            "_caller_worker_id".to_string(),
-                            serde_json::json!(worker.id.to_string()),
-                        );
-                    }
-                    data
-                };
-                let incoming_traceparent = traceparent.clone();
-                let incoming_baggage = baggage.clone();
-
-                tokio::spawn(
-                    async move {
-                        let result = engine
-                            .remember_invocation(
-                                &worker,
-                                invocation_id,
-                                &function_id,
-                                data,
-                                incoming_traceparent.clone(),
-                                incoming_baggage.clone(),
-                            )
-                            .await;
-
-                        if let Some(invocation_id) = invocation_id {
-                            // Inject traceparent/baggage from the span's explicit context
-                            // (using tracing::Span::current().context() for reliable propagation)
-                            let current_ctx = tracing::Span::current().context();
-                            let response_traceparent =
-                                inject_traceparent_from_context(&current_ctx)
-                                    .or(incoming_traceparent);
-                            let response_baggage =
-                                inject_baggage_from_context(&current_ctx).or(incoming_baggage);
-
-                            match result {
-                                Ok(result) => match result {
-                                    Ok(result) => {
-                                        tracing::Span::current().record("otel.status_code", "OK");
-                                        engine
-                                            .send_msg(
-                                                &worker,
-                                                Message::InvocationResult {
-                                                    invocation_id,
-                                                    function_id: function_id.clone(),
-                                                    result: result.clone(),
-                                                    error: None,
-                                                    traceparent: response_traceparent.clone(),
-                                                    baggage: response_baggage.clone(),
-                                                },
-                                            )
-                                            .await;
-                                    }
-                                    Err(err) => {
-                                        tracing::Span::current()
-                                            .record("otel.status_code", "ERROR");
-                                        engine
-                                            .send_msg(
-                                                &worker,
-                                                Message::InvocationResult {
-                                                    invocation_id,
-                                                    function_id: function_id.clone(),
-                                                    result: None,
-                                                    error: Some(err.clone()),
-                                                    traceparent: response_traceparent.clone(),
-                                                    baggage: response_baggage.clone(),
-                                                },
-                                            )
-                                            .await;
-                                    }
-                                },
-                                Err(err) => {
-                                    tracing::Span::current().record("otel.status_code", "ERROR");
-                                    tracing::error!(error = ?err, "Error remembering invocation");
-                                    engine
-                                        .send_msg(
-                                            &worker,
-                                            Message::InvocationResult {
-                                                invocation_id,
-                                                function_id: function_id.clone(),
-                                                result: None,
-                                                error: Some(ErrorBody {
-                                                    code: "invocation_error".into(),
-                                                    message: err.to_string(),
-                                                    stacktrace: None,
-                                                }),
-                                                traceparent: response_traceparent,
-                                                baggage: response_baggage,
-                                            },
+                        tokio::spawn(
+                            async move {
+                                let queue_module = engine.queue_module.read().await;
+                                let result = match queue_module.as_ref() {
+                                    Some(qm) => {
+                                        qm.enqueue_to_named_queue(
+                                            &queue,
+                                            &function_id,
+                                            data.clone(),
+                                            traceparent.clone(),
+                                            baggage.clone(),
                                         )
-                                        .await;
+                                        .await
+                                    }
+                                    None => Err(anyhow::anyhow!("QueueModule not loaded")),
+                                };
+
+                                if let Some(invocation_id) = invocation_id {
+                                    match result {
+                                        Ok(()) => {
+                                            engine
+                                                .send_msg(
+                                                    &worker,
+                                                    Message::InvocationResult {
+                                                        invocation_id,
+                                                        function_id: function_id.clone(),
+                                                        result: Some(serde_json::json!({
+                                                            "enqueued": true
+                                                        })),
+                                                        error: None,
+                                                        traceparent: traceparent.clone(),
+                                                        baggage: baggage.clone(),
+                                                    },
+                                                )
+                                                .await;
+                                        }
+                                        Err(err) => {
+                                            engine
+                                                .send_msg(
+                                                    &worker,
+                                                    Message::InvocationResult {
+                                                        invocation_id,
+                                                        function_id: function_id.clone(),
+                                                        result: None,
+                                                        error: Some(ErrorBody::new(
+                                                            "enqueue_error",
+                                                            err.to_string(),
+                                                        )),
+                                                        traceparent: traceparent.clone(),
+                                                        baggage: baggage.clone(),
+                                                    },
+                                                )
+                                                .await;
+                                        }
+                                    }
                                 }
                             }
+                            .instrument(span),
+                        );
 
-                            worker.remove_invocation(&invocation_id).await;
-                        }
+                        Ok(())
                     }
-                    .instrument(span),
-                );
 
-                Ok(())
+                    Some(crate::protocol::TriggerAction::Void) => {
+                        // Fire-and-forget: invoke function but never send
+                        // InvocationResult back to the caller.
+                        self.spawn_invoke_function(
+                            worker, function_id, data, traceparent, baggage,
+                            None, // force invocation_id to None — no result sent
+                        );
+                        Ok(())
+                    }
+
+                    None => {
+                        // Default behavior: invoke and (optionally) return result.
+                        self.spawn_invoke_function(
+                            worker,
+                            function_id,
+                            data,
+                            traceparent,
+                            baggage,
+                            *invocation_id,
+                        );
+                        Ok(())
+                    }
+                }
             }
             Message::InvocationResult {
                 invocation_id,
