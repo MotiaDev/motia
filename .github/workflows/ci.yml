@@ -34,18 +34,15 @@ jobs:
 
       - uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: Set llvm-cov env
-        run: cargo llvm-cov show-env >> $GITHUB_ENV
-
-      - name: Build
-        run: cargo build -p iii --all-features
-
-      - name: Report coverage
-        run: >-
-          cargo llvm-cov 
-          --fail-under-lines 70
-          --ignore-filename-regex
-          "engine/src/main\.rs|(cron|pubsub|queue|state|stream)/adapters/(redis_adapter|bridge)\.rs|queue/adapters/rabbitmq/|^sdk/"
+      - name: Build and run coverage
+        run: |
+          eval "$(cargo llvm-cov show-env --export-prefix)"
+          cargo build -p iii --all-features
+          cargo test -p iii --all-features
+          cargo llvm-cov report \
+            --fail-under-lines 70 \
+            --ignore-filename-regex \
+            "engine/src/main\.rs|(cron|pubsub|queue|state|stream)/adapters/(redis_adapter|bridge)\.rs|queue/adapters/rabbitmq/|^sdk/"
 
       - name: Check formatting
         run: cargo fmt --all -- --check
