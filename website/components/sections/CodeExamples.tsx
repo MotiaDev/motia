@@ -61,9 +61,9 @@ app.listen(3000)`,
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Language-agnostic API
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Register handler - works from any language
 iii.registerFunction(
@@ -152,9 +152,9 @@ await emailQueue.add('welcome', { userId, email }, {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Functions ARE the jobs
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Register job handler
 iii.registerFunction(
@@ -256,9 +256,9 @@ await subscribe('order.placed', async (order) => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Events are function invocations
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Register event handlers as functions
 iii.registerFunction(
@@ -365,9 +365,9 @@ io.on('connection', (socket) => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Streams are built-in
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Create typed stream with in-memory store
 const rooms = new Map<string, Map<string, any>>()
@@ -497,9 +497,9 @@ async function setSession(sessionId: string, data: any, ttl: number) {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - State is a module
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Use StateModule - same API everywhere
 iii.registerFunction(
@@ -597,9 +597,9 @@ await agenda.every('1 week', 'send-weekly-digest', { userId: 123 })
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Cron is a trigger type
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Register the function
 iii.registerFunction(
@@ -715,9 +715,9 @@ async function handleRequest(req: Request) {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Logging is built-in
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'orders::process' },
@@ -826,9 +826,9 @@ await worker.run()
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Durable workflows from plain functions
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // HTTP endpoint kicks off the workflow
 iii.registerFunction(
@@ -966,9 +966,9 @@ const stream = await executor.streamEvents(
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Functions ARE tools, State IS memory
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Register tools as functions - automatic discovery
 iii.registerFunction(
@@ -1101,9 +1101,9 @@ process.on('SIGTERM', () => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - State + Streams = Feature Flags
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Define flags in StateModule
 iii.registerFunction(
@@ -1232,9 +1232,9 @@ class GameRoom extends Room<GameState> {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Streams for state, Events for actions
-import { init } from "iii-sdk"
+import { registerWorker } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Register game stream with in-memory store
 const players = new Map<string, Map<string, any>>()
@@ -1371,9 +1371,9 @@ cron.schedule('0 2 * * *', async () => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Staged pipeline, events for flow, state for recovery
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Extract — reads last checkpoint, hands off to transform
 iii.registerFunction(
@@ -1493,9 +1493,9 @@ app.post('/messages', async (req, res) => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Reactive backend, your database, your infrastructure
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Send message — persist to your DB, notify all subscribers instantly
 iii.registerFunction(
@@ -1644,9 +1644,9 @@ app.listen(3000)`,
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Functions as universal remote invokers
-import { init, Logger } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Route to Stripe
 iii.registerFunction(

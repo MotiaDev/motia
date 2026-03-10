@@ -25,10 +25,10 @@ const NodeIcon = () => (
 );
 
 // Code snippets
-const pythonCode = `from iii import init
+const pythonCode = `from iii import register_worker
 import torch
 
-iii = init("ws://localhost:49134")
+iii = register_worker("ws://localhost:49134")
 
 async def predict(input: dict) -> dict:
     tensor = torch.tensor(input["data"])
@@ -37,7 +37,7 @@ async def predict(input: dict) -> dict:
 
 iii.register_function("ml.predict", predict)`;
 
-const rustCode = `use iii_sdk::{init, InitOptions, Value, IIIError};
+const rustCode = `use iii_sdk::{register_worker, InitOptions, Value, IIIError};
 use serde_json::json;
 
 async fn transform(input: Value) -> Result<Value, IIIError> {
@@ -48,16 +48,16 @@ async fn transform(input: Value) -> Result<Value, IIIError> {
 
 #[tokio::main]
 async fn main() -> Result<(), IIIError> {
-    let iii = init("ws://localhost:49134", InitOptions::default())?;
+    let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
 
     iii.register_function("data.transform", transform);
 
     Ok(())
 }`;
 
-const nodeCode = `import { init } from "iii-sdk";
+const nodeCode = `import { registerWorker } from "iii-sdk";
 
-const iii = init("ws://localhost:49134");
+const iii = registerWorker("ws://localhost:49134");
 
 const transformed = await iii.trigger(
   "data.transform",

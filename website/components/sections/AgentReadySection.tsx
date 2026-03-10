@@ -49,8 +49,8 @@ const capabilities = [
   {
     name: "AI Agent with Tools",
     code: {
-      typescript: `import { init, Logger } from "iii-sdk"
-const iii = init(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
+      typescript: `import { registerWorker, Logger } from "iii-sdk"
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
 const logger = new Logger()
 
 const tools = await iii.listFunctions()
@@ -71,9 +71,9 @@ iii.registerFunction(
     return response
   }
 )`,
-      python: `from iii import III
+      python: `from iii import register_worker
 
-iii = init(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
+iii = register_worker(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
 
 async def research_handler(input):
     logger = Logger()
@@ -88,10 +88,10 @@ async def research_handler(input):
     return response
 
 iii.register_function("agent::research", research_handler)`,
-      rust: `use iii_sdk::{III, Logger};
+      rust: `use iii_sdk::{register_worker, InitOptions, Logger};
 
-let iii = III::new("ws://localhost:49134");
-iii.connect().await?;
+let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
+
 let logger = Logger();
 let tools = iii.list_functions().await?;
 
@@ -255,8 +255,8 @@ iii.register_function("orders::process", process_order)`,
   {
     name: "Polyglot Workers",
     code: {
-      typescript: `import { init } from "iii-sdk"
-const iii = init(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
+      typescript: `import { registerWorker } from "iii-sdk"
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
 
 iii.registerFunction({ id: "api.users" }, async (req) => {
   const user = await db.createUser(req)
@@ -275,9 +275,9 @@ iii.registerTrigger({
   function_id: "ml.onboarding",
   config: { topic: "user.created" }
 })`,
-      python: `from iii import III
+      python: `from iii import register_worker
 
-iii = init(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
+iii = register_worker(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
 
 async def predict_handler(input):
     logger = Logger()
@@ -292,9 +292,9 @@ async def recommend_handler(input):
 
 iii.register_function("ml.onboarding", predict_handler)
 iii.register_function("ml.recommend", recommend_handler)`,
-      rust: `use iii_sdk::{init, InitOptions};
+      rust: `use iii_sdk::{register_worker, InitOptions};
 
-let iii = init("ws://localhost:49134", InitOptions::default())?;
+let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
 
 iii.register_function(
     reg("transform.images"), |input| async move {

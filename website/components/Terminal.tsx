@@ -219,7 +219,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("", "info");
         addLog("4. Connect a worker (Node.js):", "warning");
         addLog("   npm install iii-sdk", "info");
-        addLog('   const iii = init("ws://127.0.0.1:49134")', "success");
+        addLog('   const iii = registerWorker("ws://127.0.0.1:49134")', "success");
         addLog('   iii.registerFunction({ id: "my::fn" }, handler)', "success");
         addLog("", "info");
         addLog("Read the docs at iii.dev/docs", "warning");
@@ -295,8 +295,8 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("  cargo add iii-sdk", "success");
         addLog("", "info");
         addLog("Node.js/TypeScript:", "warning");
-        addLog('import { init } from "iii-sdk";', "success");
-        addLog('const iii = init("ws://127.0.0.1:49134");', "success");
+        addLog('import { registerWorker } from "iii-sdk";', "success");
+        addLog('const iii = registerWorker("ws://127.0.0.1:49134");', "success");
         addLog("", "info");
         addLog("iii.registerFunction({", "success");
         addLog('  id: "math::add"', "success");
@@ -305,11 +305,11 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("});", "success");
         addLog("", "info");
         addLog("Python:", "warning");
-        addLog("from iii import init", "success");
-        addLog('iii = init("ws://127.0.0.1:49134")', "success");
+        addLog("from iii import register_worker", "success");
+        addLog('iii = register_worker("ws://127.0.0.1:49134")', "success");
         addLog("", "info");
         addLog("Rust:", "warning");
-        addLog('let iii = init("ws://127.0.0.1:49134", InitOptions::default())?;', "success");
+        addLog('let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default())?;', "success");
         addLog("", "info");
         addLog('See "register" and "triggers" for more examples', "info");
         break;
@@ -573,9 +573,9 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("", "info");
         addLog("// TypeScript Example", "warning");
         addLog("", "info");
-        addLog('import { init } from "iii-sdk";', "success");
+        addLog('import { registerWorker } from "iii-sdk";', "success");
         addLog("", "info");
-        addLog('const iii = init("ws://localhost:49134");', "success");
+        addLog('const iii = registerWorker("ws://localhost:49134");', "success");
         addLog("", "info");
         addLog("iii.registerFunction({", "success");
         addLog('  id: "myService::greet",', "success");

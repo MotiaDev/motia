@@ -72,8 +72,8 @@ Platforms: AWS, Google Cloud, Azure, Cloudflare, Vercel, Fly.io, Docker, Kuberne
 
 ## TypeScript
 \`\`\`typescript
-import { init, Logger } from "iii-sdk"
-const iii = init(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
+import { registerWorker, Logger } from "iii-sdk"
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
 
 iii.registerFunction(
   { id: "users.create" },
@@ -93,9 +93,8 @@ iii.registerTrigger({
 
 ## Python
 \`\`\`python
-from iii import init 
-
-iii = init(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
+from iii import register_worker
+iii = register_worker(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
 
 async def create_user(input):
     logger = Logger()
@@ -113,10 +112,10 @@ iii.register_trigger(
 
 ## Rust
 \`\`\`rust
-use iii_sdk::{III, Logger};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 
-let iii = init("ws://localhost:49134", InitOptions::default())?;
+let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
 
 iii.register_function("users::create", |input| async move {
     let logger = Logger()();
@@ -199,8 +198,8 @@ Compatible agents: Claude Code, Cursor, Gemini, Codex, Windsurf, Trae, Amp, Roo,
 
 ## 1. AI Agent with Tools — ReAct loop with tool calling
 \`\`\`typescript
-import { init, Logger } from "iii-sdk"
-const iii = init(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
+import { registerWorker, Logger } from "iii-sdk"
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
 const logger = new Logger()
 
 const tools = await iii.listFunctions()
