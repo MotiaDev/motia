@@ -1,4 +1,4 @@
-import { ArrowUp, Clock, Copy, Layers, X, Zap } from 'lucide-react'
+import { ArrowUp, Clock, Copy, ExternalLink, Layers, Link2, X, Zap } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { VisualizationSpan, WaterfallData } from '@/lib/traceTransform'
@@ -14,9 +14,10 @@ interface SpanPanelProps {
   traceData: WaterfallData | null
   onClose: () => void
   onNavigateToSpan: (span: VisualizationSpan) => void
+  onNavigateToTrace?: (traceId: string) => void
 }
 
-export function SpanPanel({ span, traceData, onClose, onNavigateToSpan }: SpanPanelProps) {
+export function SpanPanel({ span, traceData, onClose, onNavigateToSpan, onNavigateToTrace }: SpanPanelProps) {
   const { copiedKey: copiedField, copy: copyToClipboard } = useCopyToClipboard()
 
   useEffect(() => {
@@ -36,6 +37,11 @@ export function SpanPanel({ span, traceData, onClose, onNavigateToSpan }: SpanPa
     const selfTime = Math.max(0, span.duration_ms - childDuration)
     return { parentSpan, childSpans, selfTime, childDuration }
   }, [span, traceData])
+
+  const crossTraceLinks = useMemo(() => {
+    if (!span?.links?.length) return []
+    return span.links.filter((link) => link.trace_id && link.trace_id !== span.trace_id)
+  }, [span])
 
   if (!span) return null
 
@@ -167,6 +173,34 @@ export function SpanPanel({ span, traceData, onClose, onNavigateToSpan }: SpanPa
           </div>
         )}
       </div>
+
+      {/* Cross-trace links */}
+      {crossTraceLinks.length > 0 && onNavigateToTrace && (
+        <div className="flex-shrink-0 border-b border-[#1D1D1D] px-4 py-2">
+          <div className="text-[9px] text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+            <Link2 className="w-2.5 h-2.5" />
+            Linked Traces
+          </div>
+          <div className="flex flex-col gap-1">
+            {crossTraceLinks.map((link) => (
+              <button
+                key={`${link.trace_id}-${link.span_id}`}
+                type="button"
+                onClick={() => onNavigateToTrace(link.trace_id)}
+                className="flex items-center gap-1.5 w-full px-2.5 py-1.5 bg-[#141414] border border-[#1D1D1D] rounded hover:bg-[#1A1A1A] hover:border-[#252525] transition-colors group text-left"
+              >
+                <ExternalLink className="w-3 h-3 text-gray-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
+                <span className="text-[10px] font-mono text-gray-300 truncate group-hover:text-[#F4F4F4] transition-colors">
+                  {link.trace_id.slice(0, 16)}
+                </span>
+                <span className="text-[9px] font-mono text-gray-600 ml-auto flex-shrink-0">
+                  span:{link.span_id.slice(0, 8)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tabbed content */}
       <div className="flex-1 overflow-hidden min-h-0">

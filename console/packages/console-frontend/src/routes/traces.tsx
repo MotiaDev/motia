@@ -3,9 +3,12 @@ import {
   Activity,
   AlertCircle,
   CheckCircle2,
+  ChevronRight,
   Eye,
   EyeOff,
   GitBranch,
+  Pause,
+  Play,
   RefreshCw,
   Timer,
   XCircle,
@@ -25,7 +28,9 @@ import { Button } from '@/components/ui/card'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { Pagination } from '@/components/ui/pagination'
 import { useTraceFilters } from '@/hooks/useTraceFilters'
+import { getServiceColor } from '@/lib/traceColors'
 import {
+  extractServiceChain,
   toMs,
   treeToWaterfallData,
   type VisualizationSpan,
@@ -82,11 +87,17 @@ function TracesPage() {
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null)
   const [hasOtelConfigured, setHasOtelConfigured] = useState(false)
 
+  const [isLive, setIsLive] = useState(false)
+  const LIVE_INTERVAL = 3000
+
   const [activeView, setActiveView] = useState<ViewType>('waterfall')
   const [selectedSpan, setSelectedSpan] = useState<VisualizationSpan | null>(null)
   const [waterfallData, setWaterfallData] = useState<WaterfallData | null>(null)
   const [isLoadingSpans, setIsLoadingSpans] = useState(false)
   const [spansError, setSpansError] = useState<string | null>(null)
+
+  const [chainCache, setChainCache] = useState<Map<string, string[]>>(new Map())
+  const chainFetchingRef = useRef(new Set<string>())
 
   const {
     filters: filterState,
@@ -181,6 +192,66 @@ function TracesPage() {
     loadTraces()
   }, [loadTraces])
 
+  const mapSpanToTraceGroup = useCallback(
+    (span: { trace_id: string; name: string; status: string; start_time_unix_nano: number; end_time_unix_nano: number; service_name?: string }): TraceGroup => {
+      const startTime = toMs(span.start_time_unix_nano)
+      const endTime = toMs(span.end_time_unix_nano)
+      return {
+        traceId: span.trace_id,
+        rootOperation: span.name,
+        status: span.status.toLowerCase() === 'error' ? 'error' : 'ok',
+        startTime,
+        endTime,
+        duration: endTime - startTime,
+        spanCount: 1,
+        services: [span.service_name || 'unknown'],
+      }
+    },
+    [],
+  )
+
+  const silentRefresh = useCallback(async () => {
+    try {
+      const params = getFilterOnlyParams()
+      const data = await fetchTraces({
+        ...params,
+        offset: 0,
+        limit: DEFAULT_TRACE_LIMIT,
+        include_internal: showSystem,
+      })
+      if (data.spans?.length) {
+        const traces = data.spans.map(mapSpanToTraceGroup)
+        traces.sort((a, b) => b.startTime - a.startTime)
+        setTraceGroups(traces)
+        setHasOtelConfigured(true)
+      }
+    } catch {
+      // Silent poll — swallow errors
+    }
+  }, [getFilterOnlyParams, showSystem, mapSpanToTraceGroup])
+
+  const selectedTraceIdRef = useRef(selectedTraceId)
+  selectedTraceIdRef.current = selectedTraceId
+
+  useEffect(() => {
+    if (!isLive) return
+    const id = setInterval(() => {
+      silentRefresh()
+      const traceId = selectedTraceIdRef.current
+      if (traceId) {
+        fetchTraceTree(traceId)
+          .then((data) => {
+            if (data.roots?.length) {
+              const wf = treeToWaterfallData(data.roots)
+              if (wf) setWaterfallData(wf)
+            }
+          })
+          .catch(() => {})
+      }
+    }, LIVE_INTERVAL)
+    return () => clearInterval(id)
+  }, [isLive, silentRefresh])
+
   const selectTrace = useCallback(
     (traceId: string | null) => {
       setSelectedTraceId(traceId)
@@ -223,6 +294,42 @@ function TracesPage() {
       selectTrace(null)
     }
   }, [pagedTraces, selectedTraceId, selectTrace])
+
+  // Batch-fetch service chains for visible traces
+  useEffect(() => {
+    const uncached = pagedTraces.filter(
+      (t) => !chainCache.has(t.traceId) && !chainFetchingRef.current.has(t.traceId),
+    )
+    if (!uncached.length) return
+
+    for (const t of uncached) {
+      chainFetchingRef.current.add(t.traceId)
+    }
+
+    Promise.allSettled(
+      uncached.map((t) =>
+        fetchTraceTree(t.traceId).then((data) => ({
+          traceId: t.traceId,
+          chain: data.roots?.length ? extractServiceChain(data.roots) : [t.services[0] || 'unknown'],
+        })),
+      ),
+    ).then((results) => {
+      const newEntries: [string, string[]][] = []
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          newEntries.push([r.value.traceId, r.value.chain])
+          chainFetchingRef.current.delete(r.value.traceId)
+        }
+      }
+      if (newEntries.length) {
+        setChainCache((prev) => {
+          const next = new Map(prev)
+          for (const [k, v] of newEntries) next.set(k, v)
+          return next
+        })
+      }
+    })
+  }, [pagedTraces, chainCache])
 
   const stats = useMemo(
     () => ({
@@ -327,6 +434,25 @@ function TracesPage() {
         </div>
 
         <div className="flex items-center gap-1.5 md:gap-2">
+          <Button
+            variant={isLive ? 'accent' : 'ghost'}
+            size="sm"
+            onClick={() => setIsLive(!isLive)}
+            className="h-6 md:h-7 text-[10px] md:text-xs px-2"
+          >
+            {isLive ? (
+              <>
+                <span className="relative flex h-2 w-2 md:mr-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                </span>
+                <Pause className="w-3 h-3 md:mr-1" />
+              </>
+            ) : (
+              <Play className="w-3 h-3 md:mr-1.5" />
+            )}
+            <span className="hidden md:inline">{isLive ? 'Live' : 'Live'}</span>
+          </Button>
           <Button
             variant={showSystem ? 'accent' : 'ghost'}
             size="sm"
@@ -444,6 +570,27 @@ function TracesPage() {
                       </span>
                       <span className="ml-auto">{formatTime(group.startTime)}</span>
                     </div>
+
+                    {(() => {
+                      const chain = chainCache.get(group.traceId)
+                      if (!chain || chain.length <= 1) return null
+                      return (
+                        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                          {chain.map((svc, i) => (
+                            <span key={svc} className="flex items-center gap-1">
+                              {i > 0 && <ChevronRight className="w-2.5 h-2.5 text-gray-600" />}
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#141414] border border-[#1D1D1D] text-[9px] font-mono text-gray-400">
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: getServiceColor(svc) }}
+                                />
+                                {svc}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      )
+                    })()}
                   </button>
                 )
               })
@@ -526,6 +673,7 @@ function TracesPage() {
                     onClose={() => {
                       selectTrace(null)
                     }}
+                    onSpanClick={setSelectedSpan}
                   />
 
                   <div className="border-b border-[#1D1D1D] px-4 py-2.5">
@@ -589,6 +737,7 @@ function TracesPage() {
                 traceData={waterfallData}
                 onClose={() => setSelectedSpan(null)}
                 onNavigateToSpan={setSelectedSpan}
+                onNavigateToTrace={(traceId) => selectTrace(traceId)}
               />
             </div>
           </>

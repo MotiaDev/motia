@@ -281,3 +281,68 @@ export function treeToWaterfallData(roots: SpanTreeNode[]): WaterfallData | null
     span_count: visualSpans.length,
   }
 }
+
+export interface CriticalPathNode {
+  span_id: string
+  name: string
+  service_name: string
+  duration_ms: number
+}
+
+/**
+ * Walk the span tree following the longest-duration child at each level.
+ * Returns an ordered list of spans forming the critical path.
+ */
+export function extractCriticalPath(data: WaterfallData): CriticalPathNode[] {
+  if (!data.spans.length) return []
+
+  const childrenOf = new Map<string | undefined, VisualizationSpan[]>()
+  for (const s of data.spans) {
+    const key = s.parent_span_id
+    const list = childrenOf.get(key) ?? []
+    list.push(s)
+    childrenOf.set(key, list)
+  }
+
+  const root = data.spans.find((s) => s.depth === 0)
+  if (!root) return []
+
+  const path: CriticalPathNode[] = []
+  let current: VisualizationSpan | undefined = root
+
+  while (current) {
+    path.push({
+      span_id: current.span_id,
+      name: current.name,
+      service_name: current.service_name || 'unknown',
+      duration_ms: current.duration_ms,
+    })
+    const children = childrenOf.get(current.span_id)
+    if (!children?.length) break
+    current = children.reduce((a, b) => (b.duration_ms > a.duration_ms ? b : a))
+  }
+
+  return path
+}
+
+/**
+ * Extract ordered unique service names from a span tree via depth-first traversal.
+ */
+export function extractServiceChain(roots: SpanTreeNode[]): string[] {
+  const seen = new Set<string>()
+  const chain: string[] = []
+
+  function walk(nodes: SpanTreeNode[]) {
+    for (const node of nodes) {
+      const svc = node.service_name || (node.resource?.['service.name'] as string) || 'unknown'
+      if (!seen.has(svc)) {
+        seen.add(svc)
+        chain.push(svc)
+      }
+      if (node.children?.length) walk(node.children)
+    }
+  }
+
+  walk(roots)
+  return chain
+}

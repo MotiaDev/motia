@@ -1,16 +1,17 @@
-import { AlertCircle, Clock, Copy, Layers, X } from 'lucide-react'
+import { AlertCircle, ChevronRight, Clock, Copy, Layers, X } from 'lucide-react'
 import { useMemo } from 'react'
 import { getServiceColor } from '@/lib/traceColors'
-import type { WaterfallData } from '@/lib/traceTransform'
+import { extractCriticalPath, type VisualizationSpan, type WaterfallData } from '@/lib/traceTransform'
 import { formatDuration, getServiceName, useCopyToClipboard } from '@/lib/traceUtils'
 
 interface TraceHeaderProps {
   data: WaterfallData
   traceId: string
   onClose: () => void
+  onSpanClick?: (span: VisualizationSpan) => void
 }
 
-export function TraceHeader({ data, traceId, onClose }: TraceHeaderProps) {
+export function TraceHeader({ data, traceId, onClose, onSpanClick }: TraceHeaderProps) {
   const { copiedKey, copy } = useCopyToClipboard()
   const copied = copiedKey === 'traceId'
   const rootSpan = data.spans.find((s) => s.depth === 0)
@@ -29,6 +30,14 @@ export function TraceHeader({ data, traceId, onClose }: TraceHeaderProps) {
 
     const serviceList = Array.from(services).filter((s): s is string => Boolean(s))
     return { errorCount, serviceList, serviceDurations: durationMap }
+  }, [data])
+
+  const criticalPath = useMemo(() => extractCriticalPath(data), [data])
+
+  const spanById = useMemo(() => {
+    const map = new Map<string, VisualizationSpan>()
+    for (const s of data.spans) map.set(s.span_id, s)
+    return map
   }, [data])
 
   const hasErrors = errorCount > 0
@@ -105,6 +114,34 @@ export function TraceHeader({ data, traceId, onClose }: TraceHeaderProps) {
           </div>
         )}
       </div>
+
+      {/* Critical path breadcrumb */}
+      {criticalPath.length > 1 && (
+        <div className="px-4 pb-2 flex items-center gap-0.5 flex-wrap">
+          {criticalPath.map((node, i) => {
+            const vizSpan = spanById.get(node.span_id)
+            return (
+              <span key={node.span_id} className="flex items-center gap-0.5">
+                {i > 0 && <ChevronRight className="w-2.5 h-2.5 text-gray-600 flex-shrink-0" />}
+                <button
+                  type="button"
+                  onClick={() => vizSpan && onSpanClick?.(vizSpan)}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono bg-[#141414] border border-[#1D1D1D] hover:border-[#333] hover:bg-[#1A1A1A] transition-colors"
+                  title={`${node.service_name}.${node.name} (${formatDuration(node.duration_ms)})`}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: getServiceColor(node.service_name) }}
+                  />
+                  <span className="text-gray-400 truncate max-w-[120px]">
+                    {node.name}
+                  </span>
+                </button>
+              </span>
+            )
+          })}
+        </div>
+      )}
 
       {/* Service distribution bar */}
       {serviceList.length > 1 && (
