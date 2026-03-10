@@ -858,41 +858,35 @@ pub fn shutdown_otel() {
     }
 }
 
+/// Extract trace and span IDs from the active span context.
+/// Returns `None` if there is no active span or tracing is not initialized.
+fn current_span_context_ids() -> Option<(String, String)> {
+    let ctx = Context::current();
+    let span_ref = ctx.span();
+    let span_ctx = span_ref.span_context();
+    span_ctx.is_valid().then(|| {
+        (
+            span_ctx.trace_id().to_string(),
+            span_ctx.span_id().to_string(),
+        )
+    })
+}
+
 /// Extract the current trace ID from the active span context.
 /// Returns `None` if there is no active span or tracing is not initialized.
 pub fn current_trace_id() -> Option<String> {
-    let ctx = Context::current();
-    let span_ref = ctx.span();
-    let span_context = span_ref.span_context();
-
-    if span_context.is_valid() {
-        Some(span_context.trace_id().to_string())
-    } else {
-        None
-    }
+    current_span_context_ids().map(|(trace_id, _)| trace_id)
 }
 
 /// Extract the current span ID from the active span context.
 pub fn current_span_id() -> Option<String> {
-    let ctx = Context::current();
-    let span_ref = ctx.span();
-    let span_context = span_ref.span_context();
-
-    if span_context.is_valid() {
-        Some(span_context.span_id().to_string())
-    } else {
-        None
-    }
+    current_span_context_ids().map(|(_, span_id)| span_id)
 }
 
 /// Inject the current trace context into a W3C traceparent header string.
 /// Returns `None` if there is no active span.
 pub fn inject_traceparent() -> Option<String> {
-    let ctx = Context::current();
-    if !ctx.span().span_context().is_valid() {
-        return None;
-    }
-    inject_header(&ctx, "traceparent", TraceContextPropagator::new())
+    inject_traceparent_from_context(&Context::current())
 }
 
 /// Inject trace context from a specific OpenTelemetry context.
@@ -951,18 +945,13 @@ where
 /// Combine trace context and baggage extraction into a single context.
 /// This extracts both traceparent and baggage headers into a unified context.
 pub fn extract_context(traceparent: Option<&str>, baggage: Option<&str>) -> Context {
-    use std::collections::HashMap;
-
     let mut carrier: HashMap<String, String> = HashMap::new();
-
     if let Some(tp) = traceparent {
         carrier.insert("traceparent".to_string(), tp.to_string());
     }
     if let Some(bg) = baggage {
         carrier.insert("baggage".to_string(), bg.to_string());
     }
-
-    // Use the global composite propagator to extract both
     global::get_text_map_propagator(|propagator| propagator.extract(&carrier))
 }
 
@@ -1129,26 +1118,161 @@ struct OtlpKeyValue {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct OtlpKeyValueList {
+    #[serde(default)]
+    values: Vec<OtlpKeyValue>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OtlpArrayValue {
+    #[serde(default)]
+    values: Vec<OtlpAnyValue>,
+}
+
+impl OtlpKeyValueList {
+    fn to_json_map(&self) -> serde_json::Map<String, serde_json::Value> {
+        self.values
+            .iter()
+            .filter_map(|kv| {
+                kv.value
+                    .as_ref()
+                    .map(|value| (kv.key.clone(), value.to_serde_json_value()))
+            })
+            .collect()
+    }
+}
+
+impl OtlpArrayValue {
+    fn to_json_array(&self) -> Vec<serde_json::Value> {
+        self.values
+            .iter()
+            .map(OtlpAnyValue::to_serde_json_value)
+            .collect()
+    }
+}
+
+/// Deserialize an i64 that may arrive as a JSON number or a quoted string (OTLP protobuf int64).
+fn deserialize_int64_string_or_number<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de;
+
+    struct Int64Visitor;
+
+    impl<'de> de::Visitor<'de> for Int64Visitor {
+        type Value = Option<i64>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("an integer or a string containing an integer")
+        }
+
+        fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
+            Ok(Some(v))
+        }
+
+        fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
+            i64::try_from(v).map(Some).map_err(de::Error::custom)
+        }
+
+        fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+            v.parse::<i64>().map(Some).map_err(de::Error::custom)
+        }
+
+        fn visit_none<E: de::Error>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+
+        fn visit_unit<E: de::Error>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+    }
+
+    deserializer.deserialize_any(Int64Visitor)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct OtlpAnyValue {
     string_value: Option<String>,
+    #[serde(deserialize_with = "deserialize_int64_string_or_number", default)]
     int_value: Option<i64>,
     double_value: Option<f64>,
     bool_value: Option<bool>,
+    kvlist_value: Option<OtlpKeyValueList>,
+    array_value: Option<OtlpArrayValue>,
 }
 
 impl OtlpAnyValue {
-    fn to_string_value(&self) -> String {
-        if let Some(s) = &self.string_value {
-            s.clone()
-        } else if let Some(i) = self.int_value {
-            i.to_string()
-        } else if let Some(d) = self.double_value {
-            d.to_string()
-        } else if let Some(b) = self.bool_value {
-            b.to_string()
+    fn primitive_string_value(&self) -> Option<String> {
+        if let Some(value) = &self.string_value {
+            Some(value.clone())
+        } else if let Some(value) = self.int_value {
+            Some(value.to_string())
+        } else if let Some(value) = self.double_value {
+            Some(value.to_string())
         } else {
-            String::new()
+            self.bool_value.map(|value| value.to_string())
         }
+    }
+
+    fn primitive_json_value(&self) -> Option<serde_json::Value> {
+        if let Some(value) = &self.string_value {
+            Some(serde_json::Value::String(value.clone()))
+        } else if let Some(value) = self.int_value {
+            Some(serde_json::Value::Number(serde_json::Number::from(value)))
+        } else if let Some(value) = self.double_value {
+            Some(serde_json::Value::Number(
+                match serde_json::Number::from_f64(value) {
+                    Some(n) => n,
+                    None => {
+                        tracing::warn!(
+                            float_value = value,
+                            "non-finite float (NaN/Infinity) in OTLP attribute, falling back to 0"
+                        );
+                        serde_json::Number::from(0)
+                    }
+                },
+            ))
+        } else {
+            self.bool_value.map(serde_json::Value::Bool)
+        }
+    }
+
+    fn to_string_value(&self) -> String {
+        if let Some(value) = self.primitive_string_value() {
+            return value;
+        }
+
+        if let Some(value) = &self.kvlist_value {
+            // For nested structures, serialize to JSON string as fallback.
+            return serde_json::to_string(&serde_json::Value::Object(value.to_json_map()))
+                .unwrap_or_default();
+        }
+
+        if let Some(value) = &self.array_value {
+            return serde_json::to_string(&serde_json::Value::Array(value.to_json_array()))
+                .unwrap_or_default();
+        }
+
+        String::new()
+    }
+
+    fn to_serde_json_value(&self) -> serde_json::Value {
+        if let Some(value) = self.primitive_json_value() {
+            return value;
+        }
+
+        if let Some(value) = &self.kvlist_value {
+            return serde_json::Value::Object(value.to_json_map());
+        }
+
+        if let Some(value) = &self.array_value {
+            return serde_json::Value::Array(value.to_json_array());
+        }
+
+        serde_json::Value::Null
     }
 }
 
@@ -1186,18 +1310,33 @@ fn extract_service_name(resource: &Option<OtlpResource>) -> String {
 /// Convert an OtlpKeyValue to an opentelemetry KeyValue.
 fn otlp_kv_to_key_value(kv: &OtlpKeyValue) -> Option<KeyValue> {
     let val = kv.value.as_ref()?;
-    let value = if let Some(s) = &val.string_value {
-        opentelemetry::Value::String(s.clone().into())
-    } else if let Some(i) = val.int_value {
-        opentelemetry::Value::I64(i)
-    } else if let Some(d) = val.double_value {
-        opentelemetry::Value::F64(d)
-    } else if let Some(b) = val.bool_value {
-        opentelemetry::Value::Bool(b)
-    } else {
-        return None;
-    };
-    Some(KeyValue::new(kv.key.clone(), value))
+
+    if let Some(s) = &val.string_value {
+        return Some(KeyValue::new(
+            kv.key.clone(),
+            opentelemetry::Value::String(s.clone().into()),
+        ));
+    }
+    if let Some(i) = val.int_value {
+        return Some(KeyValue::new(kv.key.clone(), opentelemetry::Value::I64(i)));
+    }
+    if let Some(d) = val.double_value {
+        return Some(KeyValue::new(kv.key.clone(), opentelemetry::Value::F64(d)));
+    }
+    if let Some(b) = val.bool_value {
+        return Some(KeyValue::new(kv.key.clone(), opentelemetry::Value::Bool(b)));
+    }
+
+    // Nested structures: serialize to JSON string representation
+    if val.kvlist_value.is_some() || val.array_value.is_some() {
+        let json_str = val.to_string_value();
+        return Some(KeyValue::new(
+            kv.key.clone(),
+            opentelemetry::Value::String(json_str.into()),
+        ));
+    }
+
+    None
 }
 
 /// Convert parsed OTLP spans to SpanData for export via the OTel SDK pipeline.
@@ -2111,47 +2250,37 @@ pub fn init_log_storage(max_logs: Option<usize>) {
 
 /// Extract resource attributes as a HashMap
 fn extract_resource_attributes(resource: &Option<OtlpResource>) -> HashMap<String, String> {
-    let mut attrs = HashMap::new();
-    if let Some(res) = resource {
-        for attr in &res.attributes {
-            if let Some(val) = &attr.value {
-                attrs.insert(attr.key.clone(), val.to_string_value());
-            }
-        }
-    }
-    attrs
+    resource
+        .as_ref()
+        .map(|res| {
+            res.attributes
+                .iter()
+                .filter_map(|attr| {
+                    attr.value
+                        .as_ref()
+                        .map(|val| (attr.key.clone(), val.to_string_value()))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// Extract log body as a string
 fn extract_log_body(body: &Option<OtlpAnyValue>) -> String {
-    match body {
-        Some(val) => val.to_string_value(),
-        None => String::new(),
-    }
+    body.as_ref()
+        .map_or_else(String::new, OtlpAnyValue::to_string_value)
 }
 
 /// Extract log attributes as a HashMap
 fn extract_log_attributes(attributes: &[OtlpKeyValue]) -> HashMap<String, serde_json::Value> {
-    let mut attrs = HashMap::new();
-    for attr in attributes {
-        if let Some(val) = &attr.value {
-            let json_val = if let Some(s) = &val.string_value {
-                serde_json::Value::String(s.clone())
-            } else if let Some(i) = val.int_value {
-                serde_json::Value::Number(serde_json::Number::from(i))
-            } else if let Some(d) = val.double_value {
-                serde_json::Value::Number(
-                    serde_json::Number::from_f64(d).unwrap_or_else(|| serde_json::Number::from(0)),
-                )
-            } else if let Some(b) = val.bool_value {
-                serde_json::Value::Bool(b)
-            } else {
-                serde_json::Value::Null
-            };
-            attrs.insert(attr.key.clone(), json_val);
-        }
-    }
-    attrs
+    attributes
+        .iter()
+        .filter_map(|attr| {
+            attr.value
+                .as_ref()
+                .map(|val| (attr.key.clone(), val.to_serde_json_value()))
+        })
+        .collect()
 }
 
 /// Tracing target used by [`emit_log_to_console`] to mark forwarded OTLP log records.
@@ -2519,6 +2648,40 @@ impl OtlpLogsExporter {
     }
 
     /// Build OTLP ExportLogsServiceRequest JSON
+    /// Convert a serde_json::Value to an OTLP AnyValue JSON representation,
+    /// preserving nested objects (kvlistValue) and arrays (arrayValue).
+    fn json_value_to_otlp_any_value(value: &serde_json::Value) -> serde_json::Value {
+        match value {
+            serde_json::Value::String(s) => serde_json::json!({"stringValue": s}),
+            serde_json::Value::Number(n) => {
+                if n.is_i64() {
+                    serde_json::json!({"intValue": n.to_string()})
+                } else {
+                    serde_json::json!({"doubleValue": n})
+                }
+            }
+            serde_json::Value::Bool(b) => serde_json::json!({"boolValue": b}),
+            serde_json::Value::Object(map) => {
+                let values: Vec<serde_json::Value> = map
+                    .iter()
+                    .map(|(k, v)| {
+                        serde_json::json!({
+                            "key": k,
+                            "value": Self::json_value_to_otlp_any_value(v)
+                        })
+                    })
+                    .collect();
+                serde_json::json!({"kvlistValue": {"values": values}})
+            }
+            serde_json::Value::Array(arr) => {
+                let values: Vec<serde_json::Value> =
+                    arr.iter().map(Self::json_value_to_otlp_any_value).collect();
+                serde_json::json!({"arrayValue": {"values": values}})
+            }
+            serde_json::Value::Null => serde_json::json!({"stringValue": ""}),
+        }
+    }
+
     fn build_otlp_logs_request(&self, logs: &[StoredLog]) -> serde_json::Value {
         let log_records: Vec<serde_json::Value> = logs
             .iter()
@@ -2546,21 +2709,9 @@ impl OtlpLogsExporter {
                     .attributes
                     .iter()
                     .map(|(key, value)| {
-                        let attr_value = match value {
-                            serde_json::Value::String(s) => serde_json::json!({"stringValue": s}),
-                            serde_json::Value::Number(n) => {
-                                if n.is_i64() {
-                                    serde_json::json!({"intValue": n.to_string()})
-                                } else {
-                                    serde_json::json!({"doubleValue": n})
-                                }
-                            }
-                            serde_json::Value::Bool(b) => serde_json::json!({"boolValue": b}),
-                            _ => serde_json::json!({"stringValue": value.to_string()}),
-                        };
                         serde_json::json!({
                             "key": key,
-                            "value": attr_value
+                            "value": Self::json_value_to_otlp_any_value(value)
                         })
                     })
                     .collect();
@@ -3411,6 +3562,8 @@ mod tests {
                     int_value: None,
                     double_value: None,
                     bool_value: None,
+                    kvlist_value: None,
+                    array_value: None,
                 }),
             }],
         });
@@ -3428,6 +3581,8 @@ mod tests {
                     int_value: None,
                     double_value: None,
                     bool_value: None,
+                    kvlist_value: None,
+                    array_value: None,
                 }),
             }],
         });
@@ -3494,7 +3649,9 @@ mod tests {
                 int_value: None,
                 double_value: None,
                 bool_value: None,
-            }),
+                    kvlist_value: None,
+                    array_value: None,
+                }),
         };
 
         let result = otlp_kv_to_key_value(&kv);
@@ -3513,7 +3670,9 @@ mod tests {
                 int_value: Some(42),
                 double_value: None,
                 bool_value: None,
-            }),
+                    kvlist_value: None,
+                    array_value: None,
+                }),
         };
 
         let result = otlp_kv_to_key_value(&kv);
@@ -3533,7 +3692,9 @@ mod tests {
                 int_value: None,
                 double_value: Some(std::f64::consts::PI),
                 bool_value: None,
-            }),
+                    kvlist_value: None,
+                    array_value: None,
+                }),
         };
 
         let result = otlp_kv_to_key_value(&kv);
@@ -3555,7 +3716,9 @@ mod tests {
                 int_value: None,
                 double_value: None,
                 bool_value: Some(true),
-            }),
+                    kvlist_value: None,
+                    array_value: None,
+                }),
         };
 
         let result = otlp_kv_to_key_value(&kv);
@@ -3588,7 +3751,9 @@ mod tests {
                 int_value: None,
                 double_value: None,
                 bool_value: None,
-            }),
+                    kvlist_value: None,
+                    array_value: None,
+                }),
         };
 
         let result = otlp_kv_to_key_value(&kv);
@@ -3605,7 +3770,9 @@ mod tests {
             int_value: None,
             double_value: None,
             bool_value: None,
-        };
+                    kvlist_value: None,
+                    array_value: None,
+                };
         assert_eq!(v.to_string_value(), "hello");
 
         // Int branch
@@ -3614,7 +3781,9 @@ mod tests {
             int_value: Some(99),
             double_value: None,
             bool_value: None,
-        };
+                    kvlist_value: None,
+                    array_value: None,
+                };
         assert_eq!(v.to_string_value(), "99");
 
         // Double branch
@@ -3623,7 +3792,9 @@ mod tests {
             int_value: None,
             double_value: Some(1.5),
             bool_value: None,
-        };
+                    kvlist_value: None,
+                    array_value: None,
+                };
         assert_eq!(v.to_string_value(), "1.5");
 
         // Bool branch
@@ -3632,7 +3803,9 @@ mod tests {
             int_value: None,
             double_value: None,
             bool_value: Some(false),
-        };
+                    kvlist_value: None,
+                    array_value: None,
+                };
         assert_eq!(v.to_string_value(), "false");
 
         // Empty (all None) branch
@@ -3641,7 +3814,9 @@ mod tests {
             int_value: None,
             double_value: None,
             bool_value: None,
-        };
+                    kvlist_value: None,
+                    array_value: None,
+                };
         assert_eq!(v.to_string_value(), "");
     }
 
@@ -4798,6 +4973,8 @@ mod tests {
                     int_value: None,
                     double_value: None,
                     bool_value: None,
+                    kvlist_value: None,
+                    array_value: None,
                 }),
             },
             OtlpKeyValue {
@@ -4807,6 +4984,8 @@ mod tests {
                     int_value: Some(3),
                     double_value: None,
                     bool_value: None,
+                    kvlist_value: None,
+                    array_value: None,
                 }),
             },
             OtlpKeyValue {
@@ -4816,6 +4995,8 @@ mod tests {
                     int_value: None,
                     double_value: Some(1.5),
                     bool_value: None,
+                    kvlist_value: None,
+                    array_value: None,
                 }),
             },
             OtlpKeyValue {
@@ -4825,6 +5006,8 @@ mod tests {
                     int_value: None,
                     double_value: None,
                     bool_value: Some(true),
+                    kvlist_value: None,
+                    array_value: None,
                 }),
             },
             OtlpKeyValue {
@@ -5002,5 +5185,180 @@ mod tests {
         assert_eq!(storage.get_spans_by_trace_id("t2").len(), 1);
         assert_eq!(storage.get_spans_by_trace_id("t3").len(), 1);
         assert_eq!(storage.get_spans_by_trace_id("t4").len(), 1);
+    }
+
+    #[test]
+    fn test_otlp_anyvalue_kvlist_deserialization() {
+        let json = r#"{
+            "kvlistValue": {
+                "values": [
+                    {"key": "appName", "value": {"stringValue": "III App"}},
+                    {"key": "count", "value": {"intValue": 42}},
+                    {"key": "enabled", "value": {"boolValue": true}}
+                ]
+            }
+        }"#;
+        let val: OtlpAnyValue = serde_json::from_str(json).unwrap();
+        let result = val.to_serde_json_value();
+
+        assert!(result.is_object());
+        let obj = result.as_object().unwrap();
+        assert_eq!(obj["appName"], serde_json::Value::String("III App".into()));
+        assert_eq!(obj["count"], serde_json::json!(42));
+        assert_eq!(obj["enabled"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn test_otlp_anyvalue_array_deserialization() {
+        let json = r#"{
+            "arrayValue": {
+                "values": [
+                    {"intValue": 1},
+                    {"intValue": 2},
+                    {"stringValue": "three"}
+                ]
+            }
+        }"#;
+        let val: OtlpAnyValue = serde_json::from_str(json).unwrap();
+        let result = val.to_serde_json_value();
+
+        assert!(result.is_array());
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr[0], serde_json::json!(1));
+        assert_eq!(arr[1], serde_json::json!(2));
+        assert_eq!(arr[2], serde_json::Value::String("three".into()));
+    }
+
+    #[test]
+    fn test_otlp_anyvalue_nested_kvlist_in_array() {
+        let json = r#"{
+            "kvlistValue": {
+                "values": [
+                    {"key": "nested", "value": {
+                        "kvlistValue": {
+                            "values": [
+                                {"key": "deep", "value": {"stringValue": "value"}}
+                            ]
+                        }
+                    }},
+                    {"key": "items", "value": {
+                        "arrayValue": {
+                            "values": [
+                                {"intValue": 1},
+                                {"intValue": 2}
+                            ]
+                        }
+                    }}
+                ]
+            }
+        }"#;
+        let val: OtlpAnyValue = serde_json::from_str(json).unwrap();
+        let result = val.to_serde_json_value();
+
+        assert_eq!(result["nested"]["deep"], serde_json::json!("value"));
+        assert_eq!(result["items"], serde_json::json!([1, 2]));
+    }
+
+    #[test]
+    fn test_extract_log_attributes_with_kvlist() {
+        let json = r#"[
+            {"key": "log.data", "value": {
+                "kvlistValue": {
+                    "values": [
+                        {"key": "appName", "value": {"stringValue": "III App"}},
+                        {"key": "version", "value": {"intValue": 3}}
+                    ]
+                }
+            }},
+            {"key": "simple", "value": {"stringValue": "text"}}
+        ]"#;
+        let kvs: Vec<OtlpKeyValue> = serde_json::from_str(json).unwrap();
+        let attrs = extract_log_attributes(&kvs);
+
+        assert_eq!(attrs["simple"], serde_json::Value::String("text".into()));
+        assert!(attrs["log.data"].is_object());
+        assert_eq!(attrs["log.data"]["appName"], serde_json::json!("III App"));
+        assert_eq!(attrs["log.data"]["version"], serde_json::json!(3));
+    }
+
+    #[test]
+    fn test_otlp_anyvalue_kvlist_to_string_value() {
+        let json = r#"{
+            "kvlistValue": {
+                "values": [
+                    {"key": "k", "value": {"stringValue": "v"}}
+                ]
+            }
+        }"#;
+        let val: OtlpAnyValue = serde_json::from_str(json).unwrap();
+        let s = val.to_string_value();
+        // Should produce a JSON string representation
+        assert!(s.contains("\"k\""));
+        assert!(s.contains("\"v\""));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_span_event_preserves_exception_stacktrace() {
+        use opentelemetry::trace::{SpanKind, Status, TraceContextExt, Tracer};
+        use opentelemetry_sdk::trace::SdkTracerProvider;
+
+        let storage = Arc::new(InMemorySpanStorage::new(100));
+        let exporter = InMemorySpanExporter::with_storage(storage.clone(), "test-svc".into());
+        let provider = SdkTracerProvider::builder()
+            .with_simple_exporter(exporter)
+            .build();
+
+        let tracer = provider.tracer("test");
+
+        tracer.in_span("error-span", |cx| {
+            let span = cx.span();
+            span.set_status(Status::error("test error"));
+            span.add_event(
+                "exception",
+                vec![
+                    opentelemetry::KeyValue::new("exception.type", "TestError"),
+                    opentelemetry::KeyValue::new("exception.message", "something went wrong"),
+                    opentelemetry::KeyValue::new(
+                        "exception.stacktrace",
+                        "at test_fn (test.rs:42)\nat main (main.rs:1)",
+                    ),
+                ],
+            );
+        });
+
+        let _ = provider.force_flush();
+
+        let spans = storage.get_spans();
+        assert_eq!(spans.len(), 1, "expected 1 span");
+
+        let span = &spans[0];
+        assert_eq!(span.status, "error");
+
+        let exc_event = span
+            .events
+            .iter()
+            .find(|e| e.name == "exception")
+            .expect("span should have an 'exception' event");
+
+        let attr_map: std::collections::HashMap<&str, &str> = exc_event
+            .attributes
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+
+        assert_eq!(attr_map.get("exception.type"), Some(&"TestError"));
+        assert_eq!(
+            attr_map.get("exception.message"),
+            Some(&"something went wrong")
+        );
+        assert!(
+            attr_map.contains_key("exception.stacktrace"),
+            "exception.stacktrace attribute missing"
+        );
+        assert!(
+            attr_map["exception.stacktrace"].contains("test_fn"),
+            "stacktrace should contain function name"
+        );
     }
 }

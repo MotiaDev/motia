@@ -127,6 +127,7 @@ impl KvServer {
             Err(err) => FunctionResult::Failure(ErrorBody {
                 code: "serialization_error".into(),
                 message: format!("Failed to serialize result: {}", err),
+                stacktrace: None,
             }),
         }
     }
@@ -144,6 +145,7 @@ impl KvServer {
             Err(err) => FunctionResult::Failure(ErrorBody {
                 code: "serialization_error".into(),
                 message: format!("Failed to serialize result: {}", err),
+                stacktrace: None,
             }),
         }
     }

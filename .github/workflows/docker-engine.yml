@@ -16,7 +16,7 @@ on:
     secrets:
       DOCKERHUB_USERNAME:
         required: true
-      DOCKERHUB_TOKEN:
+      DOCKERHUB_PASSWORD:
         required: true
 
 permissions:
@@ -34,14 +34,16 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.meta.outputs.version }}
+      release_tag: ${{ steps.meta.outputs.release_tag }}
     steps:
       - name: Extract version from tag
         id: meta
         env:
           TAG: ${{ inputs.release_tag }}
         run: |
-          VERSION="${TAG#v}"
+          VERSION="${TAG##*/v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "::notice::Docker build for iii v$VERSION (tag=$TAG)"
 
   build:
@@ -66,13 +68,13 @@ jobs:
 
       - name: Download pre-built binary
         env:
-          VERSION: ${{ needs.setup.outputs.version }}
+          RELEASE_TAG: ${{ needs.setup.outputs.release_tag }}
           BIN_NAME: iii
           TARGET: ${{ matrix.target }}
         run: |
           TARBALL="${BIN_NAME}-${TARGET}.tar.gz"
           curl -L --fail -o "$TARBALL" \
-            "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${TARBALL}"
+            "https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/${TARBALL}"
           tar -xzf "$TARBALL"
           chmod +x "$BIN_NAME"
           mv "$BIN_NAME" "engine/iii-${{ matrix.docker_arch }}"
@@ -158,7 +160,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: ${{ env.DOCKERHUB_REPO }}:${{ needs.setup.outputs.version }}
+          image-ref: ${{ env.GHCR_REPO }}:${{ needs.setup.outputs.version }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -173,7 +175,7 @@ jobs:
       - name: Check for critical vulnerabilities
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: ${{ env.DOCKERHUB_REPO }}:${{ needs.setup.outputs.version }}
+          image-ref: ${{ env.GHCR_REPO }}:${{ needs.setup.outputs.version }}
           format: 'table'
           severity: 'CRITICAL'
           exit-code: '1'

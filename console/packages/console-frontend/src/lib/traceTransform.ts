@@ -106,15 +106,27 @@ function getSpanStatus(status: StoredSpan['status']): 'ok' | 'error' | 'unset' {
 }
 
 /**
- * Convert attributes array to Record
+ * Convert attributes from array-of-tuples to Record.
+ * Handles both `[["key","val"], ...]` (engine format) and already-converted Records.
  */
 function attributesToRecord(
-  attributes: Array<[string, unknown]> | undefined,
+  attributes: Array<[string, unknown]> | Record<string, unknown> | undefined,
 ): Record<string, unknown> {
-  if (!attributes) return {}
-  const record: Record<string, unknown> = {}
-  for (const [key, value] of attributes) {
-    record[key] = value
+  if (!attributes) return Object.create(null) as Record<string, unknown>
+
+  const record: Record<string, unknown> = Object.create(null)
+
+  if (!Array.isArray(attributes)) {
+    for (const [key, value] of Object.entries(attributes)) {
+      record[key] = value
+    }
+    return record
+  }
+
+  for (const item of attributes) {
+    if (Array.isArray(item) && item.length >= 2) {
+      record[String(item[0])] = item[1]
+    }
   }
   return record
 }
@@ -162,7 +174,10 @@ export function toWaterfallData(spans: StoredSpan[], traceId: string): Waterfall
       start_percent: startPercent,
       width_percent: widthPercent,
       attributes: attributesToRecord(storedSpan.attributes),
-      events: storedSpan.events || [],
+      events: (storedSpan.events || []).map((e) => ({
+        ...e,
+        attributes: attributesToRecord(e.attributes),
+      })),
       links: storedSpan.links || [],
       kind: storedSpan.kind,
       service_name:
@@ -247,7 +262,10 @@ export function treeToWaterfallData(roots: SpanTreeNode[]): WaterfallData | null
       start_percent: startPercent,
       width_percent: widthPercent,
       attributes: attributesToRecord(span.attributes || []),
-      events: span.events || [],
+      events: (span.events || []).map((e) => ({
+        ...e,
+        attributes: attributesToRecord(e.attributes),
+      })),
       links: span.links || [],
       kind: span.kind,
       service_name: span.service_name || (span.resource?.['service.name'] as string) || undefined,

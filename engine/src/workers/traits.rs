@@ -86,16 +86,10 @@ impl FunctionHandler for Worker {
         let otel_context = current_span.context();
 
         Box::pin(async move {
-            self.invocations
-                .write()
-                .await
-                .insert(invocation_id.unwrap());
-
-            // Inject trace context and baggage from the captured OTel context
             let traceparent = inject_traceparent_from_context(&otel_context);
             let baggage = inject_baggage_from_context(&otel_context);
 
-            let _ = self
+            let send_result = self
                 .channel
                 .send(Outbound::Protocol(Message::InvokeFunction {
                     invocation_id,
@@ -104,13 +98,20 @@ impl FunctionHandler for Worker {
                     traceparent,
                     baggage,
                 }))
-                .await
-                .map_err(|err| ErrorBody {
+                .await;
+
+            match send_result {
+                Ok(_) => {
+                    let id = invocation_id.unwrap_or_else(Uuid::new_v4);
+                    self.invocations.write().await.insert(id);
+                    FunctionResult::Deferred
+                }
+                Err(err) => FunctionResult::Failure(ErrorBody {
                     code: "channel_send_failed".into(),
                     message: err.to_string(),
-                });
-
-            FunctionResult::Deferred
+                    stacktrace: None,
+                }),
+            }
         })
     }
 }

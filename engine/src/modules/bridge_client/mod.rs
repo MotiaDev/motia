@@ -111,6 +111,7 @@ impl Module for BridgeClientModule {
                             return FunctionResult::Failure(ErrorBody {
                                 code: "deserialization_error".into(),
                                 message: format!("Failed to parse invoke input: {}", err),
+                                stacktrace: None,
                             });
                         }
                     };
@@ -126,10 +127,11 @@ impl Module for BridgeClientModule {
                     {
                         Ok(result) => FunctionResult::Success(Some(result)),
                         Err(err) => {
-                            dbg!(&err);
+                            tracing::error!(error = ?err, "Bridge call_with_timeout failed");
                             FunctionResult::Failure(ErrorBody {
                                 code: "bridge_error".into(),
                                 message: err.to_string(),
+                                stacktrace: None,
                             })
                         }
                     }
@@ -156,15 +158,17 @@ impl Module for BridgeClientModule {
                             return FunctionResult::Failure(ErrorBody {
                                 code: "deserialization_error".into(),
                                 message: format!("Failed to parse invoke input: {}", err),
+                                stacktrace: None,
                             });
                         }
                     };
 
                     if let Err(err) = bridge.call_void(&invoke.function_id, invoke.data) {
-                        dbg!(&err);
+                        tracing::error!(error = ?err, "Bridge call_void failed");
                         return FunctionResult::Failure(ErrorBody {
                             code: "bridge_error".into(),
                             message: err.to_string(),
+                            stacktrace: None,
                         });
                     }
 
@@ -201,10 +205,11 @@ impl Module for BridgeClientModule {
                         {
                             Ok(result) => FunctionResult::Success(Some(result)),
                             Err(err) => {
-                                dbg!(&err);
+                                tracing::error!(error = ?err, "Bridge call_with_timeout failed");
                                 FunctionResult::Failure(ErrorBody {
                                     code: "bridge_error".into(),
                                     message: err.to_string(),
+                                    stacktrace: None,
                                 })
                             }
                         }
@@ -248,6 +253,7 @@ impl Module for BridgeClientModule {
                         Err(err) => Err(IIIError::Remote {
                             code: err.code,
                             message: err.message,
+                            stacktrace: err.stacktrace,
                         }),
                     }
                 }

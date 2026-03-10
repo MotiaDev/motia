@@ -55,6 +55,7 @@ impl QueueCoreModule {
             return FunctionResult::Failure(ErrorBody {
                 code: "topic_not_set".into(),
                 message: "Topic is not set".into(),
+                stacktrace: None,
             });
         }
 

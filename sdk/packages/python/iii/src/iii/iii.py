@@ -6,6 +6,7 @@ import logging
 import os
 import platform
 import random
+import traceback
 import uuid
 from dataclasses import dataclass
 from importlib.metadata import version
@@ -39,6 +40,14 @@ from .types import Channel, RemoteFunctionData, RemoteTriggerTypeData, is_channe
 RemoteFunctionHandler = Callable[[Any], Awaitable[Any]]
 
 log = logging.getLogger("iii.iii")
+
+
+class _TraceContextError(Exception):
+    """Wraps a handler exception with the response traceparent from the active span."""
+
+    def __init__(self, traceparent: str | None) -> None:
+        self.traceparent = traceparent
+
 
 IIIConnectionState = Literal["disconnected", "connecting", "connected", "reconnecting", "failed"]
 
@@ -290,6 +299,8 @@ class III:
             return
         exc = task.exception()
         if exc:
+            if isinstance(exc, _TraceContextError) and exc.__cause__:
+                exc = exc.__cause__
             log.error(f"Error in fire-and-forget send: {exc}")
 
     async def _handle_message(self, raw: str | bytes) -> None:
@@ -367,22 +378,37 @@ class III:
         """
         try:
             from opentelemetry import context as otel_context
-            from opentelemetry import propagate
-            carrier: dict[str, str] = {}
-            if traceparent:
-                carrier["traceparent"] = traceparent
-            if baggage:
-                carrier["baggage"] = baggage
-            parent_ctx = propagate.extract(carrier) if carrier else otel_context.get_current()
-            token = otel_context.attach(parent_ctx)
+            from opentelemetry import propagate, trace
+
+            otel_available = True
+        except ImportError:
+            otel_available = False
+
+        if not otel_available:
+            return await handler(data), None
+
+        carrier: dict[str, str] = {}
+        if traceparent:
+            carrier["traceparent"] = traceparent
+        if baggage:
+            carrier["baggage"] = baggage
+        parent_ctx = propagate.extract(carrier) if carrier else otel_context.get_current()
+        tracer = trace.get_tracer("iii-python-sdk")
+        with tracer.start_as_current_span(
+            f"call {handler.__name__}",
+            context=parent_ctx,
+            kind=trace.SpanKind.SERVER,
+        ) as span:
             try:
                 result = await handler(data)
+                span.set_status(trace.StatusCode.OK)
                 response_traceparent = self._inject_traceparent()
                 return result, response_traceparent
-            finally:
-                otel_context.detach(token)
-        except ImportError:
-            return await handler(data), None
+            except Exception as e:
+                span.record_exception(e)
+                span.set_status(trace.StatusCode.ERROR, str(e))
+                response_traceparent = self._inject_traceparent()
+                raise _TraceContextError(response_traceparent) from e
 
     def _resolve_channels(self, data: Any) -> Any:
         """Recursively resolve StreamChannelRef objects into ChannelReader/ChannelWriter instances."""
@@ -437,7 +463,7 @@ class III:
                     InvocationResultMessage(
                         invocation_id=invocation_id,
                         function_id=path,
-                        error={"code": "invocation_failed", "message": str(e)},
+                        error={"code": "invocation_failed", "message": str(e), "stacktrace": traceback.format_exc()},
                     )
                 )
             return
@@ -464,13 +490,24 @@ class III:
                     traceparent=response_traceparent,
                 )
             )
+        except _TraceContextError as te:
+            original = te.__cause__
+            log.exception(f"Error in handler {path}")
+            await self._send(
+                InvocationResultMessage(
+                    invocation_id=invocation_id,
+                    function_id=path,
+                    error={"code": "invocation_failed", "message": str(original), "stacktrace": traceback.format_exc()},
+                    traceparent=te.traceparent,
+                )
+            )
         except Exception as e:
             log.exception(f"Error in handler {path}")
             await self._send(
                 InvocationResultMessage(
                     invocation_id=invocation_id,
                     function_id=path,
-                    error={"code": "invocation_failed", "message": str(e)},
+                    error={"code": "invocation_failed", "message": str(e), "stacktrace": traceback.format_exc()},
                 )
             )
 
