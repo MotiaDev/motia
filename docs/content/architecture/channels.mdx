@@ -160,7 +160,7 @@ const sender = iii.registerFunction(
 <Tab value="Python">
 ```python
 import json
-from iii import III
+from iii import register_worker
 from iii.channels import ChannelReader
 
 async def processor_handler(input_data):
@@ -371,7 +371,7 @@ const coordinator = iii.registerFunction(
 ```python
 import asyncio
 import json
-from iii import III
+from iii import register_worker
 from iii.channels import ChannelReader, ChannelWriter
 
 async def worker_handler(input_data):
