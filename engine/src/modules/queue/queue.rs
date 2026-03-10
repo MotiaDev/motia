@@ -664,6 +664,7 @@ mod tests {
                 class: "my::CustomAdapter".to_string(),
                 config: None,
             }),
+            ..Default::default()
         };
         assert_eq!(
             QueueCoreModule::adapter_class_from_config(&config),
@@ -684,6 +685,7 @@ mod tests {
                 class: "my::Adapter".to_string(),
                 config: Some(json!({"url": "redis://localhost"})),
             }),
+            ..Default::default()
         };
         assert_eq!(
             QueueCoreModule::adapter_config_from_config(&config),
@@ -698,6 +700,7 @@ mod tests {
                 class: "my::Adapter".to_string(),
                 config: None,
             }),
+            ..Default::default()
         };
         assert!(QueueCoreModule::adapter_config_from_config(&config).is_none());
     }
