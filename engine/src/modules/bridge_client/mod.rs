@@ -336,6 +336,7 @@ mod tests {
                                 data: json!({ "source": "server" }),
                                 traceparent: None,
                                 baggage: None,
+                                action: None,
                             };
                             websocket
                                 .send(WsMessage::Text(
