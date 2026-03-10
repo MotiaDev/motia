@@ -108,6 +108,8 @@ pub struct WorkerMetadata {
     pub name: String,
     pub os: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub pid: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub telemetry: Option<WorkerTelemetryMeta>,
 }
 
@@ -135,6 +137,7 @@ impl Default for WorkerMetadata {
             version: SDK_VERSION.to_string(),
             name: format!("{}:{}", hostname, pid),
             os: os_info,
+            pid: Some(pid),
             telemetry: Some(WorkerTelemetryMeta {
                 language,
                 ..Default::default()

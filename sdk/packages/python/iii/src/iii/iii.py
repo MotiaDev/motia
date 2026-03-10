@@ -708,6 +708,7 @@ class III:
             "version": sdk_version,
             "name": worker_name,
             "os": f"{platform.system()} {platform.release()} ({platform.machine()})",
+            "pid": os.getpid(),
             "telemetry": telemetry,
         }
 
