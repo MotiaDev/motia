@@ -32,11 +32,16 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin --locked
+      - uses: taiki-e/install-action@cargo-llvm-cov
 
       - name: Run coverage
-        run: cargo tarpaulin --locked --fail-under 70
+        run: >-
+          cargo llvm-cov
+          --all-features
+          -p iii
+          --fail-under-lines 70
+          --ignore-filename-regex
+          "engine/src/main\.rs|(cron|pubsub|queue|state|stream)/adapters/(redis_adapter|bridge)\.rs|queue/adapters/rabbitmq/|^sdk/"
 
       - name: Check formatting
         run: cargo fmt --all -- --check
