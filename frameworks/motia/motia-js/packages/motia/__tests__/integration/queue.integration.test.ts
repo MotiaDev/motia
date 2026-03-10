@@ -143,7 +143,7 @@ describe('queue integration', () => {
       function_id: functionId,
       config: {
         topic,
-        _condition_path: conditionPath,
+        condition_function_id: conditionPath,
       },
     })
 

@@ -39,7 +39,7 @@ from .types_stream import StreamAuthInput, StreamAuthResult, StreamConfig, Strea
 from .validator import validate_step
 
 log = logging.getLogger("motia.runtime")
-CONDITION_PATH_KEY = "_condition_path"
+CONDITION_PATH_KEY = "condition_function_id"
 
 
 def _compose_middleware(

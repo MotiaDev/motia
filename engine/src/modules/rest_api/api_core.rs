@@ -396,7 +396,7 @@ impl TriggerRegistrator for RestApiCoreModule {
 
             let condition_function_id = trigger
                 .config
-                .get("_condition_path")
+                .get("condition_function_id")
                 .and_then(|v| v.as_str())
                 .map(|v| v.to_string());
 
@@ -933,7 +933,7 @@ mod tests {
             config: json!({
                 "api_path": "users/:id",
                 "http_method": "post",
-                "_condition_path": "fn::condition"
+                "condition_function_id": "fn::condition"
             }),
             worker_id: None,
         };

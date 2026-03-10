@@ -139,7 +139,7 @@ json!({
 
 **Output**: `ApiResponse` with status_code, body, headers
 
-**Conditions**: Optional. Add `_condition_path` to config with a function ID. The engine invokes it before the handler; if it returns `false`, the handler function is not called. See [Trigger Conditions](#trigger-conditions).
+**Conditions**: Optional. Add `condition_function_id` to config with a function ID. The engine invokes it before the handler; if it returns `false`, the handler function is not called. See [Trigger Conditions](#trigger-conditions).
 
 **Path Parameters**: Extract values from URL
 
@@ -546,7 +546,7 @@ json!({
 
 **Output**: Function result (optional, fire-and-forget pattern supported)
 
-**Conditions**: Optional. Add `_condition_path` to config. See [Trigger Conditions](#trigger-conditions).
+**Conditions**: Optional. Add `condition_function_id` to config. See [Trigger Conditions](#trigger-conditions).
 
 **Multiple Topics**: Register separate triggers for each topic.
 
@@ -604,7 +604,7 @@ json!({
 
 **Output**: Function result
 
-**Conditions**: Optional. Add `_condition_path` to config. See [Trigger Conditions](#trigger-conditions).
+**Conditions**: Optional. Add `condition_function_id` to config. See [Trigger Conditions](#trigger-conditions).
 
 **Cron Expression**: Standard 5-field format (minute hour day month weekday)
 
@@ -906,7 +906,7 @@ Triggers can optionally use a **condition function** to decide whether the handl
 ### How It Works
 
 1. Register a condition function that receives the same input as the handler and returns a boolean.
-2. Add `_condition_path` to the trigger config for http, queue, and cron; use `condition_function_id` for state and stream triggers.
+2. Add `condition_function_id` to the trigger config with the condition function's ID.
 3. When the trigger fires, the engine calls the condition first. Only if it returns truthy does the handler run.
 
 ### Example: HTTP Trigger with Condition
@@ -930,7 +930,7 @@ iii.registerTrigger({
   config: {
     api_path: '/verified',
     http_method: 'POST',
-    _condition_path: conditionFn.id,
+    condition_function_id: conditionFn.id,
   },
 })
 ```
@@ -953,7 +953,7 @@ iii.register_trigger(
     config={
         'api_path': '/verified',
         'http_method': 'POST',
-        '_condition_path': condition_fn.id,
+        'condition_function_id': condition_fn.id,
     },
 )
 ```
@@ -972,7 +972,7 @@ iii.register_function("api::verifiedOnly", |_req: Value| async move {
 iii.register_trigger("http", "api::verifiedOnly", json!({
     "api_path": "/verified",
     "http_method": "POST",
-    "_condition_path": "conditions::requireVerified"
+    "condition_function_id": "conditions::requireVerified"
 }))?;
 ```
 </Tab>
@@ -998,7 +998,7 @@ iii.registerTrigger({
   function_id: fn.id,
   config: {
     topic: 'order.placed',
-    _condition_path: conditionFn.id,
+    condition_function_id: conditionFn.id,
   },
 })
 ```
@@ -1021,7 +1021,7 @@ iii.register_trigger(
     function_id=fn.id,
     config={
         'topic': 'order.placed',
-        '_condition_path': condition_fn.id,
+        'condition_function_id': condition_fn.id,
     },
 )
 ```
@@ -1040,7 +1040,7 @@ iii.register_function("orders::processHighValue", |order: Value| async move {
 
 iii.register_trigger("queue", "orders::processHighValue", json!({
     "topic": "order.placed",
-    "_condition_path": "conditions::highValue"
+    "condition_function_id": "conditions::highValue"
 }))?;
 ```
 </Tab>
@@ -1115,15 +1115,9 @@ iii.register_trigger("state", "state::onProfileUpdate", json!({
 </Tab>
 </Tabs>
 
-### Config Keys by Trigger Type
+### Config Key
 
-| Trigger Type | Condition Config Key |
-|--------------|----------------------|
-| http | `_condition_path` |
-| queue | `_condition_path` |
-| cron | `_condition_path` |
-| stream | `condition_function_id` |
-| state | `condition_function_id` |
+All trigger types use `condition_function_id` in the trigger config to reference the condition function.
 
 ## Trigger Lifecycle
 
