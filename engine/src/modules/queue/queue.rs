@@ -45,6 +45,53 @@ pub struct QueueInput {
 
 #[service(name = "queue")]
 impl QueueCoreModule {
+    pub async fn enqueue_to_named_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: Value,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+    ) -> anyhow::Result<()> {
+        let queue_config = self
+            ._config
+            .queue_configs
+            .get(queue_name)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Queue '{}' not found. Available queues: {:?}",
+                    queue_name,
+                    self._config.queue_configs.keys().collect::<Vec<_>>()
+                )
+            })?;
+
+        // FIFO validation: check that the message_group_field is present in data
+        if queue_config.r#type == "fifo" {
+            if let Some(ref group_field) = queue_config.message_group_field {
+                let group_value = data.get(group_field).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "FIFO queue '{}' requires field '{}' in data, but it was not found",
+                        queue_name,
+                        group_field
+                    )
+                })?;
+                if group_value.is_null() {
+                    return Err(anyhow::anyhow!(
+                        "FIFO queue '{}': field '{}' must not be null",
+                        queue_name,
+                        group_field
+                    ));
+                }
+            }
+        }
+
+        self.adapter
+            .enqueue_to_queue(queue_name, function_id, data, traceparent, baggage)
+            .await;
+        crate::modules::telemetry::collector::track_queue_emit();
+        Ok(())
+    }
+
     #[function(id = "enqueue", description = "Enqueue a message")]
     pub async fn enqueue(&self, input: QueueInput) -> FunctionResult<Option<Value>, ErrorBody> {
         let adapter = self.adapter.clone();
@@ -387,6 +434,7 @@ mod tests {
 
     struct MockQueueAdapter {
         enqueue_count: AtomicU64,
+        enqueue_to_queue_count: AtomicU64,
         subscribe_count: AtomicU64,
         unsubscribe_count: AtomicU64,
         last_topic: Mutex<String>,
@@ -399,6 +447,7 @@ mod tests {
         fn new() -> Self {
             Self {
                 enqueue_count: AtomicU64::new(0),
+                enqueue_to_queue_count: AtomicU64::new(0),
                 subscribe_count: AtomicU64::new(0),
                 unsubscribe_count: AtomicU64::new(0),
                 last_topic: Mutex::new(String::new()),
@@ -423,6 +472,17 @@ mod tests {
             *self.last_data.lock().await = Some(data);
             *self.last_traceparent.lock().await = traceparent;
             *self.last_baggage.lock().await = baggage;
+        }
+
+        async fn enqueue_to_queue(
+            &self,
+            _queue_name: &str,
+            _function_id: &str,
+            _data: Value,
+            _traceparent: Option<String>,
+            _baggage: Option<String>,
+        ) {
+            self.enqueue_to_queue_count.fetch_add(1, Ordering::SeqCst);
         }
 
         async fn subscribe(
@@ -729,5 +789,142 @@ mod tests {
         let config = super::super::config::QueueModuleConfig::default();
         let module = QueueCoreModule::build(engine.clone(), config, adapter);
         assert_eq!(Module::name(&module), "QueueModule");
+    }
+
+    // =========================================================================
+    // enqueue_to_named_queue tests
+    // =========================================================================
+
+    fn setup_queue_module_with_configs() -> (Arc<Engine>, QueueCoreModule, Arc<MockQueueAdapter>) {
+        use super::super::config::{NamedQueueConfig, QueueModuleConfig};
+
+        crate::modules::observability::metrics::ensure_default_meter();
+        let engine = Arc::new(Engine::new());
+        let adapter = Arc::new(MockQueueAdapter::new());
+
+        let mut queue_configs = HashMap::new();
+        queue_configs.insert(
+            "default".to_string(),
+            NamedQueueConfig {
+                r#type: "standard".to_string(),
+                ..Default::default()
+            },
+        );
+        queue_configs.insert(
+            "payment".to_string(),
+            NamedQueueConfig {
+                r#type: "fifo".to_string(),
+                message_group_field: Some("transaction_id".to_string()),
+                ..Default::default()
+            },
+        );
+
+        let config = QueueModuleConfig {
+            adapter: None,
+            queue_configs,
+        };
+
+        let module = QueueCoreModule {
+            adapter: adapter.clone(),
+            engine: engine.clone(),
+            _config: config,
+        };
+
+        (engine, module, adapter)
+    }
+
+    #[tokio::test]
+    async fn enqueue_to_named_queue_unknown_queue_fails() {
+        let (_engine, module, _adapter) = setup_queue_module_with_configs();
+        let result = module
+            .enqueue_to_named_queue(
+                "nonexistent",
+                "fn-1",
+                json!({"key": "value"}),
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("not found"),
+            "Error should contain 'not found', got: {}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn enqueue_to_named_queue_fifo_missing_group_field_fails() {
+        let (_engine, module, _adapter) = setup_queue_module_with_configs();
+        let result = module
+            .enqueue_to_named_queue(
+                "payment",
+                "fn-1",
+                json!({"amount": 100}), // missing "transaction_id"
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("transaction_id"),
+            "Error should mention the missing field name, got: {}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn enqueue_to_named_queue_fifo_null_group_field_fails() {
+        let (_engine, module, _adapter) = setup_queue_module_with_configs();
+        let result = module
+            .enqueue_to_named_queue(
+                "payment",
+                "fn-1",
+                json!({"transaction_id": null, "amount": 100}),
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("null"),
+            "Error should mention null, got: {}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn enqueue_to_named_queue_fifo_with_group_field_ok() {
+        let (_engine, module, adapter) = setup_queue_module_with_configs();
+        let result = module
+            .enqueue_to_named_queue(
+                "payment",
+                "fn-1",
+                json!({"transaction_id": "txn-123", "amount": 100}),
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(adapter.enqueue_to_queue_count.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn enqueue_to_named_queue_standard_ok() {
+        let (_engine, module, adapter) = setup_queue_module_with_configs();
+        let result = module
+            .enqueue_to_named_queue(
+                "default",
+                "fn-1",
+                json!({"key": "value"}),
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(adapter.enqueue_to_queue_count.load(Ordering::SeqCst), 1);
     }
 }
