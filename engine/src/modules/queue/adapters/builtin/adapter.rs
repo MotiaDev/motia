@@ -17,7 +17,7 @@ use crate::{
         kv::BuiltinKvStore,
         pubsub_lite::BuiltInPubSubLite,
         queue::{
-            BuiltinQueue, JobHandler, QueueConfig, QueueMode, SubscriptionConfig,
+            BuiltinQueue, Job, JobHandler, QueueConfig, QueueMode, SubscriptionConfig,
             SubscriptionHandle,
         },
         queue_kv::QueueKvStore,
@@ -25,7 +25,7 @@ use crate::{
     condition::check_condition,
     engine::{Engine, EngineTrait},
     modules::queue::{
-        QueueAdapter, SubscriberQueueConfig,
+        NamedQueueConfig, QueueAdapter, SubscriberQueueConfig,
         registry::{QueueAdapterFuture, QueueAdapterRegistration},
     },
     telemetry::SpanExt,
@@ -110,6 +110,40 @@ impl JobHandler for FunctionHandler {
                 }
             }
             result.map(|_| ()).map_err(|e| format!("{:?}", e))
+        }
+        .instrument(span)
+        .await
+    }
+}
+
+struct DynamicFunctionHandler {
+    engine: Arc<Engine>,
+}
+
+#[async_trait]
+impl JobHandler for DynamicFunctionHandler {
+    async fn handle(&self, job: &crate::builtins::queue::Job) -> Result<(), String> {
+        let function_id = job
+            .function_id
+            .as_deref()
+            .ok_or_else(|| "Job missing function_id".to_string())?;
+
+        let span = tracing::info_span!(
+            "named_queue_job",
+            otel.name = %format!("queue_job {}", job.queue),
+            job_id = %job.id,
+            function_id = %function_id,
+            queue = %job.queue,
+            attempt = %job.attempts_made,
+        )
+        .with_parent_headers(job.traceparent.as_deref(), job.baggage.as_deref());
+
+        async {
+            self.engine
+                .call(function_id, job.data.clone())
+                .await
+                .map(|_| ())
+                .map_err(|e| format!("{:?}", e))
         }
         .instrument(span)
         .await
@@ -230,6 +264,61 @@ impl QueueAdapter for BuiltinQueueAdapter {
 
     async fn dlq_count(&self, topic: &str) -> anyhow::Result<u64> {
         Ok(self.queue.dlq_count(topic).await)
+    }
+
+    async fn enqueue_to_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: Value,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+    ) {
+        let job = Job {
+            function_id: Some(function_id.to_string()),
+            ..Job::new(queue_name, data, 3, 1000, traceparent, baggage)
+        };
+        self.queue.push_job(job).await;
+    }
+
+    async fn start_named_queue(&self, queue_name: &str, config: &NamedQueueConfig) {
+        let handler: Arc<dyn JobHandler> = Arc::new(DynamicFunctionHandler {
+            engine: Arc::clone(&self.engine),
+        });
+
+        let sub_config = SubscriptionConfig {
+            mode: if config.r#type == "fifo" {
+                Some(QueueMode::Fifo)
+            } else {
+                Some(QueueMode::Concurrent)
+            },
+            max_attempts: Some(config.max_retries),
+            concurrency: Some(config.concurrency),
+            backoff_ms: Some(config.backoff_ms),
+        };
+
+        let handle = self
+            .queue
+            .subscribe(queue_name, handler, Some(sub_config))
+            .await;
+
+        let key = format!("named:{}", queue_name);
+        let mut subs = self.subscriptions.write().await;
+        subs.insert(key, handle);
+
+        tracing::debug!(queue_name = %queue_name, "Started named queue");
+    }
+
+    async fn stop_named_queue(&self, queue_name: &str) {
+        let key = format!("named:{}", queue_name);
+        let mut subs = self.subscriptions.write().await;
+
+        if let Some(handle) = subs.remove(&key) {
+            self.queue.unsubscribe(handle).await;
+            tracing::debug!(queue_name = %queue_name, "Stopped named queue");
+        } else {
+            tracing::warn!(queue_name = %queue_name, "No named queue subscription found to stop");
+        }
     }
 }
 
