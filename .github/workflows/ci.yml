@@ -49,9 +49,6 @@ jobs:
       # - name: Run clippy
       #   run: cargo clippy -p iii -p function-macros -p iii-sdk --all-targets --all-features -- -D warnings
 
-      - name: Build
-        run: cargo build -p iii
-
       - uses: actions/upload-artifact@v4
         with:
           name: iii-binary
