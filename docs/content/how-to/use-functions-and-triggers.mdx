@@ -21,9 +21,9 @@ This will be addressed shortly so that a single initialization step is all that 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="math-add.ts"
-import { init, Logger } from 'iii-sdk';
+import { registerWorker, Logger } from 'iii-sdk';
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
 
 iii.registerFunction(
   { id: 'math::add', description: 'Add two numbers and store result' },
@@ -43,12 +43,12 @@ await iii.trigger('math::add', { a: 2, b: 3 });
 </Tab>
 <Tab value="Python">
 ```python title="math_add.py"
-from iii import III, Logger
+from iii import register_worker, Logger
 import asyncio
 import os
 import uuid
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = register_worker(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def add(data):
   logger = Logger()
@@ -60,22 +60,20 @@ async def add(data):
 
 async def main():
   iii.register_function('math::add', add)
-  await iii.connect()
   # Triggerable from any other function or worker
   await iii.trigger('math::add', {'a': 2, 'b': 3})
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="math_add.rs"
-use iii_sdk::{Logger, III};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-  let iii = III::new(&url);
-  iii.connect().await?;
+  let iii = register_worker(&url, InitOptions::default())?;
 
   let iii_clone = iii.clone();
   iii.register_function("math::add", move |input| {
@@ -118,9 +116,9 @@ Pass an `HttpInvocationConfig` as the second argument to `registerFunction` inst
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="http-invoked.ts"
-import { init } from 'iii-sdk';
+import { registerWorker } from 'iii-sdk';
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
 
 iii.registerFunction(
   {
@@ -145,10 +143,10 @@ await iii.trigger('notifications::send', { channel: '#alerts', text: 'Deploy suc
 </Tab>
 <Tab value="Python">
 ```python title="http_invoked.py"
-from iii import III, HttpInvocationConfig
+from iii import register_worker, HttpInvocationConfig
 from iii.iii_types import HttpAuthBearer
 
-iii = III("ws://localhost:49134")
+iii = register_worker("ws://localhost:49134")
 
 iii.register_function(
   'notifications::send',
@@ -167,11 +165,10 @@ await iii.trigger('notifications::send', {'channel': '#alerts', 'text': 'Deploy 
 </Tab>
 <Tab value="Rust">
 ```rust title="http_invoked.rs"
-use iii_sdk::{III, HttpAuthConfig, HttpInvocationConfig, HttpMethod};
+use iii_sdk::{register_worker, InitOptions, HttpAuthConfig, HttpInvocationConfig, HttpMethod};
 use std::collections::HashMap;
 
-let iii = III::new("ws://localhost:49134");
-iii.connect().await?;
+let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
 
 let mut headers = HashMap::new();
 headers.insert("X-Service".to_string(), "iii-worker".to_string());
@@ -479,15 +476,14 @@ iii.register_trigger(
 </Tab>
 <Tab value="Rust">
 ```rust title="state_trigger.rs"
-use iii_sdk::{III, HttpInvocationConfig, HttpMethod};
+use iii_sdk::{register_worker, InitOptions, HttpInvocationConfig, HttpMethod};
 use serde_json::json;
 use std::collections::HashMap;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-  let iii = III::new(&url);
-  iii.connect().await?;
+  let iii = register_worker(&url, InitOptions::default())?;
 
   iii.register_function("orders::webhook", HttpInvocationConfig {
     url: std::env::var("WEBHOOK_URL").expect("WEBHOOK_URL required"),
@@ -632,16 +628,16 @@ trigger.unregister();
 </Tab>
 </Tabs>
 
-## init, Function, and Trigger Registration is Synchronous
+## registerWorker, Function, and Trigger Registration is Synchronous
 
-The `init()` call returns immediately rather than returning a Promise. This is intentional.
+The `registerWorker()` call returns immediately rather than returning a Promise. This is intentional.
 Connection establishment happens asynchronously in the background.
 
 This design avoids requiring developers to wrap initialization in an async function or await the SDK before
 registering functions and triggers. Without this, every function and trigger definition would need to
 wait on initialization, adding boilerplate to every file.
 
-The trade-off: if code calls `shutdown()` immediately after `init()`, the connection may not yet
+The trade-off: if code calls `shutdown()` immediately after `registerWorker()`, the connection may not yet
 be established, resulting in an error like `WebSocket was closed before the connection was established`.
 In practice this rarely matters — most applications register functions, respond to triggers, and run indefinitely.
 

@@ -34,7 +34,7 @@ modules:
 ```typescript title="cron-task.ts"
 import {Logger} from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'cleanup::expired-sessions' }, async () => {
   const logger = new Logger()
@@ -50,10 +50,10 @@ iii.registerFunction({ id: 'cleanup::expired-sessions' }, async () => {
 import asyncio
 import os
 import signal
-from iii import III
+from iii import register_worker
 from iii import Logger
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = register_worker(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def cleanup_sessions(_):
     logger = Logger()
@@ -65,7 +65,6 @@ async def cleanup_sessions(_):
 iii.register_function('cleanup::expired-sessions', cleanup_sessions)
 
 async def main():
-    await iii.connect()
     print('Cron task registered')
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -78,15 +77,14 @@ asyncio.run(main())
 </Tab>
 <Tab value="Rust">
 ```rust title="cron_task.rs"
-use iii_sdk::{Logger, III};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
-    iii.connect().await?;
+    let iii = register_worker(&url, InitOptions::default())?;
 
     iii.register_function("cleanup::expired-sessions", |_| async move {
         let logger = Logger();

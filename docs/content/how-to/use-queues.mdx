@@ -36,9 +36,9 @@ From any function, push a job onto a queue by calling `enqueue` with a `topic` (
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="enqueue-order.ts"
-import { init, Logger } from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::create' }, async (input) => {
   const logger = new Logger()
@@ -58,9 +58,9 @@ iii.registerFunction({ id: 'orders::create' }, async (input) => {
 ```python title="enqueue_order.py"
 import uuid
 import os
-from iii import III, Logger
+from iii import register_worker, Logger
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = register_worker(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def create_order(input):
     logger = Logger()
@@ -79,10 +79,10 @@ iii.register_function("orders::create", create_order)
 </Tab>
 <Tab value="Rust">
 ```rust title="enqueue_order.rs"
-use iii_sdk::{Logger, III};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 
-let iii = III::new(&std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
+let iii = register_worker(&std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()), InitOptions::default())?;
 
 let iii_clone = iii.clone();
 iii.register_function("orders::create", move |input| {
@@ -112,9 +112,9 @@ Bind a function to a queue using a `queue` trigger. The engine invokes the funct
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="process-order.ts"
-import { init, Logger } from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::process-payment' }, async (job) => {
   const logger = new Logger()
@@ -133,9 +133,9 @@ iii.registerTrigger({
 <Tab value="Python">
 ```python title="process_order.py"
 import os
-from iii import III, Logger
+from iii import register_worker, Logger
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = register_worker(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def process_payment(job):
     logger = Logger()
@@ -153,10 +153,10 @@ iii.register_trigger(
 </Tab>
 <Tab value="Rust">
 ```rust title="process_order.rs"
-use iii_sdk::{Logger, III};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 
-let iii = III::new(&std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
+let iii = register_worker(&std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()), InitOptions::default())?;
 
 iii.register_function("orders::process-payment", |job| async move {
     let logger = Logger();

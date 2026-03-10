@@ -23,12 +23,12 @@ Both callbacks receive a `TriggerConfig` containing the trigger `id`, the bound 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="webhook-trigger-type.ts"
-import { init, TriggerHandler } from 'iii-sdk'
+import { registerWorker, TriggerHandler } from 'iii-sdk'
 import express from 'express'
 
 type WebhookConfig = { path: string }
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 const app = express()
 app.use(express.json())
@@ -53,7 +53,7 @@ const webhookHandler: TriggerHandler<WebhookConfig> = {
 ```python title="webhook_trigger_type.py"
 import os
 from aiohttp import web
-from iii import III
+from iii import register_worker
 from iii.triggers import TriggerHandler, TriggerConfig
 
 iii_client = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
@@ -151,8 +151,7 @@ use tokio::sync::Mutex;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
-    iii.connect().await?;
+    let iii = register_worker(&url, InitOptions::default())?;
 
     let handler = WebhookHandler {
         routes: Arc::new(Mutex::new(HashMap::new())),
@@ -174,9 +173,9 @@ From any worker — including one written in a different language — functions 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="github-webhook.ts"
-import { init, getContext } from 'iii-sdk'
+import { registerWorker, getContext } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'github::push' }, async (payload) => {
   const { logger } = getContext()
@@ -193,11 +192,11 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="github_webhook.py"
-from iii import III
+from iii import register_worker
 from iii.context import get_context
 import os
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = register_worker(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def handle_push(payload):
     ctx = get_context()
@@ -215,14 +214,13 @@ iii.register_trigger(
 </Tab>
 <Tab value="Rust">
 ```rust title="github_webhook.rs"
-use iii_sdk::{get_context, III};
+use iii_sdk::{register_worker, InitOptions, get_context};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
-    iii.connect().await?;
+    let iii = register_worker(&url, InitOptions::default())?;
 
     iii.register_function("github::push", |payload| async move {
         let ctx = get_context();

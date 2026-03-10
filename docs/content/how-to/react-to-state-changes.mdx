@@ -37,9 +37,9 @@ The `state` trigger fires whenever the watched `scope`/`key` pair changes. The h
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="state-watcher.ts"
-import { init, Logger } from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::on-status-change' }, async (event) => {
   const logger = new Logger()
@@ -54,9 +54,9 @@ iii.registerFunction({ id: 'orders::on-status-change' }, async (event) => {
 import asyncio
 import os
 import signal
-from iii import III, Logger
+from iii import register_worker, Logger
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = register_worker(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def on_status_change(event):
     logger = Logger()
@@ -68,7 +68,6 @@ async def on_status_change(event):
 iii.register_function('orders::on-status-change', on_status_change)
 
 async def main():
-    await iii.connect()
     print("Watching orders/status for changes")
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -81,15 +80,14 @@ asyncio.run(main())
 </Tab>
 <Tab value="Rust">
 ```rust title="state_watcher.rs"
-use iii_sdk::{Logger, III};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
-    iii.connect().await?;
+    let iii = register_worker(&url, InitOptions::default())?;
 
     iii.register_function("orders::on-status-change", |event| async move {
         let logger = Logger();

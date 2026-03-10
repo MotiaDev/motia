@@ -20,9 +20,9 @@ Connect to iii and register the `reports::generate` function handler to process 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="worker.ts"
-import { init, getContext } from 'iii-sdk'
+import { registerWorker, getContext } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'reports::generate' }, async (req) => {
   const { logger } = getContext()
@@ -43,10 +43,10 @@ iii.registerFunction({ id: 'reports::generate' }, async (req) => {
 ```python title="worker.py"
 import asyncio
 import os
-from iii import III
+from iii import register_worker
 from iii.context import get_context
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = register_worker(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def generate_report(req):
     ctx = get_context()
@@ -66,13 +66,13 @@ iii.register_function('reports::generate', generate_report)
 </Tab>
 <Tab value="Rust">
 ```rust title="worker.rs"
-use iii_sdk::{get_context, III};
+use iii_sdk::{register_worker, InitOptions, get_context};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
+    let iii = register_worker(&url, InitOptions::default())?;
 
     iii.register_function("reports::generate", move |req| {
         async move {
@@ -127,7 +127,6 @@ main().catch(console.error)
 <Tab value="Python">
 ```python title="worker.py"
 async def main():
-    await iii.connect()
     print("Worker ready, triggering task...")
     
     # Trigger the task and await its completion
@@ -144,7 +143,6 @@ asyncio.run(main())
 </Tab>
 <Tab value="Rust">
 ```rust title="worker.rs"
-    iii.connect().await?;
     println!("Worker ready, triggering task...");
     
     // Trigger the task and await its completion

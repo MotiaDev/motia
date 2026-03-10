@@ -22,9 +22,9 @@ function is triggered by a queue trigger, the queue worker retries it based on `
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="payment-processor.ts"
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'payments::charge' },
@@ -39,9 +39,9 @@ iii.registerFunction(
 <Tab value="Python">
 ```python title="payment_processor.py"
 import os
-from iii import III, HttpInvocationConfig
+from iii import register_worker, HttpInvocationConfig
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = register_worker(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 iii.register_function(
     "payments::charge",
@@ -55,10 +55,10 @@ iii.register_function(
 </Tab>
 <Tab value="Rust">
 ```rust title="payment_processor.rs"
-use iii_sdk::{III, HttpInvocationConfig, HttpMethod};
+use iii_sdk::{register_worker, InitOptions, HttpInvocationConfig, HttpMethod};
 use std::collections::HashMap;
 
-let iii = III::new(&std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
+let iii = register_worker(&std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()), InitOptions::default())?;
 
 iii.register_function("payments::charge", HttpInvocationConfig {
     url: "https://api.payments.example.com/charge".to_string(),

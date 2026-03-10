@@ -20,9 +20,9 @@ Both Functions are declared in the same way. They only differ in how they are us
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="conditions-functions.ts"
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // condition
 iii.registerFunction(
@@ -42,9 +42,9 @@ iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python title="conditions_functions.py"
-from iii import III
+from iii import register_worker
 
-iii = III("ws://localhost:49134")
+iii = register_worker("ws://localhost:49134")
 
 # condition
 async def is_high_value(event):
@@ -73,8 +73,7 @@ use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
+    let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default())?;
 
     // condition
     iii.register_function("conditions::is-high-value", |input| async move {

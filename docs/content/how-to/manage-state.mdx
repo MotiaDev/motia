@@ -37,7 +37,7 @@ modules:
 ```typescript title="state-writer.ts"
 import {Logger} from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'users::create' }, async (input) => {
   const logger = new Logger()
@@ -65,10 +65,10 @@ import asyncio
 import os
 import signal
 import uuid
-from iii import III
+from iii import register_worker
 from iii import Logger
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = register_worker(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def create_user(input):
     logger = Logger()
@@ -87,7 +87,6 @@ async def create_user(input):
 iii.register_function('users::create', create_user)
 
 async def main():
-    await iii.connect()
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -103,15 +102,14 @@ print('Created user:', result['userId'])
 </Tab>
 <Tab value="Rust">
 ```rust title="state_writer.rs"
-use iii_sdk::{Logger, III};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
-    iii.connect().await?;
+    let iii = register_worker(&url, InitOptions::default())?;
 
     let iii_clone = iii.clone();
     iii.register_function("users::create", move |input| {
