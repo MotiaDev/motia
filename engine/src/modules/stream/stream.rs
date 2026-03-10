@@ -1572,7 +1572,7 @@ mod tests {
                     ops: vec![UpdateOp::set("", serde_json::json!({ "count": 1 }))],
                 })
                 .await,
-            FunctionResult::Failure(ErrorBody { code, .. }) if code == "STREAM_SET_ERROR"
+            FunctionResult::Failure(ErrorBody { code, .. }) if code == "STREAM_UPDATE_ERROR"
         ));
     }
 
