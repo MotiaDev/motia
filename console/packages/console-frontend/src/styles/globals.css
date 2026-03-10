@@ -213,6 +213,16 @@ body {
   line-height: 1.5;
 }
 
+/* Flash animation for new trace/log entries */
+@keyframes flash-yellow {
+  0% { background-color: rgba(243, 247, 36, 0.15); }
+  100% { background-color: transparent; }
+}
+
+.animate-flash-yellow {
+  animation: flash-yellow 1.5s ease-out;
+}
+
 /* Selection styling */
 ::selection {
   background: var(--yellow);

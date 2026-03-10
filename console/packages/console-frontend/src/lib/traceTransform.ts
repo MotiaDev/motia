@@ -109,7 +109,7 @@ function getSpanStatus(status: StoredSpan['status']): 'ok' | 'error' | 'unset' {
  * Convert attributes from array-of-tuples to Record.
  * Handles both `[["key","val"], ...]` (engine format) and already-converted Records.
  */
-function attributesToRecord(
+export function attributesToRecord(
   attributes: Array<[string, unknown]> | Record<string, unknown> | undefined,
 ): Record<string, unknown> {
   if (!attributes) return Object.create(null) as Record<string, unknown>
@@ -345,4 +345,156 @@ export function extractServiceChain(roots: SpanTreeNode[]): string[] {
 
   walk(roots)
   return chain
+}
+
+// ---------------------------------------------------------------------------
+// Enqueue trace enrichment & workflow reconstruction
+// ---------------------------------------------------------------------------
+
+export interface EnqueueInfo {
+  topic: string
+  downstreamFunction: string | null
+}
+
+/**
+ * Extract topic and downstream function from an enqueue trace tree.
+ * Looks for `messaging.destination.name` (topic) and `function_id` != 'enqueue' (downstream).
+ */
+export function extractEnqueueInfo(roots: SpanTreeNode[]): EnqueueInfo | null {
+  let topic: string | null = null
+  let downstreamFn: string | null = null
+
+  function walk(nodes: SpanTreeNode[]) {
+    for (const node of nodes) {
+      const attrs = attributesToRecord(node.attributes)
+      if (!topic) {
+        const dest = attrs['messaging.destination.name'] ?? attrs['baggage.topic']
+        if (dest) topic = String(dest)
+      }
+      if (!downstreamFn) {
+        const fid = attrs['function_id'] ?? attrs['faas.invoked_name']
+        if (fid && String(fid) !== 'enqueue') downstreamFn = String(fid)
+      }
+      if (topic && downstreamFn) return
+      if (node.children?.length) walk(node.children)
+    }
+  }
+
+  walk(roots)
+  return topic ? { topic, downstreamFunction: downstreamFn } : null
+}
+
+export interface WorkflowStep {
+  traceId: string
+  timestamp: number
+  endTime: number
+  duration: number
+  topic: string
+  downstreamFunction: string | null
+  status: 'ok' | 'error'
+}
+
+export interface WorkflowRun {
+  id: string
+  steps: WorkflowStep[]
+  startTime: number
+  endTime: number
+  totalDuration: number
+}
+
+/**
+ * Group enqueue traces into workflow runs by reconstructing the topic chain.
+ *
+ * Algorithm:
+ * 1. For each enqueue trace, extract (topic, downstreamFunction) from the cache.
+ * 2. Infer the function→topic mapping: if function F (downstream of topic A)
+ *    is followed by an enqueue with topic B, then F produces B.
+ * 3. Find entry topics (not produced by any known function).
+ * 4. Walk the chain from each entry trace, greedily assigning traces.
+ */
+export function buildWorkflowRuns(
+  traces: Array<{
+    traceId: string
+    startTime: number
+    endTime: number
+    duration: number
+    status: 'ok' | 'error'
+  }>,
+  enqueueInfoMap: Map<string, EnqueueInfo>,
+): WorkflowRun[] {
+  type Enriched = (typeof traces)[number] & { info: EnqueueInfo }
+  const enqueueTraces: Enriched[] = []
+
+  for (const t of traces) {
+    const info = enqueueInfoMap.get(t.traceId)
+    if (info) enqueueTraces.push({ ...t, info })
+  }
+
+  enqueueTraces.sort((a, b) => a.startTime - b.startTime)
+  if (enqueueTraces.length === 0) return []
+
+  // Build function→produced_topic mapping from consecutive pairs
+  const fnToTopic = new Map<string, string>()
+  for (let i = 0; i < enqueueTraces.length; i++) {
+    const curr = enqueueTraces[i]
+    if (!curr.info.downstreamFunction || fnToTopic.has(curr.info.downstreamFunction)) continue
+    for (let j = i + 1; j < enqueueTraces.length; j++) {
+      if (enqueueTraces[j].info.topic !== curr.info.topic) {
+        fnToTopic.set(curr.info.downstreamFunction, enqueueTraces[j].info.topic)
+        break
+      }
+    }
+  }
+
+  const producedTopics = new Set(fnToTopic.values())
+  const assigned = new Set<string>()
+  const runs: WorkflowRun[] = []
+
+  for (const entry of enqueueTraces) {
+    if (assigned.has(entry.traceId) || producedTopics.has(entry.info.topic)) continue
+
+    const steps: WorkflowStep[] = []
+    let current: Enriched | undefined = entry
+
+    while (current && !assigned.has(current.traceId)) {
+      assigned.add(current.traceId)
+      steps.push({
+        traceId: current.traceId,
+        timestamp: current.startTime,
+        endTime: current.endTime,
+        duration: current.duration,
+        topic: current.info.topic,
+        downstreamFunction: current.info.downstreamFunction,
+        status: current.status,
+      })
+
+      const nextTopic: string | undefined = current.info.downstreamFunction
+        ? fnToTopic.get(current.info.downstreamFunction)
+        : undefined
+      if (!nextTopic) break
+
+      const prevStart = current.startTime
+      current = enqueueTraces.find(
+        (t): t is Enriched =>
+          !assigned.has(t.traceId) &&
+          t.info.topic === nextTopic &&
+          t.startTime >= prevStart,
+      )
+    }
+
+    if (steps.length > 0) {
+      const startTime = steps[0].timestamp
+      const endTime = Math.max(...steps.map((s) => s.endTime))
+      runs.push({
+        id: entry.traceId,
+        steps,
+        startTime,
+        endTime,
+        totalDuration: endTime - startTime,
+      })
+    }
+  }
+
+  runs.sort((a, b) => b.startTime - a.startTime)
+  return runs
 }

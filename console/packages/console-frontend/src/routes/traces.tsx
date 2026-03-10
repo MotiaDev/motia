@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   GitBranch,
+  List,
   Pause,
   Play,
   RefreshCw,
@@ -24,15 +25,19 @@ import { TraceHeader } from '@/components/traces/TraceHeader'
 import { TraceMap } from '@/components/traces/TraceMap'
 import { ViewSwitcher, type ViewType } from '@/components/traces/ViewSwitcher'
 import { WaterfallChart } from '@/components/traces/WaterfallChart'
-import { Button } from '@/components/ui/card'
+import { WorkflowView } from '@/components/traces/WorkflowView'
+import { Badge, Button } from '@/components/ui/card'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { Pagination } from '@/components/ui/pagination'
 import { useTraceFilters } from '@/hooks/useTraceFilters'
 import { getServiceColor } from '@/lib/traceColors'
 import {
+  buildWorkflowRuns,
+  extractEnqueueInfo,
   extractServiceChain,
   toMs,
   treeToWaterfallData,
+  type EnqueueInfo,
   type VisualizationSpan,
   type WaterfallData,
 } from '@/lib/traceTransform'
@@ -45,6 +50,7 @@ export const Route = createFileRoute('/traces')({
 interface TraceGroup {
   traceId: string
   rootOperation: string
+  functionId?: string
   status: 'ok' | 'error' | 'pending'
   startTime: number
   endTime?: number
@@ -53,13 +59,15 @@ interface TraceGroup {
   services: string[]
 }
 
+interface TraceCacheEntry {
+  chain: string[]
+  enqueueInfo: EnqueueInfo | null
+}
+
 function formatTime(timestamp: number): string {
-  // Convert from milliseconds to JavaScript Date
-  // If timestamp looks like nanoseconds (very large number > year 2100 in ms), convert it
   const timestampMs = timestamp > 4102444800000 ? timestamp / 1_000_000 : timestamp
   const date = new Date(timestampMs)
 
-  // Check if date is valid
   if (Number.isNaN(date.getTime())) {
     return 'Invalid Date'
   }
@@ -77,6 +85,7 @@ const TRACE_PANEL_DEFAULT = 520
 const SPAN_PANEL_DEFAULT = 400
 const PANEL_MIN_WIDTH = 280
 const PANEL_MAX_WIDTH = 900
+const LIVE_INTERVAL = 3000
 const clampPanelWidth = (w: number) => Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, w))
 
 function TracesPage() {
@@ -87,8 +96,8 @@ function TracesPage() {
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null)
   const [hasOtelConfigured, setHasOtelConfigured] = useState(false)
 
-  const [isLive, setIsLive] = useState(false)
-  const LIVE_INTERVAL = 3000
+  const [isPaused, setIsPaused] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'workflows'>('list')
 
   const [activeView, setActiveView] = useState<ViewType>('waterfall')
   const [selectedSpan, setSelectedSpan] = useState<VisualizationSpan | null>(null)
@@ -96,8 +105,11 @@ function TracesPage() {
   const [isLoadingSpans, setIsLoadingSpans] = useState(false)
   const [spansError, setSpansError] = useState<string | null>(null)
 
-  const [chainCache, setChainCache] = useState<Map<string, string[]>>(new Map())
+  const [chainCache, setChainCache] = useState<Map<string, TraceCacheEntry>>(new Map())
   const chainFetchingRef = useRef(new Set<string>())
+
+  const prevTraceIdsRef = useRef(new Set<string>())
+  const newTraceIdsRef = useRef(new Set<string>())
 
   const {
     filters: filterState,
@@ -111,6 +123,42 @@ function TracesPage() {
 
   const activeFilterCount = getActiveFilterCount()
 
+  const mapSpanToTraceGroup = useCallback(
+    (span: {
+      trace_id: string
+      name: string
+      status: string
+      start_time_unix_nano: number
+      end_time_unix_nano: number
+      service_name?: string
+      attributes?: Array<[string, unknown]>
+    }): TraceGroup => {
+      const startTime = toMs(span.start_time_unix_nano)
+      const endTime = toMs(span.end_time_unix_nano)
+      let functionId: string | undefined
+      if (Array.isArray(span.attributes)) {
+        for (const item of span.attributes) {
+          if (Array.isArray(item) && item.length >= 2 && String(item[0]) === 'function_id') {
+            functionId = String(item[1])
+            break
+          }
+        }
+      }
+      return {
+        traceId: span.trace_id,
+        rootOperation: span.name,
+        functionId,
+        status: span.status.toLowerCase() === 'error' ? 'error' : 'ok',
+        startTime,
+        endTime,
+        duration: endTime - startTime,
+        spanCount: 1,
+        services: [span.service_name || 'unknown'],
+      }
+    },
+    [],
+  )
+
   const loadTraces = useCallback(async () => {
     setIsLoading(true)
     try {
@@ -123,26 +171,9 @@ function TracesPage() {
       })
 
       if (data.spans && data.spans.length > 0) {
-        // engine.traces.list now returns only root spans, so each span is a trace row
-        const traces: TraceGroup[] = data.spans.map((span) => {
-          const startTime = toMs(span.start_time_unix_nano)
-          const endTime = toMs(span.end_time_unix_nano)
-          const duration = endTime - startTime
-
-          return {
-            traceId: span.trace_id,
-            rootOperation: span.name,
-            status: span.status.toLowerCase() === 'error' ? 'error' : 'ok',
-            startTime,
-            endTime,
-            duration,
-            spanCount: 1,
-            services: [span.service_name || 'unknown'],
-          }
-        })
-
+        const traces = data.spans.map(mapSpanToTraceGroup)
         traces.sort((a, b) => b.startTime - a.startTime)
-
+        prevTraceIdsRef.current = new Set(traces.map((t) => t.traceId))
         setTraceGroups(traces)
         setHasOtelConfigured(true)
       } else {
@@ -156,7 +187,7 @@ function TracesPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [getFilterOnlyParams, showSystem])
+  }, [getFilterOnlyParams, showSystem, mapSpanToTraceGroup])
 
   const loadTraceSpans = useCallback(async (traceId: string) => {
     setIsLoadingSpans(true)
@@ -192,24 +223,6 @@ function TracesPage() {
     loadTraces()
   }, [loadTraces])
 
-  const mapSpanToTraceGroup = useCallback(
-    (span: { trace_id: string; name: string; status: string; start_time_unix_nano: number; end_time_unix_nano: number; service_name?: string }): TraceGroup => {
-      const startTime = toMs(span.start_time_unix_nano)
-      const endTime = toMs(span.end_time_unix_nano)
-      return {
-        traceId: span.trace_id,
-        rootOperation: span.name,
-        status: span.status.toLowerCase() === 'error' ? 'error' : 'ok',
-        startTime,
-        endTime,
-        duration: endTime - startTime,
-        spanCount: 1,
-        services: [span.service_name || 'unknown'],
-      }
-    },
-    [],
-  )
-
   const silentRefresh = useCallback(async () => {
     try {
       const params = getFilterOnlyParams()
@@ -222,8 +235,26 @@ function TracesPage() {
       if (data.spans?.length) {
         const traces = data.spans.map(mapSpanToTraceGroup)
         traces.sort((a, b) => b.startTime - a.startTime)
-        setTraceGroups(traces)
-        setHasOtelConfigured(true)
+
+        const newIds = new Set(traces.map((t) => t.traceId))
+        const prevIds = prevTraceIdsRef.current
+        const changed = newIds.size !== prevIds.size || [...newIds].some((id) => !prevIds.has(id))
+
+        if (changed) {
+          const fresh = new Set<string>()
+          for (const id of newIds) {
+            if (!prevIds.has(id)) fresh.add(id)
+          }
+          newTraceIdsRef.current = fresh
+          if (fresh.size > 0) {
+            setTimeout(() => {
+              newTraceIdsRef.current = new Set()
+            }, 1500)
+          }
+          prevTraceIdsRef.current = newIds
+          setTraceGroups(traces)
+          setHasOtelConfigured(true)
+        }
       }
     } catch {
       // Silent poll — swallow errors
@@ -234,7 +265,7 @@ function TracesPage() {
   selectedTraceIdRef.current = selectedTraceId
 
   useEffect(() => {
-    if (!isLive) return
+    if (isPaused) return
     const id = setInterval(() => {
       silentRefresh()
       const traceId = selectedTraceIdRef.current
@@ -250,7 +281,7 @@ function TracesPage() {
       }
     }, LIVE_INTERVAL)
     return () => clearInterval(id)
-  }, [isLive, silentRefresh])
+  }, [isPaused, silentRefresh])
 
   const selectTrace = useCallback(
     (traceId: string | null) => {
@@ -271,16 +302,21 @@ function TracesPage() {
 
   const filteredTraces = useMemo(() => {
     return traceGroups.filter((group) => {
-      // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase()
         const matchesId = group.traceId.toLowerCase().includes(query)
         const matchesOp = group.rootOperation.toLowerCase().includes(query)
-        if (!matchesId && !matchesOp) return false
+        const matchesFn = group.functionId?.toLowerCase().includes(query) ?? false
+        const cacheEntry = chainCache.get(group.traceId)
+        const matchesTopic =
+          cacheEntry?.enqueueInfo?.topic.toLowerCase().includes(query) ?? false
+        const matchesDown =
+          cacheEntry?.enqueueInfo?.downstreamFunction?.toLowerCase().includes(query) ?? false
+        if (!matchesId && !matchesOp && !matchesFn && !matchesTopic && !matchesDown) return false
       }
       return true
     })
-  }, [traceGroups, searchQuery])
+  }, [traceGroups, searchQuery, chainCache])
 
   const totalPages = Math.max(1, Math.ceil(filteredTraces.length / filterState.pageSize))
 
@@ -295,29 +331,38 @@ function TracesPage() {
     }
   }, [pagedTraces, selectedTraceId, selectTrace])
 
-  // Batch-fetch service chains for visible traces
+  // Batch-fetch service chains and enqueue info for visible (or all workflow) traces
   useEffect(() => {
-    const uncached = pagedTraces.filter(
+    const source = viewMode === 'workflows' ? filteredTraces : pagedTraces
+    const uncached = source.filter(
       (t) => !chainCache.has(t.traceId) && !chainFetchingRef.current.has(t.traceId),
     )
     if (!uncached.length) return
 
-    for (const t of uncached) {
+    const toFetch = viewMode === 'workflows' ? uncached.slice(0, 20) : uncached
+
+    for (const t of toFetch) {
       chainFetchingRef.current.add(t.traceId)
     }
 
     Promise.allSettled(
-      uncached.map((t) =>
+      toFetch.map((t) =>
         fetchTraceTree(t.traceId).then((data) => ({
           traceId: t.traceId,
-          chain: data.roots?.length ? extractServiceChain(data.roots) : [t.services[0] || 'unknown'],
+          chain: data.roots?.length
+            ? extractServiceChain(data.roots)
+            : [t.services[0] || 'unknown'],
+          enqueueInfo: data.roots?.length ? extractEnqueueInfo(data.roots) : null,
         })),
       ),
     ).then((results) => {
-      const newEntries: [string, string[]][] = []
+      const newEntries: [string, TraceCacheEntry][] = []
       for (const r of results) {
         if (r.status === 'fulfilled') {
-          newEntries.push([r.value.traceId, r.value.chain])
+          newEntries.push([
+            r.value.traceId,
+            { chain: r.value.chain, enqueueInfo: r.value.enqueueInfo },
+          ])
           chainFetchingRef.current.delete(r.value.traceId)
         }
       }
@@ -329,7 +374,24 @@ function TracesPage() {
         })
       }
     })
-  }, [pagedTraces, chainCache])
+  }, [viewMode, filteredTraces, pagedTraces, chainCache])
+
+  const workflowRuns = useMemo(() => {
+    const infoMap = new Map<string, EnqueueInfo>()
+    for (const [traceId, entry] of chainCache) {
+      if (entry.enqueueInfo) infoMap.set(traceId, entry.enqueueInfo)
+    }
+    return buildWorkflowRuns(
+      filteredTraces.map((t) => ({
+        traceId: t.traceId,
+        startTime: t.startTime,
+        endTime: t.endTime ?? t.startTime + (t.duration ?? 0),
+        duration: t.duration ?? 0,
+        status: (t.status === 'error' ? 'error' : 'ok') as 'ok' | 'error',
+      })),
+      infoMap,
+    )
+  }, [filteredTraces, chainCache])
 
   const stats = useMemo(
     () => ({
@@ -341,6 +403,22 @@ function TracesPage() {
           : 0,
     }),
     [filteredTraces],
+  )
+
+  // Helper to get display label for a trace row
+  const getTraceLabel = useCallback(
+    (group: TraceGroup) => {
+      const cacheEntry = chainCache.get(group.traceId)
+      if (group.functionId === 'enqueue' && cacheEntry?.enqueueInfo) {
+        const { topic, downstreamFunction } = cacheEntry.enqueueInfo
+        return downstreamFunction ? `enqueue: ${topic} → ${downstreamFunction}` : `enqueue: ${topic}`
+      }
+      if (group.functionId && group.functionId !== 'enqueue') {
+        return group.functionId
+      }
+      return group.rootOperation
+    },
+    [chainCache],
   )
 
   // --- Resizable panels ---
@@ -357,7 +435,6 @@ function TracesPage() {
   const prevSelectedSpanRef = useRef<string | null>(null)
   const preSplitTraceWidthRef = useRef(TRACE_PANEL_DEFAULT)
 
-  // Auto-split panels when span detail opens, restore when it closes
   useEffect(() => {
     const spanId = selectedSpan?.span_id ?? null
     const hadSpan = prevSelectedSpanRef.current !== null
@@ -396,7 +473,6 @@ function TracesPage() {
       if (isResizingRef.current === 'trace') {
         setPanelWidths((p) => ({ ...p, trace: clampPanelWidth(resizeStartRef.current.width + dx) }))
       } else {
-        // Coupled resize: maintain total width between both panels
         const totalWidth = resizeStartRef.current.width + resizeStartRef.current.otherWidth
         const maxForPanel = totalWidth - PANEL_MIN_WIDTH
         const newSpanWidth = Math.max(
@@ -431,27 +507,53 @@ function TracesPage() {
             <GitBranch className="w-4 h-4 text-cyan-400" />
             Traces
           </h1>
+          {isPaused && (
+            <Badge variant="warning" className="gap-1 text-[10px] md:text-xs">
+              <Pause className="w-2.5 h-2.5 md:w-3 md:h-3" />
+              <span className="hidden sm:inline">Paused</span>
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 md:gap-2">
+          <div className="flex items-center rounded-md border border-border overflow-hidden mr-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`h-6 md:h-7 px-2 text-[10px] md:text-xs flex items-center gap-1 transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-dark-gray text-foreground'
+                  : 'text-muted hover:text-foreground'
+              }`}
+            >
+              <List className="w-3 h-3" />
+              <span className="hidden md:inline">List</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('workflows')}
+              className={`h-6 md:h-7 px-2 text-[10px] md:text-xs flex items-center gap-1 transition-colors ${
+                viewMode === 'workflows'
+                  ? 'bg-dark-gray text-foreground'
+                  : 'text-muted hover:text-foreground'
+              }`}
+            >
+              <GitBranch className="w-3 h-3" />
+              <span className="hidden md:inline">Workflows</span>
+            </button>
+          </div>
           <Button
-            variant={isLive ? 'accent' : 'ghost'}
+            variant={isPaused ? 'accent' : 'ghost'}
             size="sm"
-            onClick={() => setIsLive(!isLive)}
+            onClick={() => setIsPaused(!isPaused)}
             className="h-6 md:h-7 text-[10px] md:text-xs px-2"
           >
-            {isLive ? (
-              <>
-                <span className="relative flex h-2 w-2 md:mr-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-                </span>
-                <Pause className="w-3 h-3 md:mr-1" />
-              </>
-            ) : (
+            {isPaused ? (
               <Play className="w-3 h-3 md:mr-1.5" />
+            ) : (
+              <Pause className="w-3 h-3 md:mr-1.5" />
             )}
-            <span className="hidden md:inline">{isLive ? 'Live' : 'Live'}</span>
+            <span className="hidden md:inline">{isPaused ? 'Resume' : 'Pause'}</span>
           </Button>
           <Button
             variant={showSystem ? 'accent' : 'ghost'}
@@ -532,9 +634,13 @@ function TracesPage() {
                   )}
                 </div>
               </div>
+            ) : viewMode === 'workflows' ? (
+              <WorkflowView runs={workflowRuns} onSelectTrace={(id) => selectTrace(id)} />
             ) : (
               pagedTraces.map((group) => {
                 const isSelected = selectedTraceId === group.traceId
+                const isNew = newTraceIdsRef.current.has(group.traceId)
+                const label = getTraceLabel(group)
 
                 return (
                   <button
@@ -543,6 +649,7 @@ function TracesPage() {
                     onClick={() => selectTrace(isSelected ? null : group.traceId)}
                     className={`w-full p-3 border-b border-border text-left transition-colors
                       ${isSelected ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-dark-gray/50'}
+                      ${isNew ? 'animate-flash-yellow' : ''}
                     `}
                   >
                     <div className="flex items-center gap-2 mb-1">
@@ -553,9 +660,7 @@ function TracesPage() {
                       ) : (
                         <Activity className="w-3.5 h-3.5 text-yellow animate-pulse" />
                       )}
-                      <span className="font-medium text-sm truncate flex-1">
-                        {group.rootOperation}
-                      </span>
+                      <span className="font-medium text-sm truncate flex-1">{label}</span>
                     </div>
 
                     <div className="flex items-center gap-3 text-[10px] text-muted">
@@ -572,7 +677,8 @@ function TracesPage() {
                     </div>
 
                     {(() => {
-                      const chain = chainCache.get(group.traceId)
+                      const cacheEntry = chainCache.get(group.traceId)
+                      const chain = cacheEntry?.chain
                       if (!chain || chain.length <= 1) return null
                       return (
                         <div className="flex items-center gap-1 mt-1.5 flex-wrap">
@@ -597,7 +703,7 @@ function TracesPage() {
             )}
           </div>
 
-          {filteredTraces.length > 0 && (
+          {viewMode === 'list' && filteredTraces.length > 0 && (
             <div className="flex-shrink-0 bg-background/95 backdrop-blur border-t border-border px-3 py-2">
               <Pagination
                 currentPage={filterState.page}
