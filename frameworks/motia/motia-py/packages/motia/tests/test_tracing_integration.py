@@ -66,7 +66,10 @@ def patch_motia_bridge(bridge):
     """
     _instrumented_bridges.discard(id(bridge))
     instrument_bridge(bridge)
-    with patch("motia.runtime.get_instance", return_value=bridge):
+    with (
+        patch("motia.runtime.get_instance", return_value=bridge),
+        patch("motia.enqueue.get_instance", return_value=bridge),
+    ):
         yield bridge
 
 
