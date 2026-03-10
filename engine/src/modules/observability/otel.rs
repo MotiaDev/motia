@@ -3649,9 +3649,9 @@ mod tests {
                 int_value: None,
                 double_value: None,
                 bool_value: None,
-                    kvlist_value: None,
-                    array_value: None,
-                }),
+                kvlist_value: None,
+                array_value: None,
+            }),
         };
 
         let result = otlp_kv_to_key_value(&kv);
@@ -3670,9 +3670,9 @@ mod tests {
                 int_value: Some(42),
                 double_value: None,
                 bool_value: None,
-                    kvlist_value: None,
-                    array_value: None,
-                }),
+                kvlist_value: None,
+                array_value: None,
+            }),
         };
 
         let result = otlp_kv_to_key_value(&kv);
@@ -3692,9 +3692,9 @@ mod tests {
                 int_value: None,
                 double_value: Some(std::f64::consts::PI),
                 bool_value: None,
-                    kvlist_value: None,
-                    array_value: None,
-                }),
+                kvlist_value: None,
+                array_value: None,
+            }),
         };
 
         let result = otlp_kv_to_key_value(&kv);
@@ -3716,9 +3716,9 @@ mod tests {
                 int_value: None,
                 double_value: None,
                 bool_value: Some(true),
-                    kvlist_value: None,
-                    array_value: None,
-                }),
+                kvlist_value: None,
+                array_value: None,
+            }),
         };
 
         let result = otlp_kv_to_key_value(&kv);
@@ -3751,9 +3751,9 @@ mod tests {
                 int_value: None,
                 double_value: None,
                 bool_value: None,
-                    kvlist_value: None,
-                    array_value: None,
-                }),
+                kvlist_value: None,
+                array_value: None,
+            }),
         };
 
         let result = otlp_kv_to_key_value(&kv);
@@ -3770,9 +3770,9 @@ mod tests {
             int_value: None,
             double_value: None,
             bool_value: None,
-                    kvlist_value: None,
-                    array_value: None,
-                };
+            kvlist_value: None,
+            array_value: None,
+        };
         assert_eq!(v.to_string_value(), "hello");
 
         // Int branch
@@ -3781,9 +3781,9 @@ mod tests {
             int_value: Some(99),
             double_value: None,
             bool_value: None,
-                    kvlist_value: None,
-                    array_value: None,
-                };
+            kvlist_value: None,
+            array_value: None,
+        };
         assert_eq!(v.to_string_value(), "99");
 
         // Double branch
@@ -3792,9 +3792,9 @@ mod tests {
             int_value: None,
             double_value: Some(1.5),
             bool_value: None,
-                    kvlist_value: None,
-                    array_value: None,
-                };
+            kvlist_value: None,
+            array_value: None,
+        };
         assert_eq!(v.to_string_value(), "1.5");
 
         // Bool branch
@@ -3803,9 +3803,9 @@ mod tests {
             int_value: None,
             double_value: None,
             bool_value: Some(false),
-                    kvlist_value: None,
-                    array_value: None,
-                };
+            kvlist_value: None,
+            array_value: None,
+        };
         assert_eq!(v.to_string_value(), "false");
 
         // Empty (all None) branch
@@ -3814,9 +3814,9 @@ mod tests {
             int_value: None,
             double_value: None,
             bool_value: None,
-                    kvlist_value: None,
-                    array_value: None,
-                };
+            kvlist_value: None,
+            array_value: None,
+        };
         assert_eq!(v.to_string_value(), "");
     }
 
