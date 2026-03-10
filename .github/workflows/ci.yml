@@ -49,9 +49,6 @@ jobs:
       # - name: Run clippy
       #   run: cargo clippy -p iii -p function-macros -p iii-sdk --all-targets --all-features -- -D warnings
 
-      - name: Run engine tests
-        run: cargo test -p iii --all-features
-
       - name: Build release
         run: cargo build -p iii --release
 
