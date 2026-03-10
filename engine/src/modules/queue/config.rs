@@ -79,13 +79,13 @@ pub struct QueueModuleConfig {
 }
 
 impl QueueModuleConfig {
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self) -> anyhow::Result<()> {
         for (name, queue_config) in &self.queue_configs {
             if queue_config.r#type == "fifo" && queue_config.message_group_field.is_none() {
-                return Err(format!(
+                anyhow::bail!(
                     "Queue '{}' is of type 'fifo' but 'message_group_field' is not set",
                     name
-                ));
+                );
             }
         }
         Ok(())
@@ -210,7 +210,7 @@ adapter:
         };
         let result = config.validate();
         assert!(result.is_err());
-        let err = result.unwrap_err();
+        let err = result.unwrap_err().to_string();
         assert!(err.contains("orders"));
         assert!(err.contains("fifo"));
         assert!(err.contains("message_group_field"));
