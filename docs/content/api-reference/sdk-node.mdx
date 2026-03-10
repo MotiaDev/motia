@@ -11,17 +11,17 @@ npm install iii-sdk
 
 ## Initialization
 
-The Node.js SDK exports an `init` function that creates a connected SDK instance. The WebSocket connection is established automatically — there is no separate `connect()` call.
+The Node.js SDK exports a `registerWorker` function that creates a connected SDK instance. The WebSocket connection is established automatically — there is no separate `connect()` call.
 
 ```typescript
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
   workerName: 'my-worker',
 })
 ```
 
-<ResponseField name="init" type="(address: string, options?: InitOptions) => ISdk" required>
+<ResponseField name="registerWorker" type="(address: string, options?: InitOptions) => ISdk" required>
   Creates and returns a connected SDK instance.
 
   <AccordionGroup>

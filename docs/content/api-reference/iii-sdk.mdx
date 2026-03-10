@@ -10,9 +10,9 @@ The SDK connects your application to the iii engine over WebSocket.
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134', {
+const iii = registerWorker('ws://localhost:49134', {
   workerName: 'my-worker',
   invocationTimeoutMs: 30000,
 })
@@ -20,18 +20,16 @@ const iii = init('ws://localhost:49134', {
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III
+from iii import register_worker
 
-iii = III('ws://localhost:49134')
-await iii.connect()
+iii = register_worker('ws://localhost:49134')
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::III;
+use iii_sdk::{register_worker, InitOptions};
 
-let iii = III::new("ws://localhost:49134");
-iii.connect().await?;
+let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
 ```
 </Tab>
 </Tabs>
@@ -99,7 +97,7 @@ let result = iii.trigger("users::create", json!({"name": "Alice"})).await?;
         The payload to pass to the function.
       </ResponseField>
       <ResponseField name="timeoutMs" type="number">
-        Timeout in milliseconds. Defaults to `invocationTimeoutMs` from init (30000ms).
+        Timeout in milliseconds. Defaults to `invocationTimeoutMs` from registerWorker (30000ms).
       </ResponseField>
     </Accordion>
     <Accordion iconName="ArrowUpRight" title="Returns" description="">
