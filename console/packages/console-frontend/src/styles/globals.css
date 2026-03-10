@@ -109,9 +109,20 @@ body {
   animation: panelSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* New trace flash animation (yellow highlight on new entries) */
+@keyframes trace-flash {
+  from { background-color: rgba(243, 247, 36, 0.15); }
+  to { background-color: transparent; }
+}
+
+.animate-trace-flash {
+  animation: trace-flash 2s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-trace-panel-in,
-  .animate-panel-in {
+  .animate-panel-in,
+  .animate-trace-flash {
     animation: none;
   }
 }
