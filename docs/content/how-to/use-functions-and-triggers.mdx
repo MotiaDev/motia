@@ -610,6 +610,65 @@ The triggering Function doesn't know what language the target is written in or w
 
 Once a Function is registered, every other part of the system can discover and trigger it. See [Discovery](/docs/primitives-and-concepts/discovery) for how this works, including built-in functions the engine provides.
 
+## Unregistering Functions and Triggers
+
+Both `registerFunction` and `registerTrigger` return a reference with an `unregister()` method.
+Calling it removes the registration from the engine so the function or trigger stops receiving invocations.
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="unregister.ts"
+const fn = iii.registerFunction({ id: 'orders.create' }, async (input) => {
+  return { status_code: 201, body: { id: '123', item: input.body.item } }
+})
+
+const trigger = iii.registerTrigger('orders.create', 'http', {
+  method: 'POST',
+  path: '/orders',
+})
+
+// Later, when no longer needed:
+fn.unregister()
+trigger.unregister()
+```
+</Tab>
+<Tab value="Python">
+```python title="unregister.py"
+async def create_order(data):
+    return {"status_code": 201, "body": {"id": "123", "item": data["body"]["item"]}}
+
+fn_ref = iii.register_function("orders.create", create_order)
+
+trigger = iii.register_trigger("orders.create", "http", {
+    "method": "POST",
+    "path": "/orders",
+})
+
+# Later, when no longer needed:
+fn_ref.unregister()
+trigger.unregister()
+```
+</Tab>
+<Tab value="Rust">
+```rust title="unregister.rs"
+let fn_ref = iii.register_function("orders.create", |input| async move {
+    let item = input["body"]["item"].as_str().unwrap_or("");
+    Ok(json!({ "status_code": 201, "body": { "id": "123", "item": item } }))
+});
+
+let trigger = iii.register_trigger(
+    "orders.create",
+    "http",
+    json!({ "method": "POST", "path": "/orders" }),
+)?;
+
+// Later, when no longer needed:
+fn_ref.unregister();
+trigger.unregister();
+```
+</Tab>
+</Tabs>
+
 ## init, Function, and Trigger Registration is Synchronous
 
 The `init()` call returns immediately rather than returning a Promise. This is intentional.
