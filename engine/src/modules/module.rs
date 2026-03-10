@@ -27,6 +27,14 @@ pub struct AdapterEntry {
     pub config: Option<Value>,
 }
 
+pub(crate) fn bind_address_error(addr: impl std::fmt::Display, err: std::io::Error) -> anyhow::Error {
+    if err.kind() == std::io::ErrorKind::AddrInUse {
+        anyhow::anyhow!("address {} is already in use", addr)
+    } else {
+        anyhow::Error::new(err).context(format!("failed to bind to {}", addr))
+    }
+}
+
 #[async_trait::async_trait]
 pub trait Module: Send + Sync {
     fn name(&self) -> &'static str;
