@@ -13,6 +13,7 @@ mod subscriber_config;
 
 use serde_json::Value;
 
+pub use self::config::NamedQueueConfig;
 pub use self::queue::QueueCoreModule;
 pub use self::subscriber_config::SubscriberQueueConfig;
 
@@ -36,4 +37,24 @@ pub trait QueueAdapter: Send + Sync + 'static {
     async fn unsubscribe(&self, topic: &str, id: &str);
     async fn redrive_dlq(&self, topic: &str) -> anyhow::Result<u64>;
     async fn dlq_count(&self, topic: &str) -> anyhow::Result<u64>;
+
+    // New methods for named queues (default impls so existing adapters compile)
+    async fn enqueue_to_queue(
+        &self,
+        _queue_name: &str,
+        _function_id: &str,
+        _data: Value,
+        _traceparent: Option<String>,
+        _baggage: Option<String>,
+    ) {
+        unimplemented!("enqueue_to_queue not implemented for this adapter")
+    }
+
+    async fn start_named_queue(&self, _queue_name: &str, _config: &NamedQueueConfig) {
+        unimplemented!("start_named_queue not implemented for this adapter")
+    }
+
+    async fn stop_named_queue(&self, _queue_name: &str) {
+        unimplemented!("stop_named_queue not implemented for this adapter")
+    }
 }
