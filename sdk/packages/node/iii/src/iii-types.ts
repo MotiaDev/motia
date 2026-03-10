@@ -115,6 +115,10 @@ export type RegisterFunctionMessage = {
   invocation?: HttpInvocationConfig
 }
 
+export type TriggerAction =
+  | { type: 'enqueue'; queue: string }
+  | { type: 'void' }
+
 export type InvokeFunctionMessage = {
   message_type: MessageType.InvokeFunction
   /**
@@ -137,6 +141,10 @@ export type InvokeFunctionMessage = {
    * W3C baggage header for cross-cutting context propagation
    */
   baggage?: string
+  /**
+   * Trigger action for queue routing or fire-and-forget
+   */
+  action?: TriggerAction
 }
 
 export type InvocationResultMessage = {

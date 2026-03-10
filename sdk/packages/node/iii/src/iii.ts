@@ -22,6 +22,7 @@ import {
   type RegisterServiceMessage,
   type RegisterTriggerMessage,
   type RegisterTriggerTypeMessage,
+  type TriggerAction,
   type TriggerRegistrationResultMessage,
   type WorkerInfo,
   type WorkerRegisteredMessage,
@@ -271,12 +272,30 @@ class Sdk implements ISdk {
   trigger = async <TInput, TOutput>(
     function_id: string,
     data: TInput,
-    timeoutMs?: number,
+    options?: number | { timeoutMs?: number; action?: TriggerAction },
   ): Promise<TOutput> => {
+    const opts = typeof options === 'number' ? { timeoutMs: options } : options
+    const action = opts?.action
+    const effectiveTimeout = opts?.timeoutMs ?? this.invocationTimeoutMs
+
+    // Enqueue and Void are fire-and-forget
+    if (action?.type === 'enqueue' || action?.type === 'void') {
+      const traceparent = injectTraceparent()
+      const baggage = injectBaggage()
+      this.sendMessage(MessageType.InvokeFunction, {
+        function_id,
+        data,
+        traceparent,
+        baggage,
+        action,
+      })
+      return undefined as TOutput
+    }
+
+    // Default: synchronous call (existing behavior)
     const invocation_id = crypto.randomUUID()
     const traceparent = injectTraceparent()
     const baggage = injectBaggage()
-    const effectiveTimeout = timeoutMs ?? this.invocationTimeoutMs
 
     return new Promise<TOutput>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -309,10 +328,9 @@ class Sdk implements ISdk {
     })
   }
 
+  /** @deprecated Use trigger(fn, data, { action: { type: 'void' } }) */
   triggerVoid = <TInput>(function_id: string, data: TInput): void => {
-    const traceparent = injectTraceparent()
-    const baggage = injectBaggage()
-    this.sendMessage(MessageType.InvokeFunction, { function_id, data, traceparent, baggage })
+    this.trigger(function_id, data, { action: { type: 'void' } })
   }
 
   call = async <TInput, TOutput>(
@@ -899,6 +917,11 @@ class Sdk implements ISdk {
     }
   }
 }
+
+export const TriggerActions = {
+  Enqueue: (opts: { queue: string }): TriggerAction => ({ type: 'enqueue', ...opts }),
+  Void: (): TriggerAction => ({ type: 'void' }),
+} as const
 
 export const registerWorker = (address: string, options?: InitOptions): ISdk =>
   new Sdk(address, options)

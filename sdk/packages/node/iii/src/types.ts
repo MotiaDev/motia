@@ -6,6 +6,7 @@ import type {
   RegisterTriggerMessage,
   RegisterTriggerTypeMessage,
   StreamChannelRef,
+  TriggerAction,
 } from './iii-types'
 import type { TriggerHandler } from './triggers'
 import type { IStream } from './stream'
@@ -115,7 +116,11 @@ export interface ISdk {
    * @param timeoutMs - Optional timeout in milliseconds
    * @returns The result of the function
    */
-  trigger<TInput, TOutput>(function_id: string, data: TInput, timeoutMs?: number): Promise<TOutput>
+  trigger<TInput, TOutput>(
+    function_id: string,
+    data: TInput,
+    options?: number | { timeoutMs?: number; action?: TriggerAction },
+  ): Promise<TOutput>
 
   /**
    * Lists all registered functions.
