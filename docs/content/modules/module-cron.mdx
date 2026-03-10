@@ -88,13 +88,13 @@ This Module adds a new Trigger Type: `cron`.
     ```
 
   </ResponseField>
-  <ResponseField name="_condition_path" type="string">
+  <ResponseField name="condition_function_id" type="string">
     Function ID for conditional execution. The engine invokes it with the cron event; if it returns `false`, the handler function is not called.
   </ResponseField>
 </Expandable>
 
 <Expandable title="Trigger Event Payload">
-  The following fields are passed to the handler function (and to `_condition_path` if set) each time the trigger fires.
+  The following fields are passed to the handler function (and to `condition_function_id` if set) each time the trigger fires.
 
   <ResponseField name="trigger" type="string">
     Always `"cron"`.

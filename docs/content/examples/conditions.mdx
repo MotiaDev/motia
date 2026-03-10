@@ -51,7 +51,7 @@ iii.registerTrigger({
   config: {
     api_path: 'orders/premium',
     http_method: 'POST',
-    _condition_path: 'conditions::is_premium',
+    condition_function_id: 'conditions::is_premium',
   },
 })
 ```
@@ -88,7 +88,7 @@ iii.register_trigger(
     config={
         "api_path": "orders/premium",
         "http_method": "POST",
-        "_condition_path": "conditions::is_premium",
+        "condition_function_id": "conditions::is_premium",
     },
 )
 ```
@@ -120,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     iii.register_trigger("http", "orders::premium", json!({
         "api_path": "orders/premium",
         "http_method": "POST",
-        "_condition_path": "conditions::is_premium",
+        "condition_function_id": "conditions::is_premium",
     }))?;
 
     loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
@@ -161,7 +161,7 @@ iii.registerFunction(
 iii.registerTrigger({
   type: 'queue',
   function_id: 'orders::high_value',
-  config: { topic: 'order.created', _condition_path: 'conditions::is_high_value' },
+  config: { topic: 'order.created', condition_function_id: 'conditions::is_high_value' },
 })
 ```
 
@@ -200,7 +200,7 @@ iii.register_function("orders::high_value", lambda data: orders_high_value(data,
 iii.register_trigger(
     type="queue",
     function_id="orders::high_value",
-    config={"topic": "order.created", "_condition_path": "conditions::is_high_value"},
+    config={"topic": "order.created", "condition_function_id": "conditions::is_high_value"},
 )
 ```
 
@@ -228,7 +228,7 @@ iii.register_function("orders::high_value", |input| async move {
 
 iii.register_trigger("queue", "orders::high_value", json!({
     "topic": "order.created",
-    "_condition_path": "conditions::is_high_value",
+    "condition_function_id": "conditions::is_high_value",
 }))?;
 ```
 
@@ -237,7 +237,7 @@ iii.register_trigger("queue", "orders::high_value", json!({
 
 ## State trigger condition
 
-State and stream triggers use `condition_function_id` in the config instead of `_condition_path`. The condition receives the full state event, including the event type (`created`, `updated`, `deleted`), scope, key, and both old and new values.
+The condition receives the full state event, including the event type (`created`, `updated`, `deleted`), scope, key, and both old and new values.
 
 <Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
   <Tab value="Node / TypeScript">
@@ -319,8 +319,7 @@ iii.register_trigger("state", "orders::on_update", json!({
 ## Key concepts
 
 - Condition functions are registered with `registerFunction` / `register_function` like any other function. They receive the same event data as the handler and must return `true` or `false`.
-- For HTTP, queue, and cron triggers, add `_condition_path` to the trigger config with the condition function's ID.
-- For state and stream triggers, use `condition_function_id` in the trigger config instead.
+- Add `condition_function_id` to the trigger config with the condition function's ID. This key is the same for all trigger types.
 - When a condition returns `false`:
   - **HTTP** — the engine responds with `422 Unprocessable Entity`; the handler function is not called.
   - **Queue / Cron** — the handler function is not called; no error is surfaced.

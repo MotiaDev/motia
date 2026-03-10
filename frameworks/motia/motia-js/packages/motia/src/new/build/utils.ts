@@ -38,7 +38,7 @@ type StepWithHandler = Step & { handler: StepHandler<unknown> }
 
 type TriggerConfigBase = {
   metadata: StepConfig & { filePath: string }
-  _condition_path?: string
+  condition_function_id?: string
 }
 
 type ApiTriggerConfig = TriggerConfigBase & {
@@ -242,7 +242,7 @@ export class Motia {
             },
           )
 
-          triggerConfig._condition_path = conditionPath
+          triggerConfig.condition_function_id = conditionPath
         }
 
         getInstance().registerTrigger({
@@ -272,7 +272,7 @@ export class Motia {
             return trigger.condition?.(input, flowContext(this, triggerInfo, input))
           })
 
-          triggerConfig._condition_path = conditionPath
+          triggerConfig.condition_function_id = conditionPath
         }
 
         getInstance().registerTrigger({
@@ -299,7 +299,7 @@ export class Motia {
             return trigger.condition?.(undefined, flowContext(this, triggerInfo))
           })
 
-          triggerConfig._condition_path = conditionPath
+          triggerConfig.condition_function_id = conditionPath
         }
 
         getInstance().registerTrigger({
