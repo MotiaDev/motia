@@ -2,6 +2,14 @@
 all-features = true
 fail-under = 70
 packages = ["iii"]
+# These shell exec tests pass under `cargo test`, but tarpaulin's CI coverage
+# run is unstable when they manipulate process groups and signals.
+args = [
+  "--skip", "stop_process_kills_entire_process_group",
+  "--skip", "kill_process_kills_entire_process_group",
+  "--skip", "stop_process_reaps_child_after_sigkill",
+  "--skip", "shutdown_is_idempotent",
+]
 # Keep the gate focused on unit-testable engine code.
 # External integration adapters, the binary entrypoint, and the SDK crate
 # are better covered by dedicated integration/e2e checks.
