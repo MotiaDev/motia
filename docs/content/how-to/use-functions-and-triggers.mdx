@@ -515,43 +515,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   Queue messaging uses `enqueue` — a built-in function, no trigger registration needed: `iii.trigger('enqueue', { topic: 'user.created', data: {...} })`. See the [Queue module](/docs/modules/module-queue) for details.
 </Callout> */}
 
-#### Removing Triggers
-
-`registerTrigger()` returns a handle so you can remove the trigger later:
-
-<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
-<Tab value="Node / TypeScript">
-```typescript title="unregister.ts"
-const t = iii.registerTrigger({
-  type: 'http',
-  function_id: 'fn::id',
-  config: { api_path: '/ping', http_method: 'GET' }
-})
-t.unregister()
-```
-</Tab>
-<Tab value="Python">
-```python title="unregister.py"
-t = iii.register_trigger(
-  type="http",
-  function_id="fn::id",
-  config={"api_path": "/ping", "http_method": "GET"}
-)
-t.unregister()
-```
-</Tab>
-<Tab value="Rust">
-```rust title="unregister.rs"
-let t = iii.register_trigger(
-  "http",
-  "fn::id",
-  json!({"api_path": "/ping", "http_method": "GET"}),
-)?;
-t.unregister();
-```
-</Tab>
-</Tabs>
-
 ## Trigger Types
 
 | Type | Fires when | Config fields | Module |
