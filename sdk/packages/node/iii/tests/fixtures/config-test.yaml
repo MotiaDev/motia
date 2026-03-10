@@ -57,6 +57,16 @@ modules:
 
   - class: modules::queue::QueueModule
     config:
+      queue_configs:
+        default:
+          max_retries: 3
+          concurrency: 5
+          type: standard
+        payment:
+          max_retries: 5
+          concurrency: 2
+          type: fifo
+          message_group_field: transaction_id
       adapter:
         class: modules::queue::BuiltinQueueAdapter
 
