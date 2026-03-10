@@ -9,6 +9,8 @@ permissions:
   contents: write
   id-token: write
   actions: write
+  packages: write
+  security-events: write
 
 concurrency:
   group: release-iii-${{ github.repository }}
