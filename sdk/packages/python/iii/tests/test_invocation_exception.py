@@ -12,7 +12,7 @@ from iii.iii import _TraceContextError
 
 
 @pytest.mark.asyncio
-async def test_invoke_with_context_records_exception_with_stacktrace():
+async def test_invoke_with_otel_context_records_exception_with_stacktrace():
     """When a handler raises, the invocation span should contain
     an 'exception' event with exception.stacktrace attribute."""
     exporter = InMemorySpanExporter()
@@ -36,7 +36,7 @@ async def test_invoke_with_context_records_exception_with_stacktrace():
             raise ValueError("test invocation error")
 
         with pytest.raises(_TraceContextError) as exc_info:
-            await client._invoke_with_context(
+            await client._invoke_with_otel_context(
                 failing_handler, {"key": "value"}, None, None
             )
         assert isinstance(exc_info.value.__cause__, ValueError)
@@ -64,7 +64,7 @@ async def test_invoke_with_context_records_exception_with_stacktrace():
 
 
 @pytest.mark.asyncio
-async def test_invoke_with_context_success_no_exception():
+async def test_invoke_with_otel_context_success_no_exception():
     """When a handler succeeds, no exception event should be recorded."""
     exporter = InMemorySpanExporter()
     provider = TracerProvider()
@@ -85,7 +85,7 @@ async def test_invoke_with_context_success_no_exception():
         async def success_handler(data):
             return {"result": "ok"}
 
-        result, traceparent = await client._invoke_with_context(
+        result, traceparent = await client._invoke_with_otel_context(
             success_handler, {"key": "value"}, None, None
         )
 
