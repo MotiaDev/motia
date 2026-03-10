@@ -38,8 +38,8 @@ use crate::{
     logger::Logger,
     protocol::{
         ErrorBody, HttpInvocationConfig, Message, RegisterFunctionMessage, RegisterServiceMessage,
-        RegisterTriggerMessage, RegisterTriggerTypeMessage, UnregisterTriggerMessage,
-        UnregisterTriggerTypeMessage,
+        RegisterTriggerMessage, RegisterTriggerTypeMessage, TriggerAction,
+        UnregisterTriggerMessage, UnregisterTriggerTypeMessage,
     },
     triggers::{Trigger, TriggerConfig, TriggerHandler},
     types::{Channel, RemoteFunctionData, RemoteFunctionHandler, RemoteTriggerTypeData},
@@ -607,6 +607,7 @@ impl III {
             data,
             traceparent: tp,
             baggage: bg,
+            action: None,
         })?;
 
         match tokio::time::timeout(timeout, rx).await {
@@ -619,6 +620,7 @@ impl III {
         }
     }
 
+    #[deprecated(note = "Use trigger_with_action with TriggerAction::void() instead")]
     pub fn trigger_void<TInput>(&self, function_id: &str, data: TInput) -> Result<(), IIIError>
     where
         TInput: Serialize,
@@ -633,6 +635,25 @@ impl III {
             data: value,
             traceparent: tp,
             baggage: bg,
+            action: Some(TriggerAction::Void),
+        })
+    }
+
+    pub fn trigger_with_action(
+        &self,
+        function_id: &str,
+        data: impl Serialize,
+        action: TriggerAction,
+    ) -> Result<(), IIIError> {
+        let value = serde_json::to_value(data)?;
+        let (tp, bg) = inject_trace_headers();
+        self.send_message(Message::InvokeFunction {
+            invocation_id: None,
+            function_id: function_id.to_string(),
+            data: value,
+            traceparent: tp,
+            baggage: bg,
+            action: Some(action),
         })
     }
 
@@ -1014,6 +1035,7 @@ impl III {
                 data,
                 traceparent,
                 baggage,
+                action: _,
             } => {
                 self.handle_invoke_function(invocation_id, function_id, data, traceparent, baggage);
             }
