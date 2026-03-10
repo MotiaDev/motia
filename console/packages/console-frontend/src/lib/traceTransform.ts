@@ -498,3 +498,103 @@ export function buildWorkflowRuns(
   runs.sort((a, b) => b.startTime - a.startTime)
   return runs
 }
+
+/**
+ * Build a workflow chain for a specific trace by walking both directions.
+ * Unlike buildWorkflowRuns which only walks forward from entry points,
+ * this walks backward first to find the chain start, then forward to the end.
+ * Much more stable with partial/progressively-loaded data.
+ */
+export function buildWorkflowChainFor(
+  selectedTraceId: string,
+  traces: Array<{
+    traceId: string
+    startTime: number
+    endTime: number
+    duration: number
+    status: 'ok' | 'error'
+  }>,
+  enqueueInfoMap: Map<string, EnqueueInfo>,
+): WorkflowStep[] | null {
+  if (!enqueueInfoMap.has(selectedTraceId)) return null
+
+  type Enriched = (typeof traces)[number] & { info: EnqueueInfo }
+  const enqueueTraces: Enriched[] = []
+  for (const t of traces) {
+    const info = enqueueInfoMap.get(t.traceId)
+    if (info) enqueueTraces.push({ ...t, info })
+  }
+  enqueueTraces.sort((a, b) => a.startTime - b.startTime)
+  if (enqueueTraces.length === 0) return null
+
+  const fnToTopic = new Map<string, string>()
+  for (let i = 0; i < enqueueTraces.length; i++) {
+    const curr = enqueueTraces[i]
+    if (!curr.info.downstreamFunction || fnToTopic.has(curr.info.downstreamFunction)) continue
+    for (let j = i + 1; j < enqueueTraces.length; j++) {
+      if (enqueueTraces[j].info.topic !== curr.info.topic) {
+        fnToTopic.set(curr.info.downstreamFunction, enqueueTraces[j].info.topic)
+        break
+      }
+    }
+  }
+
+  // Reverse: topic → the function that produces it
+  const topicProducedBy = new Map<string, string>()
+  for (const [fn, topic] of fnToTopic) {
+    if (!topicProducedBy.has(topic)) topicProducedBy.set(topic, fn)
+  }
+
+  const selected = enqueueTraces.find((t) => t.traceId === selectedTraceId)
+  if (!selected) return null
+
+  // Walk backward to find the chain entry point
+  let entry = selected
+  const backVisited = new Set<string>([selected.traceId])
+  while (true) {
+    const producerFn = topicProducedBy.get(entry.info.topic)
+    if (!producerFn) break
+    const pred = [...enqueueTraces]
+      .reverse()
+      .find(
+        (t) =>
+          !backVisited.has(t.traceId) &&
+          t.info.downstreamFunction === producerFn &&
+          t.startTime <= entry.startTime,
+      )
+    if (!pred) break
+    backVisited.add(pred.traceId)
+    entry = pred
+  }
+
+  // Walk forward from entry to build the full chain
+  const steps: WorkflowStep[] = []
+  const assigned = new Set<string>()
+  let current: Enriched | undefined = entry
+
+  while (current && !assigned.has(current.traceId)) {
+    assigned.add(current.traceId)
+    steps.push({
+      traceId: current.traceId,
+      timestamp: current.startTime,
+      endTime: current.endTime,
+      duration: current.duration,
+      topic: current.info.topic,
+      downstreamFunction: current.info.downstreamFunction,
+      status: current.status,
+    })
+
+    const nextTopic: string | undefined = current.info.downstreamFunction
+      ? fnToTopic.get(current.info.downstreamFunction)
+      : undefined
+    if (!nextTopic) break
+
+    const prevStart = current.startTime
+    current = enqueueTraces.find(
+      (t): t is Enriched =>
+        !assigned.has(t.traceId) && t.info.topic === nextTopic && t.startTime >= prevStart,
+    )
+  }
+
+  return steps.length > 0 ? steps : null
+}

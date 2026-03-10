@@ -24,14 +24,13 @@ import { TraceHeader } from '@/components/traces/TraceHeader'
 import { TraceMap } from '@/components/traces/TraceMap'
 import { ViewSwitcher, type ViewType } from '@/components/traces/ViewSwitcher'
 import { WaterfallChart } from '@/components/traces/WaterfallChart'
-import { WorkflowChain } from '@/components/traces/WorkflowView'
 import { Badge, Button } from '@/components/ui/card'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { Pagination } from '@/components/ui/pagination'
 import { useTraceFilters } from '@/hooks/useTraceFilters'
 import { getServiceColor } from '@/lib/traceColors'
 import {
-  buildWorkflowRuns,
+  buildWorkflowChainFor,
   extractEnqueueInfo,
   extractServiceChain,
   toMs,
@@ -39,6 +38,7 @@ import {
   type EnqueueInfo,
   type VisualizationSpan,
   type WaterfallData,
+  type WorkflowStep,
 } from '@/lib/traceTransform'
 import { formatDuration } from '@/lib/traceUtils'
 
@@ -85,7 +85,7 @@ const SPAN_PANEL_DEFAULT = 400
 const PANEL_MIN_WIDTH = 280
 const PANEL_MAX_WIDTH = 900
 const LIVE_INTERVAL = 3000
-const RELATED_FETCH_WINDOW = 300_000 // 5 min window for related enqueue traces
+const RELATED_FETCH_WINDOW = 300_000
 const clampPanelWidth = (w: number) => Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, w))
 
 function TracesPage() {
@@ -112,9 +112,13 @@ function TracesPage() {
   const prevTraceIdsRef = useRef(new Set<string>())
   const newTraceIdsRef = useRef(new Set<string>())
 
-  // Freeze the list when the user hovers so live updates don't shift items
   const listHoveredRef = useRef(false)
   const pendingTracesRef = useRef<TraceGroup[] | null>(null)
+
+  // Prevent re-fetching related traces when cache updates
+  const workflowFetchedForRef = useRef<string | null>(null)
+  // Keep the previous chain so it doesn't flicker when navigating between steps
+  const prevChainRef = useRef<WorkflowStep[] | null>(null)
 
   const {
     filters: filterState,
@@ -213,7 +217,6 @@ function TracesPage() {
           setSpansError('Failed to process span data')
         }
 
-        // Also cache enqueue info for workflow chain building
         setChainCache((prev) => {
           if (prev.has(traceId)) return prev
           const next = new Map(prev)
@@ -263,7 +266,6 @@ function TracesPage() {
           }
           prevTraceIdsRef.current = newIds
 
-          // If the user is hovering over the list, stash the update for later
           if (listHoveredRef.current) {
             pendingTracesRef.current = traces
             return
@@ -284,7 +286,6 @@ function TracesPage() {
     }
   }, [getFilterOnlyParams, showSystem, mapSpanToTraceGroup])
 
-  // Flush pending trace updates when the mouse leaves the list
   const handleListMouseLeave = useCallback(() => {
     listHoveredRef.current = false
     const pending = pendingTracesRef.current
@@ -326,6 +327,8 @@ function TracesPage() {
         setSelectedSpan(null)
         setSpansError(null)
         setIsLoadingSpans(false)
+        workflowFetchedForRef.current = null
+        prevChainRef.current = null
       } else {
         loadTraceSpans(traceId)
       }
@@ -333,7 +336,6 @@ function TracesPage() {
     [loadTraceSpans],
   )
 
-  // Fetch a single trace tree on hover (lazy enrichment)
   const handleTraceHover = useCallback((group: TraceGroup) => {
     if (chainCacheRef.current.has(group.traceId) || chainFetchingRef.current.has(group.traceId))
       return
@@ -360,23 +362,30 @@ function TracesPage() {
 
   const selectedTrace = traceGroups.find((g) => g.traceId === selectedTraceId)
 
-  // Fetch related enqueue trace trees when a trace is selected (for workflow chain)
+  // One-time fetch of related enqueue traces when a trace is selected
   useEffect(() => {
-    if (!selectedTraceId) return
+    if (!selectedTraceId) {
+      workflowFetchedForRef.current = null
+      return
+    }
+    if (selectedTraceId === workflowFetchedForRef.current) return
+
     const selected = traceGroups.find((t) => t.traceId === selectedTraceId)
     if (!selected || selected.functionId !== 'enqueue') return
+
+    workflowFetchedForRef.current = selectedTraceId
 
     const candidates = traceGroups.filter(
       (t) =>
         t.functionId === 'enqueue' &&
         t.traceId !== selectedTraceId &&
         Math.abs(t.startTime - selected.startTime) < RELATED_FETCH_WINDOW &&
-        !chainCache.has(t.traceId) &&
+        !chainCacheRef.current.has(t.traceId) &&
         !chainFetchingRef.current.has(t.traceId),
     )
 
     if (candidates.length === 0) return
-    const batch = candidates.slice(0, 30)
+    const batch = candidates.slice(0, 50)
     for (const t of batch) chainFetchingRef.current.add(t.traceId)
 
     Promise.allSettled(
@@ -405,21 +414,28 @@ function TracesPage() {
         })
       }
     })
-  }, [selectedTraceId, traceGroups, chainCache])
+  }, [selectedTraceId, traceGroups])
 
-  // Build the workflow chain for the selected trace from cached data
+  // Build workflow chain — persists across step navigation to avoid flicker
   const selectedWorkflowChain = useMemo(() => {
-    if (!selectedTraceId) return null
+    if (!selectedTraceId) {
+      prevChainRef.current = null
+      return null
+    }
+
     const selected = traceGroups.find((t) => t.traceId === selectedTraceId)
-    if (!selected || selected.functionId !== 'enqueue') return null
+    if (!selected || selected.functionId !== 'enqueue') {
+      prevChainRef.current = null
+      return null
+    }
 
     const infoMap = new Map<string, EnqueueInfo>()
     for (const [traceId, entry] of chainCache) {
       if (entry.enqueueInfo) infoMap.set(traceId, entry.enqueueInfo)
     }
-    if (!infoMap.has(selectedTraceId)) return null
 
-    const runs = buildWorkflowRuns(
+    const chain = buildWorkflowChainFor(
+      selectedTraceId,
       traceGroups
         .filter(
           (t) =>
@@ -436,7 +452,17 @@ function TracesPage() {
       infoMap,
     )
 
-    return runs.find((r) => r.steps.some((s) => s.traceId === selectedTraceId)) ?? null
+    if (chain) {
+      prevChainRef.current = chain
+      return chain
+    }
+
+    // If chain not found yet (data still loading), reuse previous chain if it contains this trace
+    if (prevChainRef.current?.some((s) => s.traceId === selectedTraceId)) {
+      return prevChainRef.current
+    }
+
+    return null
   }, [selectedTraceId, traceGroups, chainCache])
 
   const filteredTraces = useMemo(() => {
@@ -482,7 +508,6 @@ function TracesPage() {
     [filteredTraces],
   )
 
-  // Helper to get display label for a trace row
   const getTraceLabel = useCallback(
     (group: TraceGroup) => {
       const cacheEntry = chainCache.get(group.traceId)
@@ -838,19 +863,54 @@ function TracesPage() {
                     onSpanClick={setSelectedSpan}
                   />
 
-                  {selectedWorkflowChain && selectedWorkflowChain.steps.length > 1 && (
-                    <WorkflowChain
-                      steps={selectedWorkflowChain.steps}
-                      selectedTraceId={selectedTrace.traceId}
-                      onSelectTrace={selectTrace}
-                    />
-                  )}
-
                   <div className="border-b border-[#1D1D1D] px-4 py-2.5">
                     <ViewSwitcher currentView={activeView} onViewChange={setActiveView} />
                   </div>
 
                   <div className="flex-1 overflow-auto min-h-0">
+                    {activeView === 'waterfall' &&
+                      selectedWorkflowChain &&
+                      selectedWorkflowChain.length > 1 && (
+                        <div className="border-b border-[#2D2D2D] bg-[#0A0A0A] sticky top-0 z-10">
+                          <div className="px-3 py-1 text-[9px] uppercase tracking-wider text-muted">
+                            Workflow
+                          </div>
+                          {selectedWorkflowChain.map((step) => {
+                            const isCurrent = step.traceId === selectedTrace.traceId
+                            return (
+                              <button
+                                key={step.traceId}
+                                type="button"
+                                onClick={() => selectTrace(step.traceId)}
+                                className={`w-full flex items-center gap-1.5 py-1 px-3 text-left transition-colors border-l-2
+                                  ${isCurrent ? 'bg-yellow/5 border-l-yellow' : 'border-l-transparent hover:bg-dark-gray/30'}
+                                `}
+                              >
+                                {step.status === 'ok' ? (
+                                  <CheckCircle2 className="w-2.5 h-2.5 text-success shrink-0" />
+                                ) : (
+                                  <XCircle className="w-2.5 h-2.5 text-error shrink-0" />
+                                )}
+                                <span className="text-[10px] font-mono text-cyan-400 truncate">
+                                  {step.topic}
+                                </span>
+                                {step.downstreamFunction && (
+                                  <>
+                                    <ChevronRight className="w-2 h-2 text-gray-600 shrink-0" />
+                                    <span className="text-[10px] font-mono text-foreground truncate">
+                                      {step.downstreamFunction}
+                                    </span>
+                                  </>
+                                )}
+                                <span className="text-[9px] text-muted ml-auto shrink-0">
+                                  {formatDuration(step.duration)}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+
                     {activeView === 'waterfall' && (
                       <WaterfallChart
                         data={waterfallData}
