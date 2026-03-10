@@ -856,6 +856,7 @@ mod tests {
                 FunctionResult::Failure(ErrorBody {
                     code: "JOIN".to_string(),
                     message: "boom".to_string(),
+                    stacktrace: None,
                 })
             }
         });
@@ -917,6 +918,7 @@ mod tests {
             FunctionResult::Failure(ErrorBody {
                 code: "GET_FAILED".to_string(),
                 message: "custom get failed".to_string(),
+                stacktrace: None,
             })
         });
 
@@ -942,6 +944,7 @@ mod tests {
             FunctionResult::Failure(ErrorBody {
                 code: "LIST_FAILED".to_string(),
                 message: "custom list failed".to_string(),
+                stacktrace: None,
             })
         });
 

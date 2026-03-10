@@ -798,10 +798,15 @@ class Sdk implements ISdk {
           baggage: getResponseBaggage(),
         })
       } catch (error) {
+        const isError = error instanceof Error
         this.sendMessage(MessageType.InvocationResult, {
           invocation_id,
           function_id,
-          error: { code: 'invocation_failed', message: (error as Error).message },
+          error: {
+            code: 'invocation_failed',
+            message: isError ? error.message : String(error),
+            stacktrace: isError ? error.stack : undefined,
+          },
           traceparent: getResponseTraceparent(),
           baggage: getResponseBaggage(),
         })

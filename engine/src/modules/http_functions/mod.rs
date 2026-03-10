@@ -97,6 +97,7 @@ impl HttpFunctionsModule {
             .map_err(|e| ErrorBody {
                 code: "url_validation_failed".into(),
                 message: e.to_string(),
+                stacktrace: None,
             })?;
 
         let auth = config.auth.as_ref().map(resolve_auth_ref).transpose()?;

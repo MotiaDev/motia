@@ -70,6 +70,12 @@ def _setup(iii) -> None:
 
     use_api(
         iii,
+        {"api_path": "error-test", "http_method": "GET", "description": "Raises an error to test OTEL stack traces"},
+        _error_test,
+    )
+
+    use_api(
+        iii,
         {
             "api_path": "http-fetch",
             "http_method": "GET",
@@ -169,6 +175,10 @@ async def _get_state(req: ApiRequest, logger) -> ApiResponse:
     todo_id = req.path_params.get("id")
     todo = await state.get("todo", todo_id)
     return ApiResponse(statusCode=200, body=todo, headers={"Content-Type": "application/json"})
+
+
+async def _error_test(req: ApiRequest, logger) -> ApiResponse:
+    raise ValueError("Intentional error for OTEL stacktrace testing")
 
 
 async def _fetch_example(req: ApiRequest, logger) -> ApiResponse:

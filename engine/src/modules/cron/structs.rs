@@ -663,6 +663,7 @@ mod tests {
                 FunctionResult::Failure(crate::protocol::ErrorBody {
                     code: "COND".to_string(),
                     message: "condition failed".to_string(),
+                    stacktrace: None,
                 })
             }),
         );
@@ -733,6 +734,7 @@ mod tests {
                     FunctionResult::Failure(crate::protocol::ErrorBody {
                         code: "HANDLER".to_string(),
                         message: "handler failed".to_string(),
+                        stacktrace: None,
                     })
                 }
             }),

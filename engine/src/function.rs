@@ -358,6 +358,7 @@ mod tests {
                     FunctionResult::Failure(ErrorBody {
                         code: "test_error".to_string(),
                         message: "something failed".to_string(),
+                        stacktrace: None,
                     })
                 })
             }),

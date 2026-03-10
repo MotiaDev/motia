@@ -1984,6 +1984,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "serial_test",
  "sysinfo",
  "thiserror",
  "tokio",

@@ -254,6 +254,7 @@ impl StreamAdapter for BridgeAdapter {
                             Err(iii_sdk::IIIError::Remote {
                                 code: "DESERIALIZATION_ERROR".to_string(),
                                 message: format!("Failed to deserialize stream message: {}", e),
+                                stacktrace: None,
                             })
                         }
                     }

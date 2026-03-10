@@ -190,6 +190,7 @@ fn memory_exporter_not_enabled_error() -> FunctionResult<Option<Value>, ErrorBod
         code: "memory_exporter_not_enabled".to_string(),
         message: "In-memory span storage is not available. Set exporter: memory or both in config."
             .to_string(),
+        stacktrace: None,
     })
 }
 
