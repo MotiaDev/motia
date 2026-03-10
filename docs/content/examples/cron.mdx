@@ -19,9 +19,9 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'cron.periodic_job', description: 'Fires on schedule and enqueues work' },
@@ -49,9 +49,9 @@ iii.registerTrigger({
 ```python
 import asyncio
 from datetime import datetime, timezone
-from iii import III, InitOptions
+from iii import register_worker, InitOptions
 
-iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="cron-worker"))
+iii = register_worker(address="ws://localhost:49134", options=InitOptions(worker_name="cron-worker"))
 
 
 async def periodic_job(_data, ctx) -> None:
@@ -78,10 +78,10 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 
-let iii = III::new("ws://127.0.0.1:49134");
+let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default())?;
 
 iii.register_function("cron.periodic_job", |_input| async move {
     let logger = Logger();
@@ -102,7 +102,6 @@ iii.register_trigger("cron", "cron.periodic_job", json!({
     "expression": "* * * * *",
 }))?;
 
-iii.connect().await?;
 ```
 
   </Tab>

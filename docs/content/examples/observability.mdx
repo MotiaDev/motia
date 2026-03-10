@@ -20,9 +20,9 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
   otel: {
     enabled: true,
     serviceName: 'orders-service',
@@ -78,9 +78,9 @@ iii.registerTrigger({
 ```python
 import asyncio
 from datetime import datetime, timezone
-from iii import III, InitOptions, ApiRequest, ApiResponse
+from iii import register_worker, InitOptions, ApiRequest, ApiResponse
 
-iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-service"))
+iii = register_worker(address="ws://localhost:49134", options=InitOptions(worker_name="orders-service"))
 
 
 async def create_order(req: ApiRequest, ctx) -> ApiResponse:
@@ -133,7 +133,7 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger, types::ApiRequest};
+use iii_sdk::{register_worker, InitOptions, Logger, types::ApiRequest};
 use serde_json::json;
 
 iii.register_function("orders.create", |input| async move {
@@ -372,8 +372,8 @@ iii.register_trigger("queue", "order.notify", json!({ "topic": "order.notify" })
   <Tab value="Node / TypeScript">
 
 ```typescript
-// Pass otel config to init()
-const iii = init('ws://localhost:49134', {
+// Pass otel config to registerWorker()
+const iii = registerWorker('ws://localhost:49134', {
   otel: {
     enabled: true,
     serviceName: 'my-service',
@@ -394,7 +394,7 @@ The iii SDK exports traces and metrics automatically via the engine's OpenTeleme
 
 ```python
 # OTel is handled by the engine — just pass the worker name in InitOptions
-iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="my-service"))
+iii = register_worker(address="ws://localhost:49134", options=InitOptions(worker_name="my-service"))
 
 # Traces are automatically correlated via current_trace_id()
 # Access trace_id in any handler:
@@ -415,8 +415,7 @@ iii-sdk = { version = "0.1", features = ["telemetry"] }
 // Initialize OTLP before connecting
 iii_sdk::telemetry::init_otlp("my-service").await?;
 
-let iii = III::new("ws://127.0.0.1:49134");
-iii.connect().await?;
+let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default())?;
 
 // current_trace_id() is available in every handler
 let logger = Logger();
@@ -439,5 +438,5 @@ logger.info("My message", Some(json!({ "traceId": current_trace_id() })));
 
 - `currentTraceId()` / `current_trace_id()` is the W3C trace-context ID for the current invocation. It is automatically propagated to all downstream workers when you emit an event — no manual header passing is needed.
 - All logs are emitted as structured JSON via the engine's `log.info` / `log.warn` / `log.error` functions.
-- The Node.js SDK supports OTel configuration directly in `init()`. Python and Rust use the engine's built-in OTLP pipeline.
+- The Node.js SDK supports OTel configuration directly in `registerWorker()`. Python and Rust use the engine's built-in OTLP pipeline.
 - Log every step at entry and exit with the `traceId` to make multi-step flows fully observable.

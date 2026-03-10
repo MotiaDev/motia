@@ -15,16 +15,16 @@ graph LR
 
 ## Worker setup
 
-Every iii worker starts by initialising the SDK and connecting to the engine.
+Every iii worker starts by registering the worker with the engine.
 
 <Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
   <Tab value="Node / TypeScript">
 
 ```typescript
 // worker.ts
-import {Logger} from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 ```
 
   </Tab>
@@ -33,9 +33,9 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 ```python
 # worker.py
 import asyncio
-from iii import III, InitOptions, ApiRequest, ApiResponse
+from iii import register_worker, InitOptions, ApiRequest, ApiResponse
 
-iii = III(
+iii = register_worker(
     address="ws://localhost:49134",
     options=InitOptions(worker_name="hello-worker"),
 )
@@ -46,13 +46,12 @@ iii = III(
 
 ```rust
 // main.rs
-use iii_sdk::{III, Logger};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
+    let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default())?;
     // ... register functions
     loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
 }
@@ -157,7 +156,7 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger, types::ApiRequest};
+use iii_sdk::{register_worker, InitOptions, Logger, types::ApiRequest};
 
 iii.register_function("hello.api", |input| async move {
     let logger = Logger();
@@ -324,14 +323,14 @@ iii.register_trigger("queue", "greet.process", json!({
 ## Connect and run
 
 <Callout title="Node.js connects automatically" type="info">
-  The Node SDK establishes the WebSocket connection when you call `init()`. There is no separate `connect()` method. Keep the process alive so the worker stays registered.
+  The Node SDK establishes the WebSocket connection when you call `registerWorker()`. There is no separate `connect()` method. Keep the process alive so the worker stays registered.
 </Callout>
 
 <Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
   <Tab value="Node / TypeScript">
 
 ```typescript
-// Node SDK connects on init() — keep the process alive
+// Node SDK connects on registerWorker() — keep the process alive
 await new Promise(() => {})
 ```
 
@@ -340,7 +339,6 @@ await new Promise(() => {})
 
 ```python
 async def main() -> None:
-    await iii.connect()
     while True:
         await asyncio.sleep(60)
 
@@ -352,7 +350,6 @@ asyncio.run(main())
 
 ```rust
 // Already in the main() above — connect then event loop
-iii.connect().await?;
 loop {
     tokio::time::sleep(std::time::Duration::from_secs(60)).await;
 }

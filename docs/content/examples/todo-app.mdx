@@ -23,7 +23,7 @@ The iii SDK lets you register a custom stream backed by any storage — in-memor
 
 ```typescript
 // stream.ts
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 
 export type Todo = {
   id: string
@@ -34,7 +34,7 @@ export type Todo = {
   completedAt: string | null
 }
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 let todos: Todo[] = []
 

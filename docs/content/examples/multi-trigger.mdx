@@ -20,9 +20,9 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'orders.handle', description: 'Handles orders from API, queue, or cron' },
@@ -114,9 +114,9 @@ iii.registerTrigger({
 
 ```python
 import asyncio
-from iii import III, InitOptions, ApiRequest, ApiResponse
+from iii import register_worker, InitOptions, ApiRequest, ApiResponse
 
-iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-worker"))
+iii = register_worker(address="ws://localhost:49134", options=InitOptions(worker_name="orders-worker"))
 
 
 async def orders_handle(data, ctx) -> dict | None:
@@ -187,7 +187,7 @@ iii.register_trigger(type="cron", function_id="orders.handle",
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger, types::ApiRequest};
+use iii_sdk::{register_worker, InitOptions, Logger, types::ApiRequest};
 use serde_json::json;
 
 iii.register_function("orders.handle", |input| async move {

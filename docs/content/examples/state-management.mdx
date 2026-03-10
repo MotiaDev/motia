@@ -21,9 +21,9 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'users.update_status', description: 'Update user status in state' },
@@ -62,9 +62,9 @@ iii.registerTrigger({
 
 ```python
 from datetime import datetime, timezone
-from iii import III, InitOptions, ApiRequest, ApiResponse
+from iii import register_worker, InitOptions, ApiRequest, ApiResponse
 
-iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="state-worker"))
+iii = register_worker(address="ws://localhost:49134", options=InitOptions(worker_name="state-worker"))
 
 
 async def update_user_status(req: ApiRequest, ctx) -> ApiResponse:
@@ -100,7 +100,7 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger, types::ApiRequest};
+use iii_sdk::{register_worker, InitOptions, Logger, types::ApiRequest};
 use serde_json::json;
 
 iii.register_function("users.update_status", |input| async move {

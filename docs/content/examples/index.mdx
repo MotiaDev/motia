@@ -33,14 +33,14 @@ Each example uses the **iii SDK** directly. Every page shows the same pattern in
 
 All three SDKs share the same concepts with language-idiomatic initialization:
 
-- **TypeScript**: `init(url)` — named function, connection is automatic
-- **Python**: `III(address=url)` — class constructor (`__init__` convention), then call `await iii.connect()`
-- **Rust**: `III::new(url)` — `new` is the Rust convention for constructors, then call `iii.connect().await?`
+- **TypeScript**: `registerWorker(url)` — named function, connection is automatic
+- **Python**: `register_worker(address=url)` — function-based worker registration, connection is automatic
+- **Rust**: `register_worker(url, ...)` — function-based worker registration, connection is automatic
 
 | Concept | TypeScript | Python | Rust |
 |---|---|---|---|
-| Init | `init(url)` | `III(address=url)` | `III::new(url)` |
-| Connect | Auto on `init()` | `await iii.connect()` | `iii.connect().await?` |
+| Init | `registerWorker(url)` | `register_worker(address=url)` | `register_worker(url, ...)` |
+| Connect | Auto on `registerWorker()` | Auto on `register_worker()` | Auto on `register_worker()` |
 | Register function | `iii.registerFunction({ id }, handler)` | `iii.register_function(function_id, handler)` | `iii.register_function(id, \|input\| ...)` |
 | Register trigger | `iii.registerTrigger({ type, function_id, config })` | `iii.register_trigger(type, function_id, config)` | `iii.register_trigger(type, function_id, config)?` |
 | Context | `new Logger()` | `Logger()` | `iii_sdk::Logger()` |
