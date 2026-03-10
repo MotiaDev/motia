@@ -5,7 +5,7 @@ Final step in the flow. The full trace tree is visible via engine.traces.list.
 
 from typing import Any
 
-from motia import FlowContext, queue
+from motia import FlowContext, logger, queue, stateManager
 
 config = {
     "name": "NotifyOrder",
@@ -22,7 +22,7 @@ async def handler(data: Any, ctx: FlowContext[Any]) -> None:
     order = data.get("data", {}) if isinstance(data, dict) else {}
     order_id = order.get("id", "unknown")
 
-    ctx.logger.info(
+    logger.info(
         "Sending notification for order",
         {
             "order_id": order_id,
@@ -30,7 +30,7 @@ async def handler(data: Any, ctx: FlowContext[Any]) -> None:
         },
     )
 
-    await ctx.state.set(
+    await stateManager.set(
         "notifications",
         order_id,
         {
@@ -40,4 +40,4 @@ async def handler(data: Any, ctx: FlowContext[Any]) -> None:
         },
     )
 
-    ctx.logger.info("Notification sent", {"order_id": order_id})
+    logger.info("Notification sent", {"order_id": order_id})

@@ -8,7 +8,7 @@ The `step()` helper provides a streamlined way to define multi-trigger Steps wit
 ## Basic Usage
 
 ```typescript
-import { http, queue, step } from 'motia'
+import { http, queue, step, logger, enqueue } from 'motia'
 import { z } from 'zod'
 
 const orderSchema = z.object({
@@ -31,13 +31,13 @@ export const { config, handler } = step(stepConfig, async (input, ctx) => {
 
   return ctx.match({
     http: async (request) => {
-      ctx.logger.info('Manual order', { body: request.body })
-      await ctx.enqueue({ topic: 'notification', data: request.body })
+      logger.info('Manual order', { body: request.body })
+      await enqueue({ topic: 'notification', data: request.body })
       return { status: 200, body: { success: true } }
     },
     queue: async (queueInput) => {
-      ctx.logger.info('Processing from queue', { data })
-      await ctx.enqueue({ topic: 'notification', data })
+      logger.info('Processing from queue', { data })
+      await enqueue({ topic: 'notification', data })
     },
   })
 })
@@ -57,7 +57,7 @@ Extracts the data payload from the input regardless of which trigger activated t
 
 ```typescript
 const data = ctx.getData()
-ctx.logger.info('Processing data', data)
+logger.info('Processing data', data)
 ```
 
 ## ctx.match()
@@ -70,19 +70,19 @@ return ctx.match({
     return { status: 200, body: { ok: true } }
   },
   queue: async (data) => {
-    ctx.logger.info('From queue')
+    logger.info('From queue')
   },
   cron: async () => {
-    ctx.logger.info('From cron')
+    logger.info('From cron')
   },
   state: async (stateEvent) => {
-    ctx.logger.info('State changed', stateEvent)
+    logger.info('State changed', stateEvent)
   },
   stream: async (streamEvent) => {
-    ctx.logger.info('Stream event', streamEvent)
+    logger.info('Stream event', streamEvent)
   },
   default: async (input) => {
-    ctx.logger.warn('Unknown trigger type')
+    logger.warn('Unknown trigger type')
   },
 })
 ```

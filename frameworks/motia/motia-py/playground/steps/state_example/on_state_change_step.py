@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import FlowContext, StateTriggerInput, state
+from motia import StateTriggerInput, enqueue, logger, state
 
 config = {
     "name": "on-user-state-change",
@@ -15,9 +15,9 @@ config = {
 }
 
 
-async def handler(input: StateTriggerInput, ctx: FlowContext[Any]) -> None:
+async def handler(input: StateTriggerInput) -> None:
     """Handle user state change."""
-    ctx.logger.info(
+    logger.info(
         f"User state changed",
         {
             "group_id": input.group_id,
@@ -27,11 +27,10 @@ async def handler(input: StateTriggerInput, ctx: FlowContext[Any]) -> None:
         },
     )
 
-    # Enqueue event for downstream processing
     old_status = input.old_value.get("status") if isinstance(input.old_value, dict) else None
     new_status = input.new_value.get("status") if isinstance(input.new_value, dict) else None
 
-    await ctx.enqueue(
+    await enqueue(
         {
             "topic": "user.status.changed",
             "data": {

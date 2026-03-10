@@ -292,7 +292,7 @@ Let's see how Motia discovers different step types:
 ### Example 1: TypeScript API Step
 
 ```typescript title="src/user-api.step.ts"
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, type StepConfig, enqueue } from 'motia'
 
 export const config = {
   name: 'user-api',
@@ -304,7 +304,7 @@ export const config = {
   flows: ['user-management'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { enqueue }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   await enqueue({
     topic: 'users.fetched',
     data: { users: [] }
@@ -320,6 +320,8 @@ export const handler: Handlers<typeof config> = async ({ request }, { enqueue })
 ### Example 2: Python Queue Step
 
 ```python title="src/data-processor_step.py"
+from motia import enqueue
+
 config = {
     "name": "data-processor",
     "description": "Process incoming data with Python",
@@ -337,7 +339,7 @@ async def handler(input_data, ctx):
         "count": len(input_data.get("users", []))
     }
 
-    await ctx.enqueue({
+    await enqueue({
         "topic": "data.processed",
         "data": processed_data
     })
@@ -346,6 +348,8 @@ async def handler(input_data, ctx):
 ### Example 3: JavaScript Automation Step
 
 ```javascript title="src/send-notifications.step.js"
+import { enqueue, logger } from 'motia'
+
 export const config = {
   name: 'send-notifications',
   description: 'Send notifications via multiple channels',
@@ -356,7 +360,7 @@ export const config = {
   flows: ['user-management']
 }
 
-export const handler = async (input, { enqueue, logger }) => {
+export const handler = async (input) => {
   logger.info('Sending notifications', { data: input })
 
   const results = await Promise.all([

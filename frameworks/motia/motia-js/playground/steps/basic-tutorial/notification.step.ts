@@ -1,4 +1,4 @@
-import { type Handlers, jsonSchema, type StepConfig } from 'motia'
+import { type Handlers, jsonSchema, logger, type StepConfig } from 'motia'
 import { z } from 'zod'
 
 export const config = {
@@ -21,7 +21,7 @@ export const config = {
   enqueues: [],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { traceId, logger }) => {
+export const handler: Handlers<typeof config> = async (input, { traceId }) => {
   const { email, ...data } = input || {}
   const redactedEmail = email?.replace(/(?<=.{2}).(?=.*@)/g, '*')
 

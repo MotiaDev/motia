@@ -65,7 +65,7 @@ Our application consists of five specialized steps, each handling a specific par
 
     ```js
     import { config as envConfig } from '../lib/env.js';
-    import { cron } from 'motia'
+    import { cron, logger, enqueue } from 'motia'
 
     export const config = {
       name: 'UptimeCronTrigger',
@@ -76,25 +76,25 @@ Our application consists of five specialized steps, each handling a specific par
       flows: ['uptime-monitoring']
     };
 
-    export async function handler(context) {
-      context.logger.info(`Starting uptime checks for ${envConfig.sites.length} sites`);
-      context.logger.info(`Sites configured: ${JSON.stringify(envConfig.sites)}`);
+    export async function handler() {
+      logger.info(`Starting uptime checks for ${envConfig.sites.length} sites`);
+      logger.info(`Sites configured: ${JSON.stringify(envConfig.sites)}`);
 
       try {
         for (const url of envConfig.sites) {
-          context.logger.info(`Scheduling check for: ${url}`);
+          logger.info(`Scheduling check for: ${url}`);
 
-          await context.enqueue({
+          await enqueue({
             topic: 'check.requested',
             data: { url: url }
           });
 
-          context.logger.info(`Successfully enqueued for: ${url}`);
+          logger.info(`Successfully enqueued for: ${url}`);
         }
 
-        context.logger.info(`Successfully scheduled checks for all ${envConfig.sites.length} sites`);
+        logger.info(`Successfully scheduled checks for all ${envConfig.sites.length} sites`);
       } catch (error) {
-        context.logger.error('Error during cron execution:', error);
+        logger.error('Error during cron execution:', error);
         throw error;
       }
     }
@@ -106,6 +106,7 @@ Our application consists of five specialized steps, each handling a specific par
 
     ```js
     import { z } from 'zod'
+    import { logger, enqueue } from 'motia'
 
     export const config = {
       name: 'WebsiteChecker',
@@ -119,7 +120,7 @@ Our application consists of five specialized steps, each handling a specific par
       flows: ['uptime-monitoring'],
     }
 
-    export const handler = async (input, { logger, enqueue }) => {
+    export const handler = async (input) => {
       const { url } = input
       
       logger.info('Starting website check', { url })
@@ -219,6 +220,7 @@ Our application consists of five specialized steps, each handling a specific par
 
     ```js
     import { z } from 'zod'
+    import { logger } from 'motia'
     import { getPreviousStatus } from '../lib/streams.js'
     import { createRateLimiter } from '../lib/rate-limiter.js'
     import { config as envConfig } from '../lib/env.js'
@@ -297,7 +299,7 @@ Our application consists of five specialized steps, each handling a specific par
       }
     }
 
-    export const handler = async (input, { logger }) => {
+    export const handler = async (input) => {
       const { url, status } = input
 
       // Get the previous status for comparison
@@ -381,6 +383,7 @@ Our application consists of five specialized steps, each handling a specific par
 
     ```js
     import { z } from 'zod'
+    import { logger } from 'motia'
     import { getSnapshot } from '../lib/streams.js'
     import { config as envConfig } from '../lib/env.js'
 
@@ -402,7 +405,7 @@ Our application consists of five specialized steps, each handling a specific par
       flows: ['uptime-monitoring'],
     }
 
-    export const handler = async (_, { logger }) => {
+    export const handler = async (_) => {
       logger.info('Health check endpoint accessed')
       
       try {

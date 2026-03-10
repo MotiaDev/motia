@@ -48,7 +48,9 @@ All operations in the array are applied atomically — no data loss, no race con
 ## Usage in State
 
 ```typescript
-await ctx.state.update<Order>('orders', orderId, [
+import { stateManager } from 'motia'
+
+await stateManager.update<Order>('orders', orderId, [
   { type: 'increment', path: 'completedSteps', by: 1 },
   { type: 'set', path: 'status', value: 'shipped' },
   { type: 'decrement', path: 'retries', by: 1 },
@@ -56,12 +58,14 @@ await ctx.state.update<Order>('orders', orderId, [
 ])
 ```
 
-Returns `{ new_value, old_value }` — the same return type as `state.set()`.
+Returns `{ new_value, old_value }` — the same return type as `stateManager.set()`.
 
 ### Python
 
 ```python
-await context.state.update("orders", order_id, [
+from motia import state_manager
+
+await state_manager.update("orders", order_id, [
     {"type": "increment", "path": "completedSteps", "by": 1},
     {"type": "set", "path": "status", "value": "shipped"},
     {"type": "decrement", "path": "retries", "by": 1},
@@ -76,8 +80,10 @@ await context.state.update("orders", order_id, [
 The same `UpdateOp` types work on stream data:
 
 ```typescript
-export const handler: Handlers<typeof config> = async (input, { streams }) => {
-  await streams.deployment.update('data', deploymentId, [
+import { deploymentStream } from './deployment.stream'
+
+export const handler: Handlers<typeof config> = async (input) => {
+  await deploymentStream.update('data', deploymentId, [
     { type: 'increment', path: 'completedSteps', by: 1 },
     { type: 'set', path: 'status', value: 'progress' },
   ])
@@ -93,7 +99,9 @@ Stream updates are also atomic and trigger stream events that connected clients 
 The `merge` operation performs a shallow merge of an object into the existing value:
 
 ```typescript
-await ctx.state.update('users', userId, [
+import { stateManager } from 'motia'
+
+await stateManager.update('users', userId, [
   {
     type: 'merge',
     path: 'preferences',
@@ -105,7 +113,9 @@ await ctx.state.update('users', userId, [
 If `path` is omitted, the merge is applied to the root object:
 
 ```typescript
-await ctx.state.update('users', userId, [
+import { stateManager } from 'motia'
+
+await stateManager.update('users', userId, [
   {
     type: 'merge',
     value: { lastLogin: new Date().toISOString(), loginCount: 5 },
@@ -120,7 +130,9 @@ await ctx.state.update('users', userId, [
 ### Counter Tracking
 
 ```typescript
-await ctx.state.update('metrics', 'api-calls', [
+import { stateManager } from 'motia'
+
+await stateManager.update('metrics', 'api-calls', [
   { type: 'increment', path: 'total', by: 1 },
   { type: 'increment', path: `endpoints.${endpoint}`, by: 1 },
   { type: 'set', path: 'lastCall', value: new Date().toISOString() },
@@ -130,7 +142,9 @@ await ctx.state.update('metrics', 'api-calls', [
 ### Status Transitions
 
 ```typescript
-await ctx.state.update('orders', orderId, [
+import { stateManager } from 'motia'
+
+await stateManager.update('orders', orderId, [
   { type: 'set', path: 'status', value: 'completed' },
   { type: 'set', path: 'completedAt', value: new Date().toISOString() },
   { type: 'remove', path: 'processingData' },
@@ -140,7 +154,9 @@ await ctx.state.update('orders', orderId, [
 ### Parallel Step Completion
 
 ```typescript
-await ctx.state.update('tasks', taskId, [
+import { stateManager } from 'motia'
+
+await stateManager.update('tasks', taskId, [
   { type: 'increment', path: 'completedSteps', by: 1 },
   { type: 'merge', path: 'results', value: { [stepName]: result } },
 ])

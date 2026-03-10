@@ -31,7 +31,7 @@ The filename pattern tells Motia to load it, and the `name` in the `config` uniq
 <Tab value='TypeScript'>
 
 ```ts title="src/hello.step.ts"
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, type StepConfig, logger } from 'motia'
 import { z } from 'zod'
 
 export const config = {
@@ -44,7 +44,7 @@ export const config = {
   flows: ['my-flow'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   logger.info('Hello endpoint called')
   return { status: 200, body: { message: 'Hello world!' } }
 }
@@ -55,7 +55,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { logger }) 
 
 ```python title="src/hello_step.py"
 from typing import Any
-from motia import ApiRequest, ApiResponse, FlowContext, http
+from motia import ApiRequest, ApiResponse, http, logger
 
 config = {
     "name": "HelloStep",
@@ -67,8 +67,8 @@ config = {
     "flows": ["my-flow"]
 }
 
-async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
-    ctx.logger.info("Hello endpoint called")
+async def handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
+    logger.info("Hello endpoint called")
     return ApiResponse(status=200, body={"message": "Hello world!"})
 ```
 
@@ -76,6 +76,7 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
 <Tab value='JavaScript'>
 
 ```js title="src/hello.step.js"
+import { logger } from 'motia'
 import { z } from 'zod'
 
 export const config = {
@@ -88,7 +89,7 @@ export const config = {
   flows: ['my-flow'],
 }
 
-export const handler = async ({ request }, { logger }) => {
+export const handler = async ({ request }) => {
   logger.info('Hello endpoint called')
   return { status: 200, body: { message: 'Hello world!' } }
 }
@@ -113,7 +114,7 @@ This is the core of how you build backends with Motia.
 <Tab value='TypeScript'>
 
 ```ts title="src/send-message.step.ts"
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, type StepConfig, enqueue } from 'motia'
 import { z } from 'zod'
 
 export const config = {
@@ -126,7 +127,7 @@ export const config = {
   flows: ['messaging'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { enqueue }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   await enqueue({
     topic: 'message.sent',
     data: { text: request.body.text }
@@ -136,7 +137,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { enqueue })
 ```
 
 ```ts title="src/process-message.step.ts"
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, type StepConfig, logger, enqueue } from 'motia'
 import { z } from 'zod'
 
 export const config = {
@@ -149,7 +150,7 @@ export const config = {
   flows: ['messaging'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger, enqueue }) => {
+export const handler: Handlers<typeof config> = async (input) => {
   logger.info('Processing message', input)
   await enqueue({ topic: 'message.processed', data: input })
 }
@@ -160,7 +161,7 @@ export const handler: Handlers<typeof config> = async (input, { logger, enqueue 
 
 ```python title="send_message_step.py"
 from typing import Any
-from motia import ApiRequest, ApiResponse, FlowContext, http
+from motia import ApiRequest, ApiResponse, enqueue, http
 
 config = {
     "name": "SendMessage",
@@ -172,8 +173,8 @@ config = {
     "flows": ["messaging"]
 }
 
-async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
-    await ctx.enqueue({
+async def handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
+    await enqueue({
         "topic": "message.sent",
         "data": {"text": request.body["text"]}
     })
@@ -181,6 +182,8 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
 ```
 
 ```python title="process_message_step.py"
+from motia import enqueue, logger
+
 config = {
     "name": "ProcessMessage",
     "description": "Processes messages in background",
@@ -191,15 +194,17 @@ config = {
     "flows": ["messaging"]
 }
 
-async def handler(input, ctx):
-    ctx.logger.info("Processing message", {"input": input})
-    await ctx.enqueue({"topic": "message.processed", "data": input})
+async def handler(input):
+    logger.info("Processing message", {"input": input})
+    await enqueue({"topic": "message.processed", "data": input})
 ```
 </Tab>
 
 <Tab value='JavaScript'>
 
 ```js title="src/send-message.step.js"
+import { enqueue } from 'motia'
+
 export const config = {
   name: 'SendMessage',
   description: 'Sends a message',
@@ -210,7 +215,7 @@ export const config = {
   flows: ['messaging'],
 }
 
-export const handler = async ({ request }, { enqueue }) => {
+export const handler = async ({ request }) => {
   await enqueue({
     topic: 'message.sent',
     data: { text: request.body.text }
@@ -220,6 +225,8 @@ export const handler = async ({ request }, { enqueue }) => {
 ```
 
 ```js title="src/process-message.step.js"
+import { logger, enqueue } from 'motia'
+
 export const config = {
   name: 'ProcessMessage',
   description: 'Processes messages in background',
@@ -230,7 +237,7 @@ export const config = {
   flows: ['messaging'],
 }
 
-export const handler = async (input, { logger, enqueue }) => {
+export const handler = async (input) => {
   logger.info('Processing message', input)
   await enqueue({ topic: 'message.processed', data: input })
 }
@@ -274,7 +281,7 @@ Runs when an HTTP request hits the path.
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
     ```typescript
-    import { type Handlers, type StepConfig } from 'motia'
+    import { type Handlers, type StepConfig, logger } from 'motia'
     import { z } from 'zod'
 
     export const config = {
@@ -287,7 +294,7 @@ Runs when an HTTP request hits the path.
       flows: ['users'],
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
+    export const handler: Handlers<typeof config> = async ({ request }) => {
       const userId = request.pathParams.id
       logger.info('Getting user', { userId })
       return { status: 200, body: { id: userId, name: 'John' } }
@@ -296,6 +303,8 @@ Runs when an HTTP request hits the path.
   </Tab>
   <Tab value="JavaScript">
     ```javascript
+    import { logger } from 'motia'
+
     export const config = {
       name: 'GetUser',
       description: 'Get user by ID',
@@ -306,7 +315,7 @@ Runs when an HTTP request hits the path.
       flows: ['users'],
     }
 
-    export const handler = async ({ request }, { logger }) => {
+    export const handler = async ({ request }) => {
       const userId = request.pathParams.id
       logger.info('Getting user', { userId })
       return { status: 200, body: { id: userId, name: 'John' } }
@@ -316,7 +325,7 @@ Runs when an HTTP request hits the path.
   <Tab value="Python">
     ```python
     from typing import Any
-    from motia import ApiRequest, ApiResponse, FlowContext, http
+    from motia import ApiRequest, ApiResponse, http, logger
 
     config = {
         "name": "GetUser",
@@ -328,9 +337,9 @@ Runs when an HTTP request hits the path.
         "flows": ["users"]
     }
 
-    async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+    async def handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
         user_id = request.path_params.get("id")
-        ctx.logger.info("Getting user", {"userId": user_id})
+        logger.info("Getting user", {"userId": user_id})
         return ApiResponse(status=200, body={"id": user_id, "name": "John"})
     ```
   </Tab>
@@ -350,7 +359,7 @@ Runs when an HTTP request hits the path.
 
 - `request` - Request with `body`, `headers`, `pathParams`, `queryParams`, `method`, `requestBody`
 - `response` - Response object for streaming (SSE): `status()`, `headers()`, `stream`, `close()`
-- `ctx` - Context with `logger`, `enqueue`, `state`, `streams`, `traceId`, `trigger`, `is`, `getData`, `match`
+- `ctx` - Context with `traceId`, `trigger`, `is`, `getData`, `match`
 - Returns `{ status, body, headers? }` for standard responses, or use `response` for streaming (SSE)
 
 </Tab>
@@ -366,7 +375,7 @@ Runs when a message is enqueued to a topic. Use for background tasks.
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
     ```typescript
-    import { type Handlers, type StepConfig } from 'motia'
+    import { type Handlers, type StepConfig, logger, enqueue } from 'motia'
     import { z } from 'zod'
 
     export const config = {
@@ -379,7 +388,7 @@ Runs when a message is enqueued to a topic. Use for background tasks.
       flows: ['messaging'],
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async (input, { logger, enqueue }) => {
+    export const handler: Handlers<typeof config> = async (input) => {
       logger.info('Processing message:', input)
       await enqueue({ topic: 'message.processed', data: input })
     }
@@ -387,6 +396,8 @@ Runs when a message is enqueued to a topic. Use for background tasks.
   </Tab>
   <Tab value="JavaScript">
     ```javascript
+    import { logger, enqueue } from 'motia'
+
     export const config = {
       name: 'ProcessMessage',
       description: 'Processes messages in background',
@@ -397,7 +408,7 @@ Runs when a message is enqueued to a topic. Use for background tasks.
       flows: ['messaging'],
     }
 
-    export const handler = async (input, { logger, enqueue }) => {
+    export const handler = async (input) => {
       logger.info('Processing message:', input)
       await enqueue({ topic: 'message.processed', data: input })
     }
@@ -405,6 +416,8 @@ Runs when a message is enqueued to a topic. Use for background tasks.
   </Tab>
   <Tab value="Python">
     ```python
+    from motia import enqueue, logger
+
     config = {
         "name": "ProcessMessage",
         "description": "Processes messages in background",
@@ -415,9 +428,9 @@ Runs when a message is enqueued to a topic. Use for background tasks.
         "flows": ["messaging"]
     }
 
-    async def handler(input, ctx):
-        ctx.logger.info("Processing message:", {"input": input})
-        await ctx.enqueue({"topic": "message.processed", "data": input})
+    async def handler(input):
+        logger.info("Processing message:", {"input": input})
+        await enqueue({"topic": "message.processed", "data": input})
     ```
   </Tab>
 </Tabs>
@@ -435,7 +448,7 @@ Runs when a message is enqueued to a topic. Use for background tasks.
 **Handler:** `handler(input, ctx)`
 
 - `input` - Data from the enqueued message
-- `ctx` - Context with `logger`, `enqueue`, `state`, `streams`, `traceId`, `trigger`, `is`, `getData`, `match`
+- `ctx` - Context with `traceId`, `trigger`, `is`, `getData`, `match`
 
 </Tab>
 
@@ -450,7 +463,7 @@ Runs on a schedule. Use for periodic tasks.
 <Tabs items={['TypeScript', 'JavaScript', 'Python']}>
   <Tab value="TypeScript">
     ```typescript
-    import { type Handlers, type StepConfig, cron } from 'motia'
+    import { type Handlers, type StepConfig, cron, logger } from 'motia'
 
     export const config = {
       name: 'DailyCleanup',
@@ -462,14 +475,14 @@ Runs on a schedule. Use for periodic tasks.
       flows: ['maintenance'],
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async (input, { logger }) => {
+    export const handler: Handlers<typeof config> = async (input) => {
       logger.info('Running daily cleanup')
     }
     ```
   </Tab>
   <Tab value="JavaScript">
     ```javascript
-    import { cron } from 'motia'
+    import { cron, logger } from 'motia'
 
     export const config = {
       name: 'DailyCleanup',
@@ -481,7 +494,7 @@ Runs on a schedule. Use for periodic tasks.
       flows: ['maintenance'],
     }
 
-    export const handler = async (input, { logger }) => {
+    export const handler = async (input) => {
       logger.info('Running daily cleanup')
     }
     ```
@@ -498,8 +511,10 @@ Runs on a schedule. Use for periodic tasks.
         "flows": ["maintenance"]
     }
 
-    async def handler(input, ctx):
-        ctx.logger.info("Running daily cleanup")
+    from motia import logger
+
+    async def handler(input):
+        logger.info("Running daily cleanup")
     ```
   </Tab>
 </Tabs>
@@ -514,7 +529,7 @@ Runs on a schedule. Use for periodic tasks.
 
 **Handler:** `handler(input, ctx)`
 
-- `ctx` - Context with `logger`, `enqueue`, `state`, `streams`, `traceId`, `trigger`, `is`, `getData`, `match`
+- `ctx` - Context with `traceId`, `trigger`, `is`, `getData`, `match`
 
 The iii engine uses a **7-field cron expression** that includes seconds and an optional year:
 
@@ -549,6 +564,7 @@ Runs when state data changes. Use for reactive workflows that respond to data mu
 **Example:**
 
 ```typescript
+import { logger, enqueue } from 'motia'
 import type { Handlers, StepConfig, StateTriggerInput } from 'motia'
 
 export const config = {
@@ -570,7 +586,7 @@ export const config = {
   flows: ['parallel-merge'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger, enqueue }) => {
+export const handler: Handlers<typeof config> = async (input) => {
   logger.info('All steps complete', { itemId: input.item_id })
   await enqueue({ topic: 'all-steps-done', data: { taskId: input.item_id } })
 }
@@ -591,6 +607,7 @@ Runs when a stream item is created, updated, or deleted. Use for reacting to rea
 **Example:**
 
 ```typescript
+import { logger, enqueue } from 'motia'
 import type { Handlers, StepConfig, StreamWrapperMessage } from 'motia'
 
 export const config = {
@@ -608,7 +625,7 @@ export const config = {
   flows: ['deployments'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger, enqueue }) => {
+export const handler: Handlers<typeof config> = async (input) => {
   logger.info('Deployment updated', { streamName: input.streamName, groupId: input.groupId })
   await enqueue({ topic: 'deployment-updated', data: input.event.data })
 }
@@ -629,15 +646,15 @@ Every handler receives a `ctx` object with these tools:
 
 | Property | Description |
 |----------|-------------|
-| `logger` | Structured logging (`info`, `warn`, `error`) |
-| `enqueue` | Trigger other Steps by enqueuing messages |
-| `state` | Persistent key-value storage |
-| `streams` | Real-time data channels for clients |
 | `traceId` | Unique ID for tracing requests & workflows |
 | `trigger` | Info about which trigger activated this handler |
 | `is` | Type guards for trigger types (is.queue, is.http, is.cron) |
 | `getData` | Extract data payload regardless of trigger type |
 | `match` | Pattern match on trigger type for multi-trigger steps |
+
+<Callout type="info">
+**Standalone imports** — `logger`, `enqueue`, `stateManager`, and streams are now imported directly from `'motia'` or from `.stream.ts` files, rather than accessed via `ctx`.
+</Callout>
 
 ---
 
@@ -651,30 +668,36 @@ Key-value storage shared across Steps and workflows.
 <Tab value='TypeScript'>
 
 ```ts
-const result = await state.set('settings', 'preferences', { theme: 'dark' })
-const prefs = await state.get('settings', 'preferences')
+import { stateManager } from 'motia'
+
+const result = await stateManager.set('settings', 'preferences', { theme: 'dark' })
+const prefs = await stateManager.get('settings', 'preferences')
 ```
 
 </Tab>
 <Tab value='Python'>
 
 ```python
-result = await context.state.set("settings", "preferences", {"theme": "dark"})
-prefs = await context.state.get("settings", "preferences")
+from motia import stateManager
+
+result = await stateManager.set("settings", "preferences", {"theme": "dark"})
+prefs = await stateManager.get("settings", "preferences")
 ```
 
 </Tab>
 <Tab value='JavaScript'>
 
 ```js
-const result = await state.set('settings', 'preferences', { theme: 'dark' })
-const prefs = await state.get('settings', 'preferences')
+import { stateManager } from 'motia'
+
+const result = await stateManager.set('settings', 'preferences', { theme: 'dark' })
+const prefs = await stateManager.get('settings', 'preferences')
 ```
 
 </Tab>
 </Tabs>
 
-`state.set` returns `{ new_value, old_value }`. Use `state.update` for atomic updates with `UpdateOp[]`.
+`stateManager.set` returns `{ new_value, old_value }`. Use `stateManager.update` for atomic updates with `UpdateOp[]`.
 
 [Learn more about State Management](/docs/development-guide/state-management)
 
@@ -686,6 +709,8 @@ For debugging, monitoring, and observability.
 <Tab value='TypeScript'>
 
 ```ts
+import { logger } from 'motia'
+
 logger.info('Processing user', { userId: '123' })
 ```
 
@@ -693,13 +718,17 @@ logger.info('Processing user', { userId: '123' })
 <Tab value='Python'>
 
 ```python
-context.logger.info("Processing user", {"userId": "123"})
+from motia import logger
+
+logger.info("Processing user", {"userId": "123"})
 ```
 
 </Tab>
 <Tab value='JavaScript'>
 
 ```js
+import { logger } from 'motia'
+
 logger.info('Processing user', { userId: '123' })
 ```
 
@@ -716,21 +745,27 @@ Push updates directly to connected clients.
 <Tab value='TypeScript'>
 
 ```ts
-await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' })
+import { chatStream } from './chat.stream'
+
+await chatStream.set('room-123', 'msg-456', { text: 'Hello!' })
 ```
 
 </Tab>
 <Tab value='Python'>
 
 ```python
-await context.streams.chat.set("room-123", "msg-456", {"text": "Hello!"})
+from chat_stream import chat_stream
+
+await chat_stream.set("room-123", "msg-456", {"text": "Hello!"})
 ```
 
 </Tab>
 <Tab value='JavaScript'>
 
 ```js
-await streams.chat.set('room-123', 'msg-456', { text: 'Hello!' })
+import { chatStream } from './chat.stream'
+
+await chatStream.set('room-123', 'msg-456', { text: 'Hello!' })
 ```
 
 </Tab>

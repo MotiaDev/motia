@@ -1,4 +1,4 @@
-import { http, queue, step } from 'motia'
+import { enqueue, http, logger, queue, stateManager, step } from 'motia'
 import { z } from 'zod'
 import { petStoreService } from './services/pet-store'
 
@@ -22,7 +22,7 @@ export const stepConfig = {
 export const { config, handler } = step(stepConfig, async (_input, ctx) => {
   const data = ctx.getData()
 
-  ctx.logger.info('Step 02 - Process food order', {
+  logger.info('Step 02 - Process food order', {
     input: data,
     traceId: ctx.traceId,
     triggerType: ctx.trigger.type,
@@ -34,11 +34,11 @@ export const { config, handler } = step(stepConfig, async (_input, ctx) => {
     status: 'placed',
   })
 
-  ctx.logger.info('Order created', { order })
+  logger.info('Order created', { order })
 
-  await ctx.state.set('orders', order.id, order)
+  await stateManager.set('orders', order.id, order)
 
-  await ctx.enqueue({
+  await enqueue({
     topic: 'notification',
     data: {
       email: data.email,

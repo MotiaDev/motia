@@ -63,7 +63,7 @@ Our application consists of six specialized steps, each leveraging the optimal l
     The entry point for our multi-language workflow. This TypeScript API endpoint receives data, validates it with Zod schemas, and kicks off the processing pipeline.
 
 ```typescript
-import { type StepConfig } from 'motia'
+import { type StepConfig, logger, enqueue } from 'motia'
 import { z } from 'zod'
 
 const bodySchema = z.object({
@@ -89,7 +89,7 @@ export const config = {
   flows: ['data-processing'],
 } as const satisfies StepConfig
 
-export const handler = async (req: any, { logger, enqueue, traceId }: any) => {
+export const handler = async (req: any, { traceId }: any) => {
   logger.info('🚀 Starting multi-language app', { body: req.body, traceId })
   
   const appData = {
@@ -126,7 +126,7 @@ export const handler = async (req: any, { logger, enqueue, traceId }: any) => {
     A TypeScript bridge that receives the app start event, processes the data, and forwards it to the Python processing step with proper type transformation.
 
 ```typescript
-import { type StepConfig } from 'motia'
+import { type StepConfig, logger, enqueue } from 'motia'
 import { z } from 'zod'
 
 // Bridge step to connect app starter to Python processing
@@ -145,7 +145,7 @@ export const config = {
   flows: ['data-processing'],
 } as const satisfies StepConfig
 
-export const handler = async (input: any, { logger, enqueue }: any) => {
+export const handler = async (input: any) => {
   logger.info('🌉 Processing app data and sending to Python', { appId: input.id })
   
   // Process data for Python step
@@ -176,6 +176,7 @@ export const handler = async (input: any, { logger, enqueue }: any) => {
 ```python
 import time
 from datetime import datetime
+from motia import logger, enqueue
 
 # Python processing step configuration
 config = {
@@ -188,13 +189,10 @@ config = {
     "flows": ["data-processing"]
 }
 
-async def handler(input_data, ctx):
+async def handler(input_data):
     """
     Python step that processes data and demonstrates Python capabilities
     """
-    logger = ctx.logger
-    enqueue = ctx.enqueue
-    
     # Extract data from input
     original_id = input_data.get("original_id")
     result = input_data.get("result", "")
@@ -239,7 +237,7 @@ async def handler(input_data, ctx):
     A TypeScript notification handler that processes the Python results and sends notifications, showing seamless data flow between Python and TypeScript.
 
 ```typescript
-import { type StepConfig } from 'motia'
+import { type StepConfig, logger, enqueue } from 'motia'
 import { z } from 'zod'
 
 export const config = {
@@ -258,7 +256,7 @@ export const config = {
   flows: ['data-processing'],
 } as const satisfies StepConfig
 
-export const handler = async (input: any, { logger, enqueue }: any) => {
+export const handler = async (input: any) => {
   logger.info('📧 Sending notifications after Python processing', { id: input.id })
   
   // Simulate sending notifications (email, slack, etc.)
@@ -287,7 +285,7 @@ export const handler = async (input: any, { logger, enqueue }: any) => {
     A TypeScript finalizer that aggregates all the processing results and prepares the final summary data before handing off to JavaScript for metrics generation.
 
 ```typescript
-import { type StepConfig } from 'motia'
+import { type StepConfig, logger, enqueue } from 'motia'
 import { z } from 'zod'
 
 // Final step to complete the app - TypeScript
@@ -307,7 +305,7 @@ export const config = {
   flows: ['data-processing'],
 } as const satisfies StepConfig
 
-export const handler = async (input: any, { logger, enqueue }: any) => {
+export const handler = async (input: any) => {
   logger.info('🏁 Finalizing app', { 
     notificationId: input.id,
     message: input.message 
@@ -349,6 +347,8 @@ export const handler = async (input: any, { logger, enqueue }: any) => {
     The final step uses JavaScript for dynamic summary generation and metrics calculation, showcasing how all three languages work together in a single workflow.
 
 ```javascript
+import { logger } from 'motia'
+
 // Final summary step - JavaScript
 export const config = {
   name: 'summaryGenerator',
@@ -360,7 +360,7 @@ export const config = {
   flows: ['data-processing'],
 }
 
-export const handler = async (input, { logger }) => {
+export const handler = async (input) => {
   logger.info('📊 Generating final summary in JavaScript', { 
     appId: input.appId,
     status: input.status 

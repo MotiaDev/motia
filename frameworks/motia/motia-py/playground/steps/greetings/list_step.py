@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, Stream, http
+from motia import ApiRequest, ApiResponse, Stream, http, logger
 
 GREETINGS_GROUP_ID = "default"
 greetings_stream: Stream[dict[str, Any]] = Stream("greetings")
@@ -18,9 +18,9 @@ config = {
 }
 
 
-async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[dict[str, Any]]:
+async def handler(request: ApiRequest[Any]) -> ApiResponse[dict[str, Any]]:
     """Handle list greetings requests."""
     _ = request
     greetings = await greetings_stream.get_group(GREETINGS_GROUP_ID)
-    ctx.logger.info("Greetings listed", {"count": len(greetings)})
+    logger.info("Greetings listed", {"count": len(greetings)})
     return ApiResponse(status=200, body={"greetings": greetings})

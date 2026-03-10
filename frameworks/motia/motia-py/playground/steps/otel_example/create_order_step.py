@@ -9,7 +9,7 @@ import string
 from datetime import datetime
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, Stream, http
+from motia import ApiRequest, ApiResponse, FlowContext, Stream, enqueue, http, logger
 
 order_stream: Stream[dict[str, Any]] = Stream("orders")
 
@@ -25,7 +25,7 @@ config = {
 
 
 async def handler(request: ApiRequest[dict[str, Any]], ctx: FlowContext[Any]) -> ApiResponse[Any]:
-    ctx.logger.info("Creating new order", {"trace_id": ctx.trace_id})
+    logger.info("Creating new order", {"trace_id": ctx.trace_id})
 
     body = request.body or {}
     description = body.get("description")
@@ -47,7 +47,7 @@ async def handler(request: ApiRequest[dict[str, Any]], ctx: FlowContext[Any]) ->
     }
 
     await order_stream.set("pending", order_id, new_order)
-    await ctx.emit({"topic": "order.created", "data": new_order})
+    await enqueue({"topic": "order.created", "data": new_order})
 
-    ctx.logger.info("Order created", {"order_id": order_id, "trace_id": ctx.trace_id})
+    logger.info("Order created", {"order_id": order_id, "trace_id": ctx.trace_id})
     return ApiResponse(status=201, body=new_order)

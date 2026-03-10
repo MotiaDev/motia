@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, http
+from motia import ApiRequest, ApiResponse, http, logger
 
 config = {
     "name": "SingleApiTrigger",
@@ -14,7 +14,7 @@ config = {
 }
 
 
-async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+async def handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
     """Handle single API trigger."""
-    ctx.logger.info("Single API trigger fired")
+    logger.info("Single API trigger fired")
     return ApiResponse(status=200, body={"message": "Single API trigger works"})

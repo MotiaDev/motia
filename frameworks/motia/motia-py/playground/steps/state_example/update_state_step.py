@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import FlowContext, http
+from motia import http, logger, stateManager
 
 config = {
     "name": "update-user-state",
@@ -14,7 +14,7 @@ config = {
 }
 
 
-async def handler(request: Any, ctx: FlowContext[Any]) -> dict[str, Any]:
+async def handler(request: Any) -> dict[str, Any]:
     """Update user status in state."""
     # Validate path_params contains "id"
     if not request.path_params or "id" not in request.path_params:
@@ -34,10 +34,9 @@ async def handler(request: Any, ctx: FlowContext[Any]) -> dict[str, Any]:
 
     new_status = request.body.get("status", "active")
 
-    # Update state - this will trigger state listeners
-    await ctx.state.set("users", user_id, {"status": new_status})
+    await stateManager.set("users", user_id, {"status": new_status})
 
-    ctx.logger.info(f"Updated user {user_id} status to {new_status}")
+    logger.info(f"Updated user {user_id} status to {new_status}")
 
     return {
         "status": 200,

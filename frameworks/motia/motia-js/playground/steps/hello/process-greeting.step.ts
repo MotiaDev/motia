@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig } from 'motia'
+import { type Handlers, logger, type StepConfig, stateManager } from 'motia'
 import { z } from 'zod'
 
 const inputSchema = z.object({
@@ -22,14 +22,14 @@ export const config = {
   flows: ['hello-world-flow'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger, state }) => {
+export const handler: Handlers<typeof config> = async (input) => {
   const { timestamp, appName, greetingPrefix, requestId } = input
 
   logger.info('Processing greeting', { requestId, appName })
 
   const greeting = `${greetingPrefix} ${appName}!`
 
-  await state.set('greetings', requestId, {
+  await stateManager.set('greetings', requestId, {
     greeting,
     processedAt: new Date().toISOString(),
     originalTimestamp: timestamp,

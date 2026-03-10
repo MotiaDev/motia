@@ -1,5 +1,6 @@
-import type { Handlers, StepConfig } from 'motia'
+import { enqueue, type Handlers, logger, type StepConfig } from 'motia'
 import { z } from 'zod'
+import { parallelMergeStream } from './parallel-merge.stream'
 import { randomNumber } from './utils'
 
 const bodySchema = z.object({
@@ -29,13 +30,13 @@ export const config = {
   flows: ['stream-parallel-merge'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { logger, enqueue, streams }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   const body = bodySchema.parse(request.body ?? {})
   const { traceId, totalSteps, waitTimeMin, waitTimeMax } = body
 
   logger.info('Starting stream parallel merge', { body })
 
-  await streams.parallelMerge.set('merge-groups', traceId, {
+  await parallelMergeStream.set('merge-groups', traceId, {
     totalSteps,
     startedAt: Date.now(),
     completedSteps: 0,
@@ -59,7 +60,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { logger, en
 
     await Promise.all(
       Array.from({ length: totalSteps }, () =>
-        streams.parallelMerge.update('merge-groups', traceId, [{ type: 'increment', path: 'completedSteps', by: 1 }]),
+        parallelMergeStream.update('merge-groups', traceId, [{ type: 'increment', path: 'completedSteps', by: 1 }]),
       ),
     )
   }

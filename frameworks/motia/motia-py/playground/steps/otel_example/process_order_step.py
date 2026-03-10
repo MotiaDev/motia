@@ -5,7 +5,7 @@ Demonstrates trace context propagation across steps.
 
 from typing import Any
 
-from motia import FlowContext, Stream, queue
+from motia import FlowContext, Stream, enqueue, logger, queue, stateManager
 
 order_stream: Stream[dict[str, Any]] = Stream("orders")
 
@@ -24,15 +24,15 @@ async def handler(data: Any, ctx: FlowContext[Any]) -> None:
     order = data.get("data", {}) if isinstance(data, dict) else {}
     order_id = order.get("id", "unknown")
 
-    ctx.logger.info("Processing order", {"order_id": order_id, "trace_id": ctx.trace_id})
+    logger.info("Processing order", {"order_id": order_id, "trace_id": ctx.trace_id})
 
     current = await order_stream.get("pending", order_id)
 
     if current:
-        await ctx.state.set("order_processing", order_id, {"status": "processing"})
+        await stateManager.set("order_processing", order_id, {"status": "processing"})
         processed_order = {**current, "status": "processed"}
         await order_stream.set("processed", order_id, processed_order)
-        await ctx.enqueue({"topic": "order.processed", "data": processed_order})
-        ctx.logger.info("Order processed", {"order_id": order_id})
+        await enqueue({"topic": "order.processed", "data": processed_order})
+        logger.info("Order processed", {"order_id": order_id})
     else:
-        ctx.logger.warn("Order not found in stream", {"order_id": order_id})
+        logger.warn("Order not found in stream", {"order_id": order_id})

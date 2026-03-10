@@ -1,4 +1,4 @@
-import { type Handlers, jsonSchema, type StepConfig } from 'motia'
+import { type Handlers, jsonSchema, logger, type StepConfig } from 'motia'
 import { z } from 'zod'
 
 export const config = {
@@ -19,6 +19,6 @@ export const config = {
   flows: ['cron-example'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger }) => {
+export const handler: Handlers<typeof config> = async (input) => {
   logger.info('Periodic job executed', { input })
 }

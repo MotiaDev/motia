@@ -28,7 +28,7 @@ Every Step is just a file with two parts:
 <Tab value='TypeScript'>
 
 ```typescript title="src/my-step.step.ts"
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, type StepConfig, enqueue, logger } from 'motia'
 
 export const config = {
   name: 'MyStep',
@@ -40,7 +40,7 @@ export const config = {
   flows: ['my-flow'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { enqueue, logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   logger.info('Processing request')
 
   await enqueue({
@@ -57,7 +57,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { enqueue, l
 
 ```python title="src/my_step.py"
 from typing import Any
-from motia import ApiRequest, ApiResponse, FlowContext, http
+from motia import ApiRequest, ApiResponse, http, logger, enqueue
 
 config = {
     "name": "MyStep",
@@ -69,10 +69,10 @@ config = {
     "flows": ["my-flow"]
 }
 
-async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
-    ctx.logger.info("Processing request")
+async def handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
+    logger.info("Processing request")
 
-    await ctx.enqueue({
+    await enqueue({
         "topic": "task.done",
         "data": {"result": "success"}
     })
@@ -84,6 +84,8 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
 <Tab value='JavaScript'>
 
 ```javascript title="src/my-step.step.js"
+import { enqueue, logger } from 'motia'
+
 export const config = {
   name: 'MyStep',
   description: 'Handles incoming requests',
@@ -94,7 +96,7 @@ export const config = {
   flows: ['my-flow'],
 }
 
-export const handler = async ({ request }, { enqueue, logger }) => {
+export const handler = async ({ request }) => {
   logger.info('Processing request')
 
   await enqueue({
@@ -254,15 +256,15 @@ All infrastructure — queues, state storage, streams, cron scheduling, and obse
 [Learn about the iii Engine](/docs/concepts/iii-engine)
 
 ### Context Object
-Every handler gets a context object with everything you need:
+Every handler gets a context object with:
 
 | Property | What It Does |
 |----------|--------------|
-| `logger` | Structured logging |
-| `enqueue` | Trigger other Steps |
-| `state` | Persistent storage |
-| `streams` | Real-time updates |
 | `traceId` | Request tracing |
+| `trigger` | Trigger metadata |
+| `is` | Type guards for trigger types |
+| `getData()` | Get typed trigger data |
+| `match()` | Pattern matching on trigger |
 
 ---
 

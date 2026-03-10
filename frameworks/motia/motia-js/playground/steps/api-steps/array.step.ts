@@ -1,4 +1,4 @@
-import { type Handlers, jsonSchema, type StepConfig } from 'motia'
+import { enqueue, type Handlers, jsonSchema, logger, type StepConfig } from 'motia'
 import { z } from 'zod'
 import { petStoreService } from '../basic-tutorial/services/pet-store'
 import { petSchema } from '../basic-tutorial/services/types'
@@ -35,7 +35,7 @@ export const config = {
   enqueues: ['process-food-order'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { logger, enqueue }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   logger.info('Step 01 - Processing API Step', { body: request.body })
 
   const [{ pet, foodOrder }] = request.body || [{}]

@@ -1,12 +1,17 @@
 import type { StreamSetResult, UpdateOp } from 'iii-sdk/stream'
 import { SpanStatusCode, withSpan } from 'iii-sdk/telemetry'
+import type { InferSchema } from '../types'
 import type { StateStreamEvent, StateStreamEventChannel, StreamConfig } from '../types-stream'
 import { getInstance } from './iii'
 
-export class Stream<TData> {
-  constructor(readonly config: StreamConfig) {}
+type InferStreamData<TConfig extends StreamConfig> = StreamConfig extends TConfig
+  ? unknown
+  : InferSchema<TConfig['schema']>
 
-  async get(groupId: string, itemId: string): Promise<TData | null> {
+export class Stream<TConfig extends StreamConfig = StreamConfig> {
+  constructor(readonly config: TConfig) {}
+
+  async get(groupId: string, itemId: string): Promise<InferStreamData<TConfig> | null> {
     return withSpan('stream::get', {}, async (span) => {
       span.setAttribute('motia.stream.name', this.config.name)
       span.setAttribute('motia.stream.group_id', groupId)
@@ -16,7 +21,7 @@ export class Stream<TData> {
           stream_name: this.config.name,
           group_id: groupId,
           item_id: itemId,
-        })) as TData | null
+        })) as InferStreamData<TConfig> | null
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)
@@ -25,7 +30,11 @@ export class Stream<TData> {
     })
   }
 
-  async set(groupId: string, itemId: string, data: TData): Promise<StreamSetResult<TData> | null> {
+  async set(
+    groupId: string,
+    itemId: string,
+    data: InferStreamData<TConfig>,
+  ): Promise<StreamSetResult<InferStreamData<TConfig>>> {
     return withSpan('stream::set', {}, async (span) => {
       span.setAttribute('motia.stream.name', this.config.name)
       span.setAttribute('motia.stream.group_id', groupId)
@@ -36,7 +45,7 @@ export class Stream<TData> {
           group_id: groupId,
           item_id: itemId,
           data,
-        })) as StreamSetResult<TData> | null
+        })) as StreamSetResult<InferStreamData<TConfig>>
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)
@@ -51,11 +60,11 @@ export class Stream<TData> {
       span.setAttribute('motia.stream.group_id', groupId)
       span.setAttribute('motia.stream.item_id', itemId)
       try {
-        return (await getInstance().call('stream::delete', {
+        return getInstance().call('stream::delete', {
           stream_name: this.config.name,
           group_id: groupId,
           item_id: itemId,
-        })) as void
+        })
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)
@@ -64,7 +73,7 @@ export class Stream<TData> {
     })
   }
 
-  async list(groupId: string): Promise<TData[]> {
+  async list(groupId: string): Promise<InferStreamData<TConfig>[]> {
     return withSpan('stream::list', {}, async (span) => {
       span.setAttribute('motia.stream.name', this.config.name)
       span.setAttribute('motia.stream.group_id', groupId)
@@ -72,7 +81,7 @@ export class Stream<TData> {
         return (await getInstance().call('stream::list', {
           stream_name: this.config.name,
           group_id: groupId,
-        })) as TData[]
+        })) as InferStreamData<TConfig>[]
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)
@@ -81,7 +90,7 @@ export class Stream<TData> {
     })
   }
 
-  async update(groupId: string, itemId: string, ops: UpdateOp[]): Promise<StreamSetResult<TData> | null> {
+  async update(groupId: string, itemId: string, ops: UpdateOp[]): Promise<StreamSetResult<InferStreamData<TConfig>>> {
     return withSpan('stream::update', {}, async (span) => {
       span.setAttribute('motia.stream.name', this.config.name)
       span.setAttribute('motia.stream.group_id', groupId)
@@ -92,7 +101,7 @@ export class Stream<TData> {
           group_id: groupId,
           item_id: itemId,
           ops,
-        })) as StreamSetResult<TData> | null
+        })) as StreamSetResult<InferStreamData<TConfig>>
       } catch (err) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: String(err) })
         span.recordException(err as Error)

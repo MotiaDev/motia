@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig } from 'motia'
+import { enqueue, type Handlers, logger, type StepConfig } from 'motia'
 import { z } from 'zod'
 
 export const config = {
@@ -22,7 +22,7 @@ export const config = {
   flows: ['hello-world-flow'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (_, { enqueue, logger }) => {
+export const handler: Handlers<typeof config> = async () => {
   const appName = 'III App'
   const timestamp = new Date().toISOString()
 

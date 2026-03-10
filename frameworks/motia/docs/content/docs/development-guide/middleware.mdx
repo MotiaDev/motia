@@ -261,17 +261,18 @@ Catch errors from handlers:
   <Tab value="TypeScript">
     ```typescript
     import { ZodError } from 'zod'
+    import { logger } from 'motia'
 
-    const errorMiddleware = async ({ request }, ctx, next) => {
+    const errorMiddleware = async ({ request }, _, next) => {
       try {
         return await next()
       } catch (error: any) {
         if (error instanceof ZodError) {
-          ctx.logger.error('Validation error', { errors: error.errors })
+          logger.error('Validation error', { errors: error.errors })
           return { status: 400, body: { error: 'Validation failed' } }
         }
 
-        ctx.logger.error('Unexpected error', { error: error.message })
+        logger.error('Unexpected error', { error: error.message })
         return { status: 500, body: { error: 'Internal server error' } }
       }
     }
@@ -280,17 +281,18 @@ Catch errors from handlers:
   <Tab value="JavaScript">
     ```javascript
     import { ZodError } from 'zod'
+    import { logger } from 'motia'
 
-    const errorMiddleware = async ({ request }, ctx, next) => {
+    const errorMiddleware = async ({ request }, _, next) => {
       try {
         return await next()
       } catch (error) {
         if (error instanceof ZodError) {
-          ctx.logger.error('Validation error', { errors: error.errors })
+          logger.error('Validation error', { errors: error.errors })
           return { status: 400, body: { error: 'Validation failed' } }
         }
 
-        ctx.logger.error('Unexpected error', { error: error.message })
+        logger.error('Unexpected error', { error: error.message })
         return { status: 500, body: { error: 'Internal server error' } }
       }
     }
@@ -299,15 +301,16 @@ Catch errors from handlers:
   <Tab value="Python">
     ```python
     from pydantic import ValidationError
+    from motia import logger
 
-    async def error_middleware(request, context, next_fn):
+    async def error_middleware(request, _, next_fn):
         try:
             return await next_fn()
         except ValidationError as e:
-            context.logger.error("Validation error", {"errors": str(e)})
+            logger.error("Validation error", {"errors": str(e)})
             return {"status": 400, "body": {"error": "Validation failed"}}
         except Exception as e:
-            context.logger.error("Unexpected error", {"error": str(e)})
+            logger.error("Unexpected error", {"error": str(e)})
             return {"status": 500, "body": {"error": "Internal server error"}}
     ```
   </Tab>
@@ -320,11 +323,13 @@ Catch errors from handlers:
 Create middleware files in a shared location:
 
 ```typescript title="middlewares/core.middleware.ts"
-export const coreMiddleware = async ({ request }, ctx, next) => {
+import { logger } from 'motia'
+
+export const coreMiddleware = async ({ request }, _, next) => {
   try {
     return await next()
   } catch (error) {
-    ctx.logger.error('Error', { error })
+    logger.error('Error', { error })
     return { status: 500, body: { error: 'Internal server error' } }
   }
 }
