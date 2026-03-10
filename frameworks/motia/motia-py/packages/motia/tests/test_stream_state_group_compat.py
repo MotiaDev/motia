@@ -1,11 +1,14 @@
 """Tests for stream/state group listing via SDK calls."""
 
+import sys
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from motia.state import StateManager
 from motia.streams import Stream
+
+_state_mod = sys.modules["motia.state"]
 
 
 @pytest.mark.asyncio
@@ -51,7 +54,7 @@ async def test_state_list_uses_state_list() -> None:
     mock_iii = AsyncMock()
     mock_iii.call = AsyncMock(return_value=[{"id": "x"}])
 
-    with patch("motia.state.get_instance", return_value=mock_iii):
+    with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         manager = StateManager()
         result = await manager.list("users")
 
@@ -70,7 +73,7 @@ async def test_state_list_propagates_errors() -> None:
     mock_iii = AsyncMock()
     mock_iii.call = AsyncMock(side_effect=Exception("function_not_found"))
 
-    with patch("motia.state.get_instance", return_value=mock_iii):
+    with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         manager = StateManager()
         with pytest.raises(Exception, match="function_not_found"):
             await manager.list("users")
