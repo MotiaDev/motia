@@ -1,9 +1,10 @@
+import { flattenTree } from 'fumadocs-core/page-tree'
 import { source } from '@/lib/source'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://iii.dev'
 
 export function GET() {
-  const urls = source.getPages().map((page) => {
+  const urls = flattenTree(source.pageTree.children).map((page) => {
     const loc = `${BASE_URL}${page.url}`
     return `  <url><loc>${loc}</loc></url>`
   })
