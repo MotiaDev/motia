@@ -1,12 +1,15 @@
-import { ChevronRight } from 'lucide-react'
+import { CheckCircle2, ChevronRight, XCircle } from 'lucide-react'
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import type { VisualizationSpan, WaterfallData } from '@/lib/traceTransform'
+import type { VisualizationSpan, WaterfallData, WorkflowStep } from '@/lib/traceTransform'
 import { formatDuration } from '@/lib/traceUtils'
 
 interface WaterfallChartProps {
   data: WaterfallData
   onSpanClick: (span: VisualizationSpan) => void
   selectedSpanId?: string | null
+  workflowChain?: WorkflowStep[] | null
+  currentTraceId?: string
+  onWorkflowStepClick?: (traceId: string) => void
 }
 
 interface SpanNode extends VisualizationSpan {
@@ -128,7 +131,14 @@ function displayReducer(state: DisplayState, action: DisplayAction): DisplayStat
   }
 }
 
-export function WaterfallChart({ data, onSpanClick, selectedSpanId }: WaterfallChartProps) {
+export function WaterfallChart({
+  data,
+  onSpanClick,
+  selectedSpanId,
+  workflowChain,
+  currentTraceId,
+  onWorkflowStepClick,
+}: WaterfallChartProps) {
   const [displayState, dispatch] = useReducer(displayReducer, initialDisplayState)
   const { expandedIds, showCriticalPath, hoveredSpanId, scrollPosition } = displayState
   const containerRef = useRef<HTMLDivElement>(null)
@@ -220,8 +230,18 @@ export function WaterfallChart({ data, onSpanClick, selectedSpanId }: WaterfallC
     dispatch({ type: 'SET_ALL_EXPANDED', ids: new Set() })
   }
 
+  const showWorkflow = workflowChain && workflowChain.length > 1
+  const workflowTimeline = useMemo(() => {
+    if (!showWorkflow) return null
+    const minTime = Math.min(...workflowChain.map((s) => s.timestamp))
+    const maxTime = Math.max(...workflowChain.map((s) => s.endTime))
+    const total = maxTime - minTime || 1
+    return { minTime, total }
+  }, [showWorkflow, workflowChain])
+
   const miniMapHeight = 80
-  const contentHeight = visibleSpans.length * 32
+  const workflowRowCount = showWorkflow ? workflowChain.length : 0
+  const contentHeight = (visibleSpans.length + workflowRowCount) * 32
   const viewportRatio = containerRef.current ? containerRef.current.clientHeight / contentHeight : 1
   const thumbHeight = Math.max(20, miniMapHeight * viewportRatio)
   const thumbPosition =
@@ -294,6 +314,67 @@ export function WaterfallChart({ data, onSpanClick, selectedSpanId }: WaterfallC
 
       <div className="flex flex-1 overflow-hidden">
         <div ref={containerRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
+          {showWorkflow &&
+            workflowTimeline &&
+            workflowChain.map((step) => {
+              const isCurrent = step.traceId === currentTraceId
+              const startPct = ((step.timestamp - workflowTimeline.minTime) / workflowTimeline.total) * 100
+              const widthPct = (step.duration / workflowTimeline.total) * 100
+
+              return (
+                <button
+                  key={step.traceId}
+                  type="button"
+                  onClick={() => onWorkflowStepClick?.(step.traceId)}
+                  className={`
+                    grid gap-4 px-3 py-1 items-center transition-colors cursor-pointer w-full text-left
+                    ${isCurrent ? 'bg-[#F3F724]/[0.06] border-l-2 border-l-[#F3F724]' : 'hover:bg-[#1D1D1D]/50'}
+                  `}
+                  style={{ gridTemplateColumns: `${spanColWidth}px 1fr` }}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {step.status === 'ok' ? (
+                      <CheckCircle2 className="w-3 h-3 text-success shrink-0" />
+                    ) : (
+                      <XCircle className="w-3 h-3 text-error shrink-0" />
+                    )}
+                    <span className="text-[10px] font-mono text-cyan-400 truncate">
+                      {step.topic}
+                    </span>
+                    {step.downstreamFunction && (
+                      <>
+                        <ChevronRight className="w-2 h-2 text-gray-600 shrink-0" />
+                        <span className="text-[13px] font-medium text-[#F4F4F4] truncate">
+                          {step.downstreamFunction}
+                        </span>
+                      </>
+                    )}
+                    <span className="font-mono text-[11px] text-gray-400 flex-shrink-0 ml-auto">
+                      {formatDuration(step.duration)}
+                    </span>
+                  </div>
+
+                  <div className="relative h-6 rounded bg-[linear-gradient(90deg,transparent_0%,transparent_25%,#1D1D1D_25%,#1D1D1D_25.1%,transparent_25.1%,transparent_50%,#1D1D1D_50%,#1D1D1D_50.1%,transparent_50.1%,transparent_75%,#1D1D1D_75%,#1D1D1D_75.1%,transparent_75.1%)]">
+                    <div
+                      className={`absolute h-4 top-1 rounded-[3px] min-w-[3px] transition-all duration-150 ${
+                        isCurrent ? 'scale-y-[1.3] shadow-[0_0_6px_rgba(243,247,36,0.4)]' : ''
+                      }`}
+                      style={{
+                        background:
+                          step.status === 'error'
+                            ? 'linear-gradient(to right, #EF4444, #DC2626)'
+                            : 'linear-gradient(to right, #22C55E, #16A34A)',
+                        left: `${startPct}%`,
+                        width: `${Math.max(0.5, widthPct)}%`,
+                      }}
+                    />
+                  </div>
+                </button>
+              )
+            })}
+          {showWorkflow && (
+            <div className="border-b border-[#1D1D1D]" />
+          )}
           {visibleSpans.map((span) => {
             const hasChildren = span.children.length > 0
             const isExpanded = expandedIds.has(span.span_id)

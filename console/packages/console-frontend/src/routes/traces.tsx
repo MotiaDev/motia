@@ -96,7 +96,7 @@ function TracesPage() {
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null)
   const [hasOtelConfigured, setHasOtelConfigured] = useState(false)
 
-  const [isPaused, setIsPaused] = useState(false)
+  const [isPaused, setIsPaused] = useState(true)
 
   const [activeView, setActiveView] = useState<ViewType>('waterfall')
   const [selectedSpan, setSelectedSpan] = useState<VisualizationSpan | null>(null)
@@ -277,7 +277,18 @@ function TracesPage() {
               newTraceIdsRef.current = new Set()
             }, 1500)
           }
-          setTraceGroups(traces)
+          setTraceGroups((prev) => {
+            const selId = selectedTraceIdRef.current
+            if (selId && !traces.some((t) => t.traceId === selId)) {
+              const kept = prev.find((t) => t.traceId === selId)
+              if (kept) {
+                const merged = [...traces, kept]
+                merged.sort((a, b) => b.startTime - a.startTime)
+                return merged
+              }
+            }
+            return traces
+          })
           setHasOtelConfigured(true)
         }
       }
@@ -292,7 +303,18 @@ function TracesPage() {
     if (pending) {
       pendingTracesRef.current = null
       newTraceIdsRef.current = new Set<string>()
-      setTraceGroups(pending)
+      setTraceGroups((prev) => {
+        const selId = selectedTraceIdRef.current
+        if (selId && !pending.some((t) => t.traceId === selId)) {
+          const kept = prev.find((t) => t.traceId === selId)
+          if (kept) {
+            const merged = [...pending, kept]
+            merged.sort((a, b) => b.startTime - a.startTime)
+            return merged
+          }
+        }
+        return pending
+      })
       setHasOtelConfigured(true)
     }
   }, [])
@@ -490,12 +512,6 @@ function TracesPage() {
     return filteredTraces.slice(start, start + filterState.pageSize)
   }, [filteredTraces, filterState.page, filterState.pageSize])
 
-  useEffect(() => {
-    if (selectedTraceId && !pagedTraces.some((g) => g.traceId === selectedTraceId)) {
-      selectTrace(null)
-    }
-  }, [pagedTraces, selectedTraceId, selectTrace])
-
   const stats = useMemo(
     () => ({
       totalTraces: filteredTraces.length,
@@ -622,7 +638,7 @@ function TracesPage() {
             variant={isPaused ? 'accent' : 'ghost'}
             size="sm"
             onClick={() => setIsPaused(!isPaused)}
-            className="h-6 md:h-7 text-[10px] md:text-xs px-2"
+            className="h-6 md:h-7 text-[10px] md:text-xs px-2 text-[#9A9A9A]"
           >
             {isPaused ? (
               <Play className="w-3 h-3 md:mr-1.5" />
@@ -635,7 +651,7 @@ function TracesPage() {
             variant={showSystem ? 'accent' : 'ghost'}
             size="sm"
             onClick={() => setShowSystem(!showSystem)}
-            className="h-6 md:h-7 text-[10px] md:text-xs px-2"
+            className="h-6 md:h-7 text-[10px] md:text-xs px-2 text-[#9A9A9A]"
           >
             {showSystem ? (
               <Eye className="w-3 h-3 md:mr-1.5" />
@@ -651,7 +667,7 @@ function TracesPage() {
             size="sm"
             onClick={loadTraces}
             disabled={isLoading}
-            className="h-7 text-xs text-muted hover:text-foreground"
+            className="h-7 text-xs text-[#9A9A9A] hover:text-foreground"
           >
             <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
@@ -799,7 +815,7 @@ function TracesPage() {
           )}
         </div>
 
-        {selectedTrace && (
+        {selectedTraceId && (
           <>
             {!(selectedSpan && waterfallData) && (
               <button
@@ -826,7 +842,7 @@ function TracesPage() {
                   <RefreshCw className="w-6 h-6 text-yellow animate-spin mb-3" />
                   <div className="text-xs font-medium mb-1">Loading trace...</div>
                   <div className="text-[10px] text-muted font-mono">
-                    {selectedTrace.traceId.slice(0, 12)}
+                    {selectedTraceId.slice(0, 12)}
                   </div>
                 </div>
               )}
@@ -843,7 +859,7 @@ function TracesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => loadTraceSpans(selectedTrace.traceId)}
+                    onClick={() => loadTraceSpans(selectedTraceId)}
                     className="text-[10px] h-6"
                   >
                     <RefreshCw className="w-3 h-3 mr-1" />
@@ -856,7 +872,7 @@ function TracesPage() {
                 <>
                   <TraceHeader
                     data={waterfallData}
-                    traceId={selectedTrace.traceId}
+                    traceId={selectedTraceId}
                     onClose={() => {
                       selectTrace(null)
                     }}
@@ -868,54 +884,14 @@ function TracesPage() {
                   </div>
 
                   <div className="flex-1 overflow-auto min-h-0">
-                    {activeView === 'waterfall' &&
-                      selectedWorkflowChain &&
-                      selectedWorkflowChain.length > 1 && (
-                        <div className="border-b border-[#2D2D2D] bg-[#0A0A0A] sticky top-0 z-10">
-                          <div className="px-3 py-1 text-[9px] uppercase tracking-wider text-muted">
-                            Workflow
-                          </div>
-                          {selectedWorkflowChain.map((step) => {
-                            const isCurrent = step.traceId === selectedTrace.traceId
-                            return (
-                              <button
-                                key={step.traceId}
-                                type="button"
-                                onClick={() => selectTrace(step.traceId)}
-                                className={`w-full flex items-center gap-1.5 py-1 px-3 text-left transition-colors border-l-2
-                                  ${isCurrent ? 'bg-yellow/5 border-l-yellow' : 'border-l-transparent hover:bg-dark-gray/30'}
-                                `}
-                              >
-                                {step.status === 'ok' ? (
-                                  <CheckCircle2 className="w-2.5 h-2.5 text-success shrink-0" />
-                                ) : (
-                                  <XCircle className="w-2.5 h-2.5 text-error shrink-0" />
-                                )}
-                                <span className="text-[10px] font-mono text-cyan-400 truncate">
-                                  {step.topic}
-                                </span>
-                                {step.downstreamFunction && (
-                                  <>
-                                    <ChevronRight className="w-2 h-2 text-gray-600 shrink-0" />
-                                    <span className="text-[10px] font-mono text-foreground truncate">
-                                      {step.downstreamFunction}
-                                    </span>
-                                  </>
-                                )}
-                                <span className="text-[9px] text-muted ml-auto shrink-0">
-                                  {formatDuration(step.duration)}
-                                </span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      )}
-
                     {activeView === 'waterfall' && (
                       <WaterfallChart
                         data={waterfallData}
                         onSpanClick={setSelectedSpan}
                         selectedSpanId={selectedSpan?.span_id}
+                        workflowChain={selectedWorkflowChain}
+                        currentTraceId={selectedTraceId}
+                        onWorkflowStepClick={selectTrace}
                       />
                     )}
 
