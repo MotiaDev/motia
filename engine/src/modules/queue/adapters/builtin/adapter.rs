@@ -270,6 +270,7 @@ mod tests {
                         FunctionResult::Failure(ErrorBody {
                             code: "QUEUE_FAIL".to_string(),
                             message: "job failed".to_string(),
+                            stacktrace: None,
                         })
                     }
                 })

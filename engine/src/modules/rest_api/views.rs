@@ -1448,6 +1448,7 @@ mod tests {
                 FunctionResult::Failure(ErrorBody {
                     code: "TEST_ERR".to_string(),
                     message: "something went wrong".to_string(),
+                    stacktrace: None,
                 })
             }),
         );
@@ -2070,6 +2071,7 @@ mod tests {
                 FunctionResult::Failure(ErrorBody {
                     code: "COND".to_string(),
                     message: "nope".to_string(),
+                    stacktrace: None,
                 })
             }),
         );

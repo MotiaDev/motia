@@ -1204,6 +1204,7 @@ mod tests {
                 FunctionResult::Failure(ErrorBody {
                     code: "COND".to_string(),
                     message: "bad".to_string(),
+                    stacktrace: None,
                 })
             }),
         );
@@ -1283,6 +1284,7 @@ mod tests {
                 FunctionResult::Failure(ErrorBody {
                     code: "HANDLER".to_string(),
                     message: "failed".to_string(),
+                    stacktrace: None,
                 })
             }),
         );

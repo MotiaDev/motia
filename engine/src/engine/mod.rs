@@ -1405,6 +1405,7 @@ mod tests {
                 FunctionResult::Failure(crate::protocol::ErrorBody {
                     code: "boom".to_string(),
                     message: "handler failed".to_string(),
+                    stacktrace: None,
                 })
             }),
         );
@@ -1571,6 +1572,7 @@ mod tests {
                 FunctionResult::Failure(crate::protocol::ErrorBody {
                     code: "call_failed".to_string(),
                     message: "call handler failed".to_string(),
+                    stacktrace: None,
                 })
             }),
         );
@@ -2122,6 +2124,7 @@ mod tests {
             error: Some(crate::protocol::ErrorBody {
                 code: "registration_failed".to_string(),
                 message: "registration failed".to_string(),
+                stacktrace: None,
             }),
         };
 
@@ -2208,6 +2211,7 @@ mod tests {
             error: Some(crate::protocol::ErrorBody {
                 code: "timeout".to_string(),
                 message: "Function timed out".to_string(),
+                stacktrace: None,
             }),
             traceparent: None,
             baggage: None,
