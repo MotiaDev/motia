@@ -17,9 +17,9 @@ When the engine invokes a Function, the SDK makes a **Context** available for th
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-import {Logger} from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = registerWorker('ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'orders::create' },
@@ -39,9 +39,9 @@ iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III
+from iii import register_worker
 
-iii = III('ws://localhost:49134')
+iii = register_worker('ws://localhost:49134')
 
 async def create_order(data):
     logger = Logger()
@@ -57,7 +57,7 @@ iii.register_function('orders::create', create_order)
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{III, Logger};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 
 iii.register_function("orders::create", |data| async move {
@@ -84,12 +84,12 @@ Context and the SDK object serve different purposes:
 |---|---|---|
 | **Scope** | Per-invocation | Application-wide |
 | **Provides** | Logger, trace span | trigger, triggerVoid, registerFunction, registerTrigger |
-| **Accessed via** | `new Logger()` inside a handler | `init()` return value |
+| **Accessed via** | `new Logger()` inside a handler | `registerWorker()` return value |
 
 To invoke other Functions or access engine modules (state, stream, queue), use the SDK object:
 
 ```typescript
-const iii = init('ws://localhost:49134')
+const iii = registerWorker('ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'users::create' },
