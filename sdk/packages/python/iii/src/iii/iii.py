@@ -27,6 +27,9 @@ from .iii_types import (
     RegisterTriggerMessage,
     RegisterTriggerTypeMessage,
     StreamChannelRef,
+    TriggerAction,
+    TriggerActionEnqueue,
+    TriggerActionVoid,
     UnregisterFunctionMessage,
     UnregisterTriggerMessage,
     UnregisterTriggerTypeMessage,
@@ -646,7 +649,23 @@ class III:
         self._services[id] = msg
         self._send_if_connected(msg)
 
-    async def trigger(self, path: str, data: Any, timeout: float = 30.0) -> Any:
+    async def trigger(self, path: str, data: Any, timeout: float = 30.0, action: "TriggerAction | None" = None) -> Any:
+        if action is not None:
+            # Enqueue and Void are fire-and-forget
+            msg = InvokeFunctionMessage(
+                function_id=path,
+                data=data,
+                traceparent=self._inject_traceparent(),
+                baggage=self._inject_baggage(),
+                action=action,
+            )
+            try:
+                asyncio.get_running_loop().create_task(self._send(msg))
+            except RuntimeError:
+                self._enqueue(msg)
+            return None
+
+        # Default: synchronous call (existing behavior unchanged)
         invocation_id = str(uuid.uuid4())
         future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
 
@@ -669,11 +688,20 @@ class III:
             raise TimeoutError(f"Invocation of '{path}' timed out after {timeout}s")
 
     def trigger_void(self, path: str, data: Any) -> None:
+        """Deprecated: Use trigger(path, data, action=TriggerActionVoid())"""
+        import warnings
+
+        warnings.warn(
+            "trigger_void is deprecated, use trigger with action=TriggerActionVoid()",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         msg = InvokeFunctionMessage(
             function_id=path,
             data=data,
             traceparent=self._inject_traceparent(),
             baggage=self._inject_baggage(),
+            action=TriggerActionVoid(),
         )
         try:
             asyncio.get_running_loop().create_task(self._send(msg))
@@ -856,3 +884,15 @@ class III:
         self.register_function(f"stream::list({stream_name})", list_handler)
         self.register_function(f"stream::list_groups({stream_name})", list_groups_handler)
         self.register_function(f"stream::update({stream_name})", update_handler)
+
+
+class TriggerActions:
+    """Helper factory for creating trigger actions."""
+
+    @staticmethod
+    def enqueue(queue: str) -> TriggerActionEnqueue:
+        return TriggerActionEnqueue(queue=queue)
+
+    @staticmethod
+    def void() -> TriggerActionVoid:
+        return TriggerActionVoid()

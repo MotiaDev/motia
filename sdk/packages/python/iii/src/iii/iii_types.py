@@ -127,6 +127,18 @@ class RegisterFunctionMessage(BaseModel):
     message_type: MessageType = Field(default=MessageType.REGISTER_FUNCTION, alias="type")
 
 
+class TriggerActionEnqueue(BaseModel):
+    type: Literal["enqueue"] = "enqueue"
+    queue: str
+
+
+class TriggerActionVoid(BaseModel):
+    type: Literal["void"] = "void"
+
+
+TriggerAction = TriggerActionEnqueue | TriggerActionVoid
+
+
 class InvokeFunctionMessage(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -135,6 +147,7 @@ class InvokeFunctionMessage(BaseModel):
     invocation_id: str | None = Field(default=None)
     traceparent: str | None = Field(default=None)
     baggage: str | None = Field(default=None)
+    action: TriggerActionEnqueue | TriggerActionVoid | None = Field(default=None)
     message_type: MessageType = Field(default=MessageType.INVOKE_FUNCTION, alias="type")
 
 
