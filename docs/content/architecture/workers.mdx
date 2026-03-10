@@ -34,7 +34,7 @@ graph LR
 
 ```mermaid
 flowchart TD
-    Start(("init()")) --> Connecting
+    Start(("registerWorker()")) --> Connecting
     Connecting -->|WebSocket open| Connected
     Connected -->|"Register<br/>functions & triggers"| Registering
     Registering -->|All registered| Ready
@@ -62,9 +62,9 @@ functions within workers. Read below for Worker responsibilities and configurati
 | **Language runtime** | Run in their own process in any iii-sdk supported language |
 | **Isolation** | Workers are independent processes. A crash in one Worker doesn't propagate to others |
 
-## Init Options
+## Register Worker Options
 
-The second argument to `init()` configures the Worker's behavior:
+The second argument to `registerWorker()` configures the Worker's behavior:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -87,7 +87,7 @@ Workers reconnect automatically on disconnect using exponential backoff:
 | `maxRetries` | `-1` | Maximum attempts. `-1` = infinite |
 
 ```typescript
-const iii = init('ws://localhost:49134', {
+const iii = registerWorker('ws://localhost:49134', {
   workerName: 'user-service',
   invocationTimeoutMs: 10000,
   reconnectionConfig: {
