@@ -22,7 +22,7 @@ use crate::{
     engine::{Engine, EngineTrait},
     modules::{
         queue::{
-            QueueAdapter, SubscriberQueueConfig,
+            NamedQueueConfig, QueueAdapter, SubscriberQueueConfig,
             registry::{QueueAdapterFuture, QueueAdapterRegistration},
         },
         redis::DEFAULT_REDIS_CONNECTION_TIMEOUT,
@@ -339,5 +339,50 @@ impl QueueAdapter for RedisAdapter {
         Err(anyhow::anyhow!(
             "RedisAdapter does not support DLQ operations (pub/sub only)"
         ))
+    }
+
+    async fn enqueue_to_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: Value,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+    ) {
+        let channel = format!("__queue::{}", queue_name);
+        let publisher = Arc::clone(&self.publisher);
+
+        let envelope = serde_json::json!({
+            "__trace": {
+                "traceparent": traceparent,
+                "baggage": baggage,
+            },
+            "function_id": function_id,
+            "data": data,
+        });
+
+        let json = match serde_json::to_string(&envelope) {
+            Ok(json) => json,
+            Err(e) => {
+                tracing::error!(error = %e, queue = %queue_name, "Failed to serialize named queue data");
+                return;
+            }
+        };
+
+        tracing::debug!(queue = %queue_name, function_id = %function_id, "Publishing to Redis named queue channel");
+
+        let mut conn = publisher.lock().await;
+
+        if let Err(e) = conn.publish::<_, _, ()>(&channel, &json).await {
+            tracing::error!(error = %e, queue = %queue_name, "Failed to publish to Redis named queue channel");
+        }
+    }
+
+    async fn start_named_queue(&self, _queue_name: &str, _config: &NamedQueueConfig) {
+        tracing::warn!("start_named_queue for Redis requires dedicated consumer implementation — not yet supported");
+    }
+
+    async fn stop_named_queue(&self, _queue_name: &str) {
+        tracing::debug!("stop_named_queue is a no-op for Redis pub/sub adapter");
     }
 }

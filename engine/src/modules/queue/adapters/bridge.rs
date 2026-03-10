@@ -16,7 +16,7 @@ use crate::{
     condition::check_condition,
     engine::{Engine, EngineTrait},
     modules::queue::{
-        QueueAdapter, SubscriberQueueConfig,
+        NamedQueueConfig, QueueAdapter, SubscriberQueueConfig,
         registry::{QueueAdapterFuture, QueueAdapterRegistration},
     },
 };
@@ -244,6 +244,33 @@ impl QueueAdapter for BridgeAdapter {
         Err(anyhow::anyhow!(
             "Bridge queue adapter does not support DLQ operations"
         ))
+    }
+
+    async fn enqueue_to_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: Value,
+        _traceparent: Option<String>,
+        _baggage: Option<String>,
+    ) {
+        let payload = serde_json::json!({
+            "queue": queue_name,
+            "function_id": function_id,
+            "data": data,
+        });
+        if let Err(e) = self.bridge.call_void("enqueue_to_queue", payload) {
+            tracing::error!(error = %e, queue = %queue_name, "Failed to enqueue via bridge");
+        }
+    }
+
+    async fn start_named_queue(&self, _queue_name: &str, _config: &NamedQueueConfig) {
+        // Bridge doesn't manage workers locally — the remote side handles this
+        tracing::debug!("start_named_queue is a no-op for BridgeAdapter");
+    }
+
+    async fn stop_named_queue(&self, _queue_name: &str) {
+        tracing::debug!("stop_named_queue is a no-op for BridgeAdapter");
     }
 }
 

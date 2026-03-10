@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::{
     engine::Engine,
     modules::queue::{
-        QueueAdapter, SubscriberQueueConfig,
+        NamedQueueConfig, QueueAdapter, SubscriberQueueConfig,
         registry::{QueueAdapterFuture, QueueAdapterRegistration},
     },
 };
@@ -362,6 +362,66 @@ impl QueueAdapter for RabbitMQAdapter {
             .map_err(|e| anyhow::anyhow!("Failed to get DLQ info: {}", e))?;
 
         Ok(queue.message_count() as u64)
+    }
+
+    async fn enqueue_to_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: Value,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+    ) {
+        let channel = format!("__queue::{}", queue_name);
+
+        // Wrap the data so the consumer can identify the target function
+        let envelope = serde_json::json!({
+            "function_id": function_id,
+            "data": data,
+        });
+
+        let job = Job::new(
+            &channel,
+            envelope,
+            self.config.max_attempts,
+            traceparent,
+            baggage,
+        );
+
+        if let Err(e) = self.topology.setup_topic(&channel).await {
+            tracing::error!(
+                error = ?e,
+                queue = %queue_name,
+                "Failed to setup RabbitMQ topology for named queue"
+            );
+            return;
+        }
+
+        if let Err(e) = self.publisher.publish(&channel, &job).await {
+            tracing::error!(
+                error = ?e,
+                queue = %queue_name,
+                "Failed to publish to RabbitMQ named queue"
+            );
+        } else {
+            tracing::debug!(
+                queue = %queue_name,
+                function_id = %function_id,
+                job_id = %job.id,
+                "Published to RabbitMQ named queue"
+            );
+        }
+    }
+
+    async fn start_named_queue(&self, _queue_name: &str, _config: &NamedQueueConfig) {
+        // RabbitMQ named queue consumers require a dedicated worker implementation.
+        // For now this is a no-op; the topic-based subscription model already handles
+        // message routing through exchanges.
+        tracing::warn!("start_named_queue for RabbitMQ requires dedicated consumer implementation — not yet supported");
+    }
+
+    async fn stop_named_queue(&self, _queue_name: &str) {
+        tracing::debug!("stop_named_queue is a no-op for RabbitMQ adapter");
     }
 }
 
