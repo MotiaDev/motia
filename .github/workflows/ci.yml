@@ -40,12 +40,9 @@ jobs:
       - name: Build
         run: cargo build -p iii --all-features
 
-      - name: Run tests
-        run: cargo test -p iii --all-features
-
       - name: Report coverage
         run: >-
-          cargo llvm-cov report
+          cargo llvm-cov 
           --fail-under-lines 70
           --ignore-filename-regex
           "engine/src/main\.rs|(cron|pubsub|queue|state|stream)/adapters/(redis_adapter|bridge)\.rs|queue/adapters/rabbitmq/|^sdk/"
