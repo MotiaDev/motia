@@ -21,6 +21,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 
 from motia import Motia, http
+from motia.enqueue import enqueue
 from motia.tracing import _instrumented_bridges, instrument_bridge
 from motia.types import ApiRequest, ApiResponse, FlowContext, StepConfig
 from tests.conftest import flush_bridge_queue
@@ -134,7 +135,7 @@ async def test_enqueue_creates_child_span(otel_exporter, patch_motia_bridge, api
 
     async def handler(req: ApiRequest, ctx: FlowContext) -> ApiResponse:
         try:
-            await ctx.enqueue({"topic": "test.traced", "data": {"hello": "world"}})
+            await enqueue({"topic": "test.traced", "data": {"hello": "world"}})
         except Exception:
             pass  # enqueue may fail if queue not configured
         return ApiResponse(status=200, body={"ok": True, "trace_id": ctx.trace_id})
