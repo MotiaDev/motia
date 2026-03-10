@@ -6,8 +6,9 @@ import logging
 import uuid
 from typing import Any, Awaitable, Callable
 
-from iii import get_context
+from iii import Logger
 from iii import http as iii_http
+from iii.telemetry import current_trace_id
 from iii.types import HttpRequest as IIIHttpRequest
 from iii.types import HttpResponse as IIIHttpResponse
 from pydantic import BaseModel
@@ -18,7 +19,7 @@ from .schema_utils import schema_to_json_schema
 from .state import stateManager
 from .step import StepDefinition
 from .streams import Stream
-from .tracing import get_trace_id_from_span, instrument_bridge, operation_span, record_exception, set_span_ok, step_span
+from .tracing import instrument_bridge, operation_span, record_exception, set_span_ok, step_span
 from .types import (
     ApiRequest,
     ApiTrigger,
@@ -181,8 +182,8 @@ def _flow_context(
     input_data: Any = None,
 ) -> FlowContext[Any]:
     """Create a FlowContext for a handler invocation."""
-    context_data = get_context()
-    trace_id = get_trace_id_from_span() or str(uuid.uuid4())
+    trace_id = current_trace_id() or str(uuid.uuid4())
+    logger = Logger()
 
     async def enqueue(event: Any) -> None:
         with operation_span("enqueue", **{"motia.step.name": ""}):
@@ -192,7 +193,7 @@ def _flow_context(
         enqueue=enqueue,
         trace_id=trace_id,
         state=stateManager,
-        logger=context_data.logger,
+        logger=logger,
         streams=motia.streams,
         trigger=trigger,
         input_value=input_data,
@@ -317,9 +318,7 @@ class Motia:
 
                     if middlewares:
                         composed = _compose_middleware(middlewares)
-                        result = await composed(
-                            motia_request, context, lambda: handler(motia_request, context)
-                        )
+                        result = await composed(motia_request, context, lambda: handler(motia_request, context))
                     else:
                         result = await handler(motia_request, context)
 
@@ -400,9 +399,7 @@ class Motia:
             "metadata": {**metadata},
         }
         if trigger.config:
-            trigger_config["queue_config"] = trigger.config.model_dump(
-                by_alias=True, exclude_none=True
-            )
+            trigger_config["queue_config"] = trigger.config.model_dump(by_alias=True, exclude_none=True)
 
         if trigger.condition:
             condition_path = f"{function_id}::conditions::{index}"

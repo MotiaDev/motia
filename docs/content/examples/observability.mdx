@@ -4,7 +4,7 @@ description: 'Structured logging, trace ID propagation, and automatic OpenTeleme
 hideCards: true
 ---
 
-Every iii function invocation receives a `traceId` (via `getContext()`) that is automatically propagated to downstream queue handlers. All logs emitted through the context logger are structured JSON and correlated to the active trace.
+Every iii function invocation receives a `traceId` (via `new Logger()`) that is automatically propagated to downstream queue handlers. All logs emitted through the context logger are structured JSON and correlated to the active trace.
 
 ```mermaid
 graph LR
@@ -20,7 +20,7 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import { init, getContext, type ApiRequest } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
   otel: {
@@ -34,7 +34,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
 iii.registerFunction(
   { id: 'orders.create', description: 'Creates an order and starts the processing pipeline' },
   async (req: ApiRequest<{ customerId: string; amount: number; items: string[] }>) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const { customerId, amount, items } = req.body ?? {}
 
     if (!customerId || !amount) {
@@ -43,11 +43,11 @@ iii.registerFunction(
 
     const orderId = `order-${Date.now()}`
 
-    ctx.logger.info('Order created', {
+    logger.info('Order created', {
       orderId,
       customerId,
       amount,
-      traceId: ctx.traceId, // same traceId will appear in downstream logs
+      traceId: currentTraceId(), // same traceId will appear in downstream logs
     })
 
     iii.triggerVoid('state::set', {
@@ -78,7 +78,7 @@ iii.registerTrigger({
 ```python
 import asyncio
 from datetime import datetime, timezone
-from iii import III, InitOptions, ApiRequest, ApiResponse, get_context
+from iii import III, InitOptions, ApiRequest, ApiResponse
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-service"))
 
@@ -93,11 +93,11 @@ async def create_order(req: ApiRequest, ctx) -> ApiResponse:
 
     order_id = f"order-{int(__import__('time').time() * 1000)}"
 
-    ctx.logger.info("Order created", {
+    logger.info("Order created", {
         "orderId": order_id,
         "customerId": customer_id,
         "amount": amount,
-        "traceId": ctx.trace_id,  # same traceId will appear in downstream logs
+        "traceId": current_trace_id(),  # same traceId will appear in downstream logs
     })
 
     iii.trigger_void("state::set", {
@@ -121,7 +121,7 @@ async def create_order(req: ApiRequest, ctx) -> ApiResponse:
 
 
 iii.register_function("orders.create", lambda data: create_order(
-    ApiRequest(**data) if isinstance(data, dict) else data, get_context()
+    ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
 iii.register_trigger(
     type="http", function_id="orders.create",
@@ -133,11 +133,11 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, get_context, types::ApiRequest};
+use iii_sdk::{III, Logger, types::ApiRequest};
 use serde_json::json;
 
 iii.register_function("orders.create", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let req: ApiRequest = serde_json::from_value(input)?;
 
     let customer_id = req.body["customerId"].as_str().unwrap_or("").to_string();
@@ -152,11 +152,11 @@ iii.register_function("orders.create", |input| async move {
 
     let order_id = format!("order-{}", chrono::Utc::now().timestamp_millis());
 
-    ctx.logger.info("Order created", Some(json!({
+    logger.info("Order created", Some(json!({
         "orderId": order_id,
         "customerId": customer_id,
         "amount": amount,
-        "traceId": ctx.trace_id, // same traceId propagated to downstream handlers
+        "traceId": current_trace_id(), // same traceId propagated to downstream handlers
     })));
 
     iii.trigger_void("state::set", json!({
@@ -197,10 +197,10 @@ iii.register_trigger("http", "orders.create", json!({
 iii.registerFunction(
   { id: 'order.process', description: 'Processes a created order' },
   async (data: { orderId: string; amount: number; customerId: string }) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const { orderId, amount, customerId } = data
 
-    ctx.logger.info('Processing order', { orderId, amount, customerId, traceId: ctx.traceId })
+    logger.info('Processing order', { orderId, amount, customerId, traceId: currentTraceId() })
 
     iii.triggerVoid('state::set', {
       scope: 'orders',
@@ -213,7 +213,7 @@ iii.registerFunction(
       data: { orderId, customerId, amount, status: 'processed' },
     })
 
-    ctx.logger.info('Order processed', { orderId, traceId: ctx.traceId })
+    logger.info('Order processed', { orderId, traceId: currentTraceId() })
   },
 )
 
@@ -233,10 +233,10 @@ async def process_order(data: dict, ctx) -> None:
     amount = data.get("amount")
     customer_id = data.get("customerId")
 
-    ctx.logger.info("Processing order", {
+    logger.info("Processing order", {
         "orderId": order_id,
         "amount": amount,
-        "traceId": ctx.trace_id,
+        "traceId": current_trace_id(),
     })
 
     iii.trigger_void("state::set", {
@@ -253,10 +253,10 @@ async def process_order(data: dict, ctx) -> None:
         "data": {"orderId": order_id, "customerId": customer_id, "amount": amount, "status": "processed"},
     })
 
-    ctx.logger.info("Order processed", {"orderId": order_id, "traceId": ctx.trace_id})
+    logger.info("Order processed", {"orderId": order_id, "traceId": current_trace_id()})
 
 
-iii.register_function("order.process", lambda data: process_order(data, get_context()))
+iii.register_function("order.process", lambda data: process_order(data, Logger()))
 iii.register_trigger(type="queue", function_id="order.process", config={"topic": "order.process"})
 ```
 
@@ -265,12 +265,12 @@ iii.register_trigger(type="queue", function_id="order.process", config={"topic":
 
 ```rust
 iii.register_function("order.process", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let order_id = input["orderId"].as_str().unwrap_or("unknown");
 
-    ctx.logger.info("Processing order", Some(json!({
+    logger.info("Processing order", Some(json!({
         "orderId": order_id,
-        "traceId": ctx.trace_id,
+        "traceId": current_trace_id(),
     })));
 
     iii.trigger_void("enqueue", json!({
@@ -278,7 +278,7 @@ iii.register_function("order.process", |input| async move {
         "data": { "orderId": order_id, "customerId": input["customerId"] },
     }))?;
 
-    ctx.logger.info("Order processed", Some(json!({ "orderId": order_id })));
+    logger.info("Order processed", Some(json!({ "orderId": order_id })));
     Ok(json!(null))
 });
 
@@ -297,19 +297,19 @@ iii.register_trigger("queue", "order.process", json!({ "topic": "order.process" 
 iii.registerFunction(
   { id: 'order.notify', description: 'Sends order notification' },
   async (data: { orderId: string; customerId: string; status: string; amount: number }) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const { orderId, customerId, status, amount } = data
 
-    ctx.logger.info('Sending order notification', {
+    logger.info('Sending order notification', {
       orderId,
       customerId,
       status,
       amount,
-      traceId: ctx.traceId,
+      traceId: currentTraceId(),
     })
 
     // integrate with your notification service here
-    ctx.logger.info('Order notification sent', { orderId, traceId: ctx.traceId })
+    logger.info('Order notification sent', { orderId, traceId: currentTraceId() })
   },
 )
 
@@ -328,17 +328,17 @@ async def notify_order(data: dict, ctx) -> None:
     order_id = data.get("orderId")
     customer_id = data.get("customerId")
 
-    ctx.logger.info("Sending order notification", {
+    logger.info("Sending order notification", {
         "orderId": order_id,
         "customerId": customer_id,
-        "traceId": ctx.trace_id,
+        "traceId": current_trace_id(),
     })
 
     # integrate with your notification service here
-    ctx.logger.info("Order notification sent", {"orderId": order_id, "traceId": ctx.trace_id})
+    logger.info("Order notification sent", {"orderId": order_id, "traceId": current_trace_id()})
 
 
-iii.register_function("order.notify", lambda data: notify_order(data, get_context()))
+iii.register_function("order.notify", lambda data: notify_order(data, Logger()))
 iii.register_trigger(type="queue", function_id="order.notify", config={"topic": "order.notify"})
 ```
 
@@ -347,16 +347,16 @@ iii.register_trigger(type="queue", function_id="order.notify", config={"topic": 
 
 ```rust
 iii.register_function("order.notify", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let order_id = input["orderId"].as_str().unwrap_or("unknown");
 
-    ctx.logger.info("Sending order notification", Some(json!({
+    logger.info("Sending order notification", Some(json!({
         "orderId": order_id,
-        "traceId": ctx.trace_id,
+        "traceId": current_trace_id(),
     })));
 
     // integrate with your notification service here
-    ctx.logger.info("Order notification sent", Some(json!({ "orderId": order_id })));
+    logger.info("Order notification sent", Some(json!({ "orderId": order_id })));
     Ok(json!(null))
 });
 
@@ -396,10 +396,10 @@ The iii SDK exports traces and metrics automatically via the engine's OpenTeleme
 # OTel is handled by the engine — just pass the worker name in InitOptions
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="my-service"))
 
-# Traces are automatically correlated via ctx.trace_id
+# Traces are automatically correlated via current_trace_id()
 # Access trace_id in any handler:
-ctx = get_context()
-print(ctx.trace_id)
+logger = Logger()
+print(current_trace_id())
 ```
 
   </Tab>
@@ -418,9 +418,9 @@ iii_sdk::telemetry::init_otlp("my-service").await?;
 let iii = III::new("ws://127.0.0.1:49134");
 iii.connect().await?;
 
-// ctx.trace_id is available in every handler
-let ctx = get_context();
-ctx.logger.info("My message", Some(json!({ "traceId": ctx.trace_id })));
+// current_trace_id() is available in every handler
+let logger = Logger();
+logger.info("My message", Some(json!({ "traceId": current_trace_id() })));
 ```
 
   </Tab>
@@ -430,14 +430,14 @@ ctx.logger.info("My message", Some(json!({ "traceId": ctx.trace_id })));
 
 | Method | TypeScript | Python | Rust |
 |---|---|---|---|
-| Info | `ctx.logger.info(msg, metadata?)` | `ctx.logger.info(msg, fields?)` | `ctx.logger.info(msg, Some(json!({...})))` |
-| Warning | `ctx.logger.warn(msg, metadata?)` | `ctx.logger.warn(msg, fields?)` | `ctx.logger.warn(msg, None)` |
-| Error | `ctx.logger.error(msg, metadata?)` | `ctx.logger.error(msg, fields?)` | `ctx.logger.error(msg, None)` |
-| Debug | `ctx.logger.debug(msg, metadata?)` | `ctx.logger.debug(msg, fields?)` | `ctx.logger.debug(msg, None)` |
+| Info | `logger.info(msg, metadata?)` | `logger.info(msg, fields?)` | `logger.info(msg, Some(json!({...})))` |
+| Warning | `logger.warn(msg, metadata?)` | `logger.warn(msg, fields?)` | `logger.warn(msg, None)` |
+| Error | `logger.error(msg, metadata?)` | `logger.error(msg, fields?)` | `logger.error(msg, None)` |
+| Debug | `logger.debug(msg, metadata?)` | `logger.debug(msg, fields?)` | `logger.debug(msg, None)` |
 
 ## Key concepts
 
-- `ctx.traceId` / `ctx.trace_id` is the W3C trace-context ID for the current invocation. It is automatically propagated to all downstream workers when you emit an event — no manual header passing is needed.
+- `currentTraceId()` / `current_trace_id()` is the W3C trace-context ID for the current invocation. It is automatically propagated to all downstream workers when you emit an event — no manual header passing is needed.
 - All logs are emitted as structured JSON via the engine's `log.info` / `log.warn` / `log.error` functions.
 - The Node.js SDK supports OTel configuration directly in `init()`. Python and Rust use the engine's built-in OTLP pipeline.
 - Log every step at entry and exit with the `traceId` to make multi-step flows fully observable.

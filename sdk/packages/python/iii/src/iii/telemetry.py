@@ -402,6 +402,32 @@ def get_meter() -> Any:
     return _meter
 
 
+def current_trace_id() -> str | None:
+    """Return current active trace_id as 32-char hex, or None when unavailable."""
+    try:
+        from opentelemetry import trace
+
+        span_ctx = trace.get_current_span().get_span_context()
+        if span_ctx.is_valid:
+            return format(span_ctx.trace_id, "032x")
+    except ImportError:
+        return None
+    return None
+
+
+def current_span_id() -> str | None:
+    """Return current active span_id as 16-char hex, or None when unavailable."""
+    try:
+        from opentelemetry import trace
+
+        span_ctx = trace.get_current_span().get_span_context()
+        if span_ctx.is_valid:
+            return format(span_ctx.span_id, "016x")
+    except ImportError:
+        return None
+    return None
+
+
 def is_initialized() -> bool:
     """Return True if OTel has been successfully initialized."""
     return _initialized

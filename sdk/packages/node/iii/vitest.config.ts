@@ -6,5 +6,18 @@ export default defineConfig({
     testTimeout: 30000,
     hookTimeout: 30000,
     setupFiles: ['./tests/setup.ts'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      reporter: ['text', 'lcov'],
+      reportsDirectory: './coverage',
+      exclude: ['src/stream.ts', 'src/triggers.ts', 'src/types.ts'],
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 70,
+        statements: 70,
+      },
+    },
   },
 })

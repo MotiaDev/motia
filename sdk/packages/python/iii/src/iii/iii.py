@@ -15,7 +15,6 @@ import websockets
 from websockets.asyncio.client import ClientConnection
 
 from .channels import ChannelReader, ChannelWriter
-from .context import Context, with_context
 from .iii_types import (
     FunctionInfo,
     HttpInvocationConfig,
@@ -32,7 +31,6 @@ from .iii_types import (
     UnregisterTriggerTypeMessage,
     WorkerInfo,
 )
-from .logger import Logger
 from .stream import IStream
 from .telemetry_types import OtelConfig
 from .triggers import Trigger, TriggerConfig, TriggerHandler
@@ -355,7 +353,7 @@ class III:
         except ImportError:
             return None
 
-    async def _invoke_with_context(
+    async def _invoke_with_otel_context(
         self,
         handler: Any,
         data: Any,
@@ -446,13 +444,13 @@ class III:
 
         if not invocation_id:
             task = asyncio.create_task(
-                self._invoke_with_context(func.handler, resolved_data, traceparent, baggage)
+                self._invoke_with_otel_context(func.handler, resolved_data, traceparent, baggage)
             )
             task.add_done_callback(self._log_task_exception)
             return
 
         try:
-            result, response_traceparent = await self._invoke_with_context(
+            result, response_traceparent = await self._invoke_with_otel_context(
                 func.handler,
                 resolved_data,
                 traceparent,
@@ -596,9 +594,7 @@ class III:
             self._send_if_connected(msg)
 
             async def wrapped(input_data: Any) -> Any:
-                logger = Logger(function_name=path)
-                ctx = Context(logger=logger)
-                return await with_context(lambda _: handler(input_data), ctx)
+                return await handler(input_data)
 
             self._functions[path] = RemoteFunctionData(message=msg, handler=wrapped)
 

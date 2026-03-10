@@ -25,7 +25,7 @@ The condition function receives the full API request. If it returns `false`, the
   <Tab value="Node / TypeScript">
 
 ```typescript
-import { init, getContext, type ApiRequest } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -39,8 +39,8 @@ iii.registerFunction(
 iii.registerFunction(
   { id: 'orders::premium', description: 'Processes premium orders' },
   async (req: ApiRequest<{ amount: number; description: string }>) => {
-    const ctx = getContext()
-    ctx.logger.info('Processing premium order', { amount: req.body?.amount })
+    const logger = new Logger()
+    logger.info('Processing premium order', { amount: req.body?.amount })
     return { status_code: 200, body: { message: 'Premium order processed' } }
   },
 )
@@ -60,7 +60,7 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-from iii import III, InitOptions, ApiRequest, ApiResponse, get_context
+from iii import III, InitOptions, ApiRequest, ApiResponse
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-worker"))
 
@@ -72,12 +72,12 @@ async def is_premium(data) -> bool:
 
 async def orders_premium(data, ctx) -> ApiResponse:
     req = ApiRequest(**data) if isinstance(data, dict) else data
-    ctx.logger.info("Processing premium order", {"amount": (req.body or {}).get("amount")})
+    logger.info("Processing premium order", {"amount": (req.body or {}).get("amount")})
     return ApiResponse(statusCode=200, body={"message": "Premium order processed"})
 
 
 async def orders_premium_wrapper(data):
-    return await orders_premium(data, get_context())
+    return await orders_premium(data, Logger())
 
 iii.register_function("conditions::is_premium", is_premium)
 iii.register_function("orders::premium", orders_premium_wrapper)
@@ -97,7 +97,7 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, get_context};
+use iii_sdk::{III, Logger};
 use serde_json::json;
 
 #[tokio::main]
@@ -111,9 +111,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     iii.register_function("orders::premium", |input| async move {
-        let ctx = get_context();
+        let logger = Logger();
         let amount = input["body"]["amount"].as_f64().unwrap_or(0.0);
-        ctx.logger.info("Processing premium order", Some(json!({ "amount": amount })));
+        logger.info("Processing premium order", Some(json!({ "amount": amount })));
         Ok(json!({ "status_code": 200, "body": { "message": "Premium order processed" } }))
     });
 
@@ -148,8 +148,8 @@ iii.registerFunction(
 iii.registerFunction(
   { id: 'orders::high_value', description: 'Processes high-value orders from queue' },
   async (data: { amount: number; description: string }) => {
-    const ctx = getContext()
-    ctx.logger.info('Processing high-value order', { amount: data.amount })
+    const logger = new Logger()
+    logger.info('Processing high-value order', { amount: data.amount })
 
     iii.triggerVoid('enqueue', {
       topic: 'order.processed',
@@ -179,14 +179,14 @@ async def is_high_value(data) -> bool:
 
 
 async def orders_high_value(data: dict, ctx) -> None:
-    ctx.logger.info("Processing high-value order", {"amount": data.get("amount")})
+    logger.info("Processing high-value order", {"amount": data.get("amount")})
 
     # Silent skip
     if amount <= 1000:
-        ctx.logger.info("Low-value order — skipping", {"amount": amount})
+        logger.info("Low-value order — skipping", {"amount": amount})
         return
 
-    ctx.logger.info("Processing high-value order", {"amount": amount})
+    logger.info("Processing high-value order", {"amount": amount})
 
     iii.trigger_void("enqueue", {
         "topic": "order.processed",
@@ -195,7 +195,7 @@ async def orders_high_value(data: dict, ctx) -> None:
 
 
 iii.register_function("conditions::is_high_value", is_high_value)
-iii.register_function("orders::high_value", lambda data: orders_high_value(data, get_context()))
+iii.register_function("orders::high_value", lambda data: orders_high_value(data, Logger()))
 
 iii.register_trigger(
     type="queue",
@@ -214,9 +214,9 @@ iii.register_function("conditions::is_high_value", |input| async move {
 });
 
 iii.register_function("orders::high_value", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let amount = input["amount"].as_f64().unwrap_or(0.0);
-    ctx.logger.info("Processing high-value order", Some(json!({ "amount": amount })));
+    logger.info("Processing high-value order", Some(json!({ "amount": amount })));
 
     iii.trigger_void("enqueue", json!({
         "topic": "order.processed",
@@ -253,8 +253,8 @@ iii.registerFunction(
 iii.registerFunction(
   { id: 'orders::on_update', description: 'Reacts to order state updates' },
   async (event) => {
-    const ctx = getContext()
-    ctx.logger.info('Order updated', { scope: event.scope, key: event.key })
+    const logger = new Logger()
+    logger.info('Order updated', { scope: event.scope, key: event.key })
   },
 )
 
@@ -276,11 +276,11 @@ async def is_update(event) -> bool:
 
 
 async def orders_on_update(event: dict, ctx) -> None:
-    ctx.logger.info("Order updated", {"scope": event.get("scope"), "key": event.get("key")})
+    logger.info("Order updated", {"scope": event.get("scope"), "key": event.get("key")})
 
 
 iii.register_function("conditions::is_update", is_update)
-iii.register_function("orders::on_update", lambda data: orders_on_update(data, get_context()))
+iii.register_function("orders::on_update", lambda data: orders_on_update(data, Logger()))
 
 iii.register_trigger(
     type="state",
@@ -299,8 +299,8 @@ iii.register_function("conditions::is_update", |input| async move {
 });
 
 iii.register_function("orders::on_update", |input| async move {
-    let ctx = get_context();
-    ctx.logger.info("Order updated", Some(json!({
+    let logger = Logger();
+    logger.info("Order updated", Some(json!({
         "scope": input["scope"],
         "key": input["key"],
     })));

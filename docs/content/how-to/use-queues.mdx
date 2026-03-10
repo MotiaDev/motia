@@ -36,12 +36,12 @@ From any function, push a job onto a queue by calling `enqueue` with a `topic` (
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="enqueue-order.ts"
-import { init, getContext } from 'iii-sdk'
+import { init, Logger } from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::create' }, async (input) => {
-  const { logger } = getContext()
+  const logger = new Logger()
   const order = { id: crypto.randomUUID(), ...input }
 
   iii.triggerVoid('enqueue', {
@@ -58,13 +58,12 @@ iii.registerFunction({ id: 'orders::create' }, async (input) => {
 ```python title="enqueue_order.py"
 import uuid
 import os
-from iii import III
-from iii.context import get_context
+from iii import III, Logger
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def create_order(input):
-    ctx = get_context()
+    logger = Logger()
     order = {"id": str(uuid.uuid4()), **input}
 
     iii.trigger_void("enqueue", {
@@ -72,7 +71,7 @@ async def create_order(input):
         "data": order,
     })
 
-    ctx.logger.info('Order enqueued', {'orderId': order['id']})
+    logger.info('Order enqueued', {'orderId': order['id']})
     return {'orderId': order['id']}
 
 iii.register_function("orders::create", create_order)
@@ -80,7 +79,7 @@ iii.register_function("orders::create", create_order)
 </Tab>
 <Tab value="Rust">
 ```rust title="enqueue_order.rs"
-use iii_sdk::{get_context, III};
+use iii_sdk::{Logger, III};
 use serde_json::json;
 
 let iii = III::new(&std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
@@ -89,7 +88,7 @@ let iii_clone = iii.clone();
 iii.register_function("orders::create", move |input| {
     let iii = iii_clone.clone();
     async move {
-        let ctx = get_context();
+        let logger = Logger();
         let order_id = uuid::Uuid::new_v4().to_string();
 
         iii.trigger_void("enqueue", json!({
@@ -97,7 +96,7 @@ iii.register_function("orders::create", move |input| {
             "data": { "id": order_id, "items": input["items"], "total": input["total"] },
         }))?;
 
-        ctx.logger.info("Order enqueued", Some(json!({ "orderId": order_id })));
+        logger.info("Order enqueued", Some(json!({ "orderId": order_id })));
         Ok(json!({ "orderId": order_id }))
     }
 });
@@ -113,12 +112,12 @@ Bind a function to a queue using a `queue` trigger. The engine invokes the funct
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="process-order.ts"
-import { init, getContext } from 'iii-sdk'
+import { init, Logger } from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::process-payment' }, async (job) => {
-  const { logger } = getContext()
+  const logger = new Logger()
   logger.info('Processing payment', { orderId: job.id })
   // ...payment logic...
   return { processed: true }
@@ -134,14 +133,13 @@ iii.registerTrigger({
 <Tab value="Python">
 ```python title="process_order.py"
 import os
-from iii import III
-from iii.context import get_context
+from iii import III, Logger
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 async def process_payment(job):
-    ctx = get_context()
-    ctx.logger.info('Processing payment', {'orderId': job['id']})
+    logger = Logger()
+    logger.info('Processing payment', {'orderId': job['id']})
     # ...payment logic...
     return {'processed': True}
 
@@ -155,15 +153,15 @@ iii.register_trigger(
 </Tab>
 <Tab value="Rust">
 ```rust title="process_order.rs"
-use iii_sdk::{get_context, III};
+use iii_sdk::{Logger, III};
 use serde_json::json;
 
 let iii = III::new(&std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
 
 iii.register_function("orders::process-payment", |job| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let order_id = job["id"].as_str().unwrap_or("");
-    ctx.logger.info("Processing payment", Some(json!({ "orderId": order_id })));
+    logger.info("Processing payment", Some(json!({ "orderId": order_id })));
     // ...payment logic...
     Ok(json!({ "processed": true }))
 });
@@ -231,7 +229,7 @@ const isHighValue = iii.registerFunction({ id: 'orders::is-high-value' }, async 
 })
 
 iii.registerFunction({ id: 'orders::high-value-alert' }, async (job) => {
-  const { logger } = getContext()
+  const logger = new Logger()
   logger.info('High-value order', { orderId: job.id, total: job.total })
   return { alerted: true }
 })
@@ -252,8 +250,8 @@ async def is_high_value(job):
     return job.get("total", 0) > 1000
 
 async def high_value_alert(job):
-    ctx = get_context()
-    ctx.logger.info('High-value order', {'orderId': job['id'], 'total': job['total']})
+    logger = Logger()
+    logger.info('High-value order', {'orderId': job['id'], 'total': job['total']})
     return {'alerted': True}
 
 iii.register_function("orders::is-high-value", is_high_value)
@@ -277,10 +275,10 @@ let high_value_check = iii.register_function("orders::is-high-value", |job| asyn
 });
 
 iii.register_function("orders::high-value-alert", |job| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let id = job["id"].as_str().unwrap_or("");
     let total = job["total"].as_f64().unwrap_or(0.0);
-    ctx.logger.info("High-value order", Some(json!({ "orderId": id, "total": total })));
+    logger.info("High-value order", Some(json!({ "orderId": id, "total": total })));
     Ok(json!({ "alerted": true }))
 });
 
