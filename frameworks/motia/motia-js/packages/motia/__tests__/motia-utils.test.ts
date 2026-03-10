@@ -72,7 +72,7 @@ describe('Motia', () => {
       motia.addStep(config as any, 'test.step.ts', jest.fn(), 'steps/test.step.ts')
 
       expect(mockRegisterFunction).toHaveBeenCalledTimes(2)
-      expect(mockRegisterTrigger.mock.calls[0][0].config._condition_path).toBeDefined()
+      expect(mockRegisterTrigger.mock.calls[0][0].config.condition_function_id).toBeDefined()
     })
 
     it('registers function and trigger for queue trigger', () => {
@@ -162,7 +162,7 @@ describe('Motia', () => {
       motia.addStep(config as any, 'test.step.ts', jest.fn(), 'steps/test.step.ts')
 
       expect(mockRegisterFunction).toHaveBeenCalledTimes(2)
-      expect(mockRegisterTrigger.mock.calls[0][0].config._condition_path).toBeDefined()
+      expect(mockRegisterTrigger.mock.calls[0][0].config.condition_function_id).toBeDefined()
     })
   })
 

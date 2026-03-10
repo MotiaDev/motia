@@ -145,7 +145,7 @@ This Module adds a new Trigger Type: `queue`.
   <ResponseField name="topic" type="string" required>
     The topic to subscribe to. The function will be invoked whenever a message is enqueued to this topic.
   </ResponseField>
-  <ResponseField name="_condition_path" type="string">
+  <ResponseField name="condition_function_id" type="string">
     Function ID for conditional execution. The engine invokes it with the message payload; if it returns `false`, the handler function is not called.
   </ResponseField>
   <ResponseField name="queue" type="object">
