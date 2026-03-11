@@ -351,9 +351,9 @@ impl QueueAdapter for BuiltinQueueAdapter {
                             && let Err(e) = queue
                                 .nack(&info.queue_name, &info.job_id, "consumer channel closed")
                                 .await
-                            {
-                                tracing::error!(error = %e, "Failed to nack stranded job");
-                            }
+                        {
+                            tracing::error!(error = %e, "Failed to nack stranded job");
+                        }
                         break;
                     }
                 } else {
