@@ -6,7 +6,6 @@ import type {
   RegisterTriggerMessage,
   RegisterTriggerTypeMessage,
   StreamChannelRef,
-  TriggerAction,
   TriggerInfo,
   TriggerRequest,
 } from './iii-types'

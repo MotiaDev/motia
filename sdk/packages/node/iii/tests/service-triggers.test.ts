@@ -11,7 +11,10 @@ describe('Service Registration', () => {
 
     await sleep(300)
 
-    const result = await iii.call<Record<string, never>, { ok: boolean }>('test.svc.basic.hello', {})
+    const result = await iii.trigger<Record<string, never>, { ok: boolean }>({
+      function_id: 'test.svc.basic.hello',
+      payload: {},
+    })
     expect(result.ok).toBe(true)
 
     fn.unregister()
@@ -25,7 +28,10 @@ describe('Service Registration', () => {
 
     await sleep(300)
 
-    const result = await iii.call<Record<string, never>, { pong: boolean }>('test.svc.named.ping', {})
+    const result = await iii.trigger<Record<string, never>, { pong: boolean }>({
+      function_id: 'test.svc.named.ping',
+      payload: {},
+    })
     expect(result.pong).toBe(true)
 
     fn.unregister()
@@ -47,7 +53,10 @@ describe('Service Registration', () => {
 
     await sleep(300)
 
-    const result = await iii.call<{ value: number }, { doubled: number }>('test.svc.child.action', { value: 5 })
+    const result = await iii.trigger<{ value: number }, { doubled: number }>({
+      function_id: 'test.svc.child.action',
+      payload: { value: 5 },
+    })
     expect(result.doubled).toBe(10)
 
     fn.unregister()
@@ -61,7 +70,10 @@ describe('Service Registration', () => {
 
     await sleep(300)
 
-    const result = await iii.call<Record<string, never>, { status: string }>('test.svc.default-name.check', {})
+    const result = await iii.trigger<Record<string, never>, { status: string }>({
+      function_id: 'test.svc.default-name.check',
+      payload: {},
+    })
     expect(result.status).toBe('ok')
 
     fn.unregister()
@@ -123,8 +135,9 @@ describe('Channel readAll', () => {
         })
       })
 
-      const result = await iii.call('test.readall.processor', {
-        reader: channel.readerRef,
+      const result = await iii.trigger({
+        function_id: 'test.readall.processor',
+        payload: { reader: channel.readerRef },
       })
 
       await writePromise
@@ -135,7 +148,10 @@ describe('Channel readAll', () => {
 
     try {
       // biome-ignore lint/suspicious/noExplicitAny: test code
-      const result = await iii.call<{ text: string }, any>('test.readall.sender', { text: 'Hello from readAll test!' })
+      const result = await iii.trigger<{ text: string }, any>({
+        function_id: 'test.readall.sender',
+        payload: { text: 'Hello from readAll test!' },
+      })
 
       expect(result.content).toBe('Hello from readAll test!')
       expect(result.size).toBe(Buffer.from('Hello from readAll test!').length)
@@ -187,8 +203,9 @@ describe('Channel readAll', () => {
         writeNext()
       })
 
-      const result = await iii.call('test.readall.chunked.processor', {
-        reader: channel.readerRef,
+      const result = await iii.trigger({
+        function_id: 'test.readall.chunked.processor',
+        payload: { reader: channel.readerRef },
       })
 
       await writePromise
@@ -200,7 +217,10 @@ describe('Channel readAll', () => {
     try {
       const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
       // biome-ignore lint/suspicious/noExplicitAny: test code
-      const result = await iii.call<{ numbers: number[] }, any>('test.readall.chunked.sender', { numbers })
+      const result = await iii.trigger<{ numbers: number[] }, any>({
+        function_id: 'test.readall.chunked.sender',
+        payload: { numbers },
+      })
 
       expect(result.count).toBe(10)
       expect(result.total).toBe(55)
