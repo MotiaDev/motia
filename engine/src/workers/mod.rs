@@ -4,6 +4,12 @@
 // This software is patent protected. We welcome discussions - reach out at support@motia.dev
 // See LICENSE and PATENTS files for details.
 
+//! Worker management for connected SDK processes.
+//!
+//! Workers are external processes (Node.js, Python, Rust, etc.) that connect to the
+//! engine via WebSocket. Each worker registers functions it can handle, and the engine
+//! dispatches invocations to the appropriate worker.
+
 pub mod traits;
 
 use std::{collections::HashSet, str::FromStr, sync::Arc};
@@ -18,6 +24,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{engine::Outbound, modules::observability::metrics::get_engine_metrics};
 
+/// Optional telemetry metadata reported by a worker upon connection.
+///
+/// Workers can report their programming language, project name, and framework
+/// to aid in observability dashboards and debugging.
 #[derive(Clone, Deserialize, Serialize, Default)]
 pub struct WorkerTelemetryMeta {
     pub language: Option<String>,
@@ -35,22 +45,29 @@ impl std::fmt::Debug for WorkerTelemetryMeta {
     }
 }
 
+/// Thread-safe registry of all connected workers.
+///
+/// Tracks worker lifecycle (register, update metadata/status, unregister) and
+/// updates OpenTelemetry metrics on each state change.
 #[derive(Default)]
 pub struct WorkerRegistry {
     pub workers: Arc<DashMap<Uuid, Worker>>,
 }
 
 impl WorkerRegistry {
+    /// Creates an empty worker registry.
     pub fn new() -> Self {
         Self {
             workers: Arc::new(DashMap::new()),
         }
     }
 
+    /// Returns a clone of the worker with the given ID, or `None` if not found.
     pub fn get_worker(&self, id: &Uuid) -> Option<Worker> {
         self.workers.get(id).map(|w| w.value().clone())
     }
 
+    /// Registers a new worker and updates metrics (active count, spawn total).
     pub fn register_worker(&self, worker: Worker) {
         tracing::info!(
             worker_id = %worker.id,
@@ -73,6 +90,7 @@ impl WorkerRegistry {
         crate::modules::telemetry::collector::track_peak_workers(count as u64);
     }
 
+    /// Removes a worker by ID and updates metrics (active count, death total).
     pub fn unregister_worker(&self, worker_id: &Uuid) {
         let (ip_address, pid) = self
             .workers
@@ -101,6 +119,7 @@ impl WorkerRegistry {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
+    /// Returns a snapshot of all currently registered workers.
     pub fn list_workers(&self) -> Vec<Worker> {
         self.workers
             .iter()
@@ -108,6 +127,7 @@ impl WorkerRegistry {
             .collect()
     }
 
+    /// Updates a worker's runtime info (language, version, name, OS, telemetry, PID).
     #[allow(clippy::too_many_arguments)]
     pub fn update_worker_metadata(
         &self,
@@ -135,6 +155,7 @@ impl WorkerRegistry {
         }
     }
 
+    /// Updates a worker's status and recalculates per-status metrics.
     pub fn update_worker_status(&self, worker_id: &Uuid, status: WorkerStatus) {
         if let Some(mut worker) = self.workers.get_mut(worker_id) {
             worker.status = status;
@@ -155,6 +176,11 @@ impl WorkerRegistry {
     }
 }
 
+/// Lifecycle status of a connected worker.
+///
+/// ```text
+/// Connected → Available → Busy → Available → ... → Disconnected
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub enum WorkerStatus {
     #[default]
@@ -188,6 +214,22 @@ impl FromStr for WorkerStatus {
     }
 }
 
+/// Represents a connected worker process.
+///
+/// Workers communicate with the engine over a WebSocket channel. Each worker
+/// tracks its registered functions, active invocations, and runtime metadata.
+///
+/// # Fields
+///
+/// - `id` — Unique worker UUID, generated on connection.
+/// - `channel` — Sender to push outbound messages to this worker's WebSocket.
+/// - `function_ids` — Functions registered by this worker (local handlers).
+/// - `external_function_ids` — Functions backed by external HTTP endpoints.
+/// - `invocations` — Set of active invocation IDs being processed by this worker.
+/// - `runtime` / `version` / `os` — Runtime environment info reported by the worker.
+/// - `status` — Current lifecycle status.
+/// - `telemetry` — Optional telemetry metadata (language, project, framework).
+/// - `pid` — OS process ID of the worker (if reported).
 #[derive(Clone)]
 pub struct Worker {
     pub id: Uuid,
@@ -207,6 +249,7 @@ pub struct Worker {
 }
 
 impl Worker {
+    /// Creates a new worker with a fresh UUID and the given outbound channel.
     pub fn new(channel: mpsc::Sender<Outbound>) -> Self {
         let id = Uuid::new_v4();
         Self {
@@ -227,6 +270,7 @@ impl Worker {
         }
     }
 
+    /// Creates a new worker with a known IP address.
     pub fn with_ip(channel: mpsc::Sender<Outbound>, ip_address: String) -> Self {
         let id = Uuid::new_v4();
         Self {
@@ -247,26 +291,31 @@ impl Worker {
         }
     }
 
+    /// Returns the total number of registered functions (local + external).
     pub async fn function_count(&self) -> usize {
         let regular = self.function_ids.read().await.len();
         let external = self.external_function_ids.read().await.len();
         regular + external
     }
 
+    /// Returns the number of active invocations being processed.
     pub async fn invocation_count(&self) -> usize {
         self.invocations.read().await.len()
     }
 
+    /// Returns all function IDs (local + external) registered by this worker.
     pub async fn get_function_ids(&self) -> Vec<String> {
         let mut function_ids = self.function_ids.read().await.clone();
         function_ids.extend(self.external_function_ids.read().await.iter().cloned());
         function_ids.into_iter().collect()
     }
 
+    /// Returns only the locally-handled function IDs.
     pub async fn get_regular_function_ids(&self) -> Vec<String> {
         self.function_ids.read().await.iter().cloned().collect()
     }
 
+    /// Adds a local function ID to this worker's set.
     pub async fn include_function_id(&self, function_id: &str) {
         self.function_ids
             .write()
@@ -274,10 +323,12 @@ impl Worker {
             .insert(function_id.to_owned());
     }
 
+    /// Removes a local function ID. Returns `true` if it was present.
     pub async fn remove_function_id(&self, function_id: &str) -> bool {
         self.function_ids.write().await.remove(function_id)
     }
 
+    /// Adds an external (HTTP-backed) function ID.
     pub async fn include_external_function_id(&self, function_id: &str) {
         self.external_function_ids
             .write()
@@ -285,10 +336,12 @@ impl Worker {
             .insert(function_id.to_owned());
     }
 
+    /// Removes an external function ID. Returns `true` if it was present.
     pub async fn remove_external_function_id(&self, function_id: &str) -> bool {
         self.external_function_ids.write().await.remove(function_id)
     }
 
+    /// Checks if this worker has a specific external function ID.
     pub async fn has_external_function_id(&self, function_id: &str) -> bool {
         self.external_function_ids
             .read()
@@ -296,6 +349,7 @@ impl Worker {
             .contains(function_id)
     }
 
+    /// Returns all external function IDs registered by this worker.
     pub async fn get_external_function_ids(&self) -> Vec<String> {
         self.external_function_ids
             .read()
@@ -305,10 +359,12 @@ impl Worker {
             .collect()
     }
 
+    /// Tracks a new active invocation by ID.
     pub async fn add_invocation(&self, invocation_id: Uuid) {
         self.invocations.write().await.insert(invocation_id);
     }
 
+    /// Removes an active invocation by ID (when completed or cancelled).
     pub async fn remove_invocation(&self, invocation_id: &Uuid) {
         self.invocations.write().await.remove(invocation_id);
     }

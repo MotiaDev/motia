@@ -4,6 +4,28 @@
 // This software is patent protected. We welcome discussions - reach out at support@motia.dev
 // See LICENSE and PATENTS files for details.
 
+//! Structured logging with optional OpenTelemetry integration.
+//!
+//! Provides two output formats:
+//! - **Default** — Colorized, tree-structured output for local development.
+//! - **JSON** — Machine-readable format for production (compatible with log aggregators).
+//!
+//! Logging is initialized once at startup via [`init_log_from_config`]. The log level
+//! and format are read from the `modules::observability::OtelModule` section of the
+//! engine's config file.
+//!
+//! # Example Config
+//!
+//! ```yaml
+//! modules:
+//!   - class: modules::observability::OtelModule
+//!     config:
+//!       level: debug          # trace, debug, info, warn, error
+//!       format: default       # "default" or "json"
+//!       enabled: true         # enable OpenTelemetry export
+//!       service_name: my-engine
+//! ```
+
 use std::{fmt, sync::OnceLock};
 
 use chrono::Local;

@@ -8,6 +8,20 @@ use serde::{Deserialize, Serialize};
 
 use crate::{invocation::method::HttpAuth, protocol::ErrorBody};
 
+/// Authentication configuration for external HTTP function invocations.
+///
+/// Each variant references **environment variable names** (not raw secrets),
+/// so credentials are resolved at invocation time. Use [`validate`](HttpAuthConfig::validate)
+/// to check that the referenced env vars exist before registering a function.
+///
+/// # Example (JSON)
+///
+/// ```json
+/// { "type": "bearer", "token_key": "MY_API_TOKEN" }
+/// ```
+///
+/// At invocation time, the engine reads `MY_API_TOKEN` from the environment
+/// and attaches it as a `Bearer` token.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum HttpAuthConfig {
@@ -67,6 +81,10 @@ impl HttpAuthConfig {
     }
 }
 
+/// Resolves an [`HttpAuthConfig`] into concrete [`HttpAuth`] credentials
+/// by reading the referenced environment variables.
+///
+/// Returns an error if any required environment variable is missing.
 pub fn resolve_auth_ref(auth_ref: &HttpAuthConfig) -> Result<HttpAuth, ErrorBody> {
     match auth_ref {
         HttpAuthConfig::Hmac { secret_key } => {

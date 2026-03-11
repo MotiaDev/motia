@@ -4,6 +4,12 @@
 // This software is patent protected. We welcome discussions - reach out at support@motia.dev
 // See LICENSE and PATENTS files for details.
 
+//! Function invocation handling with telemetry and metrics.
+//!
+//! This module manages the lifecycle of function invocations — from dispatching
+//! a handler to tracking deferred results from workers. Each invocation is
+//! instrumented with OpenTelemetry spans and counter/histogram metrics.
+
 use std::sync::Arc;
 
 use dashmap::DashMap;
@@ -26,6 +32,10 @@ pub mod method;
 pub mod signature;
 pub mod url_validator;
 
+/// An in-flight function invocation awaiting a result.
+///
+/// Created when a function is invoked and stored in the [`InvocationHandler`] for
+/// deferred invocations (where the worker will send the result later via WebSocket).
 pub struct Invocation {
     pub id: Uuid,
     pub function_id: String,
@@ -39,23 +49,33 @@ pub struct Invocation {
 
 type Invocations = Arc<DashMap<Uuid, Invocation>>;
 
+/// Manages in-flight invocations and their result channels.
+///
+/// Each invocation gets a `oneshot` channel. For immediate results, the channel
+/// is resolved right away. For deferred results (worker-backed functions), the
+/// invocation is stored until the worker sends back an `InvocationResult` message.
 #[derive(Default)]
 pub struct InvocationHandler {
     invocations: Invocations,
 }
 impl InvocationHandler {
+    /// Creates an empty invocation handler.
     pub fn new() -> Self {
         Self {
             invocations: Arc::new(DashMap::new()),
         }
     }
 
+    /// Removes and returns an invocation by ID (used when a result arrives from a worker).
     pub fn remove(&self, invocation_id: &Uuid) -> Option<Invocation> {
         self.invocations
             .remove(invocation_id)
             .map(|(_, sender)| sender)
     }
 
+    /// Forcefully stops an invocation by sending an error through its result channel.
+    ///
+    /// Used when a worker disconnects while an invocation is still pending.
     pub fn halt_invocation(&self, invocation_id: &Uuid) {
         let invocation = self.remove(invocation_id);
 
@@ -68,6 +88,11 @@ impl InvocationHandler {
         }
     }
 
+    /// Executes a function invocation with full telemetry instrumentation.
+    ///
+    /// Creates an OpenTelemetry span, runs the handler, records metrics
+    /// (duration, success/error/deferred counts), and returns the result.
+    /// Deferred invocations are stored for later resolution.
     #[allow(clippy::too_many_arguments)]
     pub async fn handle_invocation(
         &self,

@@ -8,6 +8,27 @@ use serde::{Deserialize, Serialize};
 
 use crate::invocation::url_validator::UrlValidatorConfig;
 
+/// Security configuration for outbound HTTP requests made by the engine.
+///
+/// Controls URL allowlisting, private IP blocking, and HTTPS enforcement
+/// for external function invocations.
+///
+/// # Defaults
+///
+/// - `url_allowlist`: `["*"]` (all URLs allowed)
+/// - `block_private_ips`: `true`
+/// - `require_https`: `true`
+///
+/// # Example (YAML)
+///
+/// ```yaml
+/// security:
+///   url_allowlist:
+///     - "https://api.example.com/*"
+///     - "https://hooks.slack.com/*"
+///   block_private_ips: true
+///   require_https: true
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityConfig {
     #[serde(default)]

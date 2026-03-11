@@ -84,6 +84,10 @@ async fn handle_telemetry_frame(bytes: &[u8], peer: &SocketAddr) -> bool {
     true
 }
 
+/// Outbound message to be sent to a worker via WebSocket.
+///
+/// - `Protocol(Message)` — A structured protocol message (serialized as JSON).
+/// - `Raw(WsMessage)` — A raw WebSocket frame (binary or text).
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum Outbound {
@@ -91,6 +95,10 @@ pub enum Outbound {
     Raw(WsMessage),
 }
 
+/// Request payload for registering a function in the engine.
+///
+/// Used by modules and the [`EngineTrait::register_function`] method to register
+/// callable functions with optional schema and metadata.
 pub struct RegisterFunctionRequest {
     pub function_id: String,
     pub description: Option<String>,
@@ -99,6 +107,19 @@ pub struct RegisterFunctionRequest {
     pub metadata: Option<Value>,
 }
 
+/// Wrapper around a function handler closure for type-safe registration.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use iii::engine::Handler;
+/// use iii::function::FunctionResult;
+/// use serde_json::Value;
+///
+/// let handler = Handler::new(|input: Value| async move {
+///     FunctionResult::Success(Some(input))
+/// });
+/// ```
 pub struct Handler<H> {
     f: H,
 }
@@ -117,19 +138,33 @@ where
     }
 }
 
+/// Core trait defining the engine's public API for function invocation and registration.
+///
+/// This trait is implemented by [`Engine`] and can be mocked in tests to verify
+/// module behavior without a running engine.
 #[allow(async_fn_in_trait)]
 pub trait EngineTrait: Send + Sync {
+    /// Invokes a registered function by ID with the given input.
+    ///
+    /// Returns the function's result or an error if the function is not found or fails.
     async fn call(
         &self,
         function_id: &str,
         input: impl Serialize + Send,
     ) -> Result<Option<Value>, ErrorBody>;
+    /// Registers a new trigger type in the engine.
     async fn register_trigger_type(&self, trigger_type: TriggerType);
+    /// Registers a function with a boxed [`FunctionHandler`].
+    ///
+    /// Use this when the handler is a trait object (e.g., from a module).
     fn register_function(
         &self,
         request: RegisterFunctionRequest,
         handler: Box<dyn FunctionHandler + Send + Sync>,
     );
+    /// Registers a function with a typed handler closure.
+    ///
+    /// Preferred for simple handlers where the closure type is known at compile time.
     fn register_function_handler<H, F>(
         &self,
         request: RegisterFunctionRequest,
@@ -139,6 +174,20 @@ pub trait EngineTrait: Send + Sync {
         F: Future<Output = FunctionResult<Option<Value>, ErrorBody>> + Send + 'static;
 }
 
+/// The core engine that coordinates all subsystems.
+///
+/// Holds shared references to every registry (workers, functions, triggers, services,
+/// invocations, channels). Created via [`Engine::new()`] and typically wrapped in an `Arc`
+/// for shared ownership across async tasks.
+///
+/// # Subsystems
+///
+/// - [`WorkerRegistry`] — Tracks connected worker processes.
+/// - [`FunctionsRegistry`] — Stores registered function handlers.
+/// - [`TriggerRegistry`] — Manages trigger types and trigger instances.
+/// - [`ServicesRegistry`] — Groups functions into named services.
+/// - [`InvocationHandler`] — Tracks in-flight invocations.
+/// - [`ChannelManager`] — Manages streaming channels.
 #[derive(Default, Clone)]
 pub struct Engine {
     pub worker_registry: Arc<WorkerRegistry>,
@@ -150,6 +199,7 @@ pub struct Engine {
 }
 
 impl Engine {
+    /// Creates a new engine with empty registries.
     pub fn new() -> Self {
         Self {
             worker_registry: Arc::new(WorkerRegistry::new()),

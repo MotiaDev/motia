@@ -4,6 +4,11 @@
 // This software is patent protected. We welcome discussions - reach out at support@motia.dev
 // See LICENSE and PATENTS files for details.
 
+//! WebSocket upgrade handler for streaming channels.
+//!
+//! Handles the HTTP → WebSocket upgrade for channel endpoints and bridges
+//! WebSocket frames to/from the internal `mpsc` channel.
+
 use std::sync::Arc;
 
 use axum::{
@@ -20,12 +25,20 @@ use super::{ChannelItem, ChannelManager};
 use crate::modules::config::AppState;
 use crate::protocol::ChannelDirection;
 
+/// Query parameters for a channel WebSocket connection.
+///
+/// Extracted from the URL query string: `?key=<access_key>&dir=<read|write>`.
 #[derive(Deserialize)]
 pub struct ChannelQuery {
     pub key: String,
     pub dir: ChannelDirection,
 }
 
+/// Axum handler that upgrades an HTTP request to a WebSocket for channel streaming.
+///
+/// Validates the channel exists and the access key matches, then upgrades the
+/// connection. The `dir` parameter determines whether the client reads from
+/// or writes to the channel.
 pub async fn channel_ws_upgrade(
     State(state): State<AppState>,
     Path(channel_id): Path<String>,

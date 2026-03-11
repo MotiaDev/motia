@@ -13,6 +13,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
+/// Defines a type of trigger that can activate functions (e.g., cron, webhook, queue).
+///
+/// Each trigger type has a unique ID, a description, and a [`TriggerRegistrator`] that
+/// handles the actual registration/unregistration of individual triggers with the
+/// underlying infrastructure (e.g., scheduling a cron job, subscribing to a queue topic).
 pub struct TriggerType {
     pub id: String,
     pub _description: String,
@@ -21,6 +26,33 @@ pub struct TriggerType {
     pub worker_id: Option<Uuid>,
 }
 
+/// Trait for types that manage the lifecycle of triggers.
+///
+/// Implementors handle the actual side effects of registering and unregistering
+/// triggers — for example, creating a cron schedule, subscribing to a message queue,
+/// or setting up a webhook listener.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// struct CronRegistrator { /* ... */ }
+///
+/// impl TriggerRegistrator for CronRegistrator {
+///     fn register_trigger(&self, trigger: Trigger) -> Pin<Box<dyn Future<Output = Result<(), anyhow::Error>> + Send + '_>> {
+///         Box::pin(async move {
+///             // Schedule the cron job based on trigger.config
+///             Ok(())
+///         })
+///     }
+///
+///     fn unregister_trigger(&self, trigger: Trigger) -> Pin<Box<dyn Future<Output = Result<(), anyhow::Error>> + Send + '_>> {
+///         Box::pin(async move {
+///             // Cancel the cron job
+///             Ok(())
+///         })
+///     }
+/// }
+/// ```
 pub trait TriggerRegistrator: Send + Sync {
     fn register_trigger(
         &self,
@@ -32,6 +64,18 @@ pub trait TriggerRegistrator: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<(), anyhow::Error>> + Send + '_>>;
 }
 
+/// A concrete trigger instance that links a [`TriggerType`] to a target function.
+///
+/// Triggers are identified by their `id` field — equality and hashing are based solely
+/// on the ID, allowing different configurations to coexist as long as they have unique IDs.
+///
+/// # Fields
+///
+/// - `id` — Unique trigger identifier.
+/// - `trigger_type` — The type of trigger (must match a registered [`TriggerType`]).
+/// - `function_id` — The function to invoke when the trigger fires.
+/// - `config` — Trigger-specific JSON configuration (e.g., cron expression, topic name).
+/// - `worker_id` — Optional worker that owns this trigger.
 #[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 pub struct Trigger {
     pub id: String,
@@ -54,6 +98,11 @@ impl std::hash::Hash for Trigger {
     }
 }
 
+/// Thread-safe registry managing trigger types and trigger instances.
+///
+/// The registry coordinates the lifecycle of triggers:
+/// - When a trigger type is registered, any pending triggers of that type are auto-registered.
+/// - When a worker disconnects, all its triggers and trigger types are cleaned up.
 #[derive(Default)]
 pub struct TriggerRegistry {
     pub trigger_types: Arc<DashMap<String, TriggerType>>,
@@ -61,6 +110,7 @@ pub struct TriggerRegistry {
 }
 
 impl TriggerRegistry {
+    /// Creates an empty trigger registry.
     pub fn new() -> Self {
         Self {
             trigger_types: Arc::new(DashMap::new()),
@@ -68,6 +118,7 @@ impl TriggerRegistry {
         }
     }
 
+    /// Removes all triggers and trigger types owned by the given worker.
     pub async fn unregister_worker(&self, worker_id: &Uuid) {
         let worker_trigger_type_ids: Vec<String> = self
             .trigger_types
@@ -109,6 +160,10 @@ impl TriggerRegistry {
         }
     }
 
+    /// Registers a new trigger type and auto-registers any pending triggers of that type.
+    ///
+    /// If triggers were registered before their type existed, they will be forwarded
+    /// to the registrator upon type registration.
     pub async fn register_trigger_type(
         &self,
         trigger_type: TriggerType,
@@ -144,6 +199,9 @@ impl TriggerRegistry {
         Ok(())
     }
 
+    /// Registers a trigger instance. The corresponding trigger type must already exist.
+    ///
+    /// Returns an error if the trigger type is not found or if the registrator rejects it.
     pub async fn register_trigger(&self, trigger: Trigger) -> Result<(), anyhow::Error> {
         let trigger_type_id = trigger.trigger_type.clone();
         let Some(trigger_type) = self.trigger_types.get(&trigger_type_id) else {
@@ -175,6 +233,7 @@ impl TriggerRegistry {
         Ok(())
     }
 
+    /// Unregisters a trigger by ID, calling the registrator's cleanup logic.
     pub async fn unregister_trigger(
         &self,
         id: String,

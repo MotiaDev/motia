@@ -19,6 +19,16 @@ use crate::{
     modules::registry::{AdapterRegistrationEntry, ModuleFuture},
 };
 
+/// Configuration entry specifying which adapter to use for a module.
+///
+/// # Example (YAML)
+///
+/// ```yaml
+/// adapter:
+///   class: "builtins::queue::InMemoryQueueAdapter"
+///   config:
+///     max_retries: 3
+/// ```
 // use across modules
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AdapterEntry {
@@ -27,6 +37,32 @@ pub struct AdapterEntry {
     pub config: Option<Value>,
 }
 
+/// Base trait for all engine modules.
+///
+/// Modules are the primary extension point of the engine. Each module has a lifecycle:
+/// 1. **`create()`** — Construct the module from engine reference and optional config.
+/// 2. **`initialize()`** — Perform setup (register functions, connect to services).
+/// 3. **`start_background_tasks()`** — Spawn long-running async tasks (optional).
+/// 4. **`register_functions()`** — Register engine-callable functions (optional).
+/// 5. **`destroy()`** — Clean up on shutdown (optional).
+///
+/// # Example
+///
+/// ```rust,ignore
+/// #[async_trait::async_trait]
+/// impl Module for MyModule {
+///     fn name(&self) -> &'static str { "MyModule" }
+///
+///     async fn create(engine: Arc<Engine>, config: Option<Value>) -> anyhow::Result<Box<dyn Module>> {
+///         Ok(Box::new(MyModule { engine }))
+///     }
+///
+///     async fn initialize(&self) -> anyhow::Result<()> {
+///         // Register functions, subscribe to queues, etc.
+///         Ok(())
+///     }
+/// }
+/// ```
 #[async_trait::async_trait]
 pub trait Module: Send + Sync {
     fn name(&self) -> &'static str;
@@ -72,6 +108,18 @@ pub type AdapterFactory<A> = Arc<
         + Sync,
 >;
 
+/// Extended trait for modules that support pluggable adapter backends.
+///
+/// Builds on [`Module`] by adding a typed adapter registry. Adapters are discovered
+/// at compile time via the [`inventory`] crate and can be overridden in config.
+///
+/// See `examples/custom_queue_adapter.rs` for a complete implementation example.
+///
+/// # Associated Types
+///
+/// - `Config` — Deserialized module configuration struct.
+/// - `Adapter` — The adapter trait that backends implement.
+/// - `AdapterRegistration` — Inventory-collected registration entries.
 #[async_trait::async_trait]
 pub trait ConfigurableModule: Module + Sized + 'static {
     type Config: DeserializeOwned + Default + Send;

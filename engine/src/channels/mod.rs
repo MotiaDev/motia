@@ -4,6 +4,18 @@
 // This software is patent protected. We welcome discussions - reach out at support@motia.dev
 // See LICENSE and PATENTS files for details.
 
+//! Streaming channels for real-time bidirectional data transfer.
+//!
+//! Channels provide a WebSocket-backed pipe between the engine and workers (or external
+//! clients). Each channel has a writer end and a reader end, secured by an access key.
+//!
+//! # Lifecycle
+//!
+//! 1. A channel is created via [`ChannelManager::create_channel`], returning writer/reader refs.
+//! 2. Clients connect via WebSocket using the channel ID, access key, and direction.
+//! 3. Data flows through a bounded `mpsc` channel (text or binary frames).
+//! 4. Stale channels (unclaimed for 5 minutes) are swept by a background task.
+
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -16,12 +28,20 @@ use crate::protocol::{ChannelDirection, StreamChannelRef};
 
 pub mod ws_handler;
 
+/// A single item flowing through a streaming channel.
+///
+/// Channels support both text (UTF-8 strings) and binary (raw bytes) payloads,
+/// mapped directly to WebSocket text and binary frames.
 #[derive(Debug)]
 pub enum ChannelItem {
     Text(String),
     Binary(Bytes),
 }
 
+/// Internal representation of a streaming channel with sender/receiver endpoints.
+///
+/// Each endpoint (`tx`/`rx`) is wrapped in a `Mutex<Option<...>>` so it can be
+/// taken exactly once — ensuring only one writer and one reader per channel.
 #[allow(dead_code)]
 pub struct StreamChannel {
     pub(crate) id: String,
@@ -34,12 +54,17 @@ pub struct StreamChannel {
 
 const CHANNEL_TTL: Duration = Duration::from_secs(5 * 60);
 
+/// Manages the lifecycle of streaming channels.
+///
+/// Provides creation, lookup, endpoint extraction, and cleanup (both per-worker
+/// and periodic stale-channel sweeping).
 #[derive(Default)]
 pub struct ChannelManager {
     channels: DashMap<String, Arc<StreamChannel>>,
 }
 
 impl ChannelManager {
+    /// Creates an empty channel manager.
     pub fn new() -> Self {
         Self {
             channels: DashMap::new(),
@@ -83,6 +108,9 @@ impl ChannelManager {
         (writer_ref, reader_ref)
     }
 
+    /// Retrieves a channel by ID if the provided access key matches.
+    ///
+    /// Returns `None` if the channel doesn't exist or the key is incorrect.
     pub fn get_channel(&self, id: &str, key: &str) -> Option<Arc<StreamChannel>> {
         self.channels.get(id).and_then(|ch| {
             if ch.access_key == key {
@@ -93,16 +121,23 @@ impl ChannelManager {
         })
     }
 
+    /// Takes the sender (write) endpoint of a channel. Can only be called once per channel.
+    ///
+    /// Returns `None` if the channel doesn't exist, the key is wrong, or the sender was already taken.
     pub async fn take_sender(&self, id: &str, key: &str) -> Option<mpsc::Sender<ChannelItem>> {
         let channel = self.get_channel(id, key)?;
         channel.tx.lock().await.take()
     }
 
+    /// Takes the receiver (read) endpoint of a channel. Can only be called once per channel.
+    ///
+    /// Returns `None` if the channel doesn't exist, the key is wrong, or the receiver was already taken.
     pub async fn take_receiver(&self, id: &str, key: &str) -> Option<mpsc::Receiver<ChannelItem>> {
         let channel = self.get_channel(id, key)?;
         channel.rx.lock().await.take()
     }
 
+    /// Removes a channel by ID.
     pub fn remove_channel(&self, id: &str) {
         self.channels.remove(id);
     }

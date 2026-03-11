@@ -6,6 +6,9 @@
 
 use serde::{Deserialize, Serialize};
 
+/// HTTP methods supported for external function invocation.
+///
+/// Serialized as uppercase strings (e.g., `"GET"`, `"POST"`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum HttpMethod {
@@ -16,6 +19,11 @@ pub enum HttpMethod {
     Delete,
 }
 
+/// Resolved authentication credentials for an HTTP request.
+///
+/// Unlike [`HttpAuthConfig`](super::auth::HttpAuthConfig), which references environment
+/// variable names, `HttpAuth` contains the actual secret values ready to be attached
+/// to an outgoing HTTP request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum HttpAuth {

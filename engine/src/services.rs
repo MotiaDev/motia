@@ -7,12 +7,34 @@
 use std::{any::Any, collections::HashSet, sync::Arc};
 
 use dashmap::DashMap;
+/// Thread-safe registry for managing named services and module-level service objects.
+///
+/// A **service** groups related functions under a common name. Functions are associated
+/// with services via their ID format: `"service_name.function_name"`.
+///
+/// The registry also stores type-erased module service objects (e.g., a queue adapter
+/// or KV store) that other modules can retrieve by name.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let registry = ServicesRegistry::new();
+///
+/// // Register a typed module service
+/// let kv_store = Arc::new(MyKvStore::new());
+/// registry.register_service("kv", kv_store);
+///
+/// // Auto-register service from function ID
+/// registry.register_service_from_function_id("payments.charge");
+/// // Now "payments" service exists with function "charge"
+/// ```
 #[derive(Default)]
 pub struct ServicesRegistry {
     pub services: Arc<DashMap<String, Service>>,
     module_services: Arc<DashMap<String, Arc<dyn Any + Send + Sync>>>,
 }
 impl ServicesRegistry {
+    /// Creates an empty services registry.
     pub fn new() -> Self {
         ServicesRegistry {
             services: Arc::new(DashMap::new()),
@@ -20,11 +42,18 @@ impl ServicesRegistry {
         }
     }
 
+    /// Stores a typed module service object that can be retrieved by other modules.
+    ///
+    /// The service is stored as `Arc<dyn Any>` and can be downcast back to the
+    /// concrete type via [`get_service`](ServicesRegistry::get_service).
     pub fn register_service<T: Send + Sync + 'static>(&self, name: &str, service: Arc<T>) {
         self.module_services
             .insert(name.to_string(), service as Arc<dyn Any + Send + Sync>);
     }
 
+    /// Retrieves a previously registered module service by name, downcasting to type `T`.
+    ///
+    /// Returns `None` if the service doesn't exist or if the type doesn't match.
     pub fn get_service<T: Send + Sync + 'static>(&self, name: &str) -> Option<Arc<T>> {
         self.module_services
             .get(name)?
@@ -34,6 +63,8 @@ impl ServicesRegistry {
             .ok()
     }
 
+    /// Removes a function from its parent service. If the service becomes empty,
+    /// the service itself is removed.
     pub fn remove_function_from_services(&self, function_id: &str) {
         let service_name = match Self::get_service_name_from_function_id(function_id) {
             Some(name) => name,
@@ -87,6 +118,10 @@ impl ServicesRegistry {
         Some(parts[1..].join("."))
     }
 
+    /// Auto-creates a service from a dotted function ID (e.g., `"payments.charge"`).
+    ///
+    /// Extracts the service name from the first segment and the function name from
+    /// the rest. Creates the service if it doesn't exist, then adds the function.
     pub fn register_service_from_function_id(&self, function_id: &str) {
         let Some(service_name) = Self::get_service_name_from_function_id(function_id) else {
             return;
@@ -103,6 +138,7 @@ impl ServicesRegistry {
         self.insert_function_to_service(&service_name, &function_name);
     }
 
+    /// Inserts a service into the registry. Warns if a service with the same name already exists.
     pub fn insert_service(&self, service: Service) {
         if self.services.contains_key(&service.name) {
             tracing::warn!(service_name = %service.name, "Service already exists");
@@ -110,6 +146,7 @@ impl ServicesRegistry {
         self.services.insert(service.name.clone(), service);
     }
 
+    /// Adds a function to an existing service by name.
     pub fn insert_function_to_service(&self, service_name: &String, function: &str) {
         if let Some(mut service) = self.services.get_mut(service_name) {
             service.insert_function(function.to_string());
@@ -117,6 +154,9 @@ impl ServicesRegistry {
     }
 }
 
+/// A named service that groups related functions.
+///
+/// Services are auto-discovered from function IDs with the format `"service.function"`.
 #[derive(Debug)]
 pub struct Service {
     _id: String,
@@ -125,6 +165,7 @@ pub struct Service {
 }
 
 impl Service {
+    /// Creates a new service with the given name and ID.
     pub fn new(name: String, id: String) -> Self {
         Service {
             _id: id,
@@ -133,6 +174,7 @@ impl Service {
         }
     }
 
+    /// Adds a function to this service. Empty names are ignored; duplicates trigger a warning.
     pub fn insert_function(&mut self, function: String) {
         if function.is_empty() {
             return;
@@ -147,6 +189,7 @@ impl Service {
         self.functions.insert(function);
     }
 
+    /// Removes a function from this service by name.
     pub fn remove_function_from_service(&mut self, function: &str) {
         self.functions.remove(function);
     }

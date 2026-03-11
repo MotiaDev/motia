@@ -12,6 +12,22 @@ use uuid::Uuid;
 
 use crate::invocation::{auth::HttpAuthConfig, method::HttpMethod};
 
+/// Reference to an external HTTP endpoint that can be invoked by the engine.
+///
+/// Used when a function is backed by an external HTTP service rather than
+/// a connected worker. The engine will make an HTTP call to the specified URL.
+///
+/// # Example (JSON)
+///
+/// ```json
+/// {
+///   "url": "https://api.example.com/process",
+///   "method": "POST",
+///   "timeout_ms": 30000,
+///   "headers": { "X-Custom": "value" },
+///   "auth": { "type": "bearer", "token_key": "MY_TOKEN_ENV" }
+/// }
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpInvocationRef {
     pub url: String,
@@ -29,6 +45,21 @@ fn default_http_method() -> HttpMethod {
     HttpMethod::Post
 }
 
+/// Wire protocol messages exchanged between the engine and connected workers via WebSocket.
+///
+/// Each variant is tagged with `"type"` in its JSON representation (lowercase).
+/// Workers send messages to register functions, triggers, and report invocation results.
+/// The engine sends messages to invoke functions and acknowledge registrations.
+///
+/// # Message Flow
+///
+/// ```text
+/// Worker → Engine:  RegisterFunction, RegisterTriggerType, RegisterTrigger,
+///                   UnregisterFunction, UnregisterTrigger, InvocationResult,
+///                   RegisterService, Pong
+///
+/// Engine → Worker:  InvokeFunction, TriggerRegistrationResult, WorkerRegistered, Ping
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Message {
@@ -152,6 +183,17 @@ pub struct WorkerMetrics {
     pub runtime: String, // "node", "rust", "python", etc.
 }
 
+/// Structured error returned by function invocations and protocol operations.
+///
+/// # Example
+///
+/// ```rust
+/// use iii::protocol::ErrorBody;
+///
+/// let err = ErrorBody::new("not_found", "Function 'foo' does not exist");
+/// assert_eq!(err.code, "not_found");
+/// println!("{}", err); // "not_found: Function 'foo' does not exist"
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorBody {
     pub code: String,
@@ -161,6 +203,7 @@ pub struct ErrorBody {
 }
 
 impl ErrorBody {
+    /// Creates a new `ErrorBody` with the given code and message (no stacktrace).
     pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             code: code.into(),
@@ -176,6 +219,11 @@ impl std::fmt::Display for ErrorBody {
     }
 }
 
+/// Direction of a streaming channel endpoint.
+///
+/// From the **worker's** perspective:
+/// - `Read` — The worker reads data from the channel.
+/// - `Write` — The worker writes data into the channel.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ChannelDirection {
@@ -184,6 +232,11 @@ pub enum ChannelDirection {
     Write,
 }
 
+/// Reference to one endpoint of a streaming channel, including its access credentials.
+///
+/// Returned by [`ChannelManager::create_channel`](crate::channels::ChannelManager::create_channel)
+/// as a pair of (writer_ref, reader_ref). The `access_key` must be presented when
+/// connecting to prevent unauthorized access.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct StreamChannelRef {
     pub channel_id: String,

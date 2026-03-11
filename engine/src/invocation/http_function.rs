@@ -12,6 +12,23 @@ use serde_json::Value;
 
 use crate::invocation::method::HttpMethod;
 
+/// Configuration for an HTTP-backed function (external endpoint).
+///
+/// Loaded from `config.yaml` or registered dynamically. Each config maps a function
+/// path to a remote URL that the engine will call when the function is invoked.
+///
+/// # Example (YAML)
+///
+/// ```yaml
+/// functions:
+///   - path: /process-order
+///     url: https://api.example.com/orders
+///     method: POST
+///     timeout_ms: 30000
+///     auth:
+///       type: bearer
+///       token_key: ORDER_SERVICE_TOKEN
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpFunctionConfig {
     #[serde(alias = "path")]

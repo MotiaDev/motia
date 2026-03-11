@@ -14,15 +14,56 @@ use uuid::Uuid;
 
 use crate::protocol::*;
 
+/// Result type returned by function handlers after execution.
+///
+/// # Variants
+///
+/// - `Success(T)` — The function completed successfully with an optional return value.
+/// - `Failure(E)` — The function failed with an error (e.g., [`ErrorBody`]).
+/// - `Deferred` — The function was dispatched to a worker and the result will arrive later.
+/// - `NoResult` — The function completed but intentionally produced no return value.
+///
+/// # Example
+///
+/// ```rust
+/// use iii::function::FunctionResult;
+/// use iii::protocol::ErrorBody;
+/// use serde_json::{Value, json};
+///
+/// // A successful result with data
+/// let ok: FunctionResult<Option<Value>, ErrorBody> =
+///     FunctionResult::Success(Some(json!({"status": "done"})));
+///
+/// // A fire-and-forget result
+/// let noop: FunctionResult<Option<Value>, ErrorBody> = FunctionResult::NoResult;
+/// ```
 pub enum FunctionResult<T, E> {
     Success(T),
     Failure(E),
     Deferred,
     NoResult,
 }
+/// A pinned, boxed future returned by handler functions.
 type HandlerFuture = Pin<Box<dyn Future<Output = FunctionResult<Option<Value>, ErrorBody>> + Send>>;
+/// Type alias for a function handler closure.
+///
+/// Accepts an optional invocation ID and a JSON input, returning a `HandlerFuture`.
 pub type HandlerFn = dyn Fn(Option<Uuid>, Value) -> HandlerFuture + Send + Sync;
 
+/// A registered function in the engine.
+///
+/// Each function has a handler closure, optional schema definitions for request/response
+/// formats, and arbitrary metadata. Functions are stored in the [`FunctionsRegistry`]
+/// and invoked by the engine when triggered.
+///
+/// # Fields
+///
+/// - `handler` — The async closure that processes invocations.
+/// - `_function_id` — Unique identifier (e.g., `"service.my_function"`).
+/// - `_description` — Optional human-readable description.
+/// - `request_format` — Optional JSON Schema describing expected input.
+/// - `response_format` — Optional JSON Schema describing the output.
+/// - `metadata` — Arbitrary JSON metadata attached to the function.
 #[derive(Clone)]
 pub struct Function {
     pub handler: Arc<HandlerFn>,
@@ -34,6 +75,12 @@ pub struct Function {
 }
 
 impl Function {
+    /// Invokes the function handler with the given invocation ID and input data.
+    ///
+    /// # Arguments
+    ///
+    /// * `invocation_id` — Optional UUID to correlate this invocation for tracing.
+    /// * `data` — JSON payload passed to the handler.
     pub async fn call_handler(
         self,
         invocation_id: Option<Uuid>,
@@ -43,6 +90,35 @@ impl Function {
     }
 }
 
+/// Trait for types that can handle function invocations.
+///
+/// Implement this trait on your module or service to register it as a function handler
+/// in the engine. The engine calls [`handle_function`](FunctionHandler::handle_function)
+/// whenever the registered function is invoked.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use iii::function::{FunctionHandler, FunctionResult};
+/// use iii::protocol::ErrorBody;
+/// use serde_json::Value;
+/// use uuid::Uuid;
+///
+/// struct MyHandler;
+///
+/// impl FunctionHandler for MyHandler {
+///     fn handle_function<'a>(
+///         &'a self,
+///         invocation_id: Option<Uuid>,
+///         function_id: String,
+///         input: Value,
+///     ) -> Pin<Box<dyn Future<Output = FunctionResult<Option<Value>, ErrorBody>> + Send + 'a>> {
+///         Box::pin(async move {
+///             FunctionResult::Success(Some(serde_json::json!({"echo": input})))
+///         })
+///     }
+/// }
+/// ```
 pub trait FunctionHandler {
     fn handle_function<'a>(
         &'a self,
@@ -52,18 +128,35 @@ pub trait FunctionHandler {
     ) -> Pin<Box<dyn Future<Output = FunctionResult<Option<Value>, ErrorBody>> + Send + 'a>>;
 }
 
+/// Thread-safe registry of all functions known to the engine.
+///
+/// Functions are stored in a [`DashMap`] for concurrent read/write access. The registry
+/// supports registration, lookup, removal, and iteration over all registered functions.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let registry = FunctionsRegistry::new();
+/// registry.register_function("my_service.greet".to_string(), function);
+///
+/// if let Some(func) = registry.get("my_service.greet") {
+///     let result = func.call_handler(None, serde_json::json!({"name": "World"})).await;
+/// }
+/// ```
 #[derive(Default)]
 pub struct FunctionsRegistry {
     pub functions: Arc<DashMap<String, Function>>,
 }
 
 impl FunctionsRegistry {
+    /// Creates an empty function registry.
     pub fn new() -> Self {
         Self {
             functions: Arc::new(DashMap::new()),
         }
     }
 
+    /// Returns a deterministic string hash of all registered function IDs (sorted alphabetically).
     pub fn functions_hash(&self) -> String {
         let functions: HashSet<String> = self
             .functions
@@ -76,6 +169,9 @@ impl FunctionsRegistry {
         format!("{:?}", function_hash)
     }
 
+    /// Registers a function under the given ID.
+    ///
+    /// If a function with the same ID already exists, it will be overwritten with a warning.
     pub fn register_function(&self, function_id: String, function: Function) {
         tracing::info!(
             "{} Function {}",
@@ -91,6 +187,7 @@ impl FunctionsRegistry {
         self.functions.insert(function_id, function);
     }
 
+    /// Removes a function by its ID and logs the unregistration.
     pub fn remove(&self, function_id: &str) {
         self.functions.remove(function_id);
         tracing::info!(
@@ -100,6 +197,7 @@ impl FunctionsRegistry {
         );
     }
 
+    /// Looks up a function by ID. Returns `None` if not found.
     pub fn get(&self, function_id: &str) -> Option<Function> {
         tracing::debug!("Searching for function: {}", function_id);
         self.functions
@@ -107,6 +205,7 @@ impl FunctionsRegistry {
             .map(|entry| entry.value().clone())
     }
 
+    /// Returns an iterator over all registered functions.
     pub fn iter(&self) -> dashmap::iter::Iter<'_, String, Function> {
         self.functions.iter()
     }
