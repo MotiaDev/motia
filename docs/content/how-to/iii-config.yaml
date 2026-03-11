@@ -345,8 +345,8 @@ modules:
       # Functions to forward to remote engine (local calls invoke remote functions).
       forward:
         # Calling local_function locally will invoke remote_function on the remote engine.
-        - local_function: remote.kv.get
-          remote_function: kv_server::get
+        - local_function: remote.state.get
+          remote_function: state::get
           # Maximum time (ms) to wait for remote response.
           timeout_ms: 5000
 
@@ -363,13 +363,3 @@ modules:
       # How often (seconds) to send heartbeat events. Default: 21600 (6 hours)
       heartbeat_interval_secs: 21600
 
-  # KV Server module - shared key-value storage backend for internal use by adapters and functions.
-  # Provides kv_server.get/set/delete functions for direct KV access.
-  - class: modules::kv_server::KvServer
-    config:
-      # Storage mode. Options: file_based (persists to disk), in_memory (lost on restart)
-      store_method: file_based
-      # Directory path for file_based storage.
-      file_path: ./data/kv_store
-      # How often (ms) to flush dirty data to disk.
-      save_interval_ms: 5000

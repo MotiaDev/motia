@@ -161,21 +161,22 @@ jobs:
         with:
           name: iii-binary
 
-      - name: Start III Engine
+      - name: Start III Engines
         run: |
           chmod +x ./iii
-          ./iii --config sdk/packages/node/iii/tests/fixtures/config-test.yaml > /tmp/iii-engine.log 2>&1 &
-          echo $! > /tmp/iii-engine.pid
-
-          echo "Waiting for III Engine on port 49199..."
-          for i in $(seq 1 30); do
-            if nc -z 127.0.0.1 49199 2>/dev/null; then
-              echo "III Engine is ready!"
-              break
-            fi
-            echo "  attempt $i/30..."
-            sleep 2
-          done
+          bash scripts/start-iii.sh \
+            --config sdk/fixtures/config-test.yaml \
+            --port 49199
+          bash scripts/start-iii.sh \
+            --config sdk/fixtures/config-bridge-backend.yaml \
+            --port 49198 \
+            --pid-file /tmp/iii-backend.pid \
+            --log-file /tmp/iii-backend.log
+          bash scripts/start-iii.sh \
+            --config sdk/fixtures/config-bridge.yaml \
+            --port 49197 \
+            --pid-file /tmp/iii-bridge.pid \
+            --log-file /tmp/iii-bridge.log
 
       - name: Run tests with coverage
         env:
@@ -183,12 +184,9 @@ jobs:
           III_HTTP_URL: http://localhost:3199
         run: pnpm --filter iii-sdk test:coverage
 
-      - name: Stop III Engine
+      - name: Stop III Engines
         if: always()
-        run: |
-          if [ -f /tmp/iii-engine.pid ]; then
-            kill "$(cat /tmp/iii-engine.pid)" || true
-          fi
+        run: bash scripts/stop-iii.sh /tmp/iii-engine.pid /tmp/iii-backend.pid /tmp/iii-bridge.pid
 
   # ──────────────────────────────────────────────────────────────
   # SDK Python
@@ -235,18 +233,9 @@ jobs:
       - name: Start III Engine
         run: |
           chmod +x ./iii
-          ./iii --config sdk/packages/node/iii/tests/fixtures/config-test.yaml > /tmp/iii-engine.log 2>&1 &
-          echo $! > /tmp/iii-engine.pid
-
-          echo "Waiting for III Engine on port 49199..."
-          for i in $(seq 1 30); do
-            if nc -z 127.0.0.1 49199 2>/dev/null; then
-              echo "III Engine is ready!"
-              break
-            fi
-            echo "  attempt $i/30..."
-            sleep 2
-          done
+          bash scripts/start-iii.sh \
+            --config sdk/fixtures/config-test.yaml \
+            --port 49199
 
       - name: Run tests with coverage
         working-directory: sdk/packages/python/iii
@@ -257,10 +246,7 @@ jobs:
 
       - name: Stop III Engine
         if: always()
-        run: |
-          if [ -f /tmp/iii-engine.pid ]; then
-            kill "$(cat /tmp/iii-engine.pid)" || true
-          fi
+        run: bash scripts/stop-iii.sh /tmp/iii-engine.pid
 
   # ──────────────────────────────────────────────────────────────
   # SDK Rust
@@ -293,18 +279,9 @@ jobs:
       - name: Start III Engine
         run: |
           chmod +x ./iii
-          ./iii --config sdk/packages/node/iii/tests/fixtures/config-test.yaml > /tmp/iii-engine.log 2>&1 &
-          echo $! > /tmp/iii-engine.pid
-
-          echo "Waiting for III Engine on port 49199..."
-          for i in $(seq 1 30); do
-            if nc -z 127.0.0.1 49199 2>/dev/null; then
-              echo "III Engine is ready!"
-              break
-            fi
-            echo "  attempt $i/30..."
-            sleep 2
-          done
+          bash scripts/start-iii.sh \
+            --config sdk/fixtures/config-test.yaml \
+            --port 49199
 
       - name: Run tests
         env:
@@ -314,10 +291,7 @@ jobs:
 
       - name: Stop III Engine
         if: always()
-        run: |
-          if [ -f /tmp/iii-engine.pid ]; then
-            kill "$(cat /tmp/iii-engine.pid)" || true
-          fi
+        run: bash scripts/stop-iii.sh /tmp/iii-engine.pid
 
   # ──────────────────────────────────────────────────────────────
   # Motia JS (depends on engine + SDK Node)
@@ -360,18 +334,9 @@ jobs:
       - name: Start III Engine
         run: |
           chmod +x ./iii
-          ./iii --config sdk/packages/node/iii/tests/fixtures/config-test.yaml > /tmp/iii-engine.log 2>&1 &
-          echo $! > /tmp/iii-engine.pid
-
-          echo "Waiting for III Engine on port 49199..."
-          for i in $(seq 1 30); do
-            if nc -z 127.0.0.1 49199 2>/dev/null; then
-              echo "III Engine is ready!"
-              break
-            fi
-            echo "  attempt $i/30..."
-            sleep 2
-          done
+          bash scripts/start-iii.sh \
+            --config sdk/fixtures/config-test.yaml \
+            --port 49199
 
       - name: Run tests
         run: pnpm --filter motia test:ci
@@ -380,10 +345,7 @@ jobs:
 
       - name: Stop III Engine
         if: always()
-        run: |
-          if [ -f /tmp/iii-engine.pid ]; then
-            kill "$(cat /tmp/iii-engine.pid)" || true
-          fi
+        run: bash scripts/stop-iii.sh /tmp/iii-engine.pid
 
   # ──────────────────────────────────────────────────────────────
   # Motia Python (depends on engine + SDK Python)
@@ -430,18 +392,9 @@ jobs:
       - name: Start III Engine
         run: |
           chmod +x ./iii
-          ./iii --config sdk/packages/node/iii/tests/fixtures/config-test.yaml > /tmp/iii-engine.log 2>&1 &
-          echo $! > /tmp/iii-engine.pid
-
-          echo "Waiting for III Engine on port 49199..."
-          for i in $(seq 1 30); do
-            if nc -z 127.0.0.1 49199 2>/dev/null; then
-              echo "III Engine is ready!"
-              break
-            fi
-            echo "  attempt $i/30..."
-            sleep 2
-          done
+          bash scripts/start-iii.sh \
+            --config sdk/fixtures/config-test.yaml \
+            --port 49199
 
       - name: Run tests
         working-directory: frameworks/motia/motia-py/packages/motia
@@ -449,10 +402,7 @@ jobs:
 
       - name: Stop III Engine
         if: always()
-        run: |
-          if [ -f /tmp/iii-engine.pid ]; then
-            kill "$(cat /tmp/iii-engine.pid)" || true
-          fi
+        run: bash scripts/stop-iii.sh /tmp/iii-engine.pid
 
   # ──────────────────────────────────────────────────────────────
   # Console
