@@ -1,0 +1,66 @@
+name: Benchmark Release
+
+on:
+  push:
+    tags:
+      - 'iii/v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  deployments: write
+
+concurrency:
+  group: bench-release-${{ github.repository }}
+
+env:
+  CARGO_TERM_COLOR: always
+  III_TELEMETRY_ENABLED: "false"
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Run benchmarks
+        run: cargo bench -p iii --benches -- --output-format bencher 2>&1 | tee bench-output.txt
+
+      - name: Extract version from tag
+        id: meta
+        run: |
+          if [[ "$GITHUB_REF_NAME" == iii/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#iii/v}"
+          else
+            VERSION="manual-$(date +%Y%m%d-%H%M%S)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: iii Engine Benchmarks
+          tool: 'cargo'
+          output-file-path: bench-output.txt
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '120%'
+          comment-on-alert: true
+          summary-always: true
+          alert-comment-cc-users: '@iii-hq/engine'
+
+      - name: Upload raw criterion data
+        uses: actions/upload-artifact@v4
+        with:
+          name: criterion-data-${{ steps.meta.outputs.version }}
+          path: target/criterion/
+          retention-days: 90
