@@ -37,34 +37,36 @@ iii.registerFunction(
   },
 );
 
-// Triggerable from any other function or worker
 await iii.trigger({ function_id: 'math::add', payload: { a: 2, b: 3 } });
 ```
 </Tab>
 <Tab value="Python">
 ```python title="math_add.py"
 from iii import III, Logger
+import asyncio
 import os
 import uuid
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
-def add(data):
+async def add(data):
   logger = Logger()
   result = data['a'] + data['b']
   id = str(uuid.uuid4())
-  iii.trigger({'function_id': 'state::set', 'payload': {'scope': 'math', 'key': id, 'value': result}})
+  await iii.trigger({'function_id': 'state::set', 'payload': {'scope': 'math', 'key': id, 'value': result}})
   logger.info('Math add completed', {'id': id, 'result': result})
   return {'id': id, 'result': result}
-iii.register_function('math::add', add)
-iii.connect()
-# Triggerable from any other function or worker
-iii.trigger({'function_id': 'math::add', 'payload': {'a': 2, 'b': 3}})
+
+async def main():
+  iii.register_function('math::add', add)
+  await iii.connect()
+  # Triggerable from any other function or worker
+  await iii.trigger({'function_id': 'math::add', 'payload': {'a': 2, 'b': 3}})
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="math_add.rs"
-use iii_sdk::{Logger, TriggerRequest, III};
+use iii_sdk::{Logger, III, TriggerRequest};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -159,7 +161,7 @@ iii.register_function(
   description='POST notification to Service Provider webhook',
 )
 
-iii.trigger({'function_id': 'notifications::send', 'payload': {'channel': '#alerts', 'text': 'Deploy succeeded'}})
+await iii.trigger({'function_id': 'notifications::send', 'payload': {'channel': '#alerts', 'text': 'Deploy succeeded'}})
 ```
 </Tab>
 <Tab value="Rust">
@@ -210,14 +212,15 @@ names, not raw secrets. The engine resolves them from its process environment at
 ## Ways to Trigger Functions
 
 As shown above functions can be triggered with `trigger({ function_id, payload })` but there are actually
-two ways to trigger them and a way to register additional Triggers that fire Functions
+three ways to trigger them and a way to register additional Triggers that fire Functions
 according to internal and external events.
 
 | Method | Returns | Use when |
 |--------|---------|----------|
 | `trigger({ function_id, payload })` | The function's result | You **need** the result |
 | `trigger({ function_id, payload, action: TriggerAction.Void() })` | Nothing | You **don't need** the result |
-| `registerTrigger(config)` | n/a | You need a function triggered as the result of another event such as: HTTP requests, Cron jobs, Queues, and State changes. |
+| `trigger({ function_id, payload, action: TriggerAction.Enqueue({ queue }) })` | `{ messageReceiptId }` | You want async processing with retries, concurrency control, and optional FIFO ordering |
+| `registerTrigger({ type, function_id, config })` | n/a | You need a function triggered as the result of another event such as: HTTP requests, Cron jobs, Queues, and State changes. |
 
 ### `trigger()` — Await the result
 
@@ -234,8 +237,8 @@ iii.registerFunction({ id: 'math::calculate' }, async (input) => {
 </Tab>
 <Tab value="Python">
 ```python title="trigger.py"
-def calculate(data):
-  result = iii.trigger({'function_id': 'math::add', 'payload': {'a': data['a'], 'b': data['b']}})
+async def calculate(data):
+  result = await iii.trigger({'function_id': 'math::add', 'payload': {'a': data['a'], 'b': data['b']}})
   print(result)  # {'result': 5}
   return result
 
@@ -253,12 +256,12 @@ iii.register_function("math::calculate", |input| async move {
 </Tab>
 </Tabs>
 
-### `trigger()` with `TriggerAction.Void()` — Fire and forget
+### Fire-and-forget — `trigger` with `TriggerAction.Void()`
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="trigger-void.ts"
-import { TriggerAction } from 'iii-sdk';
+import { TriggerAction } from 'iii-sdk'
 
 iii.registerFunction({ id: 'math::calculate-async' }, async (input) => {
   iii.trigger({ function_id: 'math::add', payload: { a: input.a, b: input.b }, action: TriggerAction.Void() })
@@ -269,8 +272,8 @@ iii.registerFunction({ id: 'math::calculate-async' }, async (input) => {
 ```python title="trigger_void.py"
 from iii import TriggerAction
 
-def calculate_async(data):
-  iii.trigger({'function_id': 'math::add', 'payload': {'a': data['a'], 'b': data['b']}, 'action': TriggerAction.Void()})
+async def calculate_async(data):
+  await iii.trigger({'function_id': 'math::add', 'payload': {'a': data['a'], 'b': data['b']}, 'action': TriggerAction.Void()})
 
 iii.register_function('math::calculate-async', calculate_async)
 ```
@@ -281,6 +284,64 @@ use iii_sdk::{TriggerAction, TriggerRequest};
 
 iii.register_function("math::calculate-async", |input| async move {
   iii.trigger(TriggerRequest::new("math::add", json!({"a": input["a"], "b": input["b"]})).action(TriggerAction::void())).await?;
+  Ok(serde_json::Value::Null)
+});
+```
+</Tab>
+</Tabs>
+
+### Enqueue — `trigger` with `TriggerAction.Enqueue({ queue })`
+
+Enqueue work to a named queue for async processing. The engine acknowledges with `{ messageReceiptId }` when the job is accepted. The target function receives the payload when a worker processes it. Requires queues defined in `iii-config.yaml` — see [Use Queues](/docs/how-to/use-queues).
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="trigger-enqueue.ts"
+import { TriggerAction } from 'iii-sdk'
+
+iii.registerFunction({ id: 'orders::create' }, async (input) => {
+  const order = { id: crypto.randomUUID(), ...input }
+  const result = await iii.trigger({
+    function_id: 'orders::process-order',
+    payload: order,
+    action: TriggerAction.Enqueue({ queue: 'payment' }),
+  })
+  return { orderId: order.id, messageReceiptId: result.messageReceiptId }
+})
+```
+</Tab>
+<Tab value="Python">
+```python title="trigger_enqueue.py"
+import uuid
+from iii import TriggerAction
+
+async def create_order(input):
+  order = {"id": str(uuid.uuid4()), **input}
+  result = await iii.trigger({
+    'function_id': 'orders::process-order',
+    'payload': order,
+    'action': TriggerAction.Enqueue(queue='payment'),
+  })
+  return {'orderId': order['id'], 'messageReceiptId': result['messageReceiptId']}
+
+iii.register_function('orders::create', create_order)
+```
+</Tab>
+<Tab value="Rust">
+```rust title="trigger_enqueue.rs"
+use iii_sdk::{TriggerAction, TriggerRequest};
+
+let iii_clone = iii.clone();
+iii.register_function("orders::create", move |input| {
+  let iii = iii_clone.clone();
+  async move {
+    let order_id = uuid::Uuid::new_v4().to_string();
+    let order = json!({ "id": order_id, "items": input["items"], "total": input["total"] });
+    let result = iii.trigger(
+      TriggerRequest::new("orders::process-order", order).action(TriggerAction::enqueue("payment")),
+    ).await?;
+    Ok(json!({ "orderId": order_id, "messageReceiptId": result["messageReceiptId"] }))
+  }
 });
 ```
 </Tab>
@@ -323,7 +384,7 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="http_trigger.py"
-def multiply(req):
+async def multiply(req):
   logger = Logger()
   a, b = req['body']['a'], req['body']['b']
   result = a * b
@@ -336,11 +397,11 @@ def multiply(req):
 
 iii.register_function('math::multiply', multiply)
 
-iii.register_trigger({
-  "type": "http",
-  "function_id": "math::multiply",
-  "config": {"api_path": "/math/multiply", "http_method": "POST"},
-})
+iii.register_trigger(
+  type="http",
+  function_id="math::multiply",
+  config={"api_path": "/math/multiply", "http_method": "POST"},
+)
 ```
 </Tab>
 <Tab value="Rust">
@@ -393,9 +454,9 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="cron_trigger.py"
-def aggregation(_):
+async def aggregation(_):
   logger = Logger()
-  results = iii.trigger({'function_id': 'state::list', 'payload': {'scope': 'math'}})
+  results = await iii.trigger({'function_id': 'state::list', 'payload': {'scope': 'math'}})
   values = [r for r in results if isinstance(r, (int, float))]
   total = sum(values)
   agg = {'count': len(values), 'sum': total, 'average': total / len(values) if values else 0}
@@ -404,11 +465,11 @@ def aggregation(_):
 
 iii.register_function('math::aggregation', aggregation)
 
-iii.register_trigger({
-  "type": "cron",
-  "function_id": "math::aggregation",
-  "config": {"expression": "0 */30 * * * *"},  # every 30 minutes
-})
+iii.register_trigger(
+  type="cron",
+  function_id="math::aggregation",
+  config={"expression": "0 */30 * * * *"},  # every 30 minutes
+)
 ```
 </Tab>
 <Tab value="Rust">
@@ -473,11 +534,11 @@ iii.register_function(
     HttpInvocationConfig(url=os.environ['WEBHOOK_URL'], method='POST', timeout_ms=5000),
 )
 
-iii.register_trigger({
-    "type": "state",
-    "function_id": "orders::webhook",
-    "config": {"scope": "orders", "key": "status"},
-})
+iii.register_trigger(
+    type="state",
+    function_id="orders::webhook",
+    config={"scope": "orders", "key": "status"},
+)
 ```
 </Tab>
 <Tab value="Rust">
@@ -550,9 +611,9 @@ iii.registerFunction({ id: 'math::double' }, async (input) => {
 </Tab>
 <Tab value="Python">
 ```python title="cross_language.py"
-def double(data):
+async def double(data):
   # Trigger a function that might be implemented in Node, Rust, or any other language
-  result = iii.trigger({'function_id': 'math::add', 'payload': {'a': data['value'], 'b': data['value']}})
+  result = await iii.trigger({'function_id': 'math::add', 'payload': {'a': data['value'], 'b': data['value']}})
   print(result)  # {'result': 10} if value was 5
   return result
 
@@ -584,71 +645,65 @@ Calling it removes the registration from the engine so the function or trigger s
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="unregister.ts"
-const fn = iii.registerFunction({ id: 'orders.create' }, async (input) => {
+const fn = iii.registerFunction({ id: 'orders::create' }, async (input) => {
   return { status_code: 201, body: { id: '123', item: input.body.item } }
 })
 
-const trigger = iii.registerTrigger('orders.create', 'http', {
-  method: 'POST',
-  path: '/orders',
+const trigger = iii.registerTrigger({
+  type: 'http',
+  function_id: 'orders::create',
+  config: { api_path: '/orders', http_method: 'POST' },
 })
 
-// Later, when no longer needed:
 fn.unregister()
 trigger.unregister()
 ```
 </Tab>
 <Tab value="Python">
 ```python title="unregister.py"
-def create_order(data):
+async def create_order(data):
     return {"status_code": 201, "body": {"id": "123", "item": data["body"]["item"]}}
 
-fn_ref = iii.register_function("orders.create", create_order)
+fn_ref = iii.register_function("orders::create", create_order)
 
-trigger = iii.register_trigger({
-    "type": "http",
-    "function_id": "orders.create",
-    "config": {
-        "method": "POST",
-        "path": "/orders",
-    },
+trigger = iii.register_trigger("http", "orders::create", {
+    "api_path": "/orders",
+    "http_method": "POST",
 })
 
-# Later, when no longer needed:
 fn_ref.unregister()
 trigger.unregister()
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="unregister.rs"
-let fn_ref = iii.register_function("orders.create", |input| async move {
+let fn_ref = iii.register_function("orders::create", |input| async move {
     let item = input["body"]["item"].as_str().unwrap_or("");
     Ok(json!({ "status_code": 201, "body": { "id": "123", "item": item } }))
 });
 
 let trigger = iii.register_trigger(
-    "orders.create",
     "http",
-    json!({ "method": "POST", "path": "/orders" }),
+    "orders::create",
+    json!({ "api_path": "/orders", "http_method": "POST" }),
 )?;
 
-// Later, when no longer needed:
 fn_ref.unregister();
 trigger.unregister();
 ```
 </Tab>
 </Tabs>
 
-## registerWorker, Function, and Trigger Registration is Synchronous
+## SDK Initialization and Registration is Synchronous
 
-The `registerWorker()` call returns immediately rather than returning a Promise. This is intentional.
+The `registerWorker()` (Node) or `III()` / `register_worker()` (Python/Rust) call returns immediately.
 Connection establishment happens asynchronously in the background.
 
 This design avoids requiring developers to wrap initialization in an async function or await the SDK before
 registering functions and triggers. Without this, every function and trigger definition would need to
 wait on initialization, adding boilerplate to every file.
 
-The trade-off: if code calls `shutdown()` immediately after `registerWorker()`, the connection may not yet
+The trade-off: if code calls `shutdown()` immediately after initialization, the connection may not yet
 be established, resulting in an error like `WebSocket was closed before the connection was established`.
 In practice this rarely matters — most applications register functions, respond to triggers, and run indefinitely.
 

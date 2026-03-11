@@ -223,10 +223,6 @@ A factory object that constructs routing actions for `trigger()`. Import from `i
   Fire-and-forget routing. The engine forwards the invocation without waiting for a response or queuing the job. No acknowledgement is returned.
 </ResponseField>
 
-<Callout type="warn" title="Removed methods">
-  `call`, `callVoid`, and `triggerVoid` have been removed. Use `trigger` for all invocations. For fire-and-forget, use `trigger({ function_id, payload, action: TriggerAction.Void() })`.
-</Callout>
-
 ### createStream
 
 <ResponseField name="createStream" type="&lt;TData&gt;(streamName: string, stream: IStream&lt;TData&gt;) => void" required>
