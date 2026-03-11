@@ -14,7 +14,7 @@ fn startup_benchmark(c: &mut Criterion) {
                 let path = config.path().to_string_lossy().to_string();
 
                 let builder = EngineBuilder::new()
-                    .config_file_or_default(&path)
+                    .config_file(&path)
                     .expect("load benchmark config")
                     .build()
                     .await

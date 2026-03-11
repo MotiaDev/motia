@@ -46,7 +46,7 @@ impl WsBenchRuntime {
 
         let builder = EngineBuilder::new()
             .address(&ws_addr)
-            .config_file_or_default(config.path().to_str().expect("config path"))?
+            .config_file(config.path().to_str().expect("config path"))?
             .build()
             .await?;
 
