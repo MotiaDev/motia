@@ -564,7 +564,11 @@ impl Engine {
                         // Fire-and-forget: invoke function but never send
                         // InvocationResult back to the caller.
                         self.spawn_invoke_function(
-                            worker, function_id, data, traceparent, baggage,
+                            worker,
+                            function_id,
+                            data,
+                            traceparent,
+                            baggage,
                             None, // force invocation_id to None — no result sent
                         );
                         Ok(())

@@ -7,8 +7,8 @@
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicU64, Ordering},
         Arc,
+        atomic::{AtomicU64, Ordering},
     },
 };
 
@@ -347,15 +347,9 @@ impl QueueAdapter for BuiltinQueueAdapter {
 
                     if tx.send(msg).await.is_err() {
                         // Channel closed — nack the job so it returns to the queue
-                        if let Some(info) =
-                            delivery_map.write().await.remove(&delivery_id)
-                        {
+                        if let Some(info) = delivery_map.write().await.remove(&delivery_id) {
                             if let Err(e) = queue
-                                .nack(
-                                    &info.queue_name,
-                                    &info.job_id,
-                                    "consumer channel closed",
-                                )
+                                .nack(&info.queue_name, &info.job_id, "consumer channel closed")
                                 .await
                             {
                                 tracing::error!(error = %e, "Failed to nack stranded job");
@@ -372,11 +366,7 @@ impl QueueAdapter for BuiltinQueueAdapter {
         Ok(rx)
     }
 
-    async fn ack_function_queue(
-        &self,
-        _queue_name: &str,
-        delivery_id: u64,
-    ) -> anyhow::Result<()> {
+    async fn ack_function_queue(&self, _queue_name: &str, delivery_id: u64) -> anyhow::Result<()> {
         let info = self.delivery_map.write().await.remove(&delivery_id);
         if let Some(info) = info {
             self.queue.ack(&info.queue_name, &info.job_id).await?;
@@ -751,9 +741,7 @@ mod tests {
             .expect("should receive within timeout")
             .expect("channel should not be closed");
 
-        let result = adapter
-            .ack_function_queue("test-q", msg.delivery_id)
-            .await;
+        let result = adapter.ack_function_queue("test-q", msg.delivery_id).await;
         assert!(result.is_ok(), "ack should succeed");
 
         assert!(

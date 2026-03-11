@@ -8,7 +8,11 @@
 
 use std::sync::Arc;
 
-use lapin::{Channel, options::*, types::{AMQPValue, FieldTable}};
+use lapin::{
+    Channel,
+    options::*,
+    types::{AMQPValue, FieldTable},
+};
 
 use super::naming::{FnQueueNames, RabbitNames};
 
@@ -106,11 +110,7 @@ impl TopologyManager {
         Ok(())
     }
 
-    pub async fn setup_function_queue(
-        &self,
-        queue_name: &str,
-        backoff_ms: u64,
-    ) -> Result<()> {
+    pub async fn setup_function_queue(&self, queue_name: &str, backoff_ms: u64) -> Result<()> {
         let names = FnQueueNames::new(queue_name);
 
         // Main exchange + queue with DLX to retry

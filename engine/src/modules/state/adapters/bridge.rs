@@ -64,7 +64,10 @@ impl StateAdapter for BridgeAdapter {
 
         let update_result = self
             .bridge
-            .trigger(iii_sdk::TriggerRequest::new("kv_server::update", update_data))
+            .trigger(iii_sdk::TriggerRequest::new(
+                "kv_server::update",
+                update_data,
+            ))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to update value in kv_server: {}", e))?;
 
@@ -114,7 +117,10 @@ impl StateAdapter for BridgeAdapter {
             key: key.to_string(),
         };
         self.bridge
-            .trigger(iii_sdk::TriggerRequest::new("kv_server::delete", delete_data))
+            .trigger(iii_sdk::TriggerRequest::new(
+                "kv_server::delete",
+                delete_data,
+            ))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to delete value from kv_server: {}", e))?;
         Ok(())
@@ -138,7 +144,10 @@ impl StateAdapter for BridgeAdapter {
     async fn list_groups(&self) -> anyhow::Result<Vec<String>> {
         let value = self
             .bridge
-            .trigger(iii_sdk::TriggerRequest::new("kv_server::list_groups", serde_json::json!({})))
+            .trigger(iii_sdk::TriggerRequest::new(
+                "kv_server::list_groups",
+                serde_json::json!({}),
+            ))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to list groups from kv_server: {}", e))?;
 

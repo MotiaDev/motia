@@ -26,7 +26,7 @@ describe('Queue Integration', () => {
       })
 
       expect(result).toHaveProperty('messageReceiptId')
-      expect(typeof result.messageReceiptId).toBe('string')
+      expect(typeof (result as Record<string, unknown>).messageReceiptId).toBe('string')
 
       await execute(async () => {
         if (received.length === 0) {
@@ -114,6 +114,94 @@ describe('Queue Integration', () => {
       for (let i = 0; i < messageCount; i++) {
         expect(received).toContainEqual(expect.objectContaining({ index: i, value: `msg-${i}` }))
       }
+    } finally {
+      consumer.unregister()
+    }
+  })
+
+  it('standard queue with concurrency 1 preserves message order', async () => {
+    const received: number[] = []
+    const messageCount = 5
+
+    const consumer = iii.registerFunction(
+      { id: 'test.queue.sequential-consumer' },
+      // biome-ignore lint/suspicious/noExplicitAny: test code
+      async (input: any) => {
+        received.push(input.index)
+        return { ok: true }
+      },
+    )
+
+    await sleep(300)
+
+    try {
+      for (let i = 0; i < messageCount; i++) {
+        await iii.trigger({
+          function_id: 'test.queue.sequential-consumer',
+          payload: { index: i },
+          action: TriggerAction.Enqueue({ queue: 'test-sequential' }),
+        })
+      }
+
+      await execute(async () => {
+        if (received.length < messageCount) {
+          throw new Error(`Only ${received.length}/${messageCount} messages received`)
+        }
+      })
+
+      expect(received).toEqual([0, 1, 2, 3, 4])
+    } finally {
+      consumer.unregister()
+    }
+  })
+
+  it('fifo queue with 2 message groups preserves per-group ordering', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: test code
+    const received: any[] = []
+    const messagesPerGroup = 5
+
+    const consumer = iii.registerFunction(
+      { id: 'test.queue.fifo-groups-consumer' },
+      // biome-ignore lint/suspicious/noExplicitAny: test code
+      async (input: any) => {
+        received.push({ group_id: input.group_id, index: input.index })
+        return { ok: true }
+      },
+    )
+
+    await sleep(300)
+
+    try {
+      // Interleave messages from two groups: A0, B0, A1, B1, ...
+      for (let i = 0; i < messagesPerGroup; i++) {
+        await iii.trigger({
+          function_id: 'test.queue.fifo-groups-consumer',
+          payload: { group_id: 'group-a', index: i },
+          action: TriggerAction.Enqueue({ queue: 'test-fifo-groups' }),
+        })
+        await iii.trigger({
+          function_id: 'test.queue.fifo-groups-consumer',
+          payload: { group_id: 'group-b', index: i },
+          action: TriggerAction.Enqueue({ queue: 'test-fifo-groups' }),
+        })
+      }
+
+      const totalMessages = messagesPerGroup * 2
+
+      await execute(async () => {
+        if (received.length < totalMessages) {
+          throw new Error(`Only ${received.length}/${totalMessages} messages received`)
+        }
+      })
+
+      expect(received).toHaveLength(totalMessages)
+
+      // Extract per-group ordering and verify each group's messages arrived in order
+      const groupA = received.filter(m => m.group_id === 'group-a').map(m => m.index)
+      const groupB = received.filter(m => m.group_id === 'group-b').map(m => m.index)
+
+      expect(groupA).toEqual([0, 1, 2, 3, 4])
+      expect(groupB).toEqual([0, 1, 2, 3, 4])
     } finally {
       consumer.unregister()
     }

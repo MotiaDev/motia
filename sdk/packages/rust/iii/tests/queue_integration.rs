@@ -61,7 +61,10 @@ async fn enqueue_returns_acknowledgement() {
         .await
         .expect("enqueue should succeed");
 
-    assert!(result["messageReceiptId"].is_string(), "enqueue should return a messageReceiptId");
+    assert!(
+        result["messageReceiptId"].is_string(),
+        "enqueue should return a messageReceiptId"
+    );
 
     // Wait for consumer to process
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -88,11 +91,11 @@ async fn enqueue_to_unknown_queue_returns_error() {
 
     match result {
         Err(IIIError::Remote { code, message, .. }) => {
-            assert_eq!(code, "enqueue_error", "expected enqueue_error code, got: {code}");
-            assert!(
-                !message.is_empty(),
-                "error message should not be empty"
+            assert_eq!(
+                code, "enqueue_error",
+                "expected enqueue_error code, got: {code}"
             );
+            assert!(!message.is_empty(), "error message should not be empty");
         }
         Err(other) => panic!("expected IIIError::Remote with enqueue_error code, got: {other:?}"),
         Ok(val) => panic!("expected error, got success: {val}"),
@@ -132,7 +135,10 @@ async fn enqueue_fifo_with_valid_group_field() {
         .await
         .expect("enqueue to fifo should succeed");
 
-    assert!(result["messageReceiptId"].is_string(), "enqueue should return a messageReceiptId");
+    assert!(
+        result["messageReceiptId"].is_string(),
+        "enqueue should return a messageReceiptId"
+    );
 
     // Wait for consumer to process
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -165,7 +171,10 @@ async fn enqueue_fifo_missing_group_field_returns_error() {
 
     match result {
         Err(IIIError::Remote { code, message, .. }) => {
-            assert_eq!(code, "enqueue_error", "expected enqueue_error code, got: {code}");
+            assert_eq!(
+                code, "enqueue_error",
+                "expected enqueue_error code, got: {code}"
+            );
             assert!(
                 message.contains("transaction_id"),
                 "error message should mention the missing field 'transaction_id', got: {message}"
@@ -235,16 +244,16 @@ async fn enqueue_multiple_messages_all_processed() {
     for i in 0..message_count {
         let result = iii
             .trigger(
-                TriggerRequest::new(
-                    "test.queue.multi.rs",
-                    json!({ "index": i }),
-                )
-                .action(TriggerAction::enqueue("default")),
+                TriggerRequest::new("test.queue.multi.rs", json!({ "index": i }))
+                    .action(TriggerAction::enqueue("default")),
             )
             .await
-            .expect(&format!("enqueue message {i} should succeed"));
+            .unwrap_or_else(|_| panic!("enqueue message {i} should succeed"));
 
-        assert!(result["messageReceiptId"].is_string(), "enqueue should return a messageReceiptId");
+        assert!(
+            result["messageReceiptId"].is_string(),
+            "enqueue should return a messageReceiptId"
+        );
     }
 
     // Wait for consumer to process all messages
@@ -259,10 +268,7 @@ async fn enqueue_multiple_messages_all_processed() {
     );
 
     // Verify all indices were received (order may vary for standard queue)
-    let mut indices: Vec<i64> = msgs
-        .iter()
-        .filter_map(|m| m["index"].as_i64())
-        .collect();
+    let mut indices: Vec<i64> = msgs.iter().filter_map(|m| m["index"].as_i64()).collect();
     indices.sort();
     let expected: Vec<i64> = (0..message_count as i64).collect();
     assert_eq!(indices, expected, "all message indices should be present");
@@ -317,16 +323,16 @@ async fn chained_enqueue() {
     // Enqueue to function A
     let result = iii
         .trigger(
-            TriggerRequest::new(
-                "test.queue.chain.a.rs",
-                json!({ "label": "chained-work" }),
-            )
-            .action(TriggerAction::enqueue("default")),
+            TriggerRequest::new("test.queue.chain.a.rs", json!({ "label": "chained-work" }))
+                .action(TriggerAction::enqueue("default")),
         )
         .await
         .expect("enqueue to chain A should succeed");
 
-    assert!(result["messageReceiptId"].is_string(), "enqueue should return a messageReceiptId");
+    assert!(
+        result["messageReceiptId"].is_string(),
+        "enqueue should return a messageReceiptId"
+    );
 
     // Wait for both A and B to process (A processes, then enqueues to B, then B processes)
     tokio::time::sleep(Duration::from_secs(4)).await;

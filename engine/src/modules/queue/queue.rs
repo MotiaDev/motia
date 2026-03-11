@@ -55,23 +55,23 @@ impl QueueCoreModule {
         traceparent: Option<String>,
         baggage: Option<String>,
     ) -> anyhow::Result<()> {
-        let queue_config = self
-            ._config
-            .queue_configs
-            .get(queue_name)
-            .ok_or_else(|| {
-                tracing::warn!(
-                    queue_name = %queue_name,
-                    available = ?self._config.queue_configs.keys().collect::<Vec<_>>(),
-                    "Enqueue attempted for unknown queue"
-                );
-                anyhow::anyhow!("Queue '{}' not found", queue_name)
-            })?;
+        let queue_config = self._config.queue_configs.get(queue_name).ok_or_else(|| {
+            tracing::warn!(
+                queue_name = %queue_name,
+                available = ?self._config.queue_configs.keys().collect::<Vec<_>>(),
+                "Enqueue attempted for unknown queue"
+            );
+            anyhow::anyhow!("Queue '{}' not found", queue_name)
+        })?;
 
-        // FIFO validation: check that the message_group_field is present in data
-        if queue_config.r#type == "fifo"
-            && let Some(ref group_field) = queue_config.message_group_field
-        {
+        // FIFO validation: ensure message_group_field is configured and present in data
+        if queue_config.r#type == "fifo" {
+            let group_field = queue_config.message_group_field.as_ref().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "FIFO queue '{}' requires 'message_group_field' to be configured",
+                    queue_name
+                )
+            })?;
             let group_value = data.get(group_field).ok_or_else(|| {
                 anyhow::anyhow!(
                     "FIFO queue '{}' requires field '{}' in data, but it was not found",
@@ -155,8 +155,15 @@ impl QueueEnqueuer for QueueCoreModule {
         traceparent: Option<String>,
         baggage: Option<String>,
     ) -> anyhow::Result<()> {
-        self.enqueue_to_function_queue(queue_name, function_id, data, &message_id, traceparent, baggage)
-            .await
+        self.enqueue_to_function_queue(
+            queue_name,
+            function_id,
+            data,
+            &message_id,
+            traceparent,
+            baggage,
+        )
+        .await
     }
 
     async fn function_queue_dlq_count(&self, queue_name: &str) -> anyhow::Result<u64> {
@@ -267,7 +274,11 @@ impl Module for QueueCoreModule {
         for (name, config) in &self._config.queue_configs {
             self.adapter.setup_function_queue(name, config).await?;
 
-            let prefetch = if config.r#type == "fifo" { 1 } else { config.concurrency };
+            let prefetch = if config.r#type == "fifo" {
+                1
+            } else {
+                config.concurrency
+            };
             let max_retries = config.max_retries;
             let mut receiver = self.adapter.consume_function_queue(name, prefetch).await?;
 
@@ -312,16 +323,16 @@ impl Module for QueueCoreModule {
                         )
                         .with_parent_headers(traceparent.as_deref(), baggage.as_deref());
 
-                        let result = async {
-                            engine.call(&function_id, msg.data).await
-                        }
-                        .instrument(span)
-                        .await;
+                        let result = async { engine.call(&function_id, msg.data).await }
+                            .instrument(span)
+                            .await;
 
                         match result {
                             Ok(_) => {
                                 tracing::Span::current().record("otel.status_code", "OK");
-                                if let Err(e) = adapter.ack_function_queue(&queue_name, delivery_id).await {
+                                if let Err(e) =
+                                    adapter.ack_function_queue(&queue_name, delivery_id).await
+                                {
                                     tracing::error!(error = %e, "Failed to ack message");
                                 }
                             }
@@ -335,7 +346,15 @@ impl Module for QueueCoreModule {
                                     error = ?err,
                                     "Function queue job failed"
                                 );
-                                if let Err(e) = adapter.nack_function_queue(&queue_name, delivery_id, attempt, max_retries).await {
+                                if let Err(e) = adapter
+                                    .nack_function_queue(
+                                        &queue_name,
+                                        delivery_id,
+                                        attempt,
+                                        max_retries,
+                                    )
+                                    .await
+                                {
                                     tracing::error!(error = %e, "Failed to nack message");
                                 }
                             }
@@ -1091,7 +1110,11 @@ mod tests {
 
     use crate::modules::module::ConfigurableModule;
 
-    async fn setup_integration_module() -> (Arc<Engine>, QueueCoreModule, Arc<dyn super::super::QueueAdapter>) {
+    async fn setup_integration_module() -> (
+        Arc<Engine>,
+        QueueCoreModule,
+        Arc<dyn super::super::QueueAdapter>,
+    ) {
         use super::super::config::{FunctionQueueConfig, QueueModuleConfig};
 
         crate::modules::observability::metrics::ensure_default_meter();
@@ -1178,7 +1201,10 @@ mod tests {
             .await;
 
         // Initialize starts the consumer loop
-        module.initialize().await.expect("initialize should succeed");
+        module
+            .initialize()
+            .await
+            .expect("initialize should succeed");
 
         // Wait for the consumer loop to pick up and process the message
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -1232,7 +1258,10 @@ mod tests {
             )
             .await;
 
-        module.initialize().await.expect("initialize should succeed");
+        module
+            .initialize()
+            .await
+            .expect("initialize should succeed");
 
         // Wait for the consumer to process the message (and potentially retries)
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -1291,7 +1320,10 @@ mod tests {
                 .await;
         }
 
-        module.initialize().await.expect("initialize should succeed");
+        module
+            .initialize()
+            .await
+            .expect("initialize should succeed");
 
         // Wait for consumer to process all 3 messages
         tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
@@ -1359,7 +1391,10 @@ mod tests {
                 .await;
         }
 
-        module.initialize().await.expect("initialize should succeed");
+        module
+            .initialize()
+            .await
+            .expect("initialize should succeed");
 
         // Wait enough for all tasks to be picked up and processed concurrently
         // With concurrency=3 and 200ms sleep each, concurrent execution should

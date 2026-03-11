@@ -160,9 +160,12 @@ async fn delivers_queue_events_to_external_http_function() {
         .expect("register trigger");
     settle().await;
 
-    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic, "data": payload})))
-        .await
-        .expect("enqueue failed");
+    iii.trigger(iii_sdk::TriggerRequest::new(
+        "enqueue",
+        json!({"topic": topic, "data": payload}),
+    ))
+    .await
+    .expect("enqueue failed");
 
     let webhook = probe
         .wait_for_webhook(Duration::from_secs(7))
@@ -250,9 +253,12 @@ async fn delivers_events_with_custom_headers() {
         .expect("register trigger");
     settle().await;
 
-    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic, "data": payload})))
-        .await
-        .expect("enqueue failed");
+    iii.trigger(iii_sdk::TriggerRequest::new(
+        "enqueue",
+        json!({"topic": topic, "data": payload}),
+    ))
+    .await
+    .expect("enqueue failed");
 
     let webhook = probe
         .wait_for_webhook(Duration::from_secs(7))
@@ -319,12 +325,18 @@ async fn delivers_events_to_multiple_external_functions() {
         .expect("register trigger b");
     settle().await;
 
-    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic_a, "data": payload_a})))
-        .await
-        .expect("enqueue a failed");
-    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic_b, "data": payload_b})))
-        .await
-        .expect("enqueue b failed");
+    iii.trigger(iii_sdk::TriggerRequest::new(
+        "enqueue",
+        json!({"topic": topic_a, "data": payload_a}),
+    ))
+    .await
+    .expect("enqueue a failed");
+    iii.trigger(iii_sdk::TriggerRequest::new(
+        "enqueue",
+        json!({"topic": topic_b, "data": payload_b}),
+    ))
+    .await
+    .expect("enqueue b failed");
 
     let webhook_a = probe_a
         .wait_for_webhook(Duration::from_secs(7))
@@ -374,9 +386,12 @@ async fn stops_delivering_events_after_unregister() {
         .expect("register trigger");
     settle().await;
 
-    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic, "data": payload_before})))
-        .await
-        .expect("enqueue before failed");
+    iii.trigger(iii_sdk::TriggerRequest::new(
+        "enqueue",
+        json!({"topic": topic, "data": payload_before}),
+    ))
+    .await
+    .expect("enqueue before failed");
 
     let webhook_before = probe
         .wait_for_webhook(Duration::from_secs(7))
@@ -391,9 +406,12 @@ async fn stops_delivering_events_after_unregister() {
     http_fn.unregister();
     tokio::time::sleep(Duration::from_millis(500)).await;
 
-    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic, "data": payload_after})))
-        .await
-        .expect("enqueue after failed");
+    iii.trigger(iii_sdk::TriggerRequest::new(
+        "enqueue",
+        json!({"topic": topic, "data": payload_after}),
+    ))
+    .await
+    .expect("enqueue after failed");
 
     let received_after = probe
         .wait_for_webhook(Duration::from_secs(2))
@@ -435,9 +453,12 @@ async fn delivers_events_using_put_method() {
         .expect("register trigger");
     settle().await;
 
-    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic, "data": payload})))
-        .await
-        .expect("enqueue failed");
+    iii.trigger(iii_sdk::TriggerRequest::new(
+        "enqueue",
+        json!({"topic": topic, "data": payload}),
+    ))
+    .await
+    .expect("enqueue failed");
 
     let webhook = probe
         .wait_for_webhook(Duration::from_secs(7))

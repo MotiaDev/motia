@@ -501,20 +501,19 @@ impl QueueAdapter for RabbitMQAdapter {
                     Ok(delivery) => {
                         let delivery_id = delivery_counter.fetch_add(1, Ordering::SeqCst);
 
-                        let data: serde_json::Value =
-                            match serde_json::from_slice(&delivery.data) {
-                                Ok(v) => v,
-                                Err(e) => {
-                                    tracing::error!(error = %e, "Failed to parse function queue message");
-                                    let _ = delivery
-                                        .nack(BasicNackOptions {
-                                            requeue: false,
-                                            ..Default::default()
-                                        })
-                                        .await;
-                                    continue;
-                                }
-                            };
+                        let data: serde_json::Value = match serde_json::from_slice(&delivery.data) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                tracing::error!(error = %e, "Failed to parse function queue message");
+                                let _ = delivery
+                                    .nack(BasicNackOptions {
+                                        requeue: false,
+                                        ..Default::default()
+                                    })
+                                    .await;
+                                continue;
+                            }
+                        };
 
                         let headers = delivery.properties.headers().as_ref();
 
@@ -533,12 +532,13 @@ impl QueueAdapter for RabbitMQAdapter {
                                 _ => None,
                             });
 
-                        let baggage = headers
-                            .and_then(|h| h.inner().get("baggage"))
-                            .and_then(|v| match v {
-                                lapin::types::AMQPValue::LongString(s) => Some(s.to_string()),
-                                _ => None,
-                            });
+                        let baggage =
+                            headers
+                                .and_then(|h| h.inner().get("baggage"))
+                                .and_then(|v| match v {
+                                    lapin::types::AMQPValue::LongString(s) => Some(s.to_string()),
+                                    _ => None,
+                                });
 
                         let attempt = headers
                             .and_then(|h| h.inner().get("x-attempt"))
@@ -548,7 +548,9 @@ impl QueueAdapter for RabbitMQAdapter {
                             })
                             .unwrap_or(0);
 
-                        let message_id = delivery.properties.message_id()
+                        let message_id = delivery
+                            .properties
+                            .message_id()
                             .as_ref()
                             .map(|s| s.to_string());
 
@@ -588,11 +590,7 @@ impl QueueAdapter for RabbitMQAdapter {
         Ok(rx)
     }
 
-    async fn ack_function_queue(
-        &self,
-        _queue_name: &str,
-        delivery_id: u64,
-    ) -> anyhow::Result<()> {
+    async fn ack_function_queue(&self, _queue_name: &str, delivery_id: u64) -> anyhow::Result<()> {
         let delivery = self.delivery_map.write().await.remove(&delivery_id);
         if let Some(delivery) = delivery {
             delivery
@@ -630,11 +628,7 @@ impl QueueAdapter for RabbitMQAdapter {
 
             let names = FnQueueNames::new(queue_name);
 
-            let mut headers = delivery
-                .properties
-                .headers()
-                .clone()
-                .unwrap_or_default();
+            let mut headers = delivery.properties.headers().clone().unwrap_or_default();
 
             // Increment our own attempt counter so classic queues (which do not
             // populate x-delivery-count) can still track retry depth.

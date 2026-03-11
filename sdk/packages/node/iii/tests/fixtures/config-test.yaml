@@ -83,6 +83,15 @@ modules:
           max_retries: 3
           concurrency: 5
           type: standard
+        test-sequential:
+          max_retries: 3
+          concurrency: 1
+          type: standard
+        test-fifo-groups:
+          max_retries: 3
+          concurrency: 2
+          type: fifo
+          message_group_field: group_id
       adapter:
         class: modules::queue::BuiltinQueueAdapter
 

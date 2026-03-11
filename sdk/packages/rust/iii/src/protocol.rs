@@ -76,17 +76,20 @@ pub struct EnqueueResult {
 /// `trigger({ function_id, payload, action?, timeout? })`
 ///
 /// Build with the constructor or the builder-style methods:
-/// ```rust
+/// ```rust,no_run
+/// # use iii_sdk::protocol::{TriggerRequest, TriggerAction};
+/// # use serde_json::json;
+/// # use std::time::Duration;
 /// // Simple call
-/// TriggerRequest::new("my::function", json!({ "key": "value" }))
+/// TriggerRequest::new("my::function", json!({ "key": "value" }));
 ///
 /// // With action
 /// TriggerRequest::new("my::function", json!({}))
-///     .action(TriggerAction::enqueue("payments"))
+///     .action(TriggerAction::enqueue("payments"));
 ///
 /// // With timeout
 /// TriggerRequest::new("my::function", json!({}))
-///     .timeout(Duration::from_secs(10))
+///     .timeout(Duration::from_secs(10));
 /// ```
 #[derive(Debug, Clone)]
 pub struct TriggerRequest {

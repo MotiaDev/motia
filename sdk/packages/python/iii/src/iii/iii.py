@@ -690,6 +690,10 @@ class III:
 
         self._pending[invocation_id] = future
 
+        enqueue_action: TriggerActionEnqueue | TriggerActionVoid | None = (
+            action if isinstance(action, (TriggerActionEnqueue, TriggerActionVoid)) else None
+        )
+
         await self._send(
             InvokeFunctionMessage(
                 function_id=function_id,
@@ -697,7 +701,7 @@ class III:
                 invocation_id=invocation_id,
                 traceparent=self._inject_traceparent(),
                 baggage=self._inject_baggage(),
-                action=action,
+                action=enqueue_action,
             )
         )
 
@@ -728,7 +732,10 @@ class III:
         Args:
             buffer_size: Optional buffer size for the channel (default: 64).
         """
-        result = await self.trigger({"function_id": "engine::channels::create", "payload": {"buffer_size": buffer_size}})
+        result = await self.trigger({
+            "function_id": "engine::channels::create",
+            "payload": {"buffer_size": buffer_size},
+        })
         writer_ref = StreamChannelRef(**result["writer"])
         reader_ref = StreamChannelRef(**result["reader"])
         return Channel(

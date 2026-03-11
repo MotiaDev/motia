@@ -122,7 +122,10 @@ impl Module for BridgeClientModule {
                         .unwrap_or_else(|| Duration::from_secs(30));
 
                     match bridge
-                        .trigger(iii_sdk::TriggerRequest::new(&invoke.function_id, invoke.data).timeout(timeout))
+                        .trigger(
+                            iii_sdk::TriggerRequest::new(&invoke.function_id, invoke.data)
+                                .timeout(timeout),
+                        )
                         .await
                     {
                         Ok(result) => FunctionResult::Success(Some(result)),
@@ -163,7 +166,13 @@ impl Module for BridgeClientModule {
                         }
                     };
 
-                    if let Err(err) = bridge.trigger(iii_sdk::TriggerRequest::new(&invoke.function_id, invoke.data).action(iii_sdk::TriggerAction::void())).await {
+                    if let Err(err) = bridge
+                        .trigger(
+                            iii_sdk::TriggerRequest::new(&invoke.function_id, invoke.data)
+                                .action(iii_sdk::TriggerAction::void()),
+                        )
+                        .await
+                    {
                         tracing::error!(error = ?err, "Bridge fire-and-forget failed");
                         return FunctionResult::Failure(ErrorBody {
                             code: "bridge_error".into(),
@@ -200,7 +209,10 @@ impl Module for BridgeClientModule {
                             .unwrap_or_else(|| Duration::from_secs(30));
 
                         match bridge
-                            .trigger(iii_sdk::TriggerRequest::new(&remote_function, input).timeout(timeout))
+                            .trigger(
+                                iii_sdk::TriggerRequest::new(&remote_function, input)
+                                    .timeout(timeout),
+                            )
                             .await
                         {
                             Ok(result) => FunctionResult::Success(Some(result)),

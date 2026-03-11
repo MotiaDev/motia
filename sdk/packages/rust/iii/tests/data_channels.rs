@@ -115,7 +115,10 @@ async fn stream_data_from_sender_to_processor() {
     ]);
 
     let result = iii
-        .trigger(iii_sdk::TriggerRequest::new("test.data.sender.rs", json!({"records": records})))
+        .trigger(iii_sdk::TriggerRequest::new(
+            "test.data.sender.rs",
+            json!({"records": records}),
+        ))
         .await
         .expect("call failed");
 

@@ -7,13 +7,13 @@
 #![cfg(feature = "rabbitmq")]
 
 use std::sync::{
-    atomic::{AtomicU64, Ordering},
     Arc,
+    atomic::{AtomicU64, Ordering},
 };
 use std::time::Duration;
 
-use lapin::{options::*, Connection, ConnectionProperties};
-use serde_json::{json, Value};
+use lapin::{Connection, ConnectionProperties, options::*};
+use serde_json::{Value, json};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -267,10 +267,9 @@ async fn full_roundtrip_enqueue_consume_invoke() {
     let call_count = Arc::new(AtomicU64::new(0));
     register_counting_function(&engine, "test::rmq_handler", call_count.clone());
 
-    let module =
-        QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
-            .await
-            .expect("QueueCoreModule::create should succeed");
+    let module = QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
+        .await
+        .expect("QueueCoreModule::create should succeed");
 
     module
         .initialize()
@@ -309,17 +308,11 @@ async fn full_roundtrip_fifo_preserves_order() {
     };
 
     let invocation_order: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
-    register_order_recording_function(
-        &engine,
-        "test::rmq_fifo",
-        "seq",
-        invocation_order.clone(),
-    );
+    register_order_recording_function(&engine, "test::rmq_fifo", "seq", invocation_order.clone());
 
-    let module =
-        QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
-            .await
-            .expect("QueueCoreModule::create should succeed");
+    let module = QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
+        .await
+        .expect("QueueCoreModule::create should succeed");
 
     module
         .initialize()
@@ -373,10 +366,9 @@ async fn retry_behavior_with_rabbitmq() {
     let call_count = Arc::new(AtomicU64::new(0));
     register_failing_function(&engine, "test::rmq_retry", call_count.clone());
 
-    let module =
-        QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
-            .await
-            .expect("QueueCoreModule::create should succeed");
+    let module = QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
+        .await
+        .expect("QueueCoreModule::create should succeed");
 
     module
         .initialize()
@@ -427,10 +419,9 @@ async fn exhausted_message_lands_in_dlq() {
     let call_count = Arc::new(AtomicU64::new(0));
     register_failing_function(&engine, "test::rmq_dlq", call_count.clone());
 
-    let module =
-        QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
-            .await
-            .expect("QueueCoreModule::create should succeed");
+    let module = QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
+        .await
+        .expect("QueueCoreModule::create should succeed");
 
     module
         .initialize()
@@ -482,10 +473,9 @@ async fn concurrent_processing() {
         timestamps.clone(),
     );
 
-    let module =
-        QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
-            .await
-            .expect("QueueCoreModule::create should succeed");
+    let module = QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
+        .await
+        .expect("QueueCoreModule::create should succeed");
 
     module
         .initialize()
@@ -542,10 +532,9 @@ async fn multiple_queues_operate_independently() {
     register_counting_function(&engine, "test::rmq_default", default_count.clone());
     register_counting_function(&engine, "test::rmq_payment", payment_count.clone());
 
-    let module =
-        QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
-            .await
-            .expect("QueueCoreModule::create should succeed");
+    let module = QueueCoreModule::create(engine.clone(), Some(rabbitmq_queue_config_json(&prefix)))
+        .await
+        .expect("QueueCoreModule::create should succeed");
 
     module
         .initialize()
@@ -599,10 +588,7 @@ async fn message_id_stamped_as_amqp_property() {
     let conn = try_connect_rabbitmq()
         .await
         .expect("Should connect to RabbitMQ");
-    let channel = conn
-        .create_channel()
-        .await
-        .expect("Should create channel");
+    let channel = conn.create_channel().await.expect("Should create channel");
 
     let queue_name = format!("{prefix}-msgid");
     let rmq_queue_name = format!("iii.__fn_queue::{queue_name}.queue");
@@ -677,11 +663,7 @@ async fn message_id_stamped_as_amqp_property() {
         .expect("basic_get should succeed");
 
     if let Some(msg) = delivery {
-        let amqp_message_id = msg
-            .properties
-            .message_id()
-            .as_ref()
-            .map(|s| s.to_string());
+        let amqp_message_id = msg.properties.message_id().as_ref().map(|s| s.to_string());
 
         assert_eq!(
             amqp_message_id,

@@ -1,19 +1,16 @@
 use std::sync::{
-    atomic::{AtomicU64, Ordering},
     Arc,
+    atomic::{AtomicU64, Ordering},
 };
 use std::time::Duration;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
 use iii::{
     engine::Engine,
     function::{Function, FunctionResult},
-    modules::{
-        module::Module,
-        queue::QueueCoreModule,
-    },
+    modules::{module::Module, queue::QueueCoreModule},
 };
 
 /// JSON configuration for the QueueCoreModule that defines two named queues:
@@ -494,14 +491,9 @@ async fn standard_queue_processes_concurrently() {
     let start = std::time::Instant::now();
 
     for i in 0..3 {
-        enqueue(
-            &engine,
-            "default",
-            "test::slow_handler",
-            json!({"idx": i}),
-        )
-        .await
-        .expect("Enqueue should succeed");
+        enqueue(&engine, "default", "test::slow_handler", json!({"idx": i}))
+            .await
+            .expect("Enqueue should succeed");
     }
 
     // Wait for all 3 to complete
@@ -551,14 +543,9 @@ async fn nonexistent_function_nacks_without_blocking_queue() {
         .expect("Module initialization should succeed");
 
     // Enqueue to a nonexistent function first
-    enqueue(
-        &engine,
-        "default",
-        "test::ghost",
-        json!({"should": "fail"}),
-    )
-    .await
-    .expect("Enqueue should succeed (validation is at consume time)");
+    enqueue(&engine, "default", "test::ghost", json!({"should": "fail"}))
+        .await
+        .expect("Enqueue should succeed (validation is at consume time)");
 
     // Then enqueue to a real function
     enqueue(
@@ -630,6 +617,12 @@ async fn multiple_queues_operate_independently() {
     let dc = default_count.load(Ordering::SeqCst);
     let pc = payment_count.load(Ordering::SeqCst);
 
-    assert_eq!(dc, 3, "Default queue should have processed 3 messages, got {dc}");
-    assert_eq!(pc, 3, "Payment queue should have processed 3 messages, got {pc}");
+    assert_eq!(
+        dc, 3,
+        "Default queue should have processed 3 messages, got {dc}"
+    );
+    assert_eq!(
+        pc, 3,
+        "Payment queue should have processed 3 messages, got {pc}"
+    );
 }

@@ -78,11 +78,7 @@ pub trait QueueAdapter: Send + Sync + 'static {
     }
 
     /// Acknowledge successful processing of a message.
-    async fn ack_function_queue(
-        &self,
-        _queue_name: &str,
-        _delivery_id: u64,
-    ) -> anyhow::Result<()> {
+    async fn ack_function_queue(&self, _queue_name: &str, _delivery_id: u64) -> anyhow::Result<()> {
         Ok(()) // no-op by default
     }
 

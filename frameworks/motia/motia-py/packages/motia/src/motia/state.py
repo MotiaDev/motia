@@ -20,7 +20,10 @@ class StateManager:
             **{"motia.state.scope": scope, "motia.state.key": key},
         ) as span:
             try:
-                result = await get_instance().trigger({"function_id": "state::get", "payload": {"scope": scope, "key": key}})
+                result = await get_instance().trigger({
+                    "function_id": "state::get",
+                    "payload": {"scope": scope, "key": key},
+                })
                 set_span_ok(span)
                 return result
             except Exception as exc:
@@ -34,7 +37,10 @@ class StateManager:
             **{"motia.state.scope": scope, "motia.state.key": key},
         ) as span:
             try:
-                result = await get_instance().trigger({"function_id": "state::set", "payload": {"scope": scope, "key": key, "value": value}})
+                result = await get_instance().trigger({
+                    "function_id": "state::set",
+                    "payload": {"scope": scope, "key": key, "value": value},
+                })
                 set_span_ok(span)
                 return result
             except Exception as exc:
@@ -48,7 +54,10 @@ class StateManager:
             **{"motia.state.scope": scope, "motia.state.key": key},
         ) as span:
             try:
-                result = await get_instance().trigger({"function_id": "state::update", "payload": {"scope": scope, "key": key, "ops": ops}})
+                result = await get_instance().trigger({
+                    "function_id": "state::update",
+                    "payload": {"scope": scope, "key": key, "ops": ops},
+                })
                 set_span_ok(span)
                 return result
             except Exception as exc:
@@ -62,7 +71,10 @@ class StateManager:
             **{"motia.state.scope": scope, "motia.state.key": key},
         ) as span:
             try:
-                result = await get_instance().trigger({"function_id": "state::delete", "payload": {"scope": scope, "key": key}})
+                result = await get_instance().trigger({
+                    "function_id": "state::delete",
+                    "payload": {"scope": scope, "key": key},
+                })
                 set_span_ok(span)
                 return result
             except Exception as exc:
@@ -76,7 +88,10 @@ class StateManager:
             **{"motia.state.scope": scope},
         ) as span:
             try:
-                items: list[Any] = await get_instance().trigger({"function_id": "state::list", "payload": {"scope": scope}})
+                items: list[Any] = await get_instance().trigger({
+                    "function_id": "state::list",
+                    "payload": {"scope": scope},
+                })
                 set_span_ok(span)
                 return items
             except Exception as exc:

@@ -91,7 +91,10 @@ impl StreamAdapter for BridgeAdapter {
 
         let update_result = self
             .bridge
-            .trigger(iii_sdk::TriggerRequest::new("kv_server.update", update_data))
+            .trigger(iii_sdk::TriggerRequest::new(
+                "kv_server.update",
+                update_data,
+            ))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to update value in kv_server: {}", e))?;
 
@@ -178,7 +181,10 @@ impl StreamAdapter for BridgeAdapter {
         };
         let delete_result = self
             .bridge
-            .trigger(iii_sdk::TriggerRequest::new("kv_server::delete", delete_data))
+            .trigger(iii_sdk::TriggerRequest::new(
+                "kv_server::delete",
+                delete_data,
+            ))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to delete value from kv_server: {}", e))?;
 
@@ -207,7 +213,10 @@ impl StreamAdapter for BridgeAdapter {
         };
         let value = self
             .bridge
-            .trigger(iii_sdk::TriggerRequest::new("kv_server::list_keys_with_prefix", data))
+            .trigger(iii_sdk::TriggerRequest::new(
+                "kv_server::list_keys_with_prefix",
+                data,
+            ))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to list groups from kv_server: {}", e))?;
 

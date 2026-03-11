@@ -627,7 +627,10 @@ impl III {
     /// List all registered functions from the engine
     pub async fn list_functions(&self) -> Result<Vec<FunctionInfo>, IIIError> {
         let result = self
-            .trigger(TriggerRequest::new("engine::functions::list", serde_json::json!({})))
+            .trigger(TriggerRequest::new(
+                "engine::functions::list",
+                serde_json::json!({}),
+            ))
             .await?;
 
         let functions = result
@@ -722,7 +725,10 @@ impl III {
     /// List all connected workers from the engine
     pub async fn list_workers(&self) -> Result<Vec<WorkerInfo>, IIIError> {
         let result = self
-            .trigger(TriggerRequest::new("engine::workers::list", serde_json::json!({})))
+            .trigger(TriggerRequest::new(
+                "engine::workers::list",
+                serde_json::json!({}),
+            ))
             .await?;
 
         let workers = result
@@ -736,7 +742,10 @@ impl III {
     /// List all registered triggers from the engine
     pub async fn list_triggers(&self) -> Result<Vec<TriggerInfo>, IIIError> {
         let result = self
-            .trigger(TriggerRequest::new("engine::triggers::list", serde_json::json!({})))
+            .trigger(TriggerRequest::new(
+                "engine::triggers::list",
+                serde_json::json!({}),
+            ))
             .await?;
 
         let triggers = result

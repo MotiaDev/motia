@@ -47,7 +47,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let result = iii
-        .trigger(TriggerRequest::new("example.echo", json!({ "message": "hello" })))
+        .trigger(TriggerRequest::new(
+            "example.echo",
+            json!({ "message": "hello" }),
+        ))
         .await?;
     println!("Echo result: {result}");
 

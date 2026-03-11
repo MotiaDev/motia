@@ -132,9 +132,6 @@ mod tests {
             names.dlq_exchange(),
             "iii.__fn_queue::payment.processing::dlq"
         );
-        assert_eq!(
-            names.dlq(),
-            "iii.__fn_queue::payment.processing::dlq.queue"
-        );
+        assert_eq!(names.dlq(), "iii.__fn_queue::payment.processing::dlq.queue");
     }
 }
