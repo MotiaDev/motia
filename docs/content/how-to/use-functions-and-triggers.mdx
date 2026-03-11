@@ -283,10 +283,7 @@ iii.register_function('math::calculate-async', calculate_async)
 use iii_sdk::{TriggerAction, TriggerRequest};
 
 iii.register_function("math::calculate-async", |input| async move {
-  iii.trigger(
-    TriggerRequest::new("math::add", json!({"a": input["a"], "b": input["b"]}))
-      .action(TriggerAction::void()),
-  ).await?;
+  iii.trigger(TriggerRequest::new("math::add", json!({"a": input["a"], "b": input["b"]})).action(TriggerAction::void())).await?;
   Ok(serde_json::Value::Null)
 });
 ```
@@ -579,11 +576,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 {/* TODO: Update this, enqueue is its entirely own thing */}
 
 {/* <Callout type="info" title="Queue uses enqueue">
-  Queue messaging uses `enqueue` — a built-in function, no trigger registration needed:
-  Node `trigger({ function_id: 'enqueue', payload: { topic: 'user.created', data: {...} } })`,
-  Python `trigger({'function_id': 'enqueue', 'payload': {'topic': 'user.created', 'data': {...}}})`,
-  Rust `trigger(TriggerRequest::new("enqueue", json!({"topic": "user.created", "data": {...}})))`.
-  See the [Queue module](/docs/modules/module-queue) for details.
+  Queue messaging uses `enqueue` — a built-in function, no trigger registration needed: `iii.trigger('enqueue', { topic: 'user.created', data: {...} })`. See the [Queue module](/docs/modules/module-queue) for details.
 </Callout> */}
 
 ## Trigger Types
