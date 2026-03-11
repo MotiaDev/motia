@@ -18,7 +18,7 @@ const shifts = [
     problem:
       "Each language needs its own framework. Each deployment location needs its own infrastructure. The mental overhead compounds exponentially.",
     future:
-      "Language agnostic by design, not by accident. Node.js, Python, Rust, Go, browser, edge, embedded — all connect via the same protocol. A basement GPU and a Cloudflare Worker are peers in the same mesh.",
+      "Language agnostic by design, not by accident. Node.js, Python, Rust, Go, browser, edge, embedded — all connect via the same service. A basement GPU and a Cloudflare Worker are peers in the same mesh.",
   },
   {
     icon: CpuIcon,
@@ -42,7 +42,7 @@ const shifts = [
     problem:
       "Services communicate through fragile, one-way channels. Request-response patterns dominate. Real-time sync requires separate infrastructure.",
     future:
-      "Secure bidirectional communication between all services by default. Every service can push and pull. Every connection is encrypted. Trust is built into the protocol.",
+      "Secure bidirectional communication between all services by default. Every service can push and pull. Every connection is encrypted. Trust is built into the service.",
   },
   {
     icon: Zap,
@@ -66,7 +66,7 @@ const shifts = [
     problem:
       "Observability is bolted on. Tracing requires instrumentation. Metrics need exporters. Logs are scattered across systems. Understanding your system requires assembling a dozen tools.",
     future:
-      "Tracing, metrics, and logging built into the protocol. Every invocation is observable. Every transaction is traceable. Understanding the system is the default, not an afterthought.",
+      "Tracing, metrics, and logging built into the service. Every invocation is observable. Every transaction is traceable. Understanding the system is the default, not an afterthought.",
   },
   {
     icon: GitBranch,
@@ -222,7 +222,7 @@ export const ManifestoPage: React.FC = () => {
             className={`text-base md:text-lg leading-relaxed ${textSecondary}`}
           >
             The future of backend engineering demands a new foundation. Not
-            another framework. Not another protocol. A{" "}
+            another framework. Not another service. A{" "}
             <span className={textPrimary}>universal execution kernel</span>{" "}
             built on primitives that compose infinitely.
           </p>

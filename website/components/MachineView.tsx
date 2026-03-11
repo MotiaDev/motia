@@ -49,17 +49,17 @@ curl -fsSL https://install.iii.dev/iii/main/install.sh | sh`}</pre>
 
           <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# What is iii
 
-One Engine. Three primitives: Function, Trigger, Discovery.
+One Engine. Three primitives: Function, Trigger, Worker.
 React simplified frontend with Component and Context. iii does the same for backend.
 
 | Primitive  | Role                                                        |
 |------------|-------------------------------------------------------------|
 | Function   | Anything that does work — receives input, returns output    |
 | Trigger    | What makes a Function run — HTTP, cron, queue, state, stream|
-| Discovery  | The system knows itself — live registry, no config files    |
+| Worker     | Any process that registers functions and triggers            |
 
 Key properties:
-- Polyglot execution — any language participates through one universal protocol
+- Polyglot execution — any language participates through one universal service
 - Complete observability — logs and traces auto-injected into every invocation
 - Self-hosting / BYOC — connect existing domains and services, full portability
 - Shared capabilities — State, Streaming, Observability accessible to every function
@@ -68,17 +68,17 @@ Languages: TypeScript, Python, Rust
 Integrations: PostgreSQL, MongoDB, Redis, Kafka, GraphQL, gRPC
 Platforms: AWS, Google Cloud, Azure, Cloudflare, Vercel, Fly.io, Docker, Kubernetes`}</pre>
 
-          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# SDK — One Protocol, Any Language
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# SDK — One Service, Any Language
 
 ## TypeScript
 \`\`\`typescript
-import { init, Logger } from "iii-sdk"
-const iii = init(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
+import { registerWorker, getContext } from "iii-sdk"
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
 
 iii.registerFunction(
   { id: "users.create" },
   async (input) => {
-    const logger = new Logger()
+    const { logger } = getContext()
     logger.info("Creating user", { email: input.email })
     return { id: "123", email: input.email }
   }
@@ -87,18 +87,18 @@ iii.registerFunction(
 iii.registerTrigger({
   type: "http",
   function_id: "users.create",
-  config: { api_path: "/users", http_method: "POST" }
+  config: { api_path: "users", http_method: "POST" }
 })
 \`\`\`
 
 ## Python
 \`\`\`python
-from iii import init 
+from iii import register_worker, get_context
 
-iii = init(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
+iii = register_worker(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
 
 async def create_user(input):
-    logger = Logger()
+    logger = get_context().logger
     logger.info("Creating user", { "email": input["email"] })
     return { "id": "123", "email": input["email"] }
 
@@ -107,37 +107,39 @@ iii.register_function("users.create", create_user)
 iii.register_trigger(
     "http",
     "users.create",
-    { "api_path": "/users", "http_method": "POST" }
+    { "api_path": "users", "http_method": "POST" }
 )
 \`\`\`
 
 ## Rust
 \`\`\`rust
-use iii_sdk::{III, Logger};
+use iii_sdk::{register_worker, InitOptions, get_context};
 use serde_json::json;
 
-let iii = init("ws://localhost:49134", InitOptions::default())?;
+let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
 
-iii.register_function("users::create", |input| async move {
-    let logger = Logger()();
+iii.register_function("users.create", |input| async move {
+    let logger = get_context().logger();
     let email = input["email"].as_str().unwrap_or("");
     logger.info(&format!("Creating user: {}", email));
     Ok(json!({ "id": "123", "email": email }))
 });
 
-iii.register_trigger("http", "users.create", json!({
-    "api_path": "/users", "http_method": "POST"
-}))?;
+iii.register_trigger(Trigger {
+    trigger_type: "http".into(),
+    function_id: "users.create".into(),
+    config: json!({ "api_path": "users", "http_method": "POST" }),
+});
 \`\`\`
 
 ## Core SDK Methods
 - iii.registerFunction({ id }, handler) — register a function
 - iii.registerTrigger({ type, function_id, config }) — bind a trigger
-- iii.trigger("ns::name", input) — invoke a function (awaitable)
+- iii.trigger("ns.name", input) — invoke a function (awaitable)
 - iii.triggerVoid("publish", { topic, data }) — fire-and-forget
 - iii.listFunctions() — discover all available functions
 - iii.onFunctionsAvailable(callback) — subscribe to topology changes
-- new Logger() — auto-injected logger with traceId correlation
+- getContext().logger — auto-injected logger with traceId correlation
 
 ## Built-in System Functions
 - state::get / state::set — { scope, key, value }
@@ -151,7 +153,7 @@ iii.register_trigger("http", "users.create", json!({
 A Function receives input and optionally returns output.
 It can live anywhere — locally, on cloud, on serverless, or as a third-party HTTP endpoint.
 - Write in TypeScript, Python, or Rust — mix freely
-- Addressable by path (users::create, orders::process)
+- Addressable by path (users.create, orders.process)
 - Hot-swap handlers without restarting consumers
 - Auto-cleanup when workers disconnect
 
@@ -163,12 +165,12 @@ or automatically from an event source like an HTTP request, cron schedule, queue
 - Custom trigger types plug in at runtime
 - Same pattern for every event source
 
-## Discovery — The system knows itself
-When a worker connects, every other worker learns what it can do.
-When it disconnects, its functions vanish. No config files. No service registries. No hardcoded URLs.
-- Workers register → everyone is notified instantly
+## Worker — Any process that registers functions
+A Worker is any process that registers Functions and Triggers.
+Long-running services, ephemeral scripts, agentic workers, or legacy systems via middleware.
+- Workers register functions → immediately available to all
 - Workers disconnect → functions removed, no stale refs
-- trigger() by name — engine routes to the right worker
+- Long-running, ephemeral, or agentic — all first-class
 - Scale up, scale down — topology adapts in real time
 
 ## Engine Capabilities
@@ -199,14 +201,14 @@ Compatible agents: Claude Code, Cursor, Gemini, Codex, Windsurf, Trae, Amp, Roo,
 
 ## 1. AI Agent with Tools — ReAct loop with tool calling
 \`\`\`typescript
-import { init, Logger } from "iii-sdk"
-const iii = init(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
-const logger = new Logger()
+import { registerWorker, getContext } from "iii-sdk"
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
+const { logger } = getContext()
 
 const tools = await iii.listFunctions()
 
 iii.registerFunction(
-  { id: "agent::research" },
+  { id: "agent.research" },
   async ({ query }) => {
     const response = await callLLM(query, { tools })
     while (response.toolCall) {
@@ -224,19 +226,19 @@ iii.registerFunction(
 
 ## 2. Multi-Agent Network — Researcher → Analyzer → Writer pipeline
 \`\`\`typescript
-iii.registerFunction({ id: "agents::researcher" }, async ({ topic }) => {
+iii.registerFunction({ id: "agents.researcher" }, async ({ topic }) => {
   const sources = await iii.trigger("tools::webSearch", { query: topic })
-  return iii.trigger("agents::analyzer", { sources, topic })
+  return iii.trigger("agents.analyzer", { sources, topic })
 })
 
-iii.registerFunction({ id: "agents::analyzer" }, async ({ sources, topic }) => {
+iii.registerFunction({ id: "agents.analyzer" }, async ({ sources, topic }) => {
   const insights = await callLLM("Analyze these sources", { sources })
-  return iii.trigger("agents::writer", { insights, topic })
+  return iii.trigger("agents.writer", { insights, topic })
 })
 
-iii.registerFunction({ id: "agents::writer" }, async ({ insights, topic }) => {
+iii.registerFunction({ id: "agents.writer" }, async ({ insights, topic }) => {
   const draft = await callLLM("Write a report", { insights })
-  await iii.trigger("state::set", {
+  await iii.trigger("state.set", {
     scope: "reports", key: topic, value: draft
   })
   iii.triggerVoid("publish", { topic: "report.ready", data: { topic } })
@@ -246,22 +248,22 @@ iii.registerFunction({ id: "agents::writer" }, async ({ insights, topic }) => {
 
 ## 3. Durable Workflows — Checkpoint/resume patterns
 \`\`\`typescript
-iii.registerFunction({ id: "orders::process" }, async ({ orderId }) => {
-  const logger = new Logger()
-  const step = await iii.trigger("state::get", {
+iii.registerFunction({ id: "orders.process" }, async ({ orderId }) => {
+  const { logger } = getContext()
+  const step = await iii.trigger("state.get", {
     scope: orderId, key: "step"
   }) ?? 0
 
   const pipeline = [
-    () => iii.trigger("payments::charge", { orderId }),
-    () => iii.trigger("inventory::reserve", { orderId }),
-    () => iii.trigger("shipping::create", { orderId }),
-    () => iii.trigger("notifications::send", { orderId }),
+    () => iii.trigger("payments.charge", { orderId }),
+    () => iii.trigger("inventory.reserve", { orderId }),
+    () => iii.trigger("shipping.create", { orderId }),
+    () => iii.trigger("notifications.send", { orderId }),
   ]
 
   for (let i = step; i < pipeline.length; i++) {
     await pipeline[i]()
-    await iii.trigger("state::set", {
+    await iii.trigger("state.set", {
       scope: orderId, key: "step", value: i + 1
     })
     logger.info("Step completed", { orderId, step: i + 1 })
@@ -272,37 +274,37 @@ iii.registerFunction({ id: "orders::process" }, async ({ orderId }) => {
 
 ## 4. Polyglot Workers — TS + Python + Rust as one system
 \`\`\`typescript
-iii.registerFunction({ id: "api::users" }, async (req) => {
+iii.registerFunction({ id: "api.users" }, async (req) => {
   const user = await db.createUser(req)
   iii.triggerVoid("publish", { topic: "user.created", data: user })
   return user
 })
 
 iii.registerTrigger({
-  type: "http", function_id: "api::users",
+  type: "http", function_id: "api.users",
   config: { api_path: "users", http_method: "POST" }
 })
 
 iii.registerTrigger({
-  type: "subscribe", function_id: "ml::onboarding",
+  type: "subscribe", function_id: "ml.onboarding",
   config: { topic: "user.created" }
 })
 \`\`\`
 
 ## 5. Real-Time Streaming — Chat with auto-summarization
 \`\`\`typescript
-iii.registerFunction({ id: "chat::send" }, async ({ roomId, message }) => {
-  const logger = new Logger()
-  await iii.trigger("stream::set", {
+iii.registerFunction({ id: "chat.send" }, async ({ roomId, message }) => {
+  const { logger } = getContext()
+  await iii.trigger("stream.set", {
     stream_name: "chat", group_id: roomId,
     item_id: crypto.randomUUID(), data: message
   })
-  const history = await iii.trigger("stream::list", {
+  const history = await iii.trigger("stream.list", {
     stream_name: "chat", group_id: roomId
   })
   if (history.length > 100) {
-    const summary = await iii.trigger("agents::summarize", { history })
-    await iii.trigger("state::set", {
+    const summary = await iii.trigger("agents.summarize", { history })
+    await iii.trigger("state.set", {
       scope: roomId, key: "summary", value: summary
     })
   }
@@ -312,8 +314,8 @@ iii.registerFunction({ id: "chat::send" }, async ({ roomId, message }) => {
 
 ## 6. Deep Research Agent — Iterative multi-step research with memory
 \`\`\`typescript
-iii.registerFunction({ id: "research::deep" }, async ({ question, depth = 3 }) => {
-  const logger = new Logger()
+iii.registerFunction({ id: "research.deep" }, async ({ question, depth = 3 }) => {
+  const { logger } = getContext()
   let context: string[] = []
   for (let i = 0; i < depth; i++) {
     const subQueries = await callLLM("Break into sub-questions", { question, context })
@@ -326,7 +328,7 @@ iii.registerFunction({ id: "research::deep" }, async ({ question, depth = 3 }) =
     logger.info("Research iteration", { iteration: i + 1, sources: context.length })
   }
   const report = await callLLM("Write comprehensive answer", { question, context })
-  await iii.trigger("state::set", { scope: "research", key: question, value: report })
+  await iii.trigger("state.set", { scope: "research", key: question, value: report })
   return report
 })
 \`\`\`
@@ -334,13 +336,13 @@ iii.registerFunction({ id: "research::deep" }, async ({ question, depth = 3 }) =
 ## 7. Event-Driven Pipelines — user.created → parallel CRM + analytics + ML + email
 \`\`\`typescript
 iii.registerFunction({ id: "pipeline::onUserCreated" }, async ({ user }) => {
-  const logger = new Logger()
+  const { logger } = getContext()
   await Promise.all([
     iii.trigger("crm::syncContact", { user }),
-    iii.trigger("analytics::track", { event: "signup", user }),
-    iii.trigger("ml::computeSegment", { user }),
+    iii.trigger("analytics.track", { event: "signup", user }),
+    iii.trigger("ml.computeSegment", { user }),
   ])
-  const segment = await iii.trigger("state::get", { scope: user.id, key: "segment" })
+  const segment = await iii.trigger("state.get", { scope: user.id, key: "segment" })
   await iii.trigger("enqueue", {
     topic: "emails",
     data: { template: segment === "enterprise" ? "white-glove" : "welcome", user }
@@ -356,30 +358,30 @@ iii.registerTrigger({
 
 ## 8. Scheduled Intelligence — Cron + AI anomaly detection
 \`\`\`typescript
-iii.registerFunction({ id: "monitor::anomalies" }, async () => {
-  const logger = new Logger()
+iii.registerFunction({ id: "monitor.anomalies" }, async () => {
+  const { logger } = getContext()
   const metrics = await iii.trigger("metrics::getLast24h", {})
-  const baseline = await iii.trigger("state::get", {
+  const baseline = await iii.trigger("state.get", {
     scope: "monitor", key: "baseline"
   })
   const analysis = await callLLM(
     "Analyze metrics against baseline. Flag anomalies.", { metrics, baseline }
   )
   if (analysis.anomalies.length > 0) {
-    await iii.trigger("alerts::send", {
+    await iii.trigger("alerts.send", {
       channel: "slack", message: analysis.summary,
       severity: analysis.anomalies[0].severity
     })
     logger.info("Anomalies detected", { count: analysis.anomalies.length })
   }
-  await iii.trigger("state::set", {
+  await iii.trigger("state.set", {
     scope: "monitor", key: "baseline",
     value: { ...baseline, ...metrics.averages }
   })
 })
 
 iii.registerTrigger({
-  type: "cron", function_id: "monitor::anomalies",
+  type: "cron", function_id: "monitor.anomalies",
   config: { pattern: "*/15 * * * *" }
 })
 \`\`\``}</pre>
@@ -412,21 +414,21 @@ iii.registerTrigger({
 Start building now. Scale your way.
 Built-in defaults get you running without thinking about architecture.
 When you outgrow them, swap in Redis, BullMQ, or whatever you prefer.
-All capabilities available via the same iii protocol — accessible from any language.
+All capabilities available via the same iii service — accessible from any language.
 
 ## Shared State — Cross-language state access
 Python worker sets a value, Node.js worker reads it instantly — no Redis required.
-  iii.trigger("state::set", { scope: "user:123", key: "prefs", value: data })
-  iii.trigger("state::get", { scope: "user:123", key: "prefs" })
+  iii.trigger("state.set", { scope: "user:123", key: "prefs", value: data })
+  iii.trigger("state.get", { scope: "user:123", key: "prefs" })
 
 ## Real-time Streaming — Bidirectional data flows
 Stream data between workers in real-time. Process infinite sequences without buffering.
-  iii.trigger("stream::set", { stream_name: "feed", group_id: id, item_id: uuid, data: chunk })
-  iii.trigger("stream::list", { stream_name: "feed", group_id: id })
+  iii.trigger("stream.set", { stream_name: "feed", group_id: id, item_id: uuid, data: chunk })
+  iii.trigger("stream.list", { stream_name: "feed", group_id: id })
 
 ## Complete Observability — Auto-injected tracing
 Every invocation carries a trace ID. Logs and metrics flow automatically.
-  const logger = new Logger()
+  const { logger } = getContext()
   logger.info("Processing", { orderId })
 
 ## Event Bus — Pub/sub between workers
@@ -453,16 +455,16 @@ Active development. Join Discord for early access and to shape what ships next.`
 
           <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# Manifesto — 10 Paradigm Shifts
 
-The future of backend engineering demands a new foundation. Not another framework. Not another protocol.
+The future of backend engineering demands a new foundation. Not another framework. Not another service.
 A universal execution kernel built on primitives that compose infinitely.
 
- 1. POLYGLOT — Language agnostic by design. Node.js, Python, Rust, Go, browser, edge, embedded — all connect via the same protocol.
+ 1. POLYGLOT — Language agnostic by design. Node.js, Python, Rust, Go, browser, edge, embedded — all connect via the same service.
  2. SMALL SURFACE AREA — A small set of core primitives that compose infinitely. One kernel replaces domain-specific frameworks.
  3. UNIVERSAL ACCESSIBILITY — Every dependency and integration accessible to every service. Legacy servers, edge functions, serverless, embedded devices — all first-class participants.
- 4. SECURE BIDIRECTIONAL COMMUNICATION — Every service can push and pull. Every connection is encrypted. Trust is built into the protocol.
+ 4. SECURE BIDIRECTIONAL COMMUNICATION — Every service can push and pull. Every connection is encrypted. Trust is built into the service.
  5. DYNAMIC REGISTRATION — Workers connect, register functions, and they're immediately available. No compilation, no code generation, no spec files.
  6. SELF DISCOVERABLE — The mesh knows what exists and how to reach it. No external discovery layer required.
- 7. OBSERVABLE BY DEFAULT — Tracing, metrics, and logging built into the protocol. Every invocation is observable. Every transaction is traceable.
+ 7. OBSERVABLE BY DEFAULT — Tracing, metrics, and logging built into the service. Every invocation is observable. Every transaction is traceable.
  8. POLYMORPHIC TRIGGERS — HTTP, state updates, gRPC, cron, events, hardware interrupts — all normalize to the same invocation model. One function, infinite triggers.
  9. AGENT-FIRST — Maximize the surface area for agent success. Functions self-describe with schemas and semantic metadata. The system adapts to agent behavior, not vice versa.
 10. REVERSIBLE TRANSACTIONS — Every transaction chain is replayable, modifiable, and reversible. Debug by replaying. Recover by rewinding.

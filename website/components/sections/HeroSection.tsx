@@ -306,7 +306,7 @@ const rotatingContexts = [
 
 const features = [
   {
-    text: "Polyglot execution — any language participates through one universal protocol.",
+    text: "Polyglot execution — any language participates through one universal service.",
   },
   {
     text: "Complete observability — logs and traces auto-injected into every invocation.",
@@ -690,7 +690,7 @@ export function HeroSection({ isDarkMode = true }: HeroSectionProps) {
                       isDarkMode ? "text-iii-light/70" : "text-iii-black/70"
                     }`}
                   >
-                    Workers register, engine orchestrates — one protocol,
+                    Workers register, engine orchestrates — one service,
                     infinite possibilities.
                   </span>
                   <div

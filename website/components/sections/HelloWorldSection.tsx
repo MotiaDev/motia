@@ -26,9 +26,9 @@ const NodeIcon = () => (
 
 // Code snippets
 const pythonCode = `import torch
-from iii import init
+from iii import register_worker
 
-iii = init("ws://localhost:49134")
+iii = register_worker("ws://localhost:49134")
 
 async def predict(input: dict) -> dict:
     tensor = torch.tensor(input["data"])
@@ -37,7 +37,7 @@ async def predict(input: dict) -> dict:
 
 iii.register_function("ml.predict", predict)`;
 
-const rustCode = `use iii_sdk::{init, InitOptions, Value, IIIError};
+const rustCode = `use iii_sdk::{register_worker, InitOptions, Value, IIIError};
 use serde_json::json;
 
 async fn transform(input: Value) -> Result<Value, IIIError> {
@@ -48,16 +48,16 @@ async fn transform(input: Value) -> Result<Value, IIIError> {
 
 #[tokio::main]
 async fn main() -> Result<(), IIIError> {
-    let iii = init("ws://localhost:49134", InitOptions::default())?;
+    let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
 
     iii.register_function("data.transform", transform);
 
     Ok(())
 }`;
 
-const nodeCode = `import { init } from "iii-sdk";
+const nodeCode = `import { registerWorker } from "iii-sdk";
 
-const iii = init("ws://localhost:49134");
+const iii = registerWorker("ws://localhost:49134");
 
 const transformed = await iii.trigger(
   "data.transform",
@@ -133,7 +133,7 @@ export function HelloWorldSection({
         {/* Header */}
         <div className="text-center mb-10 md:mb-16 space-y-4">
           <h2 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter leading-[1.1]">
-            <span className="block sm:inline">One protocol.</span>{" "}
+            <span className="block sm:inline">One service.</span>{" "}
             <span className={`${accentColor} relative inline-block`}>
               Any language.
               <svg

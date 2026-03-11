@@ -73,21 +73,21 @@ const concepts = [
       "A Function receives input and optionally returns output. It can live anywhere — locally, on cloud, on serverless, or as a third-party HTTP endpoint. All Functions are treated the same within iii.",
     highlights: [
       "Write in TypeScript, Python, or Rust — mix freely",
-      "Addressable by path (users::create, orders::process)",
+      "Addressable by path (users.create, orders.process)",
       "Hot-swap handlers without restarting consumers",
       "Auto-cleanup when workers disconnect",
     ],
     code: {
       typescript: `iii.registerFunction(
-  { id: 'users::create' },
+  { id: 'users.create' },
   async (input) => {
-    const logger = new Logger()
+    const { logger } = getContext()
     logger.info('Creating user', { email: input.email })
     return { id: '123', email: input.email }
   }
 )`,
       python: `async def create_user(input):
-    logger = Logger()
+    logger = get_context().logger
     logger.info("Creating user", {
         "email": input["email"]
     })
@@ -96,9 +96,9 @@ const concepts = [
         "email": input["email"]
     }
 
-iii.register_function("users::create", create_user)`,
+iii.register_function("users.create", create_user)`,
       rust: `iii.register_function(
-    "users::create",
+    "users.create",
     |input| async move {
         let email = input["email"].as_str()
             .unwrap_or("");
@@ -124,46 +124,64 @@ iii.register_function("users::create", create_user)`,
       "Same pattern for every event source",
     ],
     code: {
-      typescript: `iii.registerTrigger({
+      typescript: `await iii.trigger('users.create', { name: 'Alice' })
+
+iii.registerTrigger({
   type: 'http',
-  function_id: 'users::create',
+  function_id: 'users.create',
   config: {
     api_path: 'users',
     http_method: 'POST'
   }
 })`,
-      python: `iii.register_trigger(
+      python: `await iii.trigger("users.create", {"name": "Alice"})
+
+iii.register_trigger(
     "http",
-    "users::create",
+    "users.create",
     {"api_path": "users", "http_method": "POST"}
 )`,
-      rust: `iii.register_trigger(Trigger {
+      rust: `iii.trigger("users.create", json!({"name": "Alice"})).await?;
+
+iii.register_trigger(Trigger {
     trigger_type: "http".into(),
-    function_id: "users::create".into(),
+    function_id: "users.create".into(),
     config: json!({
         "api_path": "users",
         "http_method": "POST"
     }),
-})`,
+})?;`,
     },
   },
   {
-    id: "discovery",
+    id: "worker",
     icon: Share2,
-    name: "Discovery",
-    tagline: "The system knows itself.",
+    name: "Worker",
+    tagline: "Any process that registers functions.",
     description:
-      "When a worker connects, every other worker learns what it can do. When it disconnects, its functions vanish. No config files. No service registries. No hardcoded URLs. The engine maintains a live registry.",
+      "A Worker is any process that registers Functions and Triggers. Long-running services, ephemeral scripts, agentic workers, or legacy systems via middleware — all connect, register, and participate as first-class members of the mesh.",
     highlights: [
-      "Workers register → everyone is notified instantly",
+      "Workers register functions → immediately available to all",
       "Workers disconnect → functions removed, no stale refs",
-      "trigger() by name — engine routes to the right worker",
+      "Long-running, ephemeral, or agentic — all first-class",
       "Scale up, scale down — topology adapts in real time",
     ],
     code: {
-      typescript: `const iii = init("ws://localhost:49134")`,
-      python: `iii = init("ws://localhost:49134")`,
-      rust: `let iii = init("ws://localhost:49134", InitOptions::default())?;`,
+      typescript: `const iii = registerWorker('ws://localhost:49134')
+
+const fns = await iii.listFunctions()
+const logs = iii.getLogs({ limit: 100 })
+const triggers = await iii.listTriggers()`,
+      python: `iii = register_worker("ws://localhost:49134")
+
+fns = await iii.list_functions()
+logs = iii.get_logs(limit=100)
+triggers = await iii.list_triggers()`,
+      rust: `let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
+
+let fns = iii.list_functions().await?;
+let logs = iii.get_logs(100).await?;
+let triggers = iii.list_triggers().await?;`,
     },
   },
 ];
@@ -207,7 +225,7 @@ const capabilities = [
     icon: Layers,
     details: [
       "An engine can connect to another engine as a worker",
-      "Compose microservice topologies through pure discovery",
+      "Compose microservice topologies through worker nesting",
       "Scale horizontally by spawning engine sub-clusters",
     ],
   },
@@ -820,7 +838,7 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
         <div className="text-center mb-10 md:mb-16 space-y-5">
           <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter leading-[1.05]">
             <span className="block">One engine.</span>
-            <span className={`block ${accentColor}`}>Three concepts.</span>
+            <span className={`block ${accentColor}`}>Three primitives.</span>
           </h2>
           <p
             className={`text-sm md:text-base lg:text-lg max-w-2xl mx-auto leading-relaxed ${textSecondary}`}
@@ -828,7 +846,7 @@ export function EngineSection({ isDarkMode = true }: EngineSectionProps) {
             iii unifies your entire backend with{" "}
             <strong className={textPrimary}>Function</strong>,{" "}
             <strong className={textPrimary}>Trigger</strong>, and{" "}
-            <strong className={textPrimary}>Discovery</strong>. One mental model
+            <strong className={textPrimary}>Worker</strong>. One mental model
             for every backend system.
           </p>
           <div className="flex flex-wrap justify-center gap-2 sm:gap-3 pt-2">
