@@ -356,10 +356,16 @@ impl QueueAdapter for RabbitMQAdapter {
     }
 
     async fn dlq_count(&self, topic: &str) -> anyhow::Result<u64> {
-        use super::naming::RabbitNames;
+        use super::naming::{FnQueueNames, RabbitNames};
 
-        let names = RabbitNames::new(topic);
-        let dlq_name = names.dlq();
+        // Function queues use FnQueueNames (e.g., __fn_queue::orders → ::dlq.queue),
+        // while topic-based queues use RabbitNames (e.g., user.created → .dlq).
+        let dlq_name = if topic.starts_with("__fn_queue::") {
+            let queue_name = topic.strip_prefix("__fn_queue::").unwrap();
+            FnQueueNames::new(queue_name).dlq()
+        } else {
+            RabbitNames::new(topic).dlq()
+        };
 
         let queue = self
             .channel
