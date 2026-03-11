@@ -1,5 +1,6 @@
-import type { Handlers, StepConfig } from 'motia'
+import { type Handlers, logger, type StepConfig } from 'motia'
 import { z } from 'zod'
+import { todoStream } from './todo.stream'
 
 export const config = {
   name: 'DeleteTodo',
@@ -20,12 +21,12 @@ export const config = {
   virtualSubscribes: ['todo-created'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { logger, streams }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   const { todoId } = request.pathParams || {}
 
   logger.info('Deleting todo', { todoId })
 
-  const existingTodo = await streams.todo.get('inbox', todoId)
+  const existingTodo = await todoStream.get('inbox', todoId)
 
   if (!existingTodo) {
     logger.warn('Todo not found', { todoId })
@@ -36,7 +37,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { logger, st
     }
   }
 
-  await streams.todo.delete('inbox', todoId)
+  await todoStream.delete('inbox', todoId)
 
   logger.info('Todo deleted successfully', { todoId })
 

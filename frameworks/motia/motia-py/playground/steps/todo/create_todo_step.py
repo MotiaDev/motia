@@ -5,7 +5,7 @@ import string
 from datetime import datetime
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, Stream, http
+from motia import ApiRequest, ApiResponse, Stream, http, logger
 
 todo_stream: Stream[dict[str, Any]] = Stream("todo")
 
@@ -20,9 +20,9 @@ config = {
 }
 
 
-async def handler(request: ApiRequest[dict[str, Any]], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+async def handler(request: ApiRequest[dict[str, Any]]) -> ApiResponse[Any]:
     """Handle create todo request."""
-    ctx.logger.info("Creating new todo", request.body)
+    logger.info("Creating new todo", request.body)
 
     body = request.body or {}
     description = body.get("description")
@@ -45,6 +45,6 @@ async def handler(request: ApiRequest[dict[str, Any]], ctx: FlowContext[Any]) ->
 
     todo = await todo_stream.set("inbox", todo_id, new_todo)
 
-    ctx.logger.info("Todo created successfully", {"todo_id": todo_id})
+    logger.info("Todo created successfully", {"todo_id": todo_id})
 
     return ApiResponse(status=200, body=todo)

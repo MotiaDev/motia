@@ -73,7 +73,7 @@ Two Steps working together in one flow.
 <Tab value='TypeScript'>
 
 ```typescript title="src/create-resource.step.ts"
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, type StepConfig, enqueue, logger } from 'motia'
 
 export const config = {
   name: 'CreateResource',
@@ -85,7 +85,7 @@ export const config = {
   flows: ['resource-management'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { enqueue, logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   logger.info('Creating resource', { title: request.body.title })
 
   await enqueue({
@@ -102,7 +102,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { enqueue, l
 
 ```python title="src/create_resource_step.py"
 from typing import Any
-from motia import ApiRequest, ApiResponse, FlowContext, http
+from motia import ApiRequest, ApiResponse, http, logger, enqueue
 
 config = {
     "name": "CreateResource",
@@ -114,10 +114,10 @@ config = {
     "flows": ["resource-management"]
 }
 
-async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
-    ctx.logger.info("Creating resource", {"title": request.body["title"]})
+async def handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
+    logger.info("Creating resource", {"title": request.body["title"]})
 
-    await ctx.enqueue({
+    await enqueue({
         "topic": "send-email",
         "data": {"email": request.body["email"]}
     })
@@ -129,6 +129,8 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
 <Tab value='JavaScript'>
 
 ```javascript title="src/create-resource.step.js"
+import { enqueue, logger } from 'motia'
+
 export const config = {
   name: 'CreateResource',
   description: 'Create a new resource and trigger email',
@@ -139,7 +141,7 @@ export const config = {
   flows: ['resource-management']
 }
 
-export const handler = async ({ request }, { enqueue, logger }) => {
+export const handler = async ({ request }) => {
   logger.info('Creating resource', { title: request.body.title })
 
   await enqueue({
@@ -160,7 +162,7 @@ export const handler = async ({ request }, { enqueue, logger }) => {
 <Tab value='TypeScript'>
 
 ```typescript title="src/send-email.step.ts"
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, type StepConfig, logger } from 'motia'
 
 export const config = {
   name: 'SendEmail',
@@ -172,7 +174,7 @@ export const config = {
   flows: ['resource-management'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger }) => {
+export const handler: Handlers<typeof config> = async (input) => {
   logger.info('Sending email', { email: input.email })
 }
 ```
@@ -181,6 +183,8 @@ export const handler: Handlers<typeof config> = async (input, { logger }) => {
 <Tab value='Python'>
 
 ```python title="src/send_email_step.py"
+from motia import logger
+
 config = {
     "name": "SendEmail",
     "description": "Send an email notification",
@@ -191,14 +195,16 @@ config = {
     "flows": ["resource-management"]
 }
 
-async def handler(input, ctx):
-    ctx.logger.info("Sending email", {"email": input["email"]})
+async def handler(input):
+    logger.info("Sending email", {"email": input["email"]})
 ```
 
 </Tab>
 <Tab value='JavaScript'>
 
 ```javascript title="src/send-email.step.js"
+import { logger } from 'motia'
+
 export const config = {
   name: 'SendEmail',
   description: 'Send an email notification',
@@ -209,7 +215,7 @@ export const config = {
   flows: ['resource-management']
 }
 
-export const handler = async (input, { logger }) => {
+export const handler = async (input) => {
   logger.info('Sending email', { email: input.email })
 }
 ```

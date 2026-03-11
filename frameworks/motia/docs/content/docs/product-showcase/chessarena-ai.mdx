@@ -92,7 +92,7 @@ Our application consists of specialized components handling different aspects of
 
     ```typescript
     import { AiModelsSchema } from '@chessarena/types/ai-models'
-    import { type Handlers, type StepConfig } from 'motia'
+    import { type Handlers, type StepConfig, logger } from 'motia'
     import { z } from 'zod'
     import { supportedModelsByProvider } from '../../services/ai/models'
 
@@ -135,7 +135,7 @@ Our application consists of specialized components handling different aspects of
       },
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
+    export const handler: Handlers<typeof config> = async ({ request }) => {
       logger.info('Received available models request')
 
       return {
@@ -154,7 +154,7 @@ Our application consists of specialized components handling different aspects of
     ```typescript
     import { AiModelProviderSchema } from '@chessarena/types/ai-models'
     import { GameSchema, Player } from '@chessarena/types/game'
-    import { type Handlers, type StepConfig } from 'motia'
+    import { type Handlers, type StepConfig, logger, enqueue } from 'motia'
     import { RefinementCtx, z } from 'zod'
     import { supportedModelsByProvider } from '../../services/ai/models'
     import { createGame } from '../../services/chess/create-game'
@@ -210,10 +210,10 @@ Our application consists of specialized components handling different aspects of
       },
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async ({ request }, { logger, enqueue, streams }) => {
+    export const handler: Handlers<typeof config> = async ({ request }) => {
       logger.info('[CreateGame] Creating new chess game')
 
-      const game = await createGame(request.body.players, request.user, streams, logger)
+      const game = await createGame(request.body.players, request.user)
 
       await enqueue({
         topic: 'chess-game-created',
@@ -235,6 +235,8 @@ Our application consists of specialized components handling different aspects of
     import chess.engine
     import os
     from pydantic import BaseModel, Field
+    from motia import logger
+    from streams.chess_game_move_stream import chess_game_move_stream
 
     class EvaluatePlayerMoveInput(BaseModel):
         fenBefore: str = Field(description="The FEN of the game before the move")
@@ -278,8 +280,7 @@ Our application consists of specialized components handling different aspects of
             best_move=move.uci() if move is not None else None
         )
 
-    async def handler(input: EvaluatePlayerMoveInput, ctx):
-        logger = ctx.logger
+    async def handler(input: EvaluatePlayerMoveInput):
         
         # Initialize Stockfish engine
         engine_path = os.getenv("STOCKFISH_BIN_PATH")
@@ -314,9 +315,9 @@ Our application consists of specialized components handling different aspects of
             }
 
             # Update move in streams with evaluation
-            move_stream = await ctx.streams.chessGameMove.get(input.gameId, input.moveId)
-            move_stream["evaluation"] = evaluation
-            await ctx.streams.chessGameMove.set(input.gameId, input.moveId, move_stream)
+            move_data = await chess_game_move_stream.get(input.gameId, input.moveId)
+            move_data["evaluation"] = evaluation
+            await chess_game_move_stream.set(input.gameId, input.moveId, move_data)
 
             logger.info("Move evaluation completed", { "evaluation": evaluation })
 
@@ -329,8 +330,10 @@ Our application consists of specialized components handling different aspects of
     The AI orchestration step that coordinates with different LLM providers using a unified prompt system. Features retry logic, move validation, and real-time thought streaming.
 
     ```typescript
-    import { type Handlers, type StepConfig } from 'motia'
+    import { type Handlers, type StepConfig, logger, enqueue } from 'motia'
     import { z } from 'zod'
+    import { chessGameStream } from './streams/chess-game.stream'
+    import { chessGameMessageStream } from './streams/chess-game-message.stream'
     import { makePrompt } from '../../services/ai/make-prompt'
     import { evaluateBestMoves } from '../../services/chess/evaluate-best-moves'
     import { move } from '../../services/chess/move'
@@ -358,8 +361,8 @@ Our application consists of specialized components handling different aspects of
       includeFiles: ['05-ai-player.mustache'],
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async (input, { logger, enqueue, streams }) => {
-      const game = await streams.chessGame.get('game', input.gameId)
+    export const handler: Handlers<typeof config> = async (input) => {
+      const game = await chessGameStream.get('game', input.gameId)
       const player = input.player === 'white' ? game.players.white : game.players.black
 
       if (!player.ai) {
@@ -375,7 +378,7 @@ Our application consists of specialized components handling different aspects of
         const messageId = crypto.randomUUID()
 
         // Create real-time thinking message
-        await streams.chessGameMessage.set(input.gameId, messageId, {
+        await chessGameMessageStream.set(input.gameId, messageId, {
           id: messageId,
           message: 'Thinking...',
           sender: player.ai,
@@ -405,7 +408,7 @@ Our application consists of specialized components handling different aspects of
           })
 
           // Update message with AI's thought process
-          await streams.chessGameMessage.set(input.gameId, messageId, {
+          await chessGameMessageStream.set(input.gameId, messageId, {
             message: action.thought,
             move: action.move,
             sender: player.ai,
@@ -415,8 +418,6 @@ Our application consists of specialized components handling different aspects of
 
           // Execute the chess move
           await move({
-            logger,
-            streams,
             gameId: input.gameId,
             player: input.player,
             game,
@@ -434,7 +435,7 @@ Our application consists of specialized components handling different aspects of
           // Handle illegal moves with retry logic
           if (attempts >= MAX_ATTEMPTS) {
             // Player loses after too many illegal moves
-            await streams.chessGame.set('game', game.id, {
+            await chessGameStream.set('game', game.id, {
               ...game,
               status: 'completed',
               winner: input.player === 'white' ? 'black' : 'white',
@@ -496,7 +497,7 @@ Our application consists of specialized components handling different aspects of
     The authentication system that manages user sessions and provides secure access to chess game creation and management.
 
     ```typescript
-    import { type Handlers, type StepConfig } from 'motia'
+    import { type Handlers, type StepConfig, logger, enqueue } from 'motia'
     import { z } from 'zod'
     import { authenticateUser } from '../../services/auth/auth-service'
 
@@ -519,7 +520,7 @@ Our application consists of specialized components handling different aspects of
       },
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async ({ request }, { logger, enqueue }) => {
+    export const handler: Handlers<typeof config> = async ({ request }) => {
       const { email, password } = request.body
 
       try {

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, FlowContext, queue
+from motia import ApiRequest, FlowContext, logger, queue
 
 
 def is_high_value(input: Any, ctx: FlowContext[Any]) -> bool:
@@ -47,6 +47,6 @@ config = {
 }
 
 
-async def handler(input: Any, ctx: FlowContext[Any]) -> None:
+async def handler(input: Any) -> None:
     """Handle orders that pass all conditions."""
-    ctx.logger.info("Processing premium order", {"data": input})
+    logger.info("Processing premium order", {"data": input})

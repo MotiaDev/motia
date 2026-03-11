@@ -9,6 +9,7 @@ A single Step can respond to multiple trigger types. This is useful when the sam
 
 ```typescript
 import type { Handlers, StepConfig } from 'motia'
+import { logger, enqueue, stateManager } from 'motia'
 import { z } from 'zod'
 
 const orderSchema = z.object({ orderId: z.string(), amount: z.number() })
@@ -28,26 +29,26 @@ export const config = {
 export const handler: Handlers<typeof config> = async (input, ctx) => {
   return ctx.match({
     http: async ({ request }) => {
-      await processOrder(request.body, ctx)
+      await processOrder(request.body)
       return { status: 200, body: { success: true } }
     },
     queue: async (data) => {
       const payload = ctx.getData()
-      await processOrder(payload, ctx)
+      await processOrder(payload)
     },
     cron: async () => {
-      ctx.logger.info('Running scheduled order processing')
-      const pendingOrders = await ctx.state.list('pending-orders')
+      logger.info('Running scheduled order processing')
+      const pendingOrders = await stateManager.list('pending-orders')
       for (const order of pendingOrders) {
-        await processOrder(order, ctx)
+        await processOrder(order)
       }
     },
   })
 }
 
-async function processOrder(order: any, ctx: any) {
-  ctx.logger.info('Processing order', { orderId: order.orderId })
-  await ctx.enqueue({ topic: 'order.processed', data: order })
+async function processOrder(order: any) {
+  logger.info('Processing order', { orderId: order.orderId })
+  await enqueue({ topic: 'order.processed', data: order })
 }
 ```
 
@@ -70,10 +71,10 @@ return ctx.match({
   },
   queue: async (data) => {
     const payload = ctx.getData()
-    ctx.logger.info('From queue', payload)
+    logger.info('From queue', payload)
   },
   cron: async () => {
-    ctx.logger.info('From cron')
+    logger.info('From cron')
   },
 })
 ```
@@ -102,7 +103,7 @@ When you do not care about the trigger type and just need the data payload:
 
 ```typescript
 const data = ctx.getData()
-ctx.logger.info('Processing', data)
+logger.info('Processing', data)
 ```
 
 ## Best Practices

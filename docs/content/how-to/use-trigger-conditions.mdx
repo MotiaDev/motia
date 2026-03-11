@@ -101,12 +101,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Create a Trigger and specify its condition with `condition_function_id`.
 
-<Callout title="Condition differences" type="info">
-Use `_condition_path` for `http`, `queue`, and `cron`. Use `condition_function_id` for `state` and `stream`. This disparity will be fixed soon.
-</Callout>
-
-{/* TODO: Replace `_condition_path` with `condition_function_id` once SDKs are updated. */}
-
 Example (`state` trigger):
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>

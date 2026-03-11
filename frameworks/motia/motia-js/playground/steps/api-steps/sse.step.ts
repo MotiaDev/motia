@@ -1,4 +1,4 @@
-import { type Handlers, http, type StepConfig } from 'motia'
+import { type Handlers, http, logger, type StepConfig } from 'motia'
 
 export const config = {
   name: 'SSE Example',
@@ -10,7 +10,7 @@ export const config = {
 
 const SAFE_HEADERS = ['content-type', 'user-agent', 'accept', 'accept-language', 'content-length', 'x-request-id']
 
-export const handler: Handlers<typeof config> = async ({ request, response }, { logger }) => {
+export const handler: Handlers<typeof config> = async ({ request, response }) => {
   const sanitizedHeaders = Object.fromEntries(
     SAFE_HEADERS.filter((h) => request.headers[h] != null).map((h) => [h, request.headers[h]]),
   )

@@ -1,6 +1,6 @@
-import { type Handlers, http, type StepConfig } from 'motia'
+import { type Handlers, http, logger, type StepConfig, stateManager } from 'motia'
 import { z } from 'zod'
-import type { Todo } from './todo.stream'
+import { type Todo, todoStream } from './todo.stream'
 
 export const todoSchema = z.object({
   id: z.string(),
@@ -27,7 +27,7 @@ export const config = {
   virtualEnqueues: ['todo-created'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { logger, streams, state }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   logger.info('Creating new todo', { body: request.body })
 
   const { description, dueDate } = request.body || {}
@@ -44,9 +44,9 @@ export const handler: Handlers<typeof config> = async ({ request }, { logger, st
     dueDate,
   }
 
-  const todo = await streams.todo.set('inbox', todoId, newTodo)
+  const todo = await todoStream.set('inbox', todoId, newTodo)
 
-  await state.set('todos', todoId, newTodo)
+  await stateManager.set('todos', todoId, newTodo)
 
   logger.info('Todo created successfully', { todoId })
 

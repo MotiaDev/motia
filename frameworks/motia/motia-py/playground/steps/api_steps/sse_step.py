@@ -8,7 +8,7 @@ import time
 from typing import Any
 from urllib.parse import parse_qsl
 
-from motia import MotiaHttpArgs, FlowContext, http
+from motia import MotiaHttpArgs, http, logger
 
 config = {
     "name": "SSE Example",
@@ -21,14 +21,14 @@ config = {
 }
 
 
-async def handler(args: MotiaHttpArgs[Any], ctx: FlowContext[Any]) -> None:
+async def handler(args: MotiaHttpArgs[Any]) -> None:
     """Read URL-encoded body, then stream random items back as SSE."""
     request = args.request
     response = args.response
 
     safe_header_keys = ("content-type", "user-agent", "accept", "content-length", "x-request-id")
     safe_headers = {k: v for k, v in request.headers.items() if k.lower() in safe_header_keys}
-    ctx.logger.info("Data received", {"headers": safe_headers})
+    logger.info("Data received", {"headers": safe_headers})
 
     await response.status(200)
     await response.headers({

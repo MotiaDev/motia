@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig } from 'motia'
+import { enqueue, type Handlers, logger, type StepConfig } from 'motia'
 
 export const config = {
   name: 'HandlePeriodicJob',
@@ -13,7 +13,7 @@ export const config = {
   flows: ['cron-example'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (_input, { logger, enqueue }) => {
+export const handler: Handlers<typeof config> = async (_input) => {
   logger.info('Periodic job executed')
 
   await enqueue({

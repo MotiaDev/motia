@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig } from 'motia'
+import { enqueue, type Handlers, type StepConfig, stateManager, logger } from 'motia'
 import type { Order } from './services/types'
 
 export const config = {
@@ -14,8 +14,8 @@ export const config = {
   flows: ['basic-tutorial'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (_input, { logger, state, enqueue }) => {
-  const stateValue = await state.list<Order>('orders')
+export const handler: Handlers<typeof config> = async (_input) => {
+  const stateValue = await stateManager.list<Order>('orders')
 
   for (const item of stateValue) {
     const currentDate = new Date()

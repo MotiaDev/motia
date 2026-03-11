@@ -108,7 +108,7 @@ impl TriggerRegistrator for CronCoreModule {
 
             let condition_function_id = trigger
                 .config
-                .get("_condition_path")
+                .get("condition_function_id")
                 .and_then(|v| v.as_str())
                 .map(|v| v.to_string());
 
@@ -324,7 +324,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn register_trigger_with_condition_path() {
+    async fn register_trigger_with_condition_function_id() {
         let (_engine, module) = setup_cron_module();
         let trigger = crate::trigger::Trigger {
             id: "cron-trig-cond".to_string(),
@@ -332,7 +332,7 @@ mod tests {
             function_id: "test::handler".to_string(),
             config: json!({
                 "expression": "0 30 * * * *",
-                "_condition_path": "test::condition_fn"
+                "condition_function_id": "test::condition_fn"
             }),
             worker_id: None,
         };

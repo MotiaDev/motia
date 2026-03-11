@@ -1,6 +1,7 @@
-import type { Handlers, StepConfig, UpdateOp } from 'motia'
+import { type Handlers, logger, type StepConfig, type UpdateOp } from 'motia'
 import { z } from 'zod'
 import { todoSchema } from './create-todo.step'
+import { todoStream } from './todo.stream'
 
 export const config = {
   name: 'UpdateTodo',
@@ -26,7 +27,7 @@ export const config = {
   virtualSubscribes: ['todo-created'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { logger, streams }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   const { todoId } = request.pathParams || {}
   const body = request.body || {}
 
@@ -50,7 +51,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { logger, st
     return { status: 400, body: { error: 'No fields to update' } }
   }
 
-  const result = await streams.todo.update('inbox', todoId, updateOps)
+  const result = await todoStream.update('inbox', todoId, updateOps)
 
   if (!result.old_value) {
     return { status: 404, body: { error: `Todo with id ${todoId} not found` } }

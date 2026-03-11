@@ -5,6 +5,7 @@ import { HeroSection } from "./components/sections/HeroSection";
 import { HelloWorldSection } from "./components/sections/HelloWorldSection";
 import { EngineSection } from "./components/sections/EngineSection";
 import { AgentReadySection } from "./components/sections/AgentReadySection";
+import { ObservabilitySection } from "./components/sections/ObservabilitySection";
 import { FooterSection } from "./components/sections/FooterSection";
 import { Navbar } from "./components/Navbar";
 import { MachineView } from "./components/MachineView";
@@ -205,12 +206,17 @@ const App: React.FC = () => {
           <ExampleCodeSection isDarkMode={isDarkMode} />
         </div>
 
-        {/* Section 5: Agent-Ready - AI agents as first-class citizens */}
+        {/* Section 5: Observability - Trace-level visibility with OpenTelemetry */}
+        <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-8 md:py-12 lg:py-24">
+          <ObservabilitySection isDarkMode={isDarkMode} />
+        </div>
+
+        {/* Section 6: Agent-Ready - AI agents as first-class citizens */}
         <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-8 md:py-12 lg:py-24">
           <AgentReadySection isDarkMode={isDarkMode} />
         </div>
 
-        {/* Section 6: Footer + CTA - FAQ, Discord, Links */}
+        {/* Section 7: Footer + CTA - FAQ, Discord, Links */}
         <div className="w-[95%] md:w-[90%] lg:w-[85%] max-w-7xl py-8 md:py-12 lg:py-24">
           <FooterSection isDarkMode={isDarkMode} />
         </div>

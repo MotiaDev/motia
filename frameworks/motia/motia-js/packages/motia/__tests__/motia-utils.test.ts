@@ -4,8 +4,6 @@ import { cron, http, queue, state, stream } from '../src/triggers'
 const mockRegisterFunction = jest.fn()
 const mockRegisterTrigger = jest.fn()
 const mockCall = jest.fn()
-const mockLogger = { warn: jest.fn(), info: jest.fn(), error: jest.fn(), debug: jest.fn() }
-
 jest.mock('../src/new/iii', () => ({
   getInstance: () => ({
     call: mockCall,
@@ -16,14 +14,14 @@ jest.mock('../src/new/iii', () => ({
 
 jest.mock('iii-sdk', () => ({
   Logger: function MockLogger() {
-    return mockLogger
+    return { warn: jest.fn(), info: jest.fn(), error: jest.fn(), debug: jest.fn() }
   },
   http: (callback: (...args: unknown[]) => unknown) => callback,
-}), { virtual: true })
+}))
 
 jest.mock('iii-sdk/telemetry', () => ({
   currentTraceId: () => 'test-trace-id',
-}), { virtual: true })
+}))
 
 jest.mock('../src/new/setup-step-endpoint', () => ({
   setupStepEndpoint: jest.fn(),
@@ -72,7 +70,7 @@ describe('Motia', () => {
       motia.addStep(config as any, 'test.step.ts', jest.fn(), 'steps/test.step.ts')
 
       expect(mockRegisterFunction).toHaveBeenCalledTimes(2)
-      expect(mockRegisterTrigger.mock.calls[0][0].config._condition_path).toBeDefined()
+      expect(mockRegisterTrigger.mock.calls[0][0].config.condition_function_id).toBeDefined()
     })
 
     it('registers function and trigger for queue trigger', () => {
@@ -162,7 +160,7 @@ describe('Motia', () => {
       motia.addStep(config as any, 'test.step.ts', jest.fn(), 'steps/test.step.ts')
 
       expect(mockRegisterFunction).toHaveBeenCalledTimes(2)
-      expect(mockRegisterTrigger.mock.calls[0][0].config._condition_path).toBeDefined()
+      expect(mockRegisterTrigger.mock.calls[0][0].config.condition_function_id).toBeDefined()
     })
   })
 

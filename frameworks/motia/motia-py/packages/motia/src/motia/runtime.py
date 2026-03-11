@@ -6,7 +6,6 @@ import logging
 import uuid
 from typing import Any, Awaitable, Callable
 
-from iii import Logger
 from iii import http as iii_http
 from iii.telemetry import current_trace_id
 from iii.types import HttpRequest as IIIHttpRequest
@@ -16,10 +15,9 @@ from pydantic import ValidationError as PydanticValidationError
 
 from .iii import get_instance
 from .schema_utils import schema_to_json_schema
-from .state import stateManager
 from .step import StepDefinition
 from .streams import Stream
-from .tracing import instrument_bridge, operation_span, record_exception, set_span_ok, step_span
+from .tracing import instrument_bridge, record_exception, set_span_ok, step_span
 from .types import (
     ApiRequest,
     ApiTrigger,
@@ -39,7 +37,7 @@ from .types_stream import StreamAuthInput, StreamAuthResult, StreamConfig, Strea
 from .validator import validate_step
 
 log = logging.getLogger("motia.runtime")
-CONDITION_PATH_KEY = "_condition_path"
+CONDITION_PATH_KEY = "condition_function_id"
 
 
 def _compose_middleware(
@@ -177,24 +175,14 @@ def _validate_input_schema(schema: Any, value: Any, label: str) -> Any:
 
 
 def _flow_context(
-    motia: "Motia",
     trigger: TriggerInfo,
     input_data: Any = None,
 ) -> FlowContext[Any]:
     """Create a FlowContext for a handler invocation."""
     trace_id = current_trace_id() or str(uuid.uuid4())
-    logger = Logger()
-
-    async def enqueue(event: Any) -> None:
-        with operation_span("enqueue", **{"motia.step.name": ""}):
-            await get_instance().call("enqueue", event)
 
     return FlowContext(
-        enqueue=enqueue,
         trace_id=trace_id,
-        state=stateManager,
-        logger=logger,
-        streams=motia.streams,
         trigger=trigger,
         input_value=input_data,
     )
@@ -313,7 +301,7 @@ class Motia:
                         response=stream_response,
                     )
 
-                    context = _flow_context(self, trigger_info, motia_request)
+                    context = _flow_context(trigger_info, motia_request)
                     middlewares = trigger.middleware or []
 
                     if middlewares:
@@ -384,7 +372,7 @@ class Motia:
                     input_data = req
                     if trigger.input:
                         input_data = _validate_input_schema(trigger.input, input_data, f"queue:{config.name}")
-                    context = _flow_context(self, trigger_info, input_data)
+                    context = _flow_context(trigger_info, input_data)
                     result = await handler(input_data, context)
                     set_span_ok(span)
                     return result
@@ -421,7 +409,7 @@ class Motia:
             with step_span(config.name, "cron") as span:
                 try:
                     trigger_info = TriggerInfo(type="cron", index=index)
-                    context = _flow_context(self, trigger_info)
+                    context = _flow_context(trigger_info)
                     result = await handler(None, context)
                     set_span_ok(span)
                     return result
@@ -456,7 +444,7 @@ class Motia:
             with step_span(config.name, "state") as span:
                 try:
                     trigger_info = TriggerInfo(type="state", index=index)
-                    context = _flow_context(self, trigger_info, req)
+                    context = _flow_context(trigger_info, req)
                     result = await handler(req, context)
                     set_span_ok(span)
                     return result
@@ -488,7 +476,7 @@ class Motia:
             with step_span(config.name, "stream") as span:
                 try:
                     trigger_info = TriggerInfo(type="stream", index=index)
-                    context = _flow_context(self, trigger_info, req)
+                    context = _flow_context(trigger_info, req)
                     result = await handler(req, context)
                     set_span_ok(span)
                     return result
@@ -536,10 +524,10 @@ class Motia:
                     body=input_data.get("body") if isinstance(input_data, dict) else input_data,
                     headers=input_data.get("headers", {}) if isinstance(input_data, dict) else {},
                 )
-                context = _flow_context(self, trigger_info, motia_input)
+                context = _flow_context(trigger_info, motia_input)
                 result = condition(motia_input, context)
             else:
-                context = _flow_context(self, trigger_info, input_data)
+                context = _flow_context(trigger_info, input_data)
                 result = condition(input_data, context)
 
             if inspect.iscoroutine(result):
@@ -574,7 +562,7 @@ class Motia:
                 config = self._stream_configs.get(stream_name)
                 if config and config.on_join:
                     trigger_info = TriggerInfo(type="queue")
-                    context = _flow_context(self, trigger_info)
+                    context = _flow_context(trigger_info)
                     subscription = StreamSubscription(group_id=group_id, id=client_id)
                     return await config.on_join(subscription, context, auth_context)
 
@@ -594,7 +582,7 @@ class Motia:
                 config = self._stream_configs.get(stream_name)
                 if config and config.on_leave:
                     trigger_info = TriggerInfo(type="queue")
-                    context = _flow_context(self, trigger_info)
+                    context = _flow_context(trigger_info)
                     subscription = StreamSubscription(group_id=group_id, id=client_id)
                     await config.on_leave(subscription, context, auth_context)
 
@@ -615,7 +603,7 @@ class Motia:
         )
 
         trigger_info = TriggerInfo(type="queue")
-        context = _flow_context(self, trigger_info, input_data)
+        context = _flow_context(trigger_info, input_data)
         result = await self._authenticate(input_data, context)
 
         if isinstance(result, bool):

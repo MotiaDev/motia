@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import FlowContext, queue
+from motia import FlowContext, logger, queue
 
 
 def is_high_value(input: Any, ctx: FlowContext[Any]) -> bool:
@@ -23,6 +23,6 @@ config = {
 }
 
 
-async def handler(input: Any, ctx: FlowContext[Any]) -> None:
+async def handler(input: Any) -> None:
     """Handle orders that pass single condition."""
-    ctx.logger.info("Processing high-value order", {"data": input})
+    logger.info("Processing high-value order", {"data": input})

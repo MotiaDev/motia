@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig } from 'motia'
+import { enqueue, type Handlers, logger, type StepConfig, stateManager } from 'motia'
 import { z } from 'zod'
 import type { ParallelMergeResult } from './parallel-merge.types'
 import { randomNumber } from './utils'
@@ -25,13 +25,13 @@ export const config = {
   flows: ['parallel-merge'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { logger, enqueue, state }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   logger.info('Starting parallel merge')
 
   const body = bodySchema.parse(request.body ?? {})
   const traceId = crypto.randomUUID()
 
-  await state.set<ParallelMergeResult>('users', traceId, {
+  await stateManager.set<ParallelMergeResult>('users', traceId, {
     totalSteps: body.totalSteps,
     startedAt: Date.now(),
     completedSteps: 0,

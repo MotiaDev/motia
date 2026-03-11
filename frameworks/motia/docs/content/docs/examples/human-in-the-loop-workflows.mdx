@@ -28,7 +28,7 @@ No special "pause" or "wait" commands. Just save state and use HTTP trigger step
 |---------|---------------|
 | **Workflows don't sleep** | They don't "wait." They save state and stop processing. |
 | **HTTP steps are re-entry points** | External systems call webhooks to restart the flow |
-| **State checkpointing** | Every `state.set()` is a save point you can resume from |
+| **State checkpointing** | Every `stateManager.set()` is a save point you can resume from |
 | **Virtual connections** | Use `virtualSubscribes` and `virtualEnqueues` to show how webhooks fit in the flow visually |
 
 <Callout type="info">
@@ -58,7 +58,7 @@ An API receives the order and saves it immediately:
 <Tab value='TypeScript'>
 
 ```typescript title="src/01-submit-order.step.ts"
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, type StepConfig, enqueue, logger, stateManager } from 'motia'
 
 export const config = {
   name: 'SubmitOrder',
@@ -70,7 +70,7 @@ export const config = {
   flows: ['order-approval'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { state, enqueue, logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   const orderId = crypto.randomUUID()
   
   const order = {
@@ -83,7 +83,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { state, enq
     createdAt: new Date().toISOString()
   }
   
-  await state.set('orders', orderId, order)
+  await stateManager.set('orders', orderId, order)
   
   logger.info('Order submitted', { orderId })
   
@@ -103,7 +103,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { state, enq
 import uuid
 from datetime import datetime
 from typing import Any
-from motia import ApiRequest, ApiResponse, FlowContext, http
+from motia import ApiRequest, ApiResponse, http, enqueue, logger, state_manager
 
 config = {
     "name": "SubmitOrder",
@@ -115,7 +115,7 @@ config = {
     "flows": ["order-approval"]
 }
 
-async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+async def handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
     order_id = str(uuid.uuid4())
     
     order = {
@@ -128,11 +128,11 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
         "created_at": datetime.now().isoformat()
     }
     
-    await ctx.state.set("orders", order_id, order)
+    await state_manager.set("orders", order_id, order)
     
-    ctx.logger.info("Order submitted", {"orderId": order_id})
+    logger.info("Order submitted", {"orderId": order_id})
     
-    await ctx.enqueue({
+    await enqueue({
         "topic": "order.submitted",
         "data": {"orderId": order_id}
     })
@@ -145,6 +145,7 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
 
 ```javascript title="src/submit-order.step.js"
 import crypto from 'crypto'
+import { enqueue, logger, stateManager } from 'motia'
 
 export const config = {
   name: 'SubmitOrder',
@@ -156,7 +157,7 @@ export const config = {
   flows: ['order-approval'],
 }
 
-export const handler = async ({ request }, { state, enqueue, logger }) => {
+export const handler = async ({ request }) => {
   const orderId = crypto.randomUUID()
   const { items, total } = request.body
 
@@ -170,7 +171,7 @@ export const handler = async ({ request }, { state, enqueue, logger }) => {
     createdAt: new Date().toISOString()
   }
 
-  await state.set('orders', orderId, order)
+  await stateManager.set('orders', orderId, order)
 
   logger.info('Order submitted', { orderId })
 
@@ -196,7 +197,7 @@ This step decides whether to auto-approve or pause for human review:
 <Tab value='TypeScript'>
 
 ```typescript title="src/02-analyze-risk.step.ts"
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, type StepConfig, enqueue, logger, stateManager } from 'motia'
 
 export const config = {
   name: 'AnalyzeRisk',
@@ -209,9 +210,9 @@ export const config = {
   flows: ['order-approval'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { state, enqueue, logger }) => {
+export const handler: Handlers<typeof config> = async (input) => {
   const { orderId } = input
-  const order = await state.get('orders', orderId)
+  const order = await stateManager.get('orders', orderId)
   
   // Skip if already analyzed (idempotency)
   if (order.completedSteps.includes('risk_analysis')) {
@@ -227,7 +228,7 @@ export const handler: Handlers<typeof config> = async (input, { state, enqueue, 
     // High risk - PAUSE for human approval
     order.status = 'awaiting_approval'
     order.currentStep = 'awaiting_approval'
-    await state.set('orders', orderId, order)
+    await stateManager.set('orders', orderId, order)
     
     logger.warn('Order requires approval - workflow paused', { orderId, riskScore })
     
@@ -239,7 +240,7 @@ export const handler: Handlers<typeof config> = async (input, { state, enqueue, 
     order.status = 'approved'
     order.approvedBy = 'system'
     order.completedSteps.push('approved')
-    await state.set('orders', orderId, order)
+    await stateManager.set('orders', orderId, order)
     
     logger.info('Order auto-approved', { orderId, riskScore })
     
@@ -266,6 +267,7 @@ function calculateRiskScore(order: any): number {
 
 ```python title="src/analyze_risk_step.py"
 import random
+from motia import enqueue, logger, state_manager
 
 config = {
     "name": "AnalyzeRisk",
@@ -278,9 +280,9 @@ config = {
     "flows": ["order-approval"]
 }
 
-async def handler(input_data, context):
+async def handler(input_data):
     order_id = input_data.get("orderId")
-    order = await context.state.get("orders", order_id)
+    order = await state_manager.get("orders", order_id)
     
     # Skip if already analyzed
     if "risk_analysis" in order.get("completed_steps", []):
@@ -295,9 +297,9 @@ async def handler(input_data, context):
         # High risk - PAUSE
         order["status"] = "awaiting_approval"
         order["current_step"] = "awaiting_approval"
-        await context.state.set("orders", order_id, order)
+        await state_manager.set("orders", order_id, order)
         
-        context.logger.warn("Order requires approval - workflow paused", 
+        logger.warn("Order requires approval - workflow paused", 
                            {"orderId": order_id, "riskScore": risk_score})
         # NO EMIT - workflow stops
         
@@ -306,12 +308,12 @@ async def handler(input_data, context):
         order["status"] = "approved"
         order["approved_by"] = "system"
         order["completed_steps"].append("approved")
-        await context.state.set("orders", order_id, order)
+        await state_manager.set("orders", order_id, order)
         
-        context.logger.info("Order auto-approved", 
+        logger.info("Order auto-approved", 
                            {"orderId": order_id, "riskScore": risk_score})
         
-        await context.enqueue({
+        await enqueue({
             "topic": "order.auto_approved",
             "data": {"orderId": order_id}
         })
@@ -337,6 +339,8 @@ def calculate_risk_score(order):
 <Tab value='JavaScript'>
 
 ```javascript title="src/analyze-risk.step.js"
+import { enqueue, logger, stateManager } from 'motia'
+
 export const config = {
   name: 'AnalyzeRisk',
   description: 'Analyze order risk and route accordingly',
@@ -348,9 +352,9 @@ export const config = {
   flows: ['order-approval'],
 }
 
-export const handler = async (input, { state, enqueue, logger }) => {
+export const handler = async (input) => {
   const { orderId } = input
-  const order = await state.get('orders', orderId)
+  const order = await stateManager.get('orders', orderId)
   
   // Skip if already analyzed (idempotency)
   if (order.completedSteps.includes('risk_analysis')) {
@@ -365,7 +369,7 @@ export const handler = async (input, { state, enqueue, logger }) => {
     // High risk - PAUSE
     order.status = 'awaiting_approval'
     order.currentStep = 'awaiting_approval'
-    await state.set('orders', orderId, order)
+    await stateManager.set('orders', orderId, order)
     
     logger.warn('Order requires approval - workflow paused', { orderId, riskScore })
     // NO EMIT - workflow stops here
@@ -375,7 +379,7 @@ export const handler = async (input, { state, enqueue, logger }) => {
     order.status = 'approved'
     order.approvedBy = 'system'
     order.completedSteps.push('approved')
-    await state.set('orders', orderId, order)
+    await stateManager.set('orders', orderId, order)
     
     logger.info('Order auto-approved', { orderId, riskScore })
     await enqueue({ topic: 'order.auto_approved', data: { orderId } })
@@ -433,7 +437,7 @@ External systems (UI, Slack, etc.) call this webhook to provide the human decisi
 <Tab value='TypeScript'>
 
 ```typescript title="src/04-approval-webhook.step.ts"
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, type StepConfig, enqueue, logger, stateManager } from 'motia'
 
 export const config = {
   name: 'ApprovalWebhook',
@@ -446,11 +450,11 @@ export const config = {
   flows: ['order-approval'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { state, enqueue, logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   const { orderId } = request.pathParams
   const { approved, approvedBy, notes } = request.body
   
-  const order = await state.get('orders', orderId)
+  const order = await stateManager.get('orders', orderId)
   
   if (!order) {
     return { status: 404, body: { error: 'Order not found' } }
@@ -465,7 +469,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { state, enq
     order.approvedBy = approvedBy
     order.approvedAt = new Date().toISOString()
     order.completedSteps.push('approved')
-    await state.set('orders', orderId, order)
+    await stateManager.set('orders', orderId, order)
     
     logger.info('Order approved - resuming workflow', { orderId, approvedBy })
     
@@ -476,7 +480,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { state, enq
     order.status = 'rejected'
     order.rejectedBy = approvedBy
     order.rejectionReason = notes
-    await state.set('orders', orderId, order)
+    await stateManager.set('orders', orderId, order)
     
     logger.info('Order rejected - workflow ends', { orderId })
     return { status: 200, body: { success: true, message: 'Order rejected' } }
@@ -490,7 +494,7 @@ export const handler: Handlers<typeof config> = async ({ request }, { state, enq
 ```python title="src/approval_webhook_step.py"
 from datetime import datetime
 from typing import Any
-from motia import ApiRequest, ApiResponse, FlowContext, http
+from motia import ApiRequest, ApiResponse, http, enqueue, logger, state_manager
 
 config = {
     "name": "ApprovalWebhook",
@@ -503,13 +507,13 @@ config = {
     "flows": ["order-approval"]
 }
 
-async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+async def handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
     order_id = request.path_params.get("orderId")
     approved = request.body.get("approved")
     approved_by = request.body.get("approvedBy")
     notes = request.body.get("notes")
     
-    order = await ctx.state.get("orders", order_id)
+    order = await state_manager.get("orders", order_id)
     
     if not order:
         return ApiResponse(status=404, body={"error": "Order not found"})
@@ -522,12 +526,12 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
         order["approved_by"] = approved_by
         order["approved_at"] = datetime.now().isoformat()
         order["completed_steps"].append("approved")
-        await ctx.state.set("orders", order_id, order)
+        await state_manager.set("orders", order_id, order)
         
-        ctx.logger.info("Order approved - resuming workflow", 
+        logger.info("Order approved - resuming workflow", 
                            {"orderId": order_id, "approvedBy": approved_by})
         
-        await ctx.enqueue({
+        await enqueue({
             "topic": "order.approved",
             "data": {"orderId": order_id}
         })
@@ -536,7 +540,7 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
     else:
         order["status"] = "rejected"
         order["rejected_by"] = approved_by
-        await ctx.state.set("orders", order_id, order)
+        await state_manager.set("orders", order_id, order)
         
         return ApiResponse(status=200, body={"success": True})
 ```
@@ -545,6 +549,8 @@ async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiRespons
 <Tab value='JavaScript'>
 
 ```javascript title="src/approval-webhook.step.js"
+import { enqueue, logger, stateManager } from 'motia'
+
 export const config = {
   name: 'ApprovalWebhook',
   description: 'Webhook for human approval decisions',
@@ -556,11 +562,11 @@ export const config = {
   flows: ['order-approval'],
 }
 
-export const handler = async ({ request }, { state, enqueue, logger }) => {
+export const handler = async ({ request }) => {
   const { orderId } = request.pathParams
   const { approved, approvedBy, notes } = request.body
   
-  const order = await state.get('orders', orderId)
+  const order = await stateManager.get('orders', orderId)
   
   if (!order) {
     return { status: 404, body: { error: 'Order not found' } }
@@ -575,7 +581,7 @@ export const handler = async ({ request }, { state, enqueue, logger }) => {
     order.approvedBy = approvedBy
     order.approvedAt = new Date().toISOString()
     order.completedSteps.push('approved')
-    await state.set('orders', orderId, order)
+    await stateManager.set('orders', orderId, order)
     
     logger.info('Order approved - resuming', { orderId, approvedBy })
     
@@ -585,7 +591,7 @@ export const handler = async ({ request }, { state, enqueue, logger }) => {
     // Rejected - end workflow
     order.status = 'rejected'
     order.rejectedBy = approvedBy
-    await state.set('orders', orderId, order)
+    await stateManager.set('orders', orderId, order)
 
     logger.info('Order rejected', { orderId })
     return { status: 200, body: { success: true } }
@@ -606,7 +612,7 @@ Final step that runs after approval:
 <Tab value='TypeScript'>
 
 ```typescript title="src/05-complete-order.step.ts"
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, type StepConfig, logger, stateManager } from 'motia'
 
 export const config = {
   name: 'CompleteOrder',
@@ -619,9 +625,9 @@ export const config = {
   flows: ['order-approval'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { state, logger }) => {
+export const handler: Handlers<typeof config> = async (input) => {
   const { orderId } = input
-  const order = await state.get('orders', orderId)
+  const order = await stateManager.get('orders', orderId)
   
   // Skip if already completed (idempotency)
   if (order.completedSteps.includes('completed')) {
@@ -634,7 +640,7 @@ export const handler: Handlers<typeof config> = async (input, { state, logger })
   order.status = 'completed'
   order.completedAt = new Date().toISOString()
   order.completedSteps.push('completed')
-  await state.set('orders', orderId, order)
+  await stateManager.set('orders', orderId, order)
   
   logger.info('Order completed', { orderId, approvedBy: order.approvedBy })
 }
@@ -650,6 +656,7 @@ async function simulateFulfillment(order: any) {
 
 ```python title="src/complete_order_step.py"
 import asyncio
+from motia import logger, state_manager
 
 config = {
     "name": "CompleteOrder",
@@ -662,9 +669,9 @@ config = {
     "flows": ["order-approval"]
 }
 
-async def handler(input_data, context):
+async def handler(input_data):
     order_id = input_data.get("orderId")
-    order = await context.state.get("orders", order_id)
+    order = await state_manager.get("orders", order_id)
     
     # Skip if already completed (idempotency)
     if "completed" in order.get("completed_steps", []):
@@ -675,15 +682,17 @@ async def handler(input_data, context):
     
     order["status"] = "completed"
     order["completed_steps"].append("completed")
-    await context.state.set("orders", order_id, order)
+    await state_manager.set("orders", order_id, order)
     
-    context.logger.info("Order completed", {"orderId": order_id})
+    logger.info("Order completed", {"orderId": order_id})
 ```
 
 </Tab>
 <Tab value='JavaScript'>
 
 ```javascript title="src/complete-order.step.js"
+import { logger, stateManager } from 'motia'
+
 export const config = {
   name: 'CompleteOrder',
   description: 'Complete an approved order',
@@ -695,9 +704,9 @@ export const config = {
   flows: ['order-approval'],
 }
 
-export const handler = async (input, { state, logger }) => {
+export const handler = async (input) => {
   const { orderId } = input
-  const order = await state.get('orders', orderId)
+  const order = await stateManager.get('orders', orderId)
   
   // Skip if already completed (idempotency)
   if (order.completedSteps.includes('completed')) {
@@ -709,7 +718,7 @@ export const handler = async (input, { state, logger }) => {
   
   order.status = 'completed'
   order.completedSteps.push('completed')
-  await state.set('orders', orderId, order)
+  await stateManager.set('orders', orderId, order)
   
   logger.info('Order completed', { orderId, approvedBy: order.approvedBy })
 }
@@ -732,7 +741,7 @@ A scheduled job periodically scans for orders stuck in approval:
 <Tab value='TypeScript'>
 
 ```typescript title="src/06-detect-timeouts.step.ts"
-import { type Handlers, type StepConfig, cron } from 'motia'
+import { type Handlers, type StepConfig, cron, logger, stateManager } from 'motia'
 
 export const config = {
   name: 'DetectTimeouts',
@@ -744,8 +753,8 @@ export const config = {
   flows: ['order-approval'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ state, logger }) => {
-  const orders = await state.list('orders')
+export const handler: Handlers<typeof config> = async () => {
+  const orders = await stateManager.list('orders')
   const now = Date.now()
   const timeoutMs = 10 * 60 * 1000  // 10 minutes (demo - use 24 hours in production)
   
@@ -771,7 +780,7 @@ export const handler: Handlers<typeof config> = async ({ state, logger }) => {
         order.status = 'timeout'
         order.timeoutAt = new Date().toISOString()
         order.timeoutReason = `No approval within ${Math.round(timeoutMs / (60 * 1000))} min`
-        await state.set('orders', order.id, order)
+        await stateManager.set('orders', order.id, order)
         
         // In production, take action:
         // 1. Send escalation notification (Slack, email)
@@ -803,6 +812,7 @@ export const handler: Handlers<typeof config> = async ({ state, logger }) => {
 ```python title="src/detect_timeouts_step.py"
 from datetime import datetime, timezone
 import time
+from motia import logger, state_manager
 
 config = {
     "name": "DetectTimeouts",
@@ -814,8 +824,8 @@ config = {
     "flows": ["order-approval"]
 }
 
-async def handler(context):
-    orders = await context.state.list("orders")
+async def handler():
+    orders = await state_manager.list("orders")
     now = time.time() * 1000  # Convert to milliseconds
     timeout_ms = 10 * 60 * 1000  # 10 minutes (demo - use 24 hours in production)
     
@@ -832,7 +842,7 @@ async def handler(context):
             if age > timeout_ms:
                 stuck_count += 1
                 
-                context.logger.warn("Approval timeout detected", {
+                logger.warn("Approval timeout detected", {
                     "orderId": order["id"],
                     "ageMinutes": round(age / (60 * 1000)),
                     "riskScore": order.get("risk_score"),
@@ -843,17 +853,17 @@ async def handler(context):
                 order["status"] = "timeout"
                 order["timeout_at"] = datetime.now(timezone.utc).isoformat()
                 order["timeout_reason"] = f"No approval within {round(timeout_ms / (60 * 1000))} min"
-                await context.state.set("orders", order["id"], order)
+                await state_manager.set("orders", order["id"], order)
                 
                 # Escalate
-                context.logger.info("Escalation triggered", {
+                logger.info("Escalation triggered", {
                     "orderId": order["id"],
                     "action": "timeout_escalation",
                     "notifyChannel": "#urgent-approvals"
                 })
     
     if stuck_count > 0:
-        context.logger.info("Timeout detection complete", {
+        logger.info("Timeout detection complete", {
             "stuckCount": stuck_count,
             "totalOrders": len(orders)
         })
@@ -863,7 +873,7 @@ async def handler(context):
 <Tab value='JavaScript'>
 
 ```javascript title="src/detect-timeouts.step.js"
-import { cron } from 'motia'
+import { cron, logger, stateManager } from 'motia'
 
 export const config = {
   name: 'DetectTimeouts',
@@ -875,8 +885,8 @@ export const config = {
   flows: ['order-approval'],
 }
 
-export const handler = async ({ state, logger }) => {
-  const orders = await state.list('orders')
+export const handler = async () => {
+  const orders = await stateManager.list('orders')
   const now = Date.now()
   const timeoutMs = 10 * 60 * 1000  // 10 minutes (demo - use 24 hours in production)
   
@@ -902,7 +912,7 @@ export const handler = async ({ state, logger }) => {
         order.status = 'timeout'
         order.timeoutAt = new Date().toISOString()
         order.timeoutReason = `No approval within ${Math.round(timeoutMs / (60 * 1000))} min`
-        await state.set('orders', order.id, order)
+        await stateManager.set('orders', order.id, order)
         
         // Escalate
         logger.info('Escalation triggered', {

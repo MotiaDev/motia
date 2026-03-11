@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import FlowContext, StreamTriggerInput, stream
+from motia import StreamTriggerInput, enqueue, logger, stream
 
 config = {
     "name": "on-todo-stream-event",
@@ -15,9 +15,9 @@ config = {
 }
 
 
-async def handler(input: StreamTriggerInput, ctx: FlowContext[Any]) -> None:
+async def handler(input: StreamTriggerInput) -> None:
     """Handle todo stream event."""
-    ctx.logger.info(
+    logger.info(
         f"Todo stream event",
         {
             "stream_name": input.stream_name,
@@ -28,15 +28,14 @@ async def handler(input: StreamTriggerInput, ctx: FlowContext[Any]) -> None:
         },
     )
 
-    # Process based on event type
     if input.event.type == "create":
-        ctx.logger.info(f"New todo created: {input.id}")
+        logger.info(f"New todo created: {input.id}")
     elif input.event.type == "update":
-        ctx.logger.info(f"Todo updated: {input.id}")
+        logger.info(f"Todo updated: {input.id}")
     elif input.event.type == "delete":
-        ctx.logger.info(f"Todo deleted: {input.id}")
+        logger.info(f"Todo deleted: {input.id}")
 
-    await ctx.emit(
+    await enqueue(
         {
             "topic": "todo.processed",
             "data": {

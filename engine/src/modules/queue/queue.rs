@@ -107,7 +107,7 @@ impl TriggerRegistrator for QueueCoreModule {
             if !topic.is_empty() {
                 let condition_function_id = trigger
                     .config
-                    .get("_condition_path")
+                    .get("condition_function_id")
                     .and_then(|v| v.as_str())
                     .map(|v| v.to_string());
 
@@ -574,7 +574,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn register_trigger_with_condition_path_subscribes() {
+    async fn register_trigger_with_condition_function_id_subscribes() {
         let (_engine, module, adapter) = setup_queue_module();
         let trigger = crate::trigger::Trigger {
             id: "trig-cond".to_string(),
@@ -582,7 +582,7 @@ mod tests {
             function_id: "test::handler".to_string(),
             config: json!({
                 "topic": "conditioned-topic",
-                "_condition_path": "test::condition_fn"
+                "condition_function_id": "test::condition_fn"
             }),
             worker_id: None,
         };

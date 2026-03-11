@@ -4,16 +4,16 @@ description: A backend unification and orchestration system.
 hideCards: true
 ---
 
-Today building a typical backend today means connecting together many separate systems:
-an API framework, a task queue, a cron scheduler, a pub/sub layer, a state store, a WebSocket server,
-and an observability pipeline.
+Today, building a typical backend means connecting many separate systems: API frameworks,
+a task queue, a cron scheduler, an event bus, a pub/sub layer, a state store,
+a WebSocket server, and an observability pipeline.
 
 Each system brings its own setup, its own deployment, and its own
 failure modes. Balancing infrastructure and business logic becomes increasingly difficult
 with every new system.
 
 The result of balancing these many necessary systems are delayed delivery, difficulty debugging,
-transient issues, increased expenses, silo'd domain and systems knowledge, and difficulty with
+transient issues, increased expenses, siloed domain and systems knowledge, and difficulty with
 onboarding new developers and AI agents.
 
 The main benefit of iii is that it transforms a backend from behaving like a series of
@@ -28,7 +28,7 @@ removal of cost centers with reduced switching costs, and faster delivery of bac
 
 ## How iii achieves this
 
-iii unifies any backend stack with three primitives: **Functions**, **Triggers**, and **Workers**.
+iii unifies any backend stack with a single engine and three primitives: **Function**, **Trigger**, and **Worker**.
 
 This results in the ability to:
 
@@ -68,7 +68,7 @@ iii --version
   <Card icon={<Terminal />} title="Quickstart" href={`/docs/tutorials/quickstart`}>
     Follow the Quickstart and explore a live iii application.
   </Card>
-  <Card icon={<LayoutTemplate />} title="Concepts" href={`/docs/concepts`}>
+  <Card icon={<LayoutTemplate />} title="Concepts" href={`/docs/primitives-and-concepts`}>
     Understand Functions and Triggers from a conceptual point of view.
   </Card>
 </Cards>

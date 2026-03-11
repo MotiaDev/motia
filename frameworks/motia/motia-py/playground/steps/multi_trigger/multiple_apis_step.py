@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, http
+from motia import ApiRequest, ApiResponse, FlowContext, http, logger
 
 config = {
     "name": "MultipleApis",
@@ -18,5 +18,5 @@ config = {
 
 async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
     """Handle multiple API triggers."""
-    ctx.logger.info("Multiple APIs trigger fired", {"path": ctx.trigger.path, "method": ctx.trigger.method})
+    logger.info("Multiple APIs trigger fired", {"path": ctx.trigger.path, "method": ctx.trigger.method})
     return ApiResponse(status=200, body={"message": "Multiple APIs trigger works"})

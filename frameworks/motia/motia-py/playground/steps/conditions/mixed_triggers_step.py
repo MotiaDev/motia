@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, http, queue
+from motia import ApiRequest, ApiResponse, FlowContext, http, logger, queue
 
 
 def is_high_value(input: Any, ctx: FlowContext[Any]) -> bool:
@@ -39,10 +39,10 @@ async def handler(input_data: Any, ctx: FlowContext[Any]) -> Any:
     """Dispatch to handler based on trigger type."""
 
     async def _event_handler(input: Any) -> None:
-        ctx.logger.info("Processing order (event)", {"data": input, "topic": ctx.trigger.topic})
+        logger.info("Processing order (event)", {"data": input, "topic": ctx.trigger.topic})
 
     async def _api_handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
-        ctx.logger.info("Processing order (api)", {"path": ctx.trigger.path, "method": ctx.trigger.method})
+        logger.info("Processing order (api)", {"path": ctx.trigger.path, "method": ctx.trigger.method})
         return ApiResponse(status=200, body={"message": "Order processed via API"})
 
     return await ctx.match(

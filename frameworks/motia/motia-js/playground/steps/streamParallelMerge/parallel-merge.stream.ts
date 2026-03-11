@@ -1,4 +1,4 @@
-import type { StreamConfig } from 'motia'
+import { Stream, type StreamConfig } from 'motia'
 import { z } from 'zod'
 
 const parallelMergeSchema = z.object({
@@ -13,4 +13,5 @@ export const config: StreamConfig = {
   schema: parallelMergeSchema,
 }
 
+export const parallelMergeStream = new Stream(config)
 export type ParallelMergeStreamItem = z.infer<typeof parallelMergeSchema>

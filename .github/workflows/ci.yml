@@ -28,15 +28,21 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt, clippy, llvm-tools-preview
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin --locked
+      - uses: taiki-e/install-action@cargo-llvm-cov
 
-      - name: Run coverage
-        run: cargo tarpaulin --locked --fail-under 70
+      - name: Build and run coverage
+        run: |
+          eval "$(cargo llvm-cov show-env --export-prefix)"
+          cargo build -p iii --all-features
+          cargo test -p iii --all-features
+          cargo llvm-cov report \
+            --fail-under-lines 70 \
+            --ignore-filename-regex \
+            "engine/src/main\.rs|(cron|pubsub|queue|state|stream)/adapters/(redis_adapter|bridge)\.rs|queue/adapters/rabbitmq/|^sdk/"
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -44,16 +50,10 @@ jobs:
       # - name: Run clippy
       #   run: cargo clippy -p iii -p function-macros -p iii-sdk --all-targets --all-features -- -D warnings
 
-      - name: Run engine tests
-        run: cargo test -p iii --all-features
-
-      - name: Build release
-        run: cargo build -p iii --release
-
       - uses: actions/upload-artifact@v4
         with:
           name: iii-binary
-          path: target/release/iii
+          path: target/debug/iii
           retention-days: 1
 
   engine-build-matrix:
@@ -429,7 +429,6 @@ jobs:
 
   console-ci:
     name: Console Build
-    needs: build-engine
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

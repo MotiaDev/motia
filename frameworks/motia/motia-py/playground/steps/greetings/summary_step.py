@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, Stream, cron, http
+from motia import ApiRequest, ApiResponse, FlowContext, Stream, cron, http, logger
 
 GREETINGS_GROUP_ID = "default"
 greetings_stream: Stream[dict[str, Any]] = Stream("greetings")
@@ -24,12 +24,12 @@ async def handler(input_data: Any, ctx: FlowContext[Any]) -> Any:
 
     async def _summary_api_handler(request: ApiRequest[Any]) -> ApiResponse[dict[str, Any]]:
         greetings = await greetings_stream.get_group(GREETINGS_GROUP_ID)
-        ctx.logger.info("Greetings summary requested", {"count": len(greetings)})
+        logger.info("Greetings summary requested", {"count": len(greetings)})
         return ApiResponse(status=200, body={"count": len(greetings), "greetings": greetings})
 
     async def _summary_cron_handler() -> None:
         greetings = await greetings_stream.get_group(GREETINGS_GROUP_ID)
-        ctx.logger.info("Greetings summary (cron)", {"count": len(greetings)})
+        logger.info("Greetings summary (cron)", {"count": len(greetings)})
 
     return await ctx.match(
         {

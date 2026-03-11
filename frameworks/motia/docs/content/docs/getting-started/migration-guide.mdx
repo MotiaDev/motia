@@ -215,9 +215,10 @@ modules:
 
 ```typescript
 import type { AuthenticateStream } from 'motia'
+import { logger } from 'motia'
 
-export const authenticateStream: AuthenticateStream = async (req, context) => {
-  context.logger.info('Authenticating stream', { req })
+export const authenticateStream: AuthenticateStream = async (req) => {
+  logger.info('Authenticating stream', { req })
   return { context: { userId: 'sergio' } }
 }
 ```
@@ -302,7 +303,10 @@ If you prefer to stay on CommonJS, that works too. Motia does not force a migrat
 | Old | New |
 |---|---|
 | `Handlers['StepName']` | `Handlers<typeof config>` |
-| `ctx.emit({ topic, data })` | `ctx.enqueue({ topic, data })` |
+| `ctx.emit({ topic, data })` | `import { enqueue } from 'motia'` then `enqueue({ topic, data })` |
+| `ctx.logger` | `import { logger } from 'motia'` |
+| `ctx.state` | `import { stateManager } from 'motia'` |
+| `ctx.streams.name` | `import { myStream } from './my.stream'` |
 
 ### Type Safety
 
@@ -380,7 +384,7 @@ export const handler: Handlers['CreateUser'] = async (req, { emit, logger }) => 
 <Tab value="New">
 
 ```typescript
-import type { Handlers, StepConfig } from 'motia'
+import { enqueue, type Handlers, logger, type StepConfig } from 'motia'
 import { z } from 'zod'
 
 const bodySchema = z.object({ name: z.string(), email: z.string() })
@@ -405,7 +409,7 @@ export const config = {
   enqueues: ['user-created'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { enqueue, logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   const { name, email } = request.body
   logger.info('Creating user', { name, email })
   await enqueue({ topic: 'user-created', data: { name, email } })
@@ -421,8 +425,9 @@ export const handler: Handlers<typeof config> = async ({ request }, { enqueue, l
 1. `type: 'api'` is now `type: 'http'` inside a trigger object.
 2. `method`, `path`, `bodySchema`, `responseSchema`, `middleware` all move inside the trigger.
 3. `emits` becomes `enqueues` at the config level.
-4. `emit()` becomes `enqueue()` in the handler context.
-5. Config type changes from `ApiRouteConfig` to `StepConfig` with `as const satisfies`.
+4. `emit()` becomes `enqueue()` -- now imported from `'motia'` instead of accessed via `ctx`.
+5. `logger` is imported from `'motia'` instead of destructured from `ctx`.
+6. Config type changes from `ApiRouteConfig` to `StepConfig` with `as const satisfies`.
 
 ### HTTP Helper Shorthand
 
@@ -478,7 +483,7 @@ export const handler: Handlers['DeployEnvironment'] = async (data, { logger, emi
 <Tab value="New">
 
 ```typescript
-import type { Handlers, StepConfig } from 'motia'
+import { enqueue, type Handlers, logger, type StepConfig } from 'motia'
 import { z } from 'zod'
 
 export const config = {
@@ -498,7 +503,7 @@ export const config = {
   enqueues: ['deploy-version-v2'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger, enqueue, streams }) => {
+export const handler: Handlers<typeof config> = async (input) => {
   logger.info('Deploying environment', { deploymentId: input.deploymentId })
   await enqueue({ topic: 'deploy-version-v2', data: { deploymentId: input.deploymentId } })
 }
@@ -563,7 +568,7 @@ export const handler: Handlers['DailyMetricsCollection'] = async ({ logger, emit
 <Tab value="New">
 
 ```typescript
-import type { Handlers, StepConfig } from 'motia'
+import { enqueue, type Handlers, logger, type StepConfig } from 'motia'
 
 export const config = {
   name: 'DailyMetricsCollection',
@@ -573,7 +578,7 @@ export const config = {
   enqueues: ['collect-metrics'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger, enqueue }) => {
+export const handler: Handlers<typeof config> = async () => {
   logger.info('Collecting metrics')
   await enqueue({ topic: 'collect-metrics', data: { targetDate: new Date().toISOString() } })
 }
@@ -586,7 +591,7 @@ export const handler: Handlers<typeof config> = async (input, { logger, enqueue 
 |---|---|
 | `type: 'cron'` at config root | `triggers: [{ type: 'cron', expression }]` |
 | `cron: '0 5 * * *'` (5-field) | `expression: '0 0 5 * * * *'` (7-field, includes seconds and year) |
-| Handler: `async ({ logger, emit })` | Handler: `async (input, { logger, enqueue })` |
+| Handler: `async ({ logger, emit })` | Handler: `async ()` with `logger` and `enqueue` imported from `'motia'` |
 | `emit()` | `enqueue()` |
 
 ### Cron Expression Format
@@ -642,7 +647,7 @@ export const config: StreamConfig = {
 <Tab value="New">
 
 ```typescript
-import type { StreamConfig } from 'motia'
+import { logger, Stream, type StreamConfig } from 'motia'
 import { z } from 'zod'
 
 export const config: StreamConfig = {
@@ -653,14 +658,16 @@ export const config: StreamConfig = {
     status: z.enum(['pending', 'progress', 'completed', 'failed']),
     message: z.string().optional(),
   }),
-  onJoin: async (subscription, context, authContext) => {
-    context.logger.info('Client joined stream', { subscription, authContext })
+  onJoin: async (subscription, _context, authContext) => {
+    logger.info('Client joined stream', { subscription, authContext })
     return { unauthorized: false }
   },
-  onLeave: async (subscription, context, authContext) => {
-    context.logger.info('Client left stream', { subscription, authContext })
+  onLeave: async (subscription, _context, authContext) => {
+    logger.info('Client left stream', { subscription, authContext })
   },
 }
+
+export const deploymentStream = new Stream(config)
 ```
 
 </Tab>
@@ -668,12 +675,14 @@ export const config: StreamConfig = {
 
 ### Stream Operations API
 
+Streams are no longer accessed via `ctx.streams`. Instead, create a `Stream` instance in a `.stream.ts` file and import it into your steps:
+
 | Operation | Old | New |
 |---|---|---|
-| Get | `streams.name.get(id, key)` | `streams.name.get(groupId, id)` |
-| Set | `streams.name.set(id, key, value)` | `streams.name.set(groupId, id, value)` |
-| Update | N/A | `streams.name.update(groupId, id, UpdateOp[])` |
-| Delete | `streams.name.delete(id, key)` | `streams.name.delete(groupId, id)` |
+| Get | `ctx.streams.name.get(id, key)` | `myStream.get(groupId, id)` |
+| Set | `ctx.streams.name.set(id, key, value)` | `myStream.set(groupId, id, value)` |
+| Update | N/A | `myStream.update(groupId, id, UpdateOp[])` |
+| Delete | `ctx.streams.name.delete(id, key)` | `myStream.delete(groupId, id)` |
 
 The parameter naming changed from `(id, key)` to `(groupId, id)` to better reflect the data model: a stream is partitioned by groups, and within each group items are identified by id.
 
@@ -681,8 +690,9 @@ The parameter naming changed from `(id, key)` to `(groupId, id)` to better refle
 
 ```typescript
 import type { UpdateOp } from 'motia'
+import { deploymentStream } from './deployment.stream'
 
-await streams.deployment.update('merge-groups', traceId, [
+await deploymentStream.update('merge-groups', traceId, [
   { type: 'increment', path: 'completedSteps', by: 1 },
   { type: 'set', path: 'status', value: 'progress' },
   { type: 'decrement', path: 'retries', by: 1 },
@@ -713,7 +723,9 @@ await streams.deployment.set(deploymentId, 'data', streamData)
 <Tab value="New">
 
 ```typescript
-await streams.deployment.update('data', deploymentId, [
+import { deploymentStream } from './deployment.stream'
+
+await deploymentStream.update('data', deploymentId, [
   { type: 'set', path: 'status', value: 'completed' },
   { type: 'set', path: 'message', value: 'Done' },
 ])
@@ -758,14 +770,16 @@ triggers: [
 
 ## State
 
-State provides key-value storage grouped by a namespace. The core `get`, `set`, and `list` operations remain the same. The new version introduces two additions: **atomic updates** via the `update` method, and **state triggers**.
+State provides key-value storage grouped by a namespace. The core `get`, `set`, and `list` operations remain the same. State is now accessed via `stateManager` imported from `'motia'` instead of `ctx.state`. The new version also introduces **atomic updates** via the `update` method, and **state triggers**.
 
-### Existing API (unchanged)
+### API (now via `stateManager` import)
 
 ```typescript
-await ctx.state.set('orders', orderId, orderData)
-const order = await ctx.state.get<Order>('orders', orderId)
-const allOrders = await ctx.state.list<Order>('orders')
+import { stateManager } from 'motia'
+
+await stateManager.set('orders', orderId, orderData)
+const order = await stateManager.get<Order>('orders', orderId)
+const allOrders = await stateManager.list<Order>('orders')
 ```
 
 ### Atomic Updates with `update()`
@@ -775,7 +789,9 @@ const allOrders = await ctx.state.list<Order>('orders')
 </Callout>
 
 ```typescript
-await ctx.state.update<Order>('orders', orderId, [
+import { stateManager } from 'motia'
+
+await stateManager.update<Order>('orders', orderId, [
   { type: 'increment', path: 'completedSteps', by: 1 },
   { type: 'set', path: 'status', value: 'shipped' },
   { type: 'decrement', path: 'retries', by: 1 },
@@ -875,7 +891,7 @@ export async function requireAuth(request: MotiaHttpRequest<any>): Promise<Token
   return jwt.verify(token, process.env.JWT_SECRET!) as TokenData
 }
 
-export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   const tokenData = await requireAuth(request)
   // ... rest of handler
 }
@@ -907,7 +923,7 @@ export const config = {
 For multi-trigger steps, the `step()` helper provides `ctx.getData()` and `ctx.match()`:
 
 ```typescript
-import { http, queue, step } from 'motia'
+import { http, logger, queue, step } from 'motia'
 
 export const stepConfig = {
   name: 'ProcessOrder',
@@ -927,7 +943,7 @@ export const { config, handler } = step(stepConfig, async (input, ctx) => {
       return { status: 200, body: { success: true } }
     },
     queue: async (queueInput) => {
-      ctx.logger.info('Processing from queue', { queueInput })
+      logger.info('Processing from queue', { queueInput })
     },
   })
 })
@@ -1005,16 +1021,28 @@ triggers: [
 - Remove `middleware` field from all step configs
 - Replace `virtualEmits` with `virtualEnqueues` (format changes from `[{ topic, label }]` to `['topic']`)
 
+### Context API
+
+- Replace `ctx.logger` / `context.logger` with `import { logger } from 'motia'`
+- Replace `ctx.enqueue` / `context.enqueue` with `import { enqueue } from 'motia'`
+- Replace `ctx.state` / `context.state` with `import { stateManager } from 'motia'`
+- Replace `ctx.streams.name` / `context.streams.name` with stream instances imported from `.stream.ts` files
+- Create `.stream.ts` files with `new Stream(config)` for each stream
+- Remove `state`, `enqueue`, `logger`, `streams` from handler destructuring of `ctx`
+- If `ctx` was only used for those removed properties, omit the second handler argument entirely
+
 ### Streams
 
-- Update stream access calls: `get(id, key)` to `get(groupId, id)`
-- Update stream access calls: `set(id, key, value)` to `set(groupId, id, value)`
-- Replace read-modify-write patterns with `update(groupId, id, UpdateOp[])` where possible
+- Create `.stream.ts` files with `new Stream(config)` and import instances into steps
+- Update stream access calls: `get(id, key)` to `myStream.get(groupId, id)`
+- Update stream access calls: `set(id, key, value)` to `myStream.set(groupId, id, value)`
+- Replace read-modify-write patterns with `myStream.update(groupId, id, UpdateOp[])` where possible
 - Add `onJoin` / `onLeave` hooks to stream configs if real-time subscription auth is needed
 
 ### State
 
-- Adopt `state.update()` with `UpdateOp[]` to replace manual get-then-set patterns
+- Replace `ctx.state` with `import { stateManager } from 'motia'`
+- Adopt `stateManager.update()` with `UpdateOp[]` to replace manual get-then-set patterns
 - Consider using state triggers for reactive workflows
 
 ### Middleware

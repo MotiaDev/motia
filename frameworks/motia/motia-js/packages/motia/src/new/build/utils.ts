@@ -4,14 +4,13 @@ import type {
   HttpRequest as IIIHttpRequest,
   HttpResponse as IIIHttpResponse,
 } from 'iii-sdk'
-import { Logger, http as iiiHttp } from 'iii-sdk'
+import { http as iiiHttp, Logger } from 'iii-sdk'
 import type { StreamAuthInput, StreamJoinLeaveEvent } from 'iii-sdk/stream'
 import { currentTraceId } from 'iii-sdk/telemetry'
 import { isApiTrigger, isCronTrigger, isQueueTrigger, isStateTrigger, isStreamTrigger } from '../../guards'
 import type {
   ApiMiddleware,
   ApiResponse,
-  Enqueuer,
   ExtractApiInput,
   ExtractDataPayload,
   ExtractQueueInput,
@@ -31,14 +30,14 @@ import type {
 import type { AuthenticateStream, StreamAuthInput as MotiaStreamAuthInput, StreamConfig } from '../../types-stream'
 import { getInstance } from '../iii'
 import { setupStepEndpoint } from '../setup-step-endpoint'
-import { stateManager } from '../state'
 import { Stream } from '../stream'
+import { logger } from '../logger'
 
 type StepWithHandler = Step & { handler: StepHandler<unknown> }
 
 type TriggerConfigBase = {
   metadata: StepConfig & { filePath: string }
-  _condition_path?: string
+  condition_function_id?: string
 }
 
 type ApiTriggerConfig = TriggerConfigBase & {
@@ -73,21 +72,12 @@ const composeMiddleware = <TRequestBody = unknown, TEnqueueData = never>(
 }
 
 const flowContext = <EnqueueData, TInput = unknown>(
-  streamManager: Motia,
   trigger: TriggerInfo,
   input?: TInput,
 ): FlowContext<EnqueueData, TInput> => {
-  const logger = new Logger()
   const traceId = currentTraceId() ?? crypto.randomUUID()
-  const enqueue: Enqueuer<EnqueueData> = async (queue: EnqueueData): Promise<void> =>
-    getInstance().call('enqueue', queue)
-
   const context: FlowContext<EnqueueData, TInput> = {
-    enqueue,
     traceId,
-    state: stateManager,
-    logger,
-    streams: streamManager.streams,
     trigger,
 
     is: {
@@ -153,7 +143,7 @@ function getTriggerSuffix(trigger: TriggerConfig): string {
 }
 
 export class Motia {
-  public streams: Record<string, Stream<unknown>> = {}
+  public streams: Record<string, Stream> = {}
   private authenticateStream: AuthenticateStream | undefined
 
   public addStep(config: StepConfig, stepPath: string, handler: StepHandler<unknown>, filePath: string) {
@@ -187,13 +177,13 @@ export class Motia {
               },
               response: res,
             }
-            const context = flowContext(this, triggerInfo, motiaRequest)
+            const context = flowContext(triggerInfo, motiaRequest)
             const middlewares = Array.isArray(trigger?.middleware) ? trigger.middleware : []
 
             if (middlewares.length > 0) {
               const composed = composeMiddleware(...middlewares)
               const result = await composed(motiaRequest, context, () =>
-                step.handler(motiaRequest, context as FlowContext<unknown>),
+                step.handler(motiaRequest, context as FlowContext),
               )
 
               if (result) {
@@ -204,7 +194,7 @@ export class Motia {
                 }
               }
             } else {
-              const result = await step.handler(motiaRequest, context as FlowContext<unknown>)
+              const result = await step.handler(motiaRequest, context as FlowContext)
 
               if (result) {
                 return {
@@ -238,11 +228,11 @@ export class Motia {
                 headers: req.headers || {},
               }
 
-              return trigger.condition?.(motiaRequest, flowContext(this, triggerInfo, motiaRequest))
+              return trigger.condition?.(motiaRequest, flowContext(triggerInfo, motiaRequest))
             },
           )
 
-          triggerConfig._condition_path = conditionPath
+          triggerConfig.condition_function_id = conditionPath
         }
 
         getInstance().registerTrigger({
@@ -253,7 +243,7 @@ export class Motia {
       } else if (isQueueTrigger(trigger)) {
         getInstance().registerFunction({ id: function_id, metadata }, async (req) => {
           const triggerInfo: TriggerInfo = { type: 'queue', index }
-          const context = flowContext(this, triggerInfo, req)
+          const context = flowContext(triggerInfo, req)
           return step.handler(req, context)
         })
 
@@ -269,10 +259,10 @@ export class Motia {
           getInstance().registerFunction({ id: conditionPath }, async (input: unknown) => {
             const triggerInfo: TriggerInfo = { type: 'queue', index }
 
-            return trigger.condition?.(input, flowContext(this, triggerInfo, input))
+            return trigger.condition?.(input, flowContext(triggerInfo, input))
           })
 
-          triggerConfig._condition_path = conditionPath
+          triggerConfig.condition_function_id = conditionPath
         }
 
         getInstance().registerTrigger({
@@ -283,7 +273,7 @@ export class Motia {
       } else if (isCronTrigger(trigger)) {
         getInstance().registerFunction({ id: function_id, metadata }, async (_req): Promise<unknown> => {
           const triggerInfo: TriggerInfo = { type: 'cron', index }
-          return step.handler(undefined, flowContext(this, triggerInfo))
+          return step.handler(undefined, flowContext(triggerInfo))
         })
 
         const triggerConfig: CronTriggerConfig = {
@@ -296,10 +286,10 @@ export class Motia {
 
           getInstance().registerFunction({ id: conditionPath }, async () => {
             const triggerInfo: TriggerInfo = { type: 'cron', index }
-            return trigger.condition?.(undefined, flowContext(this, triggerInfo))
+            return trigger.condition?.(undefined, flowContext(triggerInfo))
           })
 
-          triggerConfig._condition_path = conditionPath
+          triggerConfig.condition_function_id = conditionPath
         }
 
         getInstance().registerTrigger({
@@ -310,7 +300,7 @@ export class Motia {
       } else if (isStateTrigger(trigger)) {
         getInstance().registerFunction({ id: function_id, metadata }, async (req) => {
           const triggerInfo: TriggerInfo = { type: 'state', index }
-          const context = flowContext(this, triggerInfo, req)
+          const context = flowContext(triggerInfo, req)
           return step.handler(req, context)
         })
 
@@ -322,7 +312,7 @@ export class Motia {
 
           getInstance().registerFunction({ id: conditionPath }, async (input) => {
             const triggerInfo: TriggerInfo = { type: 'state', index }
-            return trigger.condition?.(input, flowContext(this, triggerInfo, input))
+            return trigger.condition?.(input, flowContext(triggerInfo, input))
           })
 
           triggerConfig.condition_function_id = conditionPath
@@ -336,7 +326,7 @@ export class Motia {
       } else if (isStreamTrigger(trigger)) {
         getInstance().registerFunction({ id: function_id, metadata }, async (req) => {
           const triggerInfo: TriggerInfo = { type: 'stream', index }
-          const context = flowContext(this, triggerInfo, req)
+          const context = flowContext(triggerInfo, req)
           return step.handler(req, context)
         })
 
@@ -360,7 +350,7 @@ export class Motia {
 
           getInstance().registerFunction({ id: conditionPath }, async (input) => {
             const triggerInfo: TriggerInfo = { type: 'stream', index }
-            return trigger.condition?.(input, flowContext(this, triggerInfo, input))
+            return trigger.condition?.(input, flowContext(triggerInfo, input))
           })
 
           triggerConfig.condition_function_id = conditionPath
@@ -376,7 +366,7 @@ export class Motia {
   }
 
   public addStream(config: StreamConfig, _streamPath: string) {
-    this.streams[config.name] = new Stream<unknown>(config)
+    this.streams[config.name] = new Stream(config)
   }
 
   public initialize() {
@@ -391,7 +381,7 @@ export class Motia {
       getInstance().registerFunction({ id: function_id }, async (req: StreamAuthInput) => {
         if (this.authenticateStream) {
           const triggerInfo: TriggerInfo = { type: 'queue' }
-          const context = flowContext<unknown>(this, triggerInfo)
+          const context = flowContext(triggerInfo)
           const input: MotiaStreamAuthInput = {
             headers: req.headers,
             path: req.path,
@@ -411,7 +401,7 @@ export class Motia {
         const { stream_name, group_id, id, context: authContext } = req
         const stream = this.streams[stream_name]
         const triggerInfo: TriggerInfo = { type: 'queue' }
-        const context = flowContext<unknown>(this, triggerInfo)
+        const context = flowContext(triggerInfo)
 
         if (stream?.config.onJoin) {
           return stream.config.onJoin({ groupId: group_id, id }, context, authContext)
@@ -432,7 +422,7 @@ export class Motia {
         const { stream_name, group_id, id, context: authContext } = req
         const stream = this.streams[stream_name]
         const triggerInfo: TriggerInfo = { type: 'queue' }
-        const context = flowContext<unknown>(this, triggerInfo)
+        const context = flowContext(triggerInfo)
 
         if (stream?.config.onLeave) {
           await stream.config.onLeave({ groupId: group_id, id }, context, authContext)

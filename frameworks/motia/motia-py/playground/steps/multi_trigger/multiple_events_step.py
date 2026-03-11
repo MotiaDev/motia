@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import FlowContext, queue
+from motia import FlowContext, logger, queue
 
 config = {
     "name": "MultipleEvents",
@@ -18,4 +18,4 @@ config = {
 
 async def handler(input: Any, ctx: FlowContext[Any]) -> None:
     """Handle multiple event triggers."""
-    ctx.logger.info("Multiple events trigger fired", {"data": input, "topic": ctx.trigger.topic})
+    logger.info("Multiple events trigger fired", {"data": input, "topic": ctx.trigger.topic})

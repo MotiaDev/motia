@@ -1,4 +1,4 @@
-import type { Handlers, StateTriggerInput, StepConfig } from 'motia'
+import { type Handlers, logger, type StateTriggerInput, type StepConfig } from 'motia'
 import type { ParallelMergeResult } from './parallel-merge.types'
 
 export const config = {
@@ -19,7 +19,7 @@ export const config = {
   flows: ['parallel-merge'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (request, { logger }) => {
+export const handler: Handlers<typeof config> = async (request) => {
   logger.info('[join-complete] Handling Join Complete', { request })
 
   const endTime = Date.now()

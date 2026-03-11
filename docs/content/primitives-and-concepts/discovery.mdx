@@ -8,6 +8,7 @@ hideCards: true
 When a worker connects to the engine, it receives the full list of functions registered across
 every other worker. When a new worker connects and registers functions, every existing worker gets notified.
 When a worker disconnects, its functions disappear and everyone is notified again.
+Functions can also unregister themselves.
 
 The engine maintains a live registry and pushes changes to every connected worker in real time.
 

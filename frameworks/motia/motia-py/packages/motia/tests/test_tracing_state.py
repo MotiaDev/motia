@@ -1,5 +1,6 @@
 """Tests for OpenTelemetry instrumentation of state operations."""
 
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,6 +11,8 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 
 from motia.state import StateManager
+
+_state_mod = sys.modules["motia.state"]
 
 
 @pytest.fixture
@@ -39,7 +42,7 @@ async def test_state_get_creates_span(otel_exporter, mock_iii):
     """state.get() should create a span named 'state.get' with correct attributes."""
     mock_iii.call.return_value = {"key": "value"}
 
-    with patch("motia.state.get_instance", return_value=mock_iii):
+    with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()
         result = await sm.get("scope1", "key1")
 
@@ -60,7 +63,7 @@ async def test_state_set_creates_span(otel_exporter, mock_iii):
     """state.set() should create a span named 'state.set' with correct attributes."""
     mock_iii.call.return_value = {"key": "value"}
 
-    with patch("motia.state.get_instance", return_value=mock_iii):
+    with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()
         result = await sm.set("scope1", "key1", {"key": "value"})
 
@@ -81,7 +84,7 @@ async def test_state_delete_creates_span(otel_exporter, mock_iii):
     """state.delete() should create a span named 'state.delete' with correct attributes."""
     mock_iii.call.return_value = None
 
-    with patch("motia.state.get_instance", return_value=mock_iii):
+    with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()
         await sm.delete("scope1", "key1")
 
@@ -100,7 +103,7 @@ async def test_state_list_creates_span(otel_exporter, mock_iii):
     """state.list() should create a span named 'state.list' with correct attributes."""
     mock_iii.call.return_value = [{"id": "a"}, {"id": "b"}]
 
-    with patch("motia.state.get_instance", return_value=mock_iii):
+    with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()
         result = await sm.list("scope1")
 
@@ -120,7 +123,7 @@ async def test_state_list_groups_creates_span(otel_exporter, mock_iii):
     """state.list_groups() should create a span named 'state.list_groups'."""
     mock_iii.call.return_value = ["group1", "group2"]
 
-    with patch("motia.state.get_instance", return_value=mock_iii):
+    with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()
         result = await sm.list_groups()
 
@@ -139,7 +142,7 @@ async def test_state_clear_creates_span(otel_exporter, mock_iii):
     """state.clear() should create a span named 'state.clear' with correct attributes."""
     mock_iii.call.return_value = [{"id": "item1"}, {"id": "item2"}]
 
-    with patch("motia.state.get_instance", return_value=mock_iii):
+    with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()
         await sm.clear("scope1")
 
