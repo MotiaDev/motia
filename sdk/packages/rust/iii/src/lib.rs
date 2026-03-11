@@ -17,8 +17,9 @@ pub use channels::{
 pub use context::{Context, get_context, with_context};
 pub use error::IIIError;
 pub use iii::{
-    FunctionInfo, FunctionRef, FunctionsAvailableGuard, III, IntoFunctionHandler, TriggerInfo,
-    WorkerInfo, WorkerMetadata,
+    ConnectionStateCallback, ConnectionStateGuard, FunctionInfo, FunctionRef,
+    FunctionsAvailableGuard, III, IIIConnectionState, IntoFunctionHandler, TriggerInfo, WorkerInfo,
+    WorkerMetadata,
 };
 pub use logger::Logger;
 pub use protocol::{

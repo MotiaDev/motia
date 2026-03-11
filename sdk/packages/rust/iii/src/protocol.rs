@@ -191,6 +191,8 @@ pub enum Message {
         name: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         description: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        parent_service_id: Option<String>,
     },
     Ping,
     Pong,
@@ -295,6 +297,8 @@ pub struct RegisterServiceMessage {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_service_id: Option<String>,
 }
 
 impl RegisterServiceMessage {
@@ -303,6 +307,7 @@ impl RegisterServiceMessage {
             id: self.id.clone(),
             name: self.name.clone(),
             description: self.description.clone(),
+            parent_service_id: self.parent_service_id.clone(),
         }
     }
 }

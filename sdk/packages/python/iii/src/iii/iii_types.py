@@ -99,6 +99,7 @@ class RegisterServiceMessage(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     id: str
+    name: str | None = None
     description: str | None = None
     parent_service_id: str | None = Field(default=None)
     message_type: MessageType = Field(default=MessageType.REGISTER_SERVICE, alias="type")
@@ -198,6 +199,15 @@ class FunctionInfo(BaseModel):
     request_format: RegisterFunctionFormat | None = None
     response_format: RegisterFunctionFormat | None = None
     metadata: dict[str, Any] | None = None
+
+
+class TriggerInfo(BaseModel):
+    """Information about a registered trigger."""
+
+    id: str
+    trigger_type: str
+    function_id: str
+    config: Any = None
 
 
 WorkerStatus = Literal["connected", "available", "busy", "disconnected"]

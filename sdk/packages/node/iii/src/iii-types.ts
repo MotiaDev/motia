@@ -49,6 +49,7 @@ export type RegisterTriggerMessage = {
 export type RegisterServiceMessage = {
   message_type: MessageType.RegisterService
   id: string
+  name?: string
   description?: string
   parent_service_id?: string
 }
@@ -184,6 +185,13 @@ export type FunctionInfo = {
   request_format?: RegisterFunctionFormat
   response_format?: RegisterFunctionFormat
   metadata?: Record<string, unknown>
+}
+
+export type TriggerInfo = {
+  id: string
+  trigger_type: string
+  function_id: string
+  config: unknown
 }
 
 export type WorkerStatus = 'connected' | 'available' | 'busy' | 'disconnected'

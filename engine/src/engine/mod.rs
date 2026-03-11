@@ -737,11 +737,14 @@ impl Engine {
                 id,
                 name,
                 description,
+                parent_service_id,
             } => {
+                let effective_name = if name.is_empty() { &id } else { &name };
                 tracing::debug!(
                     service_id = %id,
-                    service_name = %name,
+                    service_name = %effective_name,
                     description = ?description,
+                    parent_service_id = ?parent_service_id,
                     "RegisterService"
                 );
                 let services = self
@@ -753,7 +756,7 @@ impl Engine {
                 tracing::debug!(services = ?services, "Current services");
 
                 self.service_registry
-                    .insert_service(Service::new(name.clone(), id.clone()));
+                    .insert_service(Service::new(effective_name.to_string(), id.clone()));
 
                 Ok(())
             }
@@ -2309,6 +2312,7 @@ mod tests {
             id: "service-1".to_string(),
             name: "my-service".to_string(),
             description: Some("A test service".to_string()),
+            parent_service_id: None,
         };
 
         engine
@@ -2334,6 +2338,7 @@ mod tests {
             id: "service-2".to_string(),
             name: "minimal-service".to_string(),
             description: None,
+            parent_service_id: None,
         };
 
         engine

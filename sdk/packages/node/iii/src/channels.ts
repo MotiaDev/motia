@@ -171,6 +171,22 @@ export class ChannelReader {
   onMessage(callback: (msg: string) => void): void {
     this.messageCallbacks.push(callback)
   }
+
+  readAll(): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      this.ensureConnected()
+      const chunks: Buffer[] = []
+      this.stream.on('data', (chunk: Buffer) => chunks.push(chunk))
+      this.stream.on('end', () => resolve(Buffer.concat(chunks)))
+      this.stream.on('error', reject)
+    })
+  }
+
+  close(): void {
+    if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
+      this.ws.close(1000, 'channel_close')
+    }
+  }
 }
 
 function buildChannelUrl(

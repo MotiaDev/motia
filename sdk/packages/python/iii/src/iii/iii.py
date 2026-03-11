@@ -29,6 +29,7 @@ from .iii_types import (
     StreamChannelRef,
     TriggerActionEnqueue,
     TriggerActionVoid,
+    TriggerInfo,
     TriggerRequest,
     UnregisterFunctionMessage,
     UnregisterTriggerMessage,
@@ -644,8 +645,8 @@ class III:
 
         return FunctionRef(id=path, unregister=unregister)
 
-    def register_service(self, id: str, description: str | None = None, parent_id: str | None = None) -> None:
-        msg = RegisterServiceMessage(id=id, description=description, parent_service_id=parent_id)
+    def register_service(self, id: str, name: str | None = None, description: str | None = None, parent_id: str | None = None) -> None:
+        msg = RegisterServiceMessage(id=id, name=name or id, description=description, parent_service_id=parent_id)
         self._services[id] = msg
         self._send_if_connected(msg)
 
@@ -722,6 +723,12 @@ class III:
         result = await self.trigger({"function_id": "engine::workers::list", "payload": {}})
         workers_data = result.get("workers", [])
         return [WorkerInfo(**w) for w in workers_data]
+
+    async def list_triggers(self) -> list[TriggerInfo]:
+        """List all registered triggers from the engine."""
+        result = await self.trigger({"function_id": "engine::triggers::list", "payload": {}})
+        triggers_data = result.get("triggers", [])
+        return [TriggerInfo(**t) for t in triggers_data]
 
     async def create_channel(self, buffer_size: int | None = None) -> Channel:
         """Create a streaming channel pair for worker-to-worker data transfer.

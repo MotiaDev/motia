@@ -7,6 +7,7 @@ import type {
   RegisterTriggerTypeMessage,
   StreamChannelRef,
   TriggerAction,
+  TriggerInfo,
   TriggerRequest,
 } from './iii-types'
 import type { TriggerHandler } from './triggers'
@@ -122,6 +123,11 @@ export interface ISdk {
    * Lists all registered functions.
    */
   listFunctions(): Promise<FunctionInfo[]>
+
+  /**
+   * Lists all registered triggers.
+   */
+  listTriggers(): Promise<TriggerInfo[]>
 
   /**
    * Registers a new trigger type. A trigger type is a way to invoke a function when a certain event occurs.

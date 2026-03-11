@@ -23,6 +23,7 @@ import {
   type RegisterTriggerMessage,
   type RegisterTriggerTypeMessage,
   type TriggerAction as TriggerActionType,
+  type TriggerInfo,
   type TriggerRegistrationResultMessage,
   type TriggerRequest,
   type WorkerInfo,
@@ -252,8 +253,9 @@ class Sdk implements ISdk {
   }
 
   registerService = (message: Omit<RegisterServiceMessage, 'message_type'>): void => {
-    this.sendMessage(MessageType.RegisterService, message, true)
-    this.services.set(message.id, { ...message, message_type: MessageType.RegisterService })
+    const msg = { ...message, name: message.name ?? message.id }
+    this.sendMessage(MessageType.RegisterService, msg, true)
+    this.services.set(message.id, { ...msg, message_type: MessageType.RegisterService })
   }
 
   createChannel = async (bufferSize?: number): Promise<import('./types').Channel> => {
@@ -341,6 +343,14 @@ class Sdk implements ISdk {
       payload: {},
     })
     return result.workers
+  }
+
+  listTriggers = async (): Promise<TriggerInfo[]> => {
+    const result = await this.trigger<Record<string, never>, { triggers: TriggerInfo[] }>({
+      function_id: EngineFunctions.LIST_TRIGGERS,
+      payload: {},
+    })
+    return result.triggers
   }
 
   private registerWorkerMetadata(): void {
