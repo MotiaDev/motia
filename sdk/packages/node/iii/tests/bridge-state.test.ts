@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import type { StateSetResult } from '../src/state'
 import { bridgeIII } from './bridge-utils'
 
@@ -7,11 +7,6 @@ type TestData = {
   value: number
   updated?: boolean
 }
-
-afterAll(async () => {
-  const sdk = bridgeIII as { shutdown?: () => Promise<void> }
-  if (sdk.shutdown) await sdk.shutdown()
-})
 
 describe('Bridge State Operations', () => {
   const scope = 'bridge-test-scope'

@@ -165,15 +165,15 @@ jobs:
         run: |
           chmod +x ./iii
           bash scripts/start-iii.sh \
-            --config sdk/packages/node/iii/tests/fixtures/config-test.yaml \
+            --config sdk/fixtures/config-test.yaml \
             --port 49199
           bash scripts/start-iii.sh \
-            --config sdk/packages/node/iii/tests/fixtures/config-bridge-backend.yaml \
+            --config sdk/fixtures/config-bridge-backend.yaml \
             --port 49198 \
             --pid-file /tmp/iii-backend.pid \
             --log-file /tmp/iii-backend.log
           bash scripts/start-iii.sh \
-            --config sdk/packages/node/iii/tests/fixtures/config-bridge.yaml \
+            --config sdk/fixtures/config-bridge.yaml \
             --port 49197 \
             --pid-file /tmp/iii-bridge.pid \
             --log-file /tmp/iii-bridge.log
@@ -234,7 +234,7 @@ jobs:
         run: |
           chmod +x ./iii
           bash scripts/start-iii.sh \
-            --config sdk/packages/node/iii/tests/fixtures/config-test.yaml \
+            --config sdk/fixtures/config-test.yaml \
             --port 49199
 
       - name: Run tests with coverage
@@ -280,7 +280,7 @@ jobs:
         run: |
           chmod +x ./iii
           bash scripts/start-iii.sh \
-            --config sdk/packages/node/iii/tests/fixtures/config-test.yaml \
+            --config sdk/fixtures/config-test.yaml \
             --port 49199
 
       - name: Run tests
@@ -335,7 +335,7 @@ jobs:
         run: |
           chmod +x ./iii
           bash scripts/start-iii.sh \
-            --config sdk/packages/node/iii/tests/fixtures/config-test.yaml \
+            --config sdk/fixtures/config-test.yaml \
             --port 49199
 
       - name: Run tests
@@ -393,7 +393,7 @@ jobs:
         run: |
           chmod +x ./iii
           bash scripts/start-iii.sh \
-            --config sdk/packages/node/iii/tests/fixtures/config-test.yaml \
+            --config sdk/fixtures/config-test.yaml \
             --port 49199
 
       - name: Run tests
