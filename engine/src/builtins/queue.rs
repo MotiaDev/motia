@@ -43,6 +43,8 @@ pub struct Job {
     pub baggage: Option<String>,
     #[serde(default)]
     pub function_id: Option<String>,
+    #[serde(default)]
+    pub message_id: Option<String>,
 }
 
 impl Job {
@@ -90,6 +92,7 @@ impl Job {
             traceparent,
             baggage,
             function_id: None,
+            message_id: None,
         }
     }
 

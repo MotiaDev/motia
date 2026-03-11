@@ -382,6 +382,7 @@ impl QueueAdapter for RabbitMQAdapter {
         queue_name: &str,
         function_id: &str,
         data: Value,
+        message_id: &str,
         _max_retries: u32,
         _backoff_ms: u64,
         traceparent: Option<String>,
@@ -420,6 +421,7 @@ impl QueueAdapter for RabbitMQAdapter {
         let properties = lapin::BasicProperties::default()
             .with_content_type("application/json".into())
             .with_delivery_mode(2)
+            .with_message_id(message_id.into())
             .with_headers(headers);
 
         match self
@@ -540,6 +542,10 @@ impl QueueAdapter for RabbitMQAdapter {
                             })
                             .unwrap_or(0);
 
+                        let message_id = delivery.properties.message_id()
+                            .as_ref()
+                            .map(|s| s.to_string());
+
                         delivery_map.write().await.insert(delivery_id, delivery);
 
                         let msg = QueueMessage {
@@ -547,6 +553,7 @@ impl QueueAdapter for RabbitMQAdapter {
                             function_id,
                             data,
                             attempt,
+                            message_id,
                             traceparent,
                             baggage,
                         };

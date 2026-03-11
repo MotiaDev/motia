@@ -6,6 +6,7 @@ import logging
 from .channels import ChannelReader, ChannelWriter, ReadableStream, WritableStream
 from .iii import III, ConnectionStateCallback, FunctionRef, IIIConnectionState, InitOptions, ReconnectionConfig, TriggerAction
 from .iii_types import (
+    EnqueueResult,
     FunctionInfo,
     HttpAuthConfig,
     HttpInvocationConfig,
@@ -115,6 +116,7 @@ __all__ = [
     "StreamChannelRef",
     "is_channel_ref",
     # SDK types
+    "EnqueueResult",
     "FunctionInfo",
     "HttpAuthConfig",
     "HttpInvocationConfig",

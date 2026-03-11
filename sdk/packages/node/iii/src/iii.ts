@@ -276,8 +276,8 @@ class Sdk implements ISdk {
     const { function_id, payload, action, timeoutMs } = request
     const effectiveTimeout = timeoutMs ?? this.invocationTimeoutMs
 
-    // Enqueue and Void are fire-and-forget
-    if (action?.type === 'enqueue' || action?.type === 'void') {
+    // Void is fire-and-forget — no invocation_id, no response
+    if (action?.type === 'void') {
       const traceparent = injectTraceparent()
       const baggage = injectBaggage()
       this.sendMessage(MessageType.InvokeFunction, {
@@ -290,7 +290,7 @@ class Sdk implements ISdk {
       return undefined as TOutput
     }
 
-    // Default: synchronous call (existing behavior)
+    // Enqueue and default: send invocation_id, await response
     const invocation_id = crypto.randomUUID()
     const traceparent = injectTraceparent()
     const baggage = injectBaggage()
@@ -322,6 +322,7 @@ class Sdk implements ISdk {
         data: payload,
         traceparent,
         baggage,
+        action,
       })
     })
   }

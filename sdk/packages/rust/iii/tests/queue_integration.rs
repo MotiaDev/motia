@@ -61,7 +61,7 @@ async fn enqueue_returns_acknowledgement() {
         .await
         .expect("enqueue should succeed");
 
-    assert_eq!(result["enqueued"], true);
+    assert!(result["messageReceiptId"].is_string(), "enqueue should return a messageReceiptId");
 
     // Wait for consumer to process
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -132,7 +132,7 @@ async fn enqueue_fifo_with_valid_group_field() {
         .await
         .expect("enqueue to fifo should succeed");
 
-    assert_eq!(result["enqueued"], true);
+    assert!(result["messageReceiptId"].is_string(), "enqueue should return a messageReceiptId");
 
     // Wait for consumer to process
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -244,7 +244,7 @@ async fn enqueue_multiple_messages_all_processed() {
             .await
             .expect(&format!("enqueue message {i} should succeed"));
 
-        assert_eq!(result["enqueued"], true);
+        assert!(result["messageReceiptId"].is_string(), "enqueue should return a messageReceiptId");
     }
 
     // Wait for consumer to process all messages
@@ -326,7 +326,7 @@ async fn chained_enqueue() {
         .await
         .expect("enqueue to chain A should succeed");
 
-    assert_eq!(result["enqueued"], true);
+    assert!(result["messageReceiptId"].is_string(), "enqueue should return a messageReceiptId");
 
     // Wait for both A and B to process (A processes, then enqueues to B, then B processes)
     tokio::time::sleep(Duration::from_secs(4)).await;

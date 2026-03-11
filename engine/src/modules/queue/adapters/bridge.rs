@@ -252,6 +252,7 @@ impl QueueAdapter for BridgeAdapter {
         queue_name: &str,
         function_id: &str,
         data: Value,
+        _message_id: &str,
         _max_retries: u32,
         _backoff_ms: u64,
         _traceparent: Option<String>,

@@ -17,6 +17,8 @@ pub struct QueueMessage {
     pub data: Value,
     /// Current attempt number (derived from transport-native retry count)
     pub attempt: u32,
+    /// Publisher-assigned message ID for tracking and cancellation
+    pub message_id: Option<String>,
     /// W3C traceparent header for distributed tracing
     pub traceparent: Option<String>,
     /// W3C baggage header for context propagation
@@ -35,6 +37,7 @@ mod tests {
             function_id: "functions.process_order".to_string(),
             data: json!({"order_id": "o-1"}),
             attempt: 0,
+            message_id: Some("msg-123".to_string()),
             traceparent: Some("00-abc-def-01".to_string()),
             baggage: Some("queue=orders".to_string()),
         };
@@ -54,6 +57,7 @@ mod tests {
             function_id: "fn".to_string(),
             data: json!(null),
             attempt: 3,
+            message_id: None,
             traceparent: None,
             baggage: None,
         };

@@ -346,6 +346,7 @@ impl QueueAdapter for RedisAdapter {
         queue_name: &str,
         function_id: &str,
         data: Value,
+        message_id: &str,
         _max_retries: u32,
         _backoff_ms: u64,
         traceparent: Option<String>,
@@ -360,6 +361,7 @@ impl QueueAdapter for RedisAdapter {
                 "baggage": baggage,
             },
             "function_id": function_id,
+            "message_id": message_id,
             "data": data,
         });
 

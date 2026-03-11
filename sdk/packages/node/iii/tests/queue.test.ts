@@ -25,7 +25,8 @@ describe('Queue Integration', () => {
         action: TriggerAction.Enqueue({ queue: 'test-orders' }),
       })
 
-      expect(result).toBeUndefined()
+      expect(result).toHaveProperty('messageReceiptId')
+      expect(typeof result.messageReceiptId).toBe('string')
 
       await execute(async () => {
         if (received.length === 0) {

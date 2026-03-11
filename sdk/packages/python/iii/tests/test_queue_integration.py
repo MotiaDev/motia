@@ -36,7 +36,8 @@ async def test_enqueue_delivers_message_to_function(iii_client: III):
             "action": TriggerAction.Enqueue(queue="test-orders"),
         })
 
-        assert result is None
+        assert isinstance(result, dict)
+        assert isinstance(result["messageReceiptId"], str)
 
         await wait_for(lambda: len(received) > 0, timeout=5.0)
 

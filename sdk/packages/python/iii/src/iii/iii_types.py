@@ -139,6 +139,10 @@ class TriggerActionVoid(BaseModel):
 TriggerAction = TriggerActionEnqueue | TriggerActionVoid
 
 
+class EnqueueResult(BaseModel):
+    messageReceiptId: str
+
+
 class TriggerRequest(BaseModel):
     """Request object for trigger() — matches the object form API."""
 

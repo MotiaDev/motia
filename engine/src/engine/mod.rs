@@ -43,6 +43,7 @@ pub trait QueueEnqueuer: Send + Sync {
         queue_name: &str,
         function_id: &str,
         data: serde_json::Value,
+        message_id: String,
         traceparent: Option<String>,
         baggage: Option<String>,
     ) -> anyhow::Result<()>;
@@ -482,6 +483,7 @@ impl Engine {
                         let invocation_id = *invocation_id;
                         let function_id = function_id.to_string();
                         let queue = queue.to_string();
+                        let message_receipt_id = Uuid::new_v4().to_string();
                         let data = data.clone();
                         let traceparent = traceparent.clone();
                         let baggage = baggage.clone();
@@ -503,6 +505,7 @@ impl Engine {
                                             &queue,
                                             &function_id,
                                             data.clone(),
+                                            message_receipt_id.clone(),
                                             traceparent.clone(),
                                             baggage.clone(),
                                         )
@@ -521,7 +524,7 @@ impl Engine {
                                                         invocation_id,
                                                         function_id: function_id.clone(),
                                                         result: Some(serde_json::json!({
-                                                            "enqueued": true
+                                                            "messageReceiptId": message_receipt_id
                                                         })),
                                                         error: None,
                                                         traceparent: traceparent.clone(),

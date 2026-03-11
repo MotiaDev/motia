@@ -669,21 +669,22 @@ class III:
                 elif action.get("type") == "void":
                     action = TriggerActionVoid()
 
-            # Enqueue and Void are fire-and-forget
-            msg = InvokeFunctionMessage(
-                function_id=function_id,
-                data=payload,
-                traceparent=self._inject_traceparent(),
-                baggage=self._inject_baggage(),
-                action=action,
-            )
-            try:
-                asyncio.get_running_loop().create_task(self._send(msg))
-            except RuntimeError:
-                self._enqueue(msg)
-            return None
+            # Void is fire-and-forget — no invocation_id, no response
+            if isinstance(action, TriggerActionVoid):
+                msg = InvokeFunctionMessage(
+                    function_id=function_id,
+                    data=payload,
+                    traceparent=self._inject_traceparent(),
+                    baggage=self._inject_baggage(),
+                    action=action,
+                )
+                try:
+                    asyncio.get_running_loop().create_task(self._send(msg))
+                except RuntimeError:
+                    self._enqueue(msg)
+                return None
 
-        # Default: synchronous call (existing behavior unchanged)
+        # Enqueue and default: send invocation_id, await response
         invocation_id = str(uuid.uuid4())
         future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
 
@@ -696,6 +697,7 @@ class III:
                 invocation_id=invocation_id,
                 traceparent=self._inject_traceparent(),
                 baggage=self._inject_baggage(),
+                action=action,
             )
         )
 

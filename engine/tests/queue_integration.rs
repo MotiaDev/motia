@@ -74,7 +74,8 @@ async fn enqueue(
     let qm = guard
         .as_ref()
         .expect("queue_module should be set after initialize");
-    qm.enqueue_to_function_queue(queue_name, function_id, data, None, None)
+    let message_id = uuid::Uuid::new_v4().to_string();
+    qm.enqueue_to_function_queue(queue_name, function_id, data, message_id, None, None)
         .await
 }
 

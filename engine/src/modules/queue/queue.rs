@@ -51,6 +51,7 @@ impl QueueCoreModule {
         queue_name: &str,
         function_id: &str,
         data: Value,
+        message_id: &str,
         traceparent: Option<String>,
         baggage: Option<String>,
     ) -> anyhow::Result<()> {
@@ -92,6 +93,7 @@ impl QueueCoreModule {
                 queue_name,
                 function_id,
                 data,
+                message_id,
                 queue_config.max_retries,
                 queue_config.backoff_ms,
                 traceparent,
@@ -149,10 +151,11 @@ impl QueueEnqueuer for QueueCoreModule {
         queue_name: &str,
         function_id: &str,
         data: Value,
+        message_id: String,
         traceparent: Option<String>,
         baggage: Option<String>,
     ) -> anyhow::Result<()> {
-        self.enqueue_to_function_queue(queue_name, function_id, data, traceparent, baggage)
+        self.enqueue_to_function_queue(queue_name, function_id, data, &message_id, traceparent, baggage)
             .await
     }
 
@@ -608,6 +611,7 @@ mod tests {
             _queue_name: &str,
             _function_id: &str,
             _data: Value,
+            _message_id: &str,
             _max_retries: u32,
             _backoff_ms: u64,
             _traceparent: Option<String>,
@@ -989,6 +993,7 @@ mod tests {
                 "nonexistent",
                 "fn-1",
                 json!({"key": "value"}),
+                "test-msg-id",
                 None,
                 None,
             )
@@ -1010,6 +1015,7 @@ mod tests {
                 "payment",
                 "fn-1",
                 json!({"amount": 100}), // missing "transaction_id"
+                "test-msg-id",
                 None,
                 None,
             )
@@ -1031,6 +1037,7 @@ mod tests {
                 "payment",
                 "fn-1",
                 json!({"transaction_id": null, "amount": 100}),
+                "test-msg-id",
                 None,
                 None,
             )
@@ -1052,6 +1059,7 @@ mod tests {
                 "payment",
                 "fn-1",
                 json!({"transaction_id": "txn-123", "amount": 100}),
+                "test-msg-id",
                 None,
                 None,
             )
@@ -1068,6 +1076,7 @@ mod tests {
                 "default",
                 "fn-1",
                 json!({"key": "value"}),
+                "test-msg-id",
                 None,
                 None,
             )
@@ -1160,6 +1169,7 @@ mod tests {
                 "default",
                 "integration::ack_fn",
                 json!({"task": "do_work"}),
+                "test-msg-id",
                 3,
                 1000,
                 None,
@@ -1214,6 +1224,7 @@ mod tests {
                 "default",
                 "integration::fail_fn",
                 json!({"task": "will_fail"}),
+                "test-msg-id",
                 3,
                 100,
                 None,
@@ -1271,6 +1282,7 @@ mod tests {
                     "payment",
                     "integration::fifo_fn",
                     json!({"transaction_id": txn_id, "amount": 100}),
+                    "test-msg-id",
                     3,
                     1000,
                     None,
@@ -1338,6 +1350,7 @@ mod tests {
                     "default",
                     "integration::concurrent_fn",
                     json!({"task_id": format!("task-{}", i)}),
+                    "test-msg-id",
                     3,
                     1000,
                     None,
