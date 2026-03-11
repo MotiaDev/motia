@@ -173,6 +173,60 @@ iii.trigger(
   </AccordionGroup>
 </ResponseField>
 
+<Callout title="Backward compatibility" type="info">
+  `call()` is available as an alias for `trigger()` for backward compatibility.
+</Callout>
+
+---
+
+## triggerVoid()
+
+<Callout title="Deprecated" type="warn">
+  Use `trigger({ function_id, payload, action: TriggerAction.Void() })` instead. See [trigger()](#trigger) for the request-object API.
+</Callout>
+
+Triggers a function without waiting for a result (fire-and-forget). Prefer `trigger()` with `action: TriggerAction.Void()`.
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript
+iii.trigger({
+  function_id: 'notifications::send',
+  payload: { to: 'alice@example.com', message: 'Welcome!' },
+  action: TriggerAction.Void(),
+})
+```
+</Tab>
+<Tab value="Python">
+```python
+await iii.trigger({
+    'function_id': 'notifications::send',
+    'payload': {'to': 'alice@example.com', 'message': 'Welcome!'},
+    'action': TriggerAction.Void(),
+})
+```
+</Tab>
+<Tab value="Rust">
+```rust
+use iii_sdk::{III, TriggerRequest, TriggerAction};
+use serde_json::json;
+
+iii.trigger(
+    TriggerRequest::new("notifications::send", json!({
+        "to": "alice@example.com",
+        "message": "Welcome!",
+    })).action(TriggerAction::void()),
+).await?;
+```
+</Tab>
+</Tabs>
+
+<ResponseField name="triggerVoid" type="deprecated" required>
+  Deprecated. Use `trigger({ function_id, payload, action: TriggerAction.Void() })` instead.
+</ResponseField>
+
+
+
 ---
 
 ## registerFunction()
