@@ -10,9 +10,9 @@ The SDK connects your application to the iii engine over WebSocket.
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134', {
+const iii = registerWorker('ws://localhost:49134', {
   workerName: 'my-worker',
   invocationTimeoutMs: 30000,
 })
@@ -23,7 +23,7 @@ const iii = init('ws://localhost:49134', {
 from iii import III
 
 iii = III('ws://localhost:49134')
-iii.connect()
+await iii.connect()
 ```
 </Tab>
 <Tab value="Rust">
@@ -45,7 +45,7 @@ iii.connect().await?;
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `workerName` | `string` | `undefined` | Name for this worker instance |
-| `enableMetricsReporting` | `boolean` | `false` | Enable OpenTelemetry metrics |
+| `enableMetricsReporting` | `boolean` | `true` | Enable OpenTelemetry metrics |
 | `invocationTimeoutMs` | `number` | `30000` | Default timeout for `trigger()` calls |
 | `reconnectionConfig` | `Partial<ReconnectionConfig>` | See below | Reconnection behavior |
 | `otel` | `OtelConfig` | `undefined` | OpenTelemetry configuration |
@@ -64,47 +64,110 @@ iii.connect().await?;
 
 ## trigger()
 
-Triggers a function and waits for the result. This is the primary way to invoke a function synchronously.
+Invokes a function using a request object. Behavior depends on the optional `action`:
+
+| Action | Behavior | Returns |
+|--------|----------|---------|
+| (none) | Synchronous invocation — waits for the function result | `Promise<TOutput>` |
+| `TriggerAction.Enqueue({ queue })` | Enqueues work to a named queue; waits for engine acknowledgement | `Promise<EnqueueResult>` |
+| `TriggerAction.Void()` | Fire-and-forget — no response awaited | `Promise<void>` / `None` |
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-const result = await iii.trigger<{ name: string }, { id: string }>(
-  'users::create',
-  { name: 'Alice' }
-)
+import { registerWorker, TriggerAction } from 'iii-sdk'
+
+const iii = registerWorker('ws://localhost:49134')
+
+const result = await iii.trigger<{ name: string }, { id: string }>({
+  function_id: 'users::create',
+  payload: { name: 'Alice' },
+})
+
+await iii.trigger({
+  function_id: 'orders::process',
+  payload: { orderId: '123' },
+  action: TriggerAction.Enqueue({ queue: 'payment' }),
+})
+
+iii.trigger({
+  function_id: 'notifications::send',
+  payload: { to: 'alice@example.com' },
+  action: TriggerAction.Void(),
+})
 ```
 </Tab>
 <Tab value="Python">
 ```python
-result = iii.trigger('users::create', {'name': 'Alice'})
+from iii import III, TriggerAction
+
+iii = III('ws://localhost:49134')
+await iii.connect()
+
+result = await iii.trigger({
+    'function_id': 'users::create',
+    'payload': {'name': 'Alice'},
+})
+
+await iii.trigger({
+    'function_id': 'orders::process',
+    'payload': {'orderId': '123'},
+    'action': TriggerAction.Enqueue(queue='payment'),
+})
+
+await iii.trigger({
+    'function_id': 'notifications::send',
+    'payload': {'to': 'alice@example.com'},
+    'action': TriggerAction.Void(),
+})
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-let result = iii.trigger("users::create", json!({"name": "Alice"})).await?;
+use iii_sdk::{III, TriggerRequest, TriggerAction};
+use serde_json::json;
+
+let iii = III::new("ws://localhost:49134");
+iii.connect().await?;
+
+let result = iii.trigger(
+    TriggerRequest::new("users::create", json!({"name": "Alice"}))
+).await?;
+
+iii.trigger(
+    TriggerRequest::new("orders::process", json!({"orderId": "123"}))
+        .action(TriggerAction::enqueue("payment")),
+).await?;
+
+iii.trigger(
+    TriggerRequest::new("notifications::send", json!({"to": "alice@example.com"}))
+        .action(TriggerAction::void()),
+).await?;
 ```
 </Tab>
 </Tabs>
 
-<ResponseField name="trigger" type="<TInput, TOutput>(function_id: string, data: TInput, timeoutMs?: number) => Promise<TOutput>" required>
-  Triggers a registered function and returns its result.
+<ResponseField name="trigger" type="<TInput, TOutput>(request: TriggerRequest&lt;TInput&gt;) => Promise&lt;TOutput&gt;" required>
+  Triggers a registered function. Behavior depends on the optional `action` field.
 
   <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
+    <Accordion iconName="Settings" title="TriggerRequest fields" description="">
       <ResponseField name="function_id" type="string" required>
         The function identifier (e.g., `'users::create'`, `'state::set'`).
       </ResponseField>
-      <ResponseField name="data" type="TInput" required>
+      <ResponseField name="payload" type="TInput" required>
         The payload to pass to the function.
       </ResponseField>
-      <ResponseField name="timeoutMs" type="number">
-        Timeout in milliseconds. Defaults to `invocationTimeoutMs` from init (30000ms).
+      <ResponseField name="action" type="TriggerAction">
+        Optional action: `TriggerAction.Enqueue({ queue })` for named queues, `TriggerAction.Void()` for fire-and-forget. Omit for synchronous invocation.
+      </ResponseField>
+      <ResponseField name="timeout_ms" type="number">
+        Timeout in milliseconds. Defaults to 30000. Node uses camelCase `timeoutMs`; Python and Rust use `timeout_ms`.
       </ResponseField>
     </Accordion>
     <Accordion iconName="ArrowUpRight" title="Returns" description="">
-      <ResponseField name="result" type="Promise<TOutput>">
-        The result returned by the function handler.
+      <ResponseField name="result" type="Promise&lt;TOutput&gt;" required>
+        Synchronous: the function result. Enqueue: `EnqueueResult`. Void: `undefined` / `None` / `Value::Null`.
       </ResponseField>
     </Accordion>
   </AccordionGroup>
@@ -118,53 +181,51 @@ let result = iii.trigger("users::create", json!({"name": "Alice"})).await?;
 
 ## triggerVoid()
 
-Triggers a function without waiting for a result (fire-and-forget).
+<Callout title="Deprecated" type="warn">
+  Use `trigger({ function_id, payload, action: TriggerAction.Void() })` instead. See [trigger()](#trigger) for the request-object API.
+</Callout>
+
+Triggers a function without waiting for a result (fire-and-forget). Prefer `trigger()` with `action: TriggerAction.Void()`.
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-iii.triggerVoid('notifications::send', {
-  to: 'alice@example.com',
-  message: 'Welcome!',
+iii.trigger({
+  function_id: 'notifications::send',
+  payload: { to: 'alice@example.com', message: 'Welcome!' },
+  action: TriggerAction.Void(),
 })
 ```
 </Tab>
 <Tab value="Python">
 ```python
-iii.trigger('notifications::send', {
-    'to': 'alice@example.com',
-    'message': 'Welcome!',
+await iii.trigger({
+    'function_id': 'notifications::send',
+    'payload': {'to': 'alice@example.com', 'message': 'Welcome!'},
+    'action': TriggerAction.Void(),
 })
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.trigger_void("notifications::send", json!({
-    "to": "alice@example.com",
-    "message": "Welcome!",
-}))?;
+use iii_sdk::{III, TriggerRequest, TriggerAction};
+use serde_json::json;
+
+iii.trigger(
+    TriggerRequest::new("notifications::send", json!({
+        "to": "alice@example.com",
+        "message": "Welcome!",
+    })).action(TriggerAction::void()),
+).await?;
 ```
 </Tab>
 </Tabs>
 
-<ResponseField name="triggerVoid" type="<TInput>(function_id: string, data: TInput) => void" required>
-  Triggers a function without waiting for a response. In Rust, returns `Result<(), IIIError>` since serialization can fail.
-
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="function_id" type="string" required>
-        The function identifier.
-      </ResponseField>
-      <ResponseField name="data" type="TInput" required>
-        The payload to pass to the function.
-      </ResponseField>
-    </Accordion>
-  </AccordionGroup>
+<ResponseField name="triggerVoid" type="deprecated" required>
+  Deprecated. Use `trigger({ function_id, payload, action: TriggerAction.Void() })` instead.
 </ResponseField>
 
-<Callout title="Backward compatibility" type="info">
-  `callVoid()` (TypeScript) / `call_void()` (Python/Rust) are available as aliases.
-</Callout>
+
 
 ---
 
@@ -185,10 +246,10 @@ const ref = iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python
-def create_user(data):
+async def create_user(data):
     return {'id': str(uuid.uuid4()), 'name': data['name']}
 
-ref = iii.register_function({'id': 'users::create'}, create_user)
+ref = iii.register_function('users::create', create_user)
 ```
 </Tab>
 <Tab value="Rust">
@@ -248,17 +309,17 @@ Registers a trigger that invokes a function when a specific event occurs (HTTP r
 const trigger = iii.registerTrigger({
   type: 'http',
   function_id: 'users::create',
-  config: { method: 'POST', path: '/users' },
+  config: { api_path: '/users', http_method: 'POST' },
 })
 ```
 </Tab>
 <Tab value="Python">
 ```python
-trigger = iii.register_trigger({
-    'type': 'http',
-    'function_id': 'users::create',
-    'config': {'method': 'POST', 'path': '/users'},
-})
+trigger = iii.register_trigger(
+    type='http',
+    function_id='users::create',
+    config={'api_path': '/users', 'http_method': 'POST'},
+)
 ```
 </Tab>
 <Tab value="Rust">
@@ -266,7 +327,7 @@ trigger = iii.register_trigger({
 let trigger = iii.register_trigger(
     "http",
     "users::create",
-    json!({"method": "POST", "path": "/users"}),
+    json!({"api_path": "/users", "http_method": "POST"}),
 )?;
 ```
 </Tab>
@@ -282,7 +343,7 @@ let trigger = iii.register_trigger(
 
         <Expandable title="RegisterTriggerInput">
           <ResponseField name="type" type="string" required>
-            The trigger type (e.g., `'http'`, `'cron'`, `'queue'`).
+            The trigger type (e.g., `'http'`, `'cron'`, `'queue'`). For Named Queues, use [TriggerAction.Enqueue](/docs/how-to/use-queues) instead of registering a queue trigger.
           </ResponseField>
           <ResponseField name="function_id" type="string" required>
             The function to invoke when the trigger fires.
@@ -402,7 +463,7 @@ const functions = await iii.listFunctions()
 </Tab>
 <Tab value="Python">
 ```python
-functions = iii.list_functions()
+functions = await iii.list_functions()
 ```
 </Tab>
 <Tab value="Rust">
@@ -422,7 +483,7 @@ let functions = iii.list_functions().await?;
 
         ```typescript
         type FunctionInfo = {
-          id: string
+          function_id: string
           description?: string
           worker_id?: string
         }
@@ -508,7 +569,7 @@ await iii.shutdown()
 </Tab>
 <Tab value="Python">
 ```python
-iii.shutdown()
+await iii.shutdown()
 ```
 </Tab>
 <Tab value="Rust">
@@ -544,6 +605,47 @@ const unsubscribe = iii.onConnectionStateChange((state) => {
 
 ## Types
 
+### TriggerRequest
+
+Request object for `trigger()`. All SDKs use this shape.
+
+```typescript
+type TriggerRequest<TInput = unknown> = {
+  function_id: string
+  payload: TInput
+  action?: TriggerAction
+  timeoutMs?: number   // Node (camelCase convention)
+  timeout_ms?: number  // Python / Rust (snake_case convention)
+}
+```
+
+All SDKs use milliseconds with a default of 30000.
+
+### TriggerAction
+
+Controls how the engine routes the invocation: synchronous, enqueue to a named queue, or fire-and-forget.
+
+```typescript
+type TriggerAction =
+  | { type: 'enqueue'; queue: string }
+  | { type: 'void' }
+```
+
+| Action | Use |
+|--------|-----|
+| `TriggerAction.Enqueue({ queue })` | Enqueue work to a named queue |
+| `TriggerAction.Void()` | Fire-and-forget, no response |
+
+### EnqueueResult
+
+Returned when `trigger()` is called with `action: TriggerAction.Enqueue({ queue })`.
+
+```typescript
+type EnqueueResult = {
+  messageReceiptId: string
+}
+```
+
 ### ApiRequest
 
 Received by functions registered as HTTP trigger handlers.
@@ -574,7 +676,16 @@ type ApiResponse<TStatus extends number = number, TBody = string | Buffer | Reco
 
 ## Sub-modules
 
-The SDK exports additional modules for specific functionality:
+The SDK exports the following from the main package:
+
+| Export | Description |
+|--------|-------------|
+| `registerWorker` | Create and connect an SDK instance (Node); Python/Rust use `III` + `connect()` or `register_worker()` |
+| `TriggerAction` | Factory for `Enqueue` and `Void` actions |
+| `TriggerRequest` | Request type for `trigger()` |
+| `EnqueueResult` | Result type when enqueueing to a named queue |
+
+Additional modules for specific functionality:
 
 | Import | Description | Docs |
 |--------|-------------|------|
