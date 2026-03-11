@@ -103,7 +103,7 @@ describe('Bridge State Operations', () => {
       const sort = (a: TestDataWithId, b: TestDataWithId) => a.id.localeCompare(b.id)
 
       expect(Array.isArray(result)).toBe(true)
-      expect(result.length).toBeGreaterThanOrEqual(items.length)
+      expect(result.length).toBe(items.length)
       expect(result.sort(sort)).toEqual(items.sort(sort))
     })
   })
