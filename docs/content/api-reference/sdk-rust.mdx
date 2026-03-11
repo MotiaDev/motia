@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
       ```rust
       iii.register_trigger("http", "greet", json!({
           "api_path": "/greet",
-          "http_method": "GET",
+          "http_method": "GET"
       }))?;
       ```
     </Accordion>
@@ -106,25 +106,53 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### trigger
 
-<ResponseField name="trigger" type="async fn(&self, function_id: &str, data: impl Serialize) => Result&lt;Value, IIIError&gt;" required>
-  Invokes a remote function with a 30-second default timeout.
+<ResponseField name="trigger" type="async fn(&self, request: TriggerRequest) => Result&lt;Value | EnqueueResult | (), IIIError&gt;" required>
+  Invokes a remote function. The routing behavior and result type depend on the action set on the `TriggerRequest`. Use `TriggerRequest::new(function_id, payload).action(...).timeout_ms(ms)` to set optional timeout in milliseconds.
+
+  | Action | Behavior | Result |
+  |--------|----------|--------|
+  | _(none)_ | Synchronous — waits for the function to return | `Value` |
+  | `TriggerAction::enqueue("name")` | Async via named queue — engine acknowledges enqueue | `EnqueueResult` |
+  | `TriggerAction::void()` | Fire-and-forget — no response | `()` |
 
   <AccordionGroup>
     <Accordion iconName="Code" title="Example" description="">
       ```rust
-      let result = iii.trigger("enqueue", json!({
-          "topic": "user.created",
-          "data": {"user_id": "123"},
-      })).await?;
+      use iii_sdk::{TriggerAction, TriggerRequest};
+      use serde_json::json;
+
+      // Synchronous — wait for function result
+      let result = iii.trigger(TriggerRequest::new("get-order", json!({ "id": "123" }))).await?;
+
+      // Enqueue to named queue — returns EnqueueResult
+      let receipt = iii.trigger(
+          TriggerRequest::new("payments::charge", json!({
+              "orderId": "123",
+              "amount": 49.99,
+          }))
+          .action(TriggerAction::enqueue("payment")),
+      ).await?;
+
+      // Fire-and-forget
+      iii.trigger(
+          TriggerRequest::new("notifications::send", json!({ "userId": "123" }))
+              .action(TriggerAction::void()),
+      ).await?;
       ```
     </Accordion>
   </AccordionGroup>
 </ResponseField>
 
-### trigger_with_timeout
+### TriggerAction
 
-<ResponseField name="trigger_with_timeout" type="async fn(&self, function_id: &str, data: Value, timeout: Duration) => Result&lt;Value, IIIError&gt;" required>
-  Invokes a remote function with a custom timeout.
+Constructor methods for routing actions passed to `trigger()`. Import from `iii_sdk`.
+
+<ResponseField name="TriggerAction::enqueue" type="fn(queue: &str) -> TriggerAction" required>
+  Routes the invocation through a named queue. The engine enqueues the job, acknowledges the caller with an `EnqueueResult`, and processes it asynchronously. Returns `IIIError` if the queue name is not found in config or if FIFO validation fails.
+</ResponseField>
+
+<ResponseField name="TriggerAction::void" type="fn() -> TriggerAction" required>
+  Fire-and-forget routing. The engine forwards the invocation without waiting for a response or queuing the job. No acknowledgement is returned.
 </ResponseField>
 
 ### trigger_void
@@ -134,7 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 </ResponseField>
 
 <Callout type="warn" title="Deprecated methods">
-  `call`, `call_with_timeout`, and `call_void` are deprecated. Use `trigger`, `trigger_with_timeout`, and `trigger_void` instead.
+  `call`, `call_with_timeout`, and `call_void` are deprecated. Use `trigger` instead. `trigger_void` is deprecated — replace with `trigger(TriggerRequest::new(fn_id, data).action(TriggerAction::void()))`.
 </Callout>
 
 ### shutdown_async
@@ -229,17 +257,34 @@ All fallible operations return `Result<T, IIIError>`. Common variants:
 
 ## Types
 
+### TriggerRequest
+
+Request object for `trigger()`. Build with `TriggerRequest::new(function_id, payload)` and optional `.action(...)` and `.timeout_ms(ms)`.
+
+```rust
+TriggerRequest::new("users::create", json!({"name": "Alice"}))
+    .action(TriggerAction::enqueue("payment"))
+    .timeout_ms(10_000)
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `function_id` | `String` | Function to invoke |
+| `payload` | `Value` | Payload to pass |
+| `action` | `Option<TriggerAction>` | Enqueue or void; omit for sync |
+| `timeout_ms` | `Option<u64>` | Timeout in ms; default 30000 |
+
 ### Re-exports from `iii_sdk`
 
 ```rust
 use iii_sdk::{
     III,
-    Context, Logger, OTel context,
+    Context, Logger,
     IIIError,
     FunctionInfo, WorkerInfo, WorkerMetadata,
     TriggerInfo,
-    Logger,
     Trigger, TriggerConfig, TriggerHandler,
+    TriggerAction, TriggerRequest, EnqueueResult,
     Streams, UpdateBuilder,
     Value,  // re-export of serde_json::Value
 };

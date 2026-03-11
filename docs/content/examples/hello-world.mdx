@@ -22,9 +22,9 @@ Every iii worker starts by initialising the SDK and connecting to the engine.
 
 ```typescript
 // worker.ts
-import {Logger} from 'iii-sdk'
+import { registerWorker, Logger, TriggerAction } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 ```
 
   </Tab>
@@ -32,7 +32,8 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 ```python
 # worker.py
-from iii import III, InitOptions, ApiRequest, ApiResponse
+import asyncio
+from iii import III, InitOptions, ApiRequest, ApiResponse, Logger, TriggerAction
 
 iii = III(
     address="ws://localhost:49134",
@@ -69,7 +70,7 @@ Registers a function and binds it to an HTTP trigger. Returns immediately after 
 
 ```typescript
 iii.registerFunction(
-  { id: 'hello.api', description: 'Receives hello request' },
+  { id: 'hello::api', description: 'Receives hello request' },
   async (req: ApiRequest) => {
     const logger = new Logger()
     const appName = 'III App'
@@ -77,14 +78,15 @@ iii.registerFunction(
 
     logger.info('Hello API called', { appName, requestId })
 
-    iii.triggerVoid('enqueue', {
-      topic: 'greet.process',
-      data: {
+    iii.trigger({
+      function_id: 'greet::process',
+      payload: {
         requestId,
         appName,
         greetingPrefix: process.env.GREETING_PREFIX ?? 'Hello',
         timestamp: new Date().toISOString(),
       },
+      action: TriggerAction.Enqueue({ queue: 'default' }),
     })
 
     return {
@@ -100,7 +102,7 @@ iii.registerFunction(
 
 iii.registerTrigger({
   type: 'http',
-  function_id: 'hello.api',
+  function_id: 'hello::api',
   config: { api_path: 'hello', http_method: 'GET' },
 })
 ```
@@ -114,24 +116,27 @@ import random
 import string
 from datetime import datetime, timezone
 
-def hello_api(req: ApiRequest, ctx) -> ApiResponse:
+
+async def hello_api(req: ApiRequest) -> ApiResponse:
+    logger = Logger()
     app_name = "III App"
     request_id = "".join(random.choices(string.ascii_lowercase + string.digits, k=7))
 
     logger.info("Hello API called", {"appName": app_name, "requestId": request_id})
 
-    iii.trigger("enqueue", {
-        "topic": "greet.process",
-        "data": {
+    await iii.trigger({
+        "function_id": "greet::process",
+        "payload": {
             "requestId": request_id,
             "appName": app_name,
             "greetingPrefix": os.environ.get("GREETING_PREFIX", "Hello"),
             "timestamp": datetime.now(timezone.utc).isoformat(),
         },
+        "action": TriggerAction.Enqueue(queue="default"),
     })
 
     return ApiResponse(
-        statusCode=200,
+        status_code=200,
         body={
             "message": "Hello request received! Processing in background.",
             "status": "processing",
@@ -139,24 +144,24 @@ def hello_api(req: ApiRequest, ctx) -> ApiResponse:
         },
     )
 
-iii.register_function("hello.api", lambda data: hello_api(
+
+iii.register_function("hello::api", lambda data: hello_api(
     ApiRequest(**data) if isinstance(data, dict) else data,
-    Logger(),
 ))
-iii.register_trigger({
-    "type": "http",
-    "function_id": "hello.api",
-    "config": {"api_path": "hello", "http_method": "GET"},
-})
+iii.register_trigger(
+    type="http",
+    function_id="hello::api",
+    config={"api_path": "hello", "http_method": "GET"},
+)
 ```
 
   </Tab>
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger, types::ApiRequest};
+use iii_sdk::{III, Logger, TriggerAction, TriggerRequest, types::ApiRequest};
 
-iii.register_function("hello.api", |input| async move {
+iii.register_function("hello::api", |input| async move {
     let logger = Logger();
     let app_name = "III App";
     let request_id = uuid::Uuid::new_v4().to_string();
@@ -166,15 +171,16 @@ iii.register_function("hello.api", |input| async move {
         "requestId": request_id,
     })));
 
-    iii.trigger_void("enqueue", json!({
-        "topic": "greet.process",
-        "data": {
+    iii.trigger(
+        TriggerRequest::new("greet::process", json!({
             "requestId": request_id,
             "appName": app_name,
-            "greetingPrefix": "Hello",
+            "greetingPrefix": std::env::var("GREETING_PREFIX").unwrap_or_else(|_| "Hello".to_string()),
             "timestamp": chrono::Utc::now().to_rfc3339(),
-        },
-    }))?;
+        }))
+        .action(TriggerAction::enqueue("default")),
+    )
+    .await?;
 
     Ok(json!({
         "status_code": 200,
@@ -186,7 +192,7 @@ iii.register_function("hello.api", |input| async move {
     }))
 });
 
-iii.register_trigger("http", "hello.api", json!({
+iii.register_trigger("http", "hello::api", json!({
     "api_path": "hello",
     "http_method": "GET",
 }))?;
@@ -204,7 +210,7 @@ Consumes the event, builds the greeting, and persists it to state.
 
 ```typescript
 iii.registerFunction(
-  { id: 'greet.process', description: 'Processes greeting in background' },
+  { id: 'greet::process', description: 'Processes greeting in background' },
   async (data) => {
     const logger = new Logger()
     const { requestId, appName, greetingPrefix, timestamp } = data as {
@@ -218,25 +224,23 @@ iii.registerFunction(
 
     const greeting = `${greetingPrefix} ${appName}!`
 
-    iii.triggerVoid('state::set', {
-      scope: 'greetings',
-      key: requestId,
-      data: {
-        greeting,
-        processedAt: new Date().toISOString(),
-        originalTimestamp: timestamp,
+    iii.trigger({
+      function_id: 'state::set',
+      payload: {
+        scope: 'greetings',
+        key: requestId,
+        value: {
+          greeting,
+          processedAt: new Date().toISOString(),
+          originalTimestamp: timestamp,
+        },
       },
+      action: TriggerAction.Void(),
     })
 
     logger.info('Greeting processed', { requestId, greeting })
   },
 )
-
-iii.registerTrigger({
-  type: 'queue',
-  function_id: 'greet.process',
-  config: { topic: 'greet.process' },
-})
 ```
 
   </Tab>
@@ -245,7 +249,9 @@ iii.registerTrigger({
 ```python
 from datetime import datetime, timezone
 
-def greet_process(data: dict, ctx) -> None:
+
+async def greet_process(data: dict) -> None:
+    logger = Logger()
     request_id = data.get("requestId", "unknown")
     app_name = data.get("appName", "III App")
     greeting_prefix = data.get("greetingPrefix", "Hello")
@@ -255,31 +261,31 @@ def greet_process(data: dict, ctx) -> None:
 
     greeting = f"{greeting_prefix} {app_name}!"
 
-    iii.trigger("state::set", {
-        "scope": "greetings",
-        "key": request_id,
-        "data": {
-            "greeting": greeting,
-            "processedAt": datetime.now(timezone.utc).isoformat(),
-            "originalTimestamp": timestamp,
+    await iii.trigger({
+        "function_id": "state::set",
+        "payload": {
+            "scope": "greetings",
+            "key": request_id,
+            "value": {
+                "greeting": greeting,
+                "processedAt": datetime.now(timezone.utc).isoformat(),
+                "originalTimestamp": timestamp,
+            },
         },
+        "action": TriggerAction.Void(),
     })
 
     logger.info("Greeting processed", {"requestId": request_id, "greeting": greeting})
 
-iii.register_function("greet.process", lambda data: greet_process(data, Logger()))
-iii.register_trigger({
-    "type": "queue",
-    "function_id": "greet.process",
-    "config": {"topic": "greet.process"},
-})
+
+iii.register_function("greet::process", greet_process)
 ```
 
   </Tab>
   <Tab value="Rust">
 
 ```rust
-iii.register_function("greet.process", |input| async move {
+iii.register_function("greet::process", |input| async move {
     let logger = Logger();
     let request_id = input["requestId"].as_str().unwrap_or("unknown");
     let app_name = input["appName"].as_str().unwrap_or("III App");
@@ -293,24 +299,24 @@ iii.register_function("greet.process", |input| async move {
 
     let greeting = format!("{} {}!", prefix, app_name);
 
-    iii.trigger_void("state::set", json!({
-        "scope": "greetings",
-        "key": request_id,
-        "data": {
-            "greeting": greeting,
-            "processedAt": chrono::Utc::now().to_rfc3339(),
-            "originalTimestamp": timestamp,
-        },
-    }))?;
+    iii.trigger(
+        TriggerRequest::new("state::set", json!({
+            "scope": "greetings",
+            "key": request_id,
+            "value": {
+                "greeting": greeting,
+                "processedAt": chrono::Utc::now().to_rfc3339(),
+                "originalTimestamp": timestamp,
+            },
+        }))
+        .action(TriggerAction::void()),
+    )
+    .await?;
 
     logger.info("Greeting processed", Some(json!({ "requestId": request_id })));
 
     Ok(json!(null))
 });
-
-iii.register_trigger("queue", "greet.process", json!({
-    "topic": "greet.process",
-}))?;
 ```
 
   </Tab>
@@ -319,14 +325,14 @@ iii.register_trigger("queue", "greet.process", json!({
 ## Connect and run
 
 <Callout title="Node.js connects automatically" type="info">
-  The Node SDK establishes the WebSocket connection when you call `init()`. There is no separate `connect()` method. Keep the process alive so the worker stays registered.
+  The Node SDK establishes the WebSocket connection when you call `registerWorker()`. There is no separate `connect()` method. Keep the process alive so the worker stays registered.
 </Callout>
 
 <Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
   <Tab value="Node / TypeScript">
 
 ```typescript
-// Node SDK connects on init() — keep the process alive
+// Node SDK connects on registerWorker() — keep the process alive
 await new Promise(() => {})
 ```
 
@@ -366,5 +372,5 @@ curl http://localhost:3111/hello
 
 - `iii.registerFunction` pairs a string ID with an async handler. The ID is referenced by all triggers bound to that function.
 - `iii.registerTrigger` binds a trigger type + config to a function ID. A function can have multiple triggers.
-- `iii.triggerVoid('enqueue', { topic, data })` publishes an event to the named topic. Any worker with a `queue` trigger on that topic will receive it.
-- `iii.triggerVoid('state::set', { scope, key, value })` persists data to the engine's key-value store, addressed by `scope` + `key`.
+- `iii.trigger({ function_id, payload, action: TriggerAction.Enqueue({ queue }) })` enqueues work to a named queue. The target function receives the payload as its input.
+- `iii.trigger({ function_id: 'state::set', payload: { scope, key, value }, action: TriggerAction.Void() })` persists data to the engine's key-value store.

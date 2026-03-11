@@ -29,9 +29,14 @@ def sum_function(data):
     b = data.get("b", 0)
     return {"sum": a + b}
 
-iii.register_function("math.sum", sum_function, description="Add two numbers")
-result = iii.trigger("math.sum", {"a": 2, "b": 3})
-print(result)  # {"sum": 5}
+iii.register_function("math::sum", sum_function, description="Add two numbers")
+
+async def main():
+    await iii.connect()
+    result = await iii.trigger({"function_id": "math::sum", "payload": {"a": 2, "b": 3}})
+    print(result)  # {"sum": 5}
+
+asyncio.run(main())
 ```
 
 You can also pass `InitOptions` to customize the worker name:
@@ -57,6 +62,18 @@ iii = III(
         <Expandable title="InitOptions">
           <ResponseField name="worker_name" type="str | None">
             Display name for this worker. Defaults to `hostname:pid`.
+          </ResponseField>
+          <ResponseField name="invocation_timeout_ms" type="int">
+            Default timeout for `trigger()` in milliseconds. Default `30000`.
+          </ResponseField>
+          <ResponseField name="enable_metrics_reporting" type="bool">
+            Enable worker metrics via OpenTelemetry. Default `True`.
+          </ResponseField>
+          <ResponseField name="reconnection_config" type="ReconnectionConfig | None">
+            WebSocket reconnection behavior.
+          </ResponseField>
+          <ResponseField name="otel" type="OtelConfig | dict | None">
+            OpenTelemetry configuration.
           </ResponseField>
         </Expandable>
       </ResponseField>
@@ -147,30 +164,69 @@ iii = III(
 
 ### trigger
 
-<ResponseField name="trigger" type="async (path: str, data: Any, timeout: float = 30.0) => Any" required>
-  Invokes a remote function and waits for the result.
+<ResponseField name="trigger" type="async (request: dict) => Any | EnqueueResult | None" required>
+  Invokes a remote function. The routing behavior and return value depend on the `action` key of the request dict.
+
+  | `action` | Behavior | Return value |
+  |----------|----------|--------------|
+  | _(none)_ | Synchronous — waits for the function to return | function result |
+  | `TriggerAction.Enqueue(...)` | Async via named queue — engine acknowledges enqueue | `EnqueueResult` |
+  | `TriggerAction.Void()` | Fire-and-forget — no response | `None` |
 
   <AccordionGroup>
     <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="path" type="str" required>
-        Function ID to invoke.
-      </ResponseField>
-      <ResponseField name="data" type="Any" required>
-        Payload to pass to the function.
-      </ResponseField>
-      <ResponseField name="timeout" type="float">
-        Timeout in seconds. Default `30.0`.
+      <ResponseField name="request" type="dict" required>
+        <Expandable title="request keys">
+          <ResponseField name="function_id" type="str" required>
+            ID of the function to invoke.
+          </ResponseField>
+          <ResponseField name="payload" type="Any" required>
+            Payload to pass to the function.
+          </ResponseField>
+          <ResponseField name="action" type="TriggerAction">
+            Routing action. Omit for synchronous request/response. Use `TriggerAction.Enqueue(queue="name")` for async queue delivery or `TriggerAction.Void()` for fire-and-forget.
+          </ResponseField>
+          <ResponseField name="timeout_ms" type="int">
+            Timeout in milliseconds for synchronous calls. Default `30000`.
+          </ResponseField>
+        </Expandable>
       </ResponseField>
     </Accordion>
     <Accordion iconName="Code" title="Example" description="">
       ```python
-      result = iii.trigger("enqueue", {
-          "topic": "user.created",
-          "data": {"user_id": "123"},
+      from iii import TriggerAction
+
+      # Synchronous — wait for function result
+      result = await iii.trigger({"function_id": "get-order", "payload": {"id": "123"}})
+
+      # Enqueue to named queue — returns EnqueueResult
+      receipt = await iii.trigger({
+          "function_id": "payments::charge",
+          "payload": {"orderId": "123", "amount": 49.99},
+          "action": TriggerAction.Enqueue(queue="payment"),
+      })
+
+      # Fire-and-forget
+      await iii.trigger({
+          "function_id": "notifications::send",
+          "payload": {"userId": "123"},
+          "action": TriggerAction.Void(),
       })
       ```
     </Accordion>
   </AccordionGroup>
+</ResponseField>
+
+### TriggerAction
+
+A class with factory methods that construct routing actions for `trigger()`. Import from `iii`.
+
+<ResponseField name="TriggerAction.Enqueue" type="classmethod (queue: str) => TriggerAction" required>
+  Routes the invocation through a named queue. The engine enqueues the job, acknowledges the caller with an `EnqueueResult`, and processes it asynchronously. Raises an error if the queue name is not found in config or if FIFO validation fails.
+</ResponseField>
+
+<ResponseField name="TriggerAction.Void" type="classmethod () => TriggerAction" required>
+  Fire-and-forget routing. The engine forwards the invocation without waiting for a response or queuing the job. No acknowledgement is returned.
 </ResponseField>
 
 ### trigger_void
@@ -180,7 +236,7 @@ iii = III(
 </ResponseField>
 
 <Callout type="warn" title="Deprecated methods">
-  `call` and `call_void` are deprecated. Use `trigger` and `trigger_void` instead.
+  `call` and `call_void` are deprecated. Use `trigger` instead. `trigger_void` is deprecated — replace with `trigger({"function_id": ..., "payload": ..., "action": TriggerAction.Void()})`.
 </Callout>
 
 ### create_stream
@@ -288,6 +344,15 @@ from iii.stream import (
     UpdateRemove,
     UpdateMerge,
 )
+```
+
+### Trigger Types
+
+```python
+from iii import TriggerAction, EnqueueResult
+
+# EnqueueResult shape
+# enqueue_result.message_receipt_id: str
 ```
 
 ### Other Exports
