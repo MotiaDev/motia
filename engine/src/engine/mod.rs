@@ -46,6 +46,10 @@ pub trait QueueEnqueuer: Send + Sync {
         traceparent: Option<String>,
         baggage: Option<String>,
     ) -> anyhow::Result<()>;
+
+    async fn function_queue_dlq_count(&self, _queue_name: &str) -> anyhow::Result<u64> {
+        Ok(0)
+    }
 }
 
 /// Magic prefix for OTLP binary frames (used by SDKs for trace spans)

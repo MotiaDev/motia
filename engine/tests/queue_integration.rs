@@ -78,6 +78,17 @@ async fn enqueue(
         .await
 }
 
+/// Returns the number of messages in the DLQ for a function queue.
+async fn dlq_count(engine: &Engine, queue_name: &str) -> u64 {
+    let guard = engine.queue_module.read().await;
+    let qm = guard
+        .as_ref()
+        .expect("queue_module should be set after initialize");
+    qm.function_queue_dlq_count(queue_name)
+        .await
+        .expect("dlq_count should not fail")
+}
+
 /// Registers a test function whose handler increments a shared counter on
 /// every invocation.
 fn register_counting_function(engine: &Arc<Engine>, function_id: &str, counter: Arc<AtomicU64>) {
@@ -119,6 +130,35 @@ fn register_order_recording_function(
         }),
         _function_id: function_id.to_string(),
         _description: Some("order recording test handler".to_string()),
+        request_format: None,
+        response_format: None,
+        metadata: None,
+    };
+    engine
+        .functions
+        .register_function(function_id.to_string(), function);
+}
+
+/// Registers a test function that sleeps for `delay` before succeeding.
+/// Records invocation timestamps (start time) in `timestamps`.
+fn register_slow_function(
+    engine: &Arc<Engine>,
+    function_id: &str,
+    delay: Duration,
+    timestamps: Arc<Mutex<Vec<std::time::Instant>>>,
+) {
+    let function = Function {
+        handler: Arc::new(move |_invocation_id, _input| {
+            let ts = timestamps.clone();
+            let d = delay;
+            Box::pin(async move {
+                ts.lock().await.push(std::time::Instant::now());
+                tokio::time::sleep(d).await;
+                FunctionResult::Success(Some(json!({ "ok": true })))
+            })
+        }),
+        _function_id: function_id.to_string(),
+        _description: Some("slow test handler".to_string()),
         request_format: None,
         response_format: None,
         metadata: None,
@@ -380,4 +420,215 @@ async fn retry_exhaustion_stops_redelivery() {
         "No further invocations should occur after retry exhaustion, \
          but got {calls_after} (was {calls_before})"
     );
+}
+
+#[tokio::test]
+async fn exhausted_message_lands_in_dlq() {
+    let engine = {
+        iii::modules::observability::metrics::ensure_default_meter();
+        Arc::new(Engine::new())
+    };
+
+    let call_count = Arc::new(AtomicU64::new(0));
+    register_failing_function(&engine, "test::dlq_target", call_count.clone());
+
+    let module = QueueCoreModule::create(engine.clone(), Some(queue_config_json()))
+        .await
+        .expect("QueueCoreModule::create should succeed");
+
+    module
+        .initialize()
+        .await
+        .expect("Module initialization should succeed");
+
+    // DLQ should start empty
+    assert_eq!(dlq_count(&engine, "default").await, 0);
+
+    enqueue(
+        &engine,
+        "default",
+        "test::dlq_target",
+        json!({"should_land_in": "dlq"}),
+    )
+    .await
+    .expect("Enqueue should succeed");
+
+    // Wait for retries to exhaust (max_retries=2, backoff_ms=100)
+    tokio::time::sleep(Duration::from_millis(3000)).await;
+
+    let count = dlq_count(&engine, "default").await;
+    assert_eq!(
+        count, 1,
+        "Exactly one message should be in the DLQ after retry exhaustion, got {count}"
+    );
+}
+
+#[tokio::test]
+async fn standard_queue_processes_concurrently() {
+    // "default" queue has concurrency=3. If we enqueue 3 messages with a
+    // 200ms handler, sequential processing would take >= 600ms while
+    // concurrent processing takes ~200ms.
+    let engine = {
+        iii::modules::observability::metrics::ensure_default_meter();
+        Arc::new(Engine::new())
+    };
+
+    let timestamps: Arc<Mutex<Vec<std::time::Instant>>> = Arc::new(Mutex::new(Vec::new()));
+    register_slow_function(
+        &engine,
+        "test::slow_handler",
+        Duration::from_millis(200),
+        timestamps.clone(),
+    );
+
+    let module = QueueCoreModule::create(engine.clone(), Some(queue_config_json()))
+        .await
+        .expect("QueueCoreModule::create should succeed");
+
+    module
+        .initialize()
+        .await
+        .expect("Module initialization should succeed");
+
+    let start = std::time::Instant::now();
+
+    for i in 0..3 {
+        enqueue(
+            &engine,
+            "default",
+            "test::slow_handler",
+            json!({"idx": i}),
+        )
+        .await
+        .expect("Enqueue should succeed");
+    }
+
+    // Wait for all 3 to complete
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+
+    let ts = timestamps.lock().await;
+    assert_eq!(ts.len(), 3, "All 3 messages should have been processed");
+
+    // All 3 handlers should have started within ~200ms of each other
+    // (concurrent), not 200ms apart (sequential).
+    let first_start = *ts.iter().min().unwrap();
+    let last_start = *ts.iter().max().unwrap();
+    let spread = last_start.duration_since(first_start);
+
+    assert!(
+        spread < Duration::from_millis(400),
+        "Concurrent handlers should start close together, but spread was {:?} \
+         (start timestamps relative to test start: {:?})",
+        spread,
+        ts.iter()
+            .map(|t| t.duration_since(start))
+            .collect::<Vec<_>>()
+    );
+}
+
+#[tokio::test]
+async fn nonexistent_function_nacks_without_blocking_queue() {
+    // Enqueue a message targeting a function that doesn't exist.
+    // The consumer should nack it (function_not_found error) and continue
+    // processing subsequent messages for other functions.
+    let engine = {
+        iii::modules::observability::metrics::ensure_default_meter();
+        Arc::new(Engine::new())
+    };
+
+    let call_count = Arc::new(AtomicU64::new(0));
+    register_counting_function(&engine, "test::real_handler", call_count.clone());
+    // Note: "test::ghost" is NOT registered
+
+    let module = QueueCoreModule::create(engine.clone(), Some(queue_config_json()))
+        .await
+        .expect("QueueCoreModule::create should succeed");
+
+    module
+        .initialize()
+        .await
+        .expect("Module initialization should succeed");
+
+    // Enqueue to a nonexistent function first
+    enqueue(
+        &engine,
+        "default",
+        "test::ghost",
+        json!({"should": "fail"}),
+    )
+    .await
+    .expect("Enqueue should succeed (validation is at consume time)");
+
+    // Then enqueue to a real function
+    enqueue(
+        &engine,
+        "default",
+        "test::real_handler",
+        json!({"should": "succeed"}),
+    )
+    .await
+    .expect("Enqueue should succeed");
+
+    // Wait for processing
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+
+    let count = call_count.load(Ordering::SeqCst);
+    assert_eq!(
+        count, 1,
+        "The real handler should have been invoked despite the ghost function failing, got {count}"
+    );
+}
+
+#[tokio::test]
+async fn multiple_queues_operate_independently() {
+    // Enqueue to both "default" (standard) and "payment" (fifo) queues
+    // simultaneously. Each queue should process its own messages without
+    // interference.
+    let engine = {
+        iii::modules::observability::metrics::ensure_default_meter();
+        Arc::new(Engine::new())
+    };
+
+    let default_count = Arc::new(AtomicU64::new(0));
+    let payment_count = Arc::new(AtomicU64::new(0));
+    register_counting_function(&engine, "test::default_handler", default_count.clone());
+    register_counting_function(&engine, "test::payment_handler", payment_count.clone());
+
+    let module = QueueCoreModule::create(engine.clone(), Some(queue_config_json()))
+        .await
+        .expect("QueueCoreModule::create should succeed");
+
+    module
+        .initialize()
+        .await
+        .expect("Module initialization should succeed");
+
+    // Enqueue 3 messages to each queue
+    for i in 0..3 {
+        enqueue(
+            &engine,
+            "default",
+            "test::default_handler",
+            json!({"idx": i}),
+        )
+        .await
+        .expect("Enqueue to default should succeed");
+
+        enqueue(
+            &engine,
+            "payment",
+            "test::payment_handler",
+            json!({"transaction_id": format!("txn-{i}"), "idx": i}),
+        )
+        .await
+        .expect("Enqueue to payment should succeed");
+    }
+
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+
+    let dc = default_count.load(Ordering::SeqCst);
+    let pc = payment_count.load(Ordering::SeqCst);
+
+    assert_eq!(dc, 3, "Default queue should have processed 3 messages, got {dc}");
+    assert_eq!(pc, 3, "Payment queue should have processed 3 messages, got {pc}");
 }

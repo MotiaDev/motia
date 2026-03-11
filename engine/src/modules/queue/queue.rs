@@ -102,6 +102,12 @@ impl QueueCoreModule {
         Ok(())
     }
 
+    /// Returns the number of messages in the DLQ for a function queue.
+    pub async fn function_queue_dlq_count(&self, queue_name: &str) -> anyhow::Result<u64> {
+        let namespaced = format!("__fn_queue::{}", queue_name);
+        self.adapter.dlq_count(&namespaced).await
+    }
+
     #[function(id = "enqueue", description = "Enqueue a message")]
     pub async fn enqueue(&self, input: QueueInput) -> FunctionResult<Option<Value>, ErrorBody> {
         let adapter = self.adapter.clone();
@@ -148,6 +154,10 @@ impl QueueEnqueuer for QueueCoreModule {
     ) -> anyhow::Result<()> {
         self.enqueue_to_function_queue(queue_name, function_id, data, traceparent, baggage)
             .await
+    }
+
+    async fn function_queue_dlq_count(&self, queue_name: &str) -> anyhow::Result<u64> {
+        self.function_queue_dlq_count(queue_name).await
     }
 }
 

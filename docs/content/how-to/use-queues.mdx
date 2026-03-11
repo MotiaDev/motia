@@ -87,8 +87,11 @@ async def create_order(input):
     order = {"id": str(uuid.uuid4()), **input}
 
     # Enqueue to the 'payment' queue
-    await iii.trigger('orders::process-order', order,
-        action=TriggerAction.Enqueue(queue='payment'))
+    await iii.trigger({
+        "function_id": "orders::process-order",
+        "payload": order,
+        "action": TriggerAction.Enqueue(queue="payment"),
+    })
 
     logger.info('Order enqueued', {'orderId': order['id']})
     return {'orderId': order['id']}
@@ -98,7 +101,7 @@ iii.register_function("orders::create", create_order)
 </Tab>
 <Tab value="Rust">
 ```rust title="enqueue_order.rs"
-use iii_sdk::{Logger, TriggerAction, III};
+use iii_sdk::{Logger, TriggerAction, TriggerRequest, III};
 use serde_json::json;
 
 let iii = III::new(&std::env::var("III_BRIDGE_URL")
@@ -116,12 +119,11 @@ iii.register_function("orders::create", move |input| {
             "total": input["total"],
         });
 
-        // Enqueue to the 'payment' queue
         iii.trigger(
-            "orders::process-order",
-            order,
-            TriggerAction::enqueue("payment"),
-        ).await?;
+            TriggerRequest::new("orders::process-order", order)
+                .action(TriggerAction::enqueue("payment")),
+        )
+        .await?;
 
         logger.info("Order enqueued", Some(json!({ "orderId": order_id })));
         Ok(json!({ "orderId": order_id }))
@@ -213,25 +215,29 @@ iii.registerFunction({ id: 'orders::process-order' }, async (order) => {
 async def process_order(order):
     # ...charge the customer...
 
-    await iii.trigger('notifications::send',
-        {'orderId': order['id'], 'type': 'payment-confirmed'},
-        action=TriggerAction.Enqueue(queue='default'))
+    await iii.trigger({
+        "function_id": "notifications::send",
+        "payload": {"orderId": order["id"], "type": "payment-confirmed"},
+        "action": TriggerAction.Enqueue(queue="default"),
+    })
 
     return {'processed': True}
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
+use iii_sdk::{TriggerAction, TriggerRequest};
 use serde_json::json;
 
 iii.register_function("orders::process-order", |order| async move {
-    // ...charge the customer...
-
     iii.trigger(
-        "notifications::send",
-        json!({ "orderId": order["id"], "type": "payment-confirmed" }),
-        TriggerAction::enqueue("default"),
-    ).await?;
+        TriggerRequest::new("notifications::send", json!({
+            "orderId": order["id"],
+            "type": "payment-confirmed",
+        }))
+        .action(TriggerAction::enqueue("default")),
+    )
+    .await?;
 
     Ok(json!({ "processed": true }))
 });
@@ -268,27 +274,31 @@ iii.trigger({
 <Tab value="Python">
 ```python
 # The 'transaction_id' field in the data is used for FIFO ordering
-await iii.trigger('payments::process', {
-    'transaction_id': 'txn-abc-123',
-    'amount': 49.99,
-    'currency': 'USD',
-}, action=TriggerAction.Enqueue(queue='payment'))
+await iii.trigger({
+    "function_id": "payments::process",
+    "payload": {
+        "transaction_id": "txn-abc-123",
+        "amount": 49.99,
+        "currency": "USD",
+    },
+    "action": TriggerAction.Enqueue(queue="payment"),
+})
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
+use iii_sdk::{TriggerAction, TriggerRequest};
 use serde_json::json;
 
-// The 'transaction_id' field in the data is used for FIFO ordering
 iii.trigger(
-    "payments::process",
-    json!({
+    TriggerRequest::new("payments::process", json!({
         "transaction_id": "txn-abc-123",
         "amount": 49.99,
         "currency": "USD",
-    }),
-    TriggerAction::enqueue("payment"),
-).await?;
+    }))
+    .action(TriggerAction::enqueue("payment")),
+)
+.await?;
 ```
 </Tab>
 </Tabs>
@@ -315,22 +325,26 @@ iii.trigger({
 from iii import TriggerAction
 
 # Fire-and-forget — no queue, no response
-await iii.trigger('notifications::send-email',
-    {'to': 'user@example.com', 'subject': 'Hello'},
-    action=TriggerAction.Void())
+await iii.trigger({
+    "function_id": "notifications::send-email",
+    "payload": {"to": "user@example.com", "subject": "Hello"},
+    "action": TriggerAction.Void(),
+})
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::TriggerAction;
+use iii_sdk::{TriggerAction, TriggerRequest};
 use serde_json::json;
 
-// Fire-and-forget — no queue, no response
 iii.trigger(
-    "notifications::send-email",
-    json!({ "to": "user@example.com", "subject": "Hello" }),
-    TriggerAction::void(),
-).await?;
+    TriggerRequest::new("notifications::send-email", json!({
+        "to": "user@example.com",
+        "subject": "Hello",
+    }))
+    .action(TriggerAction::void()),
+)
+.await?;
 ```
 </Tab>
 </Tabs>
@@ -342,30 +356,33 @@ With the queue config and functions in place, kick off the workflow by calling t
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-const { orderId } = await iii.trigger('orders::create', {
-  items: ['item-1', 'item-2'],
-  total: 99.99,
+const { orderId } = await iii.trigger({
+  function_id: 'orders::create',
+  payload: { items: ['item-1', 'item-2'], total: 99.99 },
 })
 logger.info('Order created', { orderId })
 ```
 </Tab>
 <Tab value="Python">
 ```python
-result = await iii.trigger('orders::create', {
-    'items': ['item-1', 'item-2'],
-    'total': 99.99,
+result = await iii.trigger({
+    "function_id": "orders::create",
+    "payload": {"items": ["item-1", "item-2"], "total": 99.99},
 })
-print('Order created', result['orderId'])
+print("Order created", result["orderId"])
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
+use iii_sdk::TriggerRequest;
 use serde_json::json;
 
-let result = iii.trigger("orders::create", json!({
-    "items": ["item-1", "item-2"],
-    "total": 99.99,
-}), ()).await?;
+let result = iii
+    .trigger(TriggerRequest::new("orders::create", json!({
+        "items": ["item-1", "item-2"],
+        "total": 99.99,
+    })))
+    .await?;
 println!("Order created: {}", result["orderId"]);
 ```
 </Tab>
@@ -377,7 +394,7 @@ println!("Order created: {}", result["orderId"]);
 
 | Action | Behavior | SDK Usage |
 |--------|----------|-----------|
-| _(none)_ | Direct call — waits for response | `trigger('fn', data)` |
+| _(none)_ | Direct call — waits for response | `trigger({ function_id: 'fn', payload: data })` |
 | `Enqueue` | Async via named queue — returns `{ enqueued: true }` or `enqueue_error` | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Enqueue({ queue: 'name' }) })` |
 | `Void` | Fire-and-forget, no queue | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Void() })` |
 
@@ -391,7 +408,7 @@ import { registerWorker, TriggerAction } from 'iii-sdk'
 const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Direct call (request/response)
-const result = await iii.trigger('get-order', { id: '123' })
+const result = await iii.trigger({ function_id: 'get-order', payload: { id: '123' } })
 
 // Enqueue to named queue (async, returns acknowledgement)
 await iii.trigger({
@@ -415,32 +432,42 @@ from iii import III, TriggerAction
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 # Direct call (request/response)
-result = await iii.trigger('get-order', {'id': '123'})
+result = await iii.trigger({"function_id": "get-order", "payload": {"id": "123"}})
 
 # Enqueue to named queue (async, returns acknowledgement)
-await iii.trigger('process-order', order_data,
-    action=TriggerAction.Enqueue(queue='payment'))
+await iii.trigger({
+    "function_id": "process-order",
+    "payload": order_data,
+    "action": TriggerAction.Enqueue(queue="payment"),
+})
 
 # Void (fire-and-forget, no queue)
-await iii.trigger('send-notification', data,
-    action=TriggerAction.Void())
+await iii.trigger({
+    "function_id": "send-notification",
+    "payload": data,
+    "action": TriggerAction.Void(),
+})
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{III, TriggerAction};
+use iii_sdk::{III, TriggerAction, TriggerRequest};
 use serde_json::json;
 
 // Direct call (request/response)
-let result = iii.trigger("get-order", json!({ "id": "123" }), ()).await?;
+let result = iii.trigger(TriggerRequest::new("get-order", json!({ "id": "123" }))).await?;
 
 // Enqueue to named queue (async, returns acknowledgement)
-iii.trigger("process-order", order_data,
-    TriggerAction::enqueue("payment")).await?;
+iii.trigger(
+    TriggerRequest::new("process-order", order_data).action(TriggerAction::enqueue("payment")),
+)
+.await?;
 
 // Void (fire-and-forget, no queue)
-iii.trigger("send-notification", data,
-    TriggerAction::void()).await?;
+iii.trigger(
+    TriggerRequest::new("send-notification", data).action(TriggerAction::void()),
+)
+.await?;
 ```
 </Tab>
 </Tabs>
@@ -499,8 +526,11 @@ iii.register_trigger(
 
 ```python title="After (Named Queues)"
 # New: enqueue directly to the target function via a named queue
-await iii.trigger('orders::process-payment', order,
-    action=TriggerAction.Enqueue(queue='payment'))
+await iii.trigger({
+    "function_id": "orders::process-payment",
+    "payload": order,
+    "action": TriggerAction.Enqueue(queue="payment"),
+})
 
 # No trigger registration needed
 ```
@@ -522,14 +552,13 @@ iii.register_trigger("queue", "orders::process-payment", json!({
 ```
 
 ```rust title="After (Named Queues)"
-// New: enqueue directly to the target function via a named queue
-iii.trigger(
-    "orders::process-payment",
-    order,
-    TriggerAction::enqueue("payment"),
-).await?;
+use iii_sdk::TriggerRequest;
 
-// No trigger registration needed
+iii.trigger(
+    TriggerRequest::new("orders::process-payment", order)
+        .action(TriggerAction::enqueue("payment")),
+)
+.await?;
 ```
 </Tab>
 </Tabs>
@@ -556,8 +585,11 @@ iii.trigger_void('send-notification', data)
 ```
 
 ```python title="After"
-await iii.trigger('send-notification', data,
-    action=TriggerAction.Void())
+await iii.trigger({
+    "function_id": "send-notification",
+    "payload": data,
+    "action": TriggerAction.Void(),
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -566,8 +598,12 @@ iii.trigger_void("send-notification", data)?;
 ```
 
 ```rust title="After"
-iii.trigger("send-notification", data,
-    TriggerAction::void()).await?;
+use iii_sdk::{TriggerAction, TriggerRequest};
+
+iii.trigger(
+    TriggerRequest::new("send-notification", data).action(TriggerAction::void()),
+)
+.await?;
 ```
 </Tab>
 </Tabs>
