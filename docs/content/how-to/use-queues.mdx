@@ -43,13 +43,13 @@ The `default` queue is used when no queue name is specified. You can add as many
 | `max_retries` | `u32` | `3` | Max delivery attempts before moving to DLQ |
 | `concurrency` | `u32` | `10` | Max concurrent workers processing this queue |
 | `type` | `string` | `"standard"` | `"standard"` processes jobs concurrently; `"fifo"` processes them in order |
-| `message_group_field` | `string` | `null` | Required for FIFO — the JSON field in job data used for ordering |
+| `message_group_field` | `string` | `null` | Required for FIFO — the JSON field in job data used for ordering (value must be non-null) |
 | `backoff_ms` | `u64` | `1000` | Base backoff delay between retries (ms) |
 | `poll_interval_ms` | `u64` | `100` | Worker poll interval (ms) |
 
 ### 2. Enqueue work via trigger action
 
-From any function, enqueue a job by calling `trigger()` with the `Enqueue` action and the target queue name. The call is fire-and-forget — the caller returns immediately while the queue stores the job for processing.
+From any function, enqueue a job by calling `trigger()` with the `Enqueue` action and the target queue name. The enqueue operation is asynchronous — the caller does not wait for the job to be processed — but the SDK does await an acknowledgement from the engine confirming the job was accepted. The returned result contains `{ enqueued: true }` on success, or an `enqueue_error` if the queue was not found or FIFO validation failed.
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
@@ -87,7 +87,7 @@ async def create_order(input):
     order = {"id": str(uuid.uuid4()), **input}
 
     # Enqueue to the 'payment' queue
-    iii.trigger('orders::process-order', order,
+    await iii.trigger('orders::process-order', order,
         action=TriggerAction.Enqueue(queue='payment'))
 
     logger.info('Order enqueued', {'orderId': order['id']})
@@ -213,7 +213,7 @@ iii.registerFunction({ id: 'orders::process-order' }, async (order) => {
 async def process_order(order):
     # ...charge the customer...
 
-    iii.trigger('notifications::send',
+    await iii.trigger('notifications::send',
         {'orderId': order['id'], 'type': 'payment-confirmed'},
         action=TriggerAction.Enqueue(queue='default'))
 
@@ -222,6 +222,8 @@ async def process_order(order):
 </Tab>
 <Tab value="Rust">
 ```rust
+use serde_json::json;
+
 iii.register_function("orders::process-order", |order| async move {
     // ...charge the customer...
 
@@ -239,7 +241,7 @@ iii.register_function("orders::process-order", |order| async move {
 
 ### 4. Use FIFO queues for ordered processing
 
-When order matters (e.g. payment transactions for the same account), use a FIFO queue. Set `type: fifo` and specify `message_group_field` — the field in your job data whose value determines the ordering group. Jobs with the same group value are processed strictly in order.
+When order matters (e.g. payment transactions for the same account), use a FIFO queue. Set `type: fifo` and specify `message_group_field` — the field in your job data whose value determines the ordering group. Jobs with the same group value are processed strictly in order. The field named by `message_group_field` must be present **and non-null** in every job payload — the engine rejects enqueue requests where the field is missing or null.
 
 ```yaml title="iii-config.yaml (excerpt)"
 queue_configs:
@@ -247,7 +249,7 @@ queue_configs:
     max_retries: 10
     concurrency: 2
     type: fifo
-    message_group_field: transaction_id
+    message_group_field: transaction_id  # job payloads must include a non-null transaction_id
 ```
 
 The job data **must** contain the field specified by `message_group_field`:
@@ -266,7 +268,7 @@ iii.trigger({
 <Tab value="Python">
 ```python
 # The 'transaction_id' field in the data is used for FIFO ordering
-iii.trigger('payments::process', {
+await iii.trigger('payments::process', {
     'transaction_id': 'txn-abc-123',
     'amount': 49.99,
     'currency': 'USD',
@@ -275,6 +277,8 @@ iii.trigger('payments::process', {
 </Tab>
 <Tab value="Rust">
 ```rust
+use serde_json::json;
+
 // The 'transaction_id' field in the data is used for FIFO ordering
 iii.trigger(
     "payments::process",
@@ -311,7 +315,7 @@ iii.trigger({
 from iii import TriggerAction
 
 # Fire-and-forget — no queue, no response
-iii.trigger('notifications::send-email',
+await iii.trigger('notifications::send-email',
     {'to': 'user@example.com', 'subject': 'Hello'},
     action=TriggerAction.Void())
 ```
@@ -319,6 +323,7 @@ iii.trigger('notifications::send-email',
 <Tab value="Rust">
 ```rust
 use iii_sdk::TriggerAction;
+use serde_json::json;
 
 // Fire-and-forget — no queue, no response
 iii.trigger(
@@ -355,6 +360,8 @@ print('Order created', result['orderId'])
 </Tab>
 <Tab value="Rust">
 ```rust
+use serde_json::json;
+
 let result = iii.trigger("orders::create", json!({
     "items": ["item-1", "item-2"],
     "total": 99.99,
@@ -371,7 +378,7 @@ println!("Order created: {}", result["orderId"]);
 | Action | Behavior | SDK Usage |
 |--------|----------|-----------|
 | _(none)_ | Direct call — waits for response | `trigger('fn', data)` |
-| `Enqueue` | Fire-and-forget via named queue | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Enqueue({ queue: 'name' }) })` |
+| `Enqueue` | Async via named queue — returns `{ enqueued: true }` or `enqueue_error` | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Enqueue({ queue: 'name' }) })` |
 | `Void` | Fire-and-forget, no queue | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Void() })` |
 
 ### SDK quick reference
@@ -386,8 +393,8 @@ const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 // Direct call (request/response)
 const result = await iii.trigger('get-order', { id: '123' })
 
-// Enqueue to named queue (fire-and-forget)
-iii.trigger({
+// Enqueue to named queue (async, returns acknowledgement)
+await iii.trigger({
   function_id: 'process-order',
   payload: orderData,
   action: TriggerAction.Enqueue({ queue: 'payment' }),
@@ -410,23 +417,24 @@ iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 # Direct call (request/response)
 result = await iii.trigger('get-order', {'id': '123'})
 
-# Enqueue to named queue (fire-and-forget)
-iii.trigger('process-order', order_data,
+# Enqueue to named queue (async, returns acknowledgement)
+await iii.trigger('process-order', order_data,
     action=TriggerAction.Enqueue(queue='payment'))
 
 # Void (fire-and-forget, no queue)
-iii.trigger('send-notification', data,
+await iii.trigger('send-notification', data,
     action=TriggerAction.Void())
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
 use iii_sdk::{III, TriggerAction};
+use serde_json::json;
 
 // Direct call (request/response)
 let result = iii.trigger("get-order", json!({ "id": "123" }), ()).await?;
 
-// Enqueue to named queue (fire-and-forget)
+// Enqueue to named queue (async, returns acknowledgement)
 iii.trigger("process-order", order_data,
     TriggerAction::enqueue("payment")).await?;
 
@@ -491,7 +499,7 @@ iii.register_trigger(
 
 ```python title="After (Named Queues)"
 # New: enqueue directly to the target function via a named queue
-iii.trigger('orders::process-payment', order,
+await iii.trigger('orders::process-payment', order,
     action=TriggerAction.Enqueue(queue='payment'))
 
 # No trigger registration needed
@@ -499,6 +507,8 @@ iii.trigger('orders::process-payment', order,
 </Tab>
 <Tab value="Rust">
 ```rust title="Before (deprecated)"
+use serde_json::json;
+
 // Old: enqueue via trigger_void with topic
 iii.trigger_void("enqueue", json!({
     "topic": "order.created",
@@ -546,7 +556,7 @@ iii.trigger_void('send-notification', data)
 ```
 
 ```python title="After"
-iii.trigger('send-notification', data,
+await iii.trigger('send-notification', data,
     action=TriggerAction.Void())
 ```
 </Tab>

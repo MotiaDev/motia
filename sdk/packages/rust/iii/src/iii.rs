@@ -582,20 +582,20 @@ impl III {
         let req = request.into();
         let (tp, bg) = inject_trace_headers();
 
-        // Enqueue and Void are fire-and-forget (matches Node/Python behavior)
-        if let Some(action) = req.action {
+        // Void is fire-and-forget — no invocation_id, no response
+        if matches!(req.action, Some(TriggerAction::Void)) {
             self.send_message(Message::InvokeFunction {
                 invocation_id: None,
                 function_id: req.function_id,
                 data: req.payload,
                 traceparent: tp,
                 baggage: bg,
-                action: Some(action),
+                action: req.action,
             })?;
             return Ok(Value::Null);
         }
 
-        // Default: synchronous call with timeout
+        // Enqueue and default: use invocation_id to receive acknowledgement/result
         let timeout = req.timeout.unwrap_or(DEFAULT_TIMEOUT);
         let invocation_id = Uuid::new_v4();
         let (tx, rx) = oneshot::channel();
@@ -611,7 +611,7 @@ impl III {
             data: req.payload,
             traceparent: tp,
             baggage: bg,
-            action: None,
+            action: req.action,
         })?;
 
         match tokio::time::timeout(timeout, rx).await {

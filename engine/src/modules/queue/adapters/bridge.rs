@@ -257,13 +257,15 @@ impl QueueAdapter for BridgeAdapter {
         _traceparent: Option<String>,
         _baggage: Option<String>,
     ) {
-        let payload = serde_json::json!({
-            "queue": queue_name,
-            "function_id": function_id,
-            "data": data,
-        });
-        if let Err(e) = self.bridge.trigger(iii_sdk::TriggerRequest::new("enqueue_to_queue", payload).action(iii_sdk::TriggerAction::void())).await {
-            tracing::error!(error = %e, queue = %queue_name, "Failed to enqueue via bridge");
+        if let Err(e) = self
+            .bridge
+            .trigger(
+                iii_sdk::TriggerRequest::new(function_id, data)
+                    .action(iii_sdk::TriggerAction::enqueue(queue_name)),
+            )
+            .await
+        {
+            tracing::error!(error = %e, queue = %queue_name, function_id = %function_id, "Failed to enqueue via bridge");
         }
     }
 
