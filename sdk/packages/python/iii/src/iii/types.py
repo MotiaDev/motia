@@ -91,7 +91,14 @@ class IIIClient(Protocol):
 
     def register_trigger(self, trigger: RegisterTriggerMessage) -> Trigger: ...
 
-    def register_service(self, service_id: str, description: str | None = None) -> None: ...
+    def register_service(
+        self,
+        id: str,
+        description: str | None = None,
+        parent_id: str | None = None,
+        *,
+        name: str | None = None,
+    ) -> None: ...
 
     def register_function(
         self,

@@ -6,6 +6,7 @@
 export const EngineFunctions = {
   LIST_FUNCTIONS: 'engine::functions::list',
   LIST_WORKERS: 'engine::workers::list',
+  LIST_TRIGGERS: 'engine::triggers::list',
   REGISTER_WORKER: 'engine::workers::register',
 } as const
 

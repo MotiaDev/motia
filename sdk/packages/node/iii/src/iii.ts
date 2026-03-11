@@ -23,6 +23,7 @@ import {
   type RegisterTriggerMessage,
   type RegisterTriggerTypeMessage,
   type TriggerAction as TriggerActionType,
+  type TriggerInfo,
   type TriggerRegistrationResultMessage,
   type TriggerRequest,
   type WorkerInfo,
@@ -220,11 +221,7 @@ class Sdk implements ISdk {
             const parentContext = extractContext(traceparent, baggage)
 
             return context.with(parentContext, () =>
-              withSpan(
-                `call ${message.id}`,
-                { kind: SpanKind.SERVER },
-                async () => await handler(input),
-              ),
+              withSpan(`call ${message.id}`, { kind: SpanKind.SERVER }, async () => await handler(input)),
             )
           }
 
@@ -232,10 +229,7 @@ class Sdk implements ISdk {
           const spanId = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
           const syntheticSpan = trace.wrapSpanContext({ traceId, spanId, traceFlags: 1 })
 
-          return context.with(
-            trace.setSpan(context.active(), syntheticSpan),
-            async () => await handler(input),
-          )
+          return context.with(trace.setSpan(context.active(), syntheticSpan), async () => await handler(input))
         },
       })
     } else {
@@ -252,8 +246,9 @@ class Sdk implements ISdk {
   }
 
   registerService = (message: Omit<RegisterServiceMessage, 'message_type'>): void => {
-    this.sendMessage(MessageType.RegisterService, message, true)
-    this.services.set(message.id, { ...message, message_type: MessageType.RegisterService })
+    const msg = { ...message, name: message.name ?? message.id }
+    this.sendMessage(MessageType.RegisterService, msg, true)
+    this.services.set(message.id, { ...msg, message_type: MessageType.RegisterService })
   }
 
   createChannel = async (bufferSize?: number): Promise<import('./types').Channel> => {
@@ -343,12 +338,18 @@ class Sdk implements ISdk {
     return result.workers
   }
 
+  listTriggers = async (includeInternal = false): Promise<TriggerInfo[]> => {
+    const result = await this.trigger<{ include_internal: boolean }, { triggers: TriggerInfo[] }>({
+      function_id: EngineFunctions.LIST_TRIGGERS,
+      payload: { include_internal: includeInternal },
+    })
+    return result.triggers
+  }
+
   private registerWorkerMetadata(): void {
     const telemetryOpts = this.options?.telemetry
     const language =
-      telemetryOpts?.language ??
-      Intl.DateTimeFormat().resolvedOptions().locale ??
-      process.env.LANG?.split('.')[0]
+      telemetryOpts?.language ?? Intl.DateTimeFormat().resolvedOptions().locale ?? process.env.LANG?.split('.')[0]
 
     this.trigger({
       function_id: EngineFunctions.REGISTER_WORKER,
@@ -374,10 +375,7 @@ class Sdk implements ISdk {
     this.registerFunction({ id: `stream::set(${streamName})` }, stream.set.bind(stream))
     this.registerFunction({ id: `stream::delete(${streamName})` }, stream.delete.bind(stream))
     this.registerFunction({ id: `stream::list(${streamName})` }, stream.list.bind(stream))
-    this.registerFunction(
-      { id: `stream::list_groups(${streamName})` },
-      stream.listGroups.bind(stream),
-    )
+    this.registerFunction({ id: `stream::list_groups(${streamName})` }, stream.listGroups.bind(stream))
   }
 
   onFunctionsAvailable = (callback: FunctionsAvailableCallback): (() => void) => {
@@ -390,15 +388,12 @@ class Sdk implements ISdk {
 
       const function_id = this.functionsAvailableFunctionPath
       if (!this.functions.has(function_id)) {
-        this.registerFunction(
-          { id: function_id },
-          async ({ functions }: { functions: FunctionInfo[] }) => {
-            this.functionsAvailableCallbacks.forEach(handler => {
-              handler(functions)
-            })
-            return null
-          },
-        )
+        this.registerFunction({ id: function_id }, async ({ functions }: { functions: FunctionInfo[] }) => {
+          this.functionsAvailableCallbacks.forEach((handler) => {
+            handler(functions)
+          })
+          return null
+        })
       }
 
       this.functionsAvailableTrigger = this.registerTrigger({
@@ -552,8 +547,7 @@ class Sdk implements ISdk {
       return
     }
 
-    const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs, jitterFactor } =
-      this.reconnectionConfig
+    const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs, jitterFactor } = this.reconnectionConfig
 
     if (maxRetries !== -1 && this.reconnectAttempt >= maxRetries) {
       this.setConnectionState('failed')
@@ -627,13 +621,13 @@ class Sdk implements ISdk {
     this.triggerTypes.forEach(({ message }) => {
       this.sendMessage(MessageType.RegisterTriggerType, message, true)
     })
-    this.services.forEach(service => {
+    this.services.forEach((service) => {
       this.sendMessage(MessageType.RegisterService, service, true)
     })
     this.functions.forEach(({ message }) => {
       this.sendMessage(MessageType.RegisterFunction, message, true)
     })
-    this.triggers.forEach(trigger => {
+    this.triggers.forEach((trigger) => {
       this.sendMessage(MessageType.RegisterTrigger, trigger, true)
     })
 
@@ -661,7 +655,7 @@ class Sdk implements ISdk {
   private sendMessageRaw(data: string): void {
     if (this.ws && this.isOpen()) {
       try {
-        this.ws.send(data, err => {
+        this.ws.send(data, (err) => {
           if (err) {
             this.logError('Failed to send message', err)
           }
@@ -672,10 +666,7 @@ class Sdk implements ISdk {
     }
   }
 
-  private toWireFormat(
-    messageType: MessageType,
-    message: Omit<IIIMessage, 'message_type'>,
-  ): Record<string, unknown> {
+  private toWireFormat(messageType: MessageType, message: Omit<IIIMessage, 'message_type'>): Record<string, unknown> {
     const { message_type: _, ...rest } = message as Record<string, unknown>
     if (messageType === MessageType.RegisterTrigger && 'type' in message) {
       const { type: triggerType, ...triggerRest } = message as RegisterTriggerMessage
@@ -692,11 +683,7 @@ class Sdk implements ISdk {
     return { type: messageType, ...rest } as Record<string, unknown>
   }
 
-  private sendMessage(
-    messageType: MessageType,
-    message: Omit<IIIMessage, 'message_type'>,
-    skipIfClosed = false,
-  ): void {
+  private sendMessage(messageType: MessageType, message: Omit<IIIMessage, 'message_type'>, skipIfClosed = false): void {
     const wireMessage = this.toWireFormat(messageType, message)
     if (this.isOpen()) {
       this.sendMessageRaw(JSON.stringify(wireMessage))
@@ -760,7 +747,7 @@ class Sdk implements ISdk {
         : new ChannelWriter(this.address, value)
     }
     if (Array.isArray(value)) {
-      return value.map(item => this.resolveChannelValue(item))
+      return value.map((item) => this.resolveChannelValue(item))
     }
     if (value !== null && typeof value === 'object') {
       const out: Record<string, unknown> = {}
@@ -820,9 +807,7 @@ class Sdk implements ISdk {
       }
     } else {
       const errorCode = fn ? 'function_not_invokable' : 'function_not_found'
-      const errorMessage = fn
-        ? 'Function is HTTP-invoked and cannot be invoked locally'
-        : 'Function not found'
+      const errorMessage = fn ? 'Function is HTTP-invoked and cannot be invoked locally' : 'Function not found'
       if (invocation_id) {
         this.sendMessage(MessageType.InvocationResult, {
           invocation_id,
@@ -835,12 +820,7 @@ class Sdk implements ISdk {
     }
   }
 
-  private async onRegisterTrigger(message: {
-    trigger_type: string
-    id: string
-    function_id: string
-    config: unknown
-  }) {
+  private async onRegisterTrigger(message: { trigger_type: string; id: string; function_id: string; config: unknown }) {
     const { trigger_type, id, function_id, config } = message
     const triggerTypeData = this.triggerTypes.get(trigger_type)
 
@@ -891,13 +871,10 @@ class Sdk implements ISdk {
       const { invocation_id, result, error } = message as InvocationResultMessage
       this.onInvocationResult(invocation_id, result, error)
     } else if (msgType === MessageType.InvokeFunction) {
-      const { invocation_id, function_id, data, traceparent, baggage } =
-        message as InvokeFunctionMessage
+      const { invocation_id, function_id, data, traceparent, baggage } = message as InvokeFunctionMessage
       this.onInvokeFunction(invocation_id, function_id, data, traceparent, baggage)
     } else if (msgType === MessageType.RegisterTrigger) {
-      this.onRegisterTrigger(
-        message as { trigger_type: string; id: string; function_id: string; config: unknown },
-      )
+      this.onRegisterTrigger(message as { trigger_type: string; id: string; function_id: string; config: unknown })
     } else if (msgType === MessageType.WorkerRegistered) {
       const { worker_id } = message as WorkerRegisteredMessage
       this.workerId = worker_id

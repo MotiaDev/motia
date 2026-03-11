@@ -21,7 +21,7 @@ export class ChannelWriter {
         const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
         this.sendChunked(buf, callback)
       },
-      final: callback => {
+      final: (callback) => {
         if (!this.ws) {
           callback()
           return
@@ -52,7 +52,7 @@ export class ChannelWriter {
       this.pendingMessages.length = 0
     })
 
-    this.ws.on('error', err => {
+    this.ws.on('error', (err) => {
       this.stream.destroy(err)
     })
 
@@ -65,7 +65,7 @@ export class ChannelWriter {
 
   sendMessage(msg: string): void {
     this.ensureConnected()
-    this.sendRaw(msg, err => {
+    this.sendRaw(msg, (err) => {
       if (err) this.stream.destroy(err)
     })
   }
@@ -103,7 +103,7 @@ export class ChannelWriter {
   private sendRaw(data: Buffer | string, callback: (err?: Error | null) => void): void {
     this.ensureConnected()
     if (this.wsReady && this.ws) {
-      this.ws.send(data, err => callback(err ?? null))
+      this.ws.send(data, (err) => callback(err ?? null))
     } else {
       this.pendingMessages.push({ data, callback })
     }
@@ -163,13 +163,30 @@ export class ChannelReader {
       if (!this.stream.destroyed) this.stream.push(null)
     })
 
-    this.ws.on('error', err => {
+    this.ws.on('error', (err) => {
       this.stream.destroy(err)
     })
   }
 
   onMessage(callback: (msg: string) => void): void {
     this.messageCallbacks.push(callback)
+  }
+
+  async readAll(): Promise<Buffer> {
+    this.ensureConnected()
+    const chunks: Buffer[] = []
+
+    for await (const chunk of this.stream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+    }
+
+    return Buffer.concat(chunks)
+  }
+
+  close(): void {
+    if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
+      this.ws.close(1000, 'channel_close')
+    }
   }
 }
 

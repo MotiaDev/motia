@@ -6,7 +6,7 @@ import type {
   RegisterTriggerMessage,
   RegisterTriggerTypeMessage,
   StreamChannelRef,
-  TriggerAction,
+  TriggerInfo,
   TriggerRequest,
 } from './iii-types'
 import type { TriggerHandler } from './triggers'
@@ -107,6 +107,12 @@ export interface ISdk {
    * @param handlerOrInvocation - The handler for local execution, or HTTP invocation config
    * @returns A function object that can be used to unregister the function
    */
+  /**
+   * Registers a new service.
+   * @param message - The service to register
+   */
+  registerService(message: RegisterServiceInput): void
+
   registerFunction(func: RegisterFunctionInput, handler: RemoteFunctionHandler): FunctionRef
   registerFunction(func: RegisterFunctionInput, invocation: HttpInvocationConfig): FunctionRef
 
@@ -124,15 +130,18 @@ export interface ISdk {
   listFunctions(): Promise<FunctionInfo[]>
 
   /**
+   * Lists all registered triggers.
+   * @param includeInternal - Whether to include internal triggers (default: false)
+   */
+  listTriggers(includeInternal?: boolean): Promise<TriggerInfo[]>
+
+  /**
    * Registers a new trigger type. A trigger type is a way to invoke a function when a certain event occurs.
    * @param triggerType - The trigger type to register
    * @param handler - The handler for the trigger type
    * @returns A trigger type object that can be used to unregister the trigger type
    */
-  registerTriggerType<TConfig>(
-    triggerType: RegisterTriggerTypeInput,
-    handler: TriggerHandler<TConfig>,
-  ): void
+  registerTriggerType<TConfig>(triggerType: RegisterTriggerTypeInput, handler: TriggerHandler<TConfig>): void
 
   /**
    * Unregisters a trigger type.
@@ -223,10 +232,7 @@ export type HttpResponse = {
 export type HttpRequest<TBody = unknown> = Omit<InternalHttpRequest<TBody>, 'response'>
 export type ApiRequest<TBody = unknown> = HttpRequest<TBody>
 
-export type ApiResponse<
-  TStatus extends number = number,
-  TBody = string | Buffer | Record<string, unknown>,
-> = {
+export type ApiResponse<TStatus extends number = number, TBody = string | Buffer | Record<string, unknown>> = {
   status_code: TStatus
   headers?: Record<string, string>
   body?: TBody

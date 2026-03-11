@@ -173,6 +173,19 @@ fn inject_trace_headers() -> (Option<String>, Option<String>) {
     (None, None)
 }
 
+/// Connection state for the III WebSocket client
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IIIConnectionState {
+    Disconnected,
+    Connecting,
+    Connected,
+    Reconnecting,
+    Failed,
+}
+
+/// Callback function type for connection state change events
+pub type ConnectionStateCallback = Arc<dyn Fn(IIIConnectionState) + Send + Sync>;
+
 /// Callback function type for functions available events
 pub type FunctionsAvailableCallback = Arc<dyn Fn(Vec<FunctionInfo>) + Send + Sync>;
 
@@ -232,6 +245,9 @@ struct IIIInner {
     triggers: Mutex<HashMap<String, RegisterTriggerMessage>>,
     services: Mutex<HashMap<String, RegisterServiceMessage>>,
     worker_metadata: Mutex<Option<WorkerMetadata>>,
+    connection_state: Mutex<IIIConnectionState>,
+    connection_state_callbacks: Mutex<HashMap<usize, ConnectionStateCallback>>,
+    connection_state_callback_counter: AtomicUsize,
     functions_available_callbacks: Mutex<HashMap<usize, FunctionsAvailableCallback>>,
     functions_available_callback_counter: AtomicUsize,
     functions_available_function_id: Mutex<Option<String>>,
@@ -269,6 +285,22 @@ impl Drop for FunctionsAvailableGuard {
     }
 }
 
+/// Guard that unsubscribes from connection state change events when dropped
+pub struct ConnectionStateGuard {
+    iii: III,
+    callback_id: usize,
+}
+
+impl Drop for ConnectionStateGuard {
+    fn drop(&mut self) {
+        self.iii
+            .inner
+            .connection_state_callbacks
+            .lock_or_recover()
+            .remove(&self.callback_id);
+    }
+}
+
 impl III {
     /// Create a new III with default worker metadata (auto-detected runtime, os, hostname)
     pub fn new(address: &str) -> Self {
@@ -290,6 +322,9 @@ impl III {
             triggers: Mutex::new(HashMap::new()),
             services: Mutex::new(HashMap::new()),
             worker_metadata: Mutex::new(Some(metadata)),
+            connection_state: Mutex::new(IIIConnectionState::Disconnected),
+            connection_state_callbacks: Mutex::new(HashMap::new()),
+            connection_state_callback_counter: AtomicUsize::new(0),
             functions_available_callbacks: Mutex::new(HashMap::new()),
             functions_available_callback_counter: AtomicUsize::new(0),
             functions_available_function_id: Mutex::new(None),
@@ -365,8 +400,8 @@ impl III {
     pub fn shutdown(&self) {
         self.inner.running.store(false, Ordering::SeqCst);
         let _ = self.inner.outbound.send(Outbound::Shutdown);
+        self.set_connection_state(IIIConnectionState::Disconnected);
 
-        // Shutdown OpenTelemetry (best-effort, does not wait for flush)
         #[cfg(feature = "otel")]
         {
             tracing::warn!(
@@ -387,6 +422,7 @@ impl III {
     pub async fn shutdown_async(&self) {
         self.inner.running.store(false, Ordering::SeqCst);
         let _ = self.inner.outbound.send(Outbound::Shutdown);
+        self.set_connection_state(IIIConnectionState::Disconnected);
 
         #[cfg(feature = "otel")]
         telemetry::shutdown_otel().await;
@@ -480,6 +516,7 @@ impl III {
             id: id.clone(),
             name: id,
             description,
+            parent_service_id: None,
         };
 
         self.inner
@@ -499,6 +536,29 @@ impl III {
             id: id.into(),
             name: name.into(),
             description,
+            parent_service_id: None,
+        };
+
+        self.inner
+            .services
+            .lock_or_recover()
+            .insert(message.id.clone(), message.clone());
+        let _ = self.send_message(message.to_message());
+    }
+
+    pub fn register_service_with_parent(
+        &self,
+        id: impl Into<String>,
+        name: Option<String>,
+        description: Option<String>,
+        parent_service_id: Option<String>,
+    ) {
+        let id = id.into();
+        let message = RegisterServiceMessage {
+            name: name.unwrap_or_else(|| id.clone()),
+            id,
+            description,
+            parent_service_id,
         };
 
         self.inner
@@ -624,6 +684,54 @@ impl III {
         }
     }
 
+    /// Get the current connection state.
+    pub fn get_connection_state(&self) -> IIIConnectionState {
+        *self.inner.connection_state.lock_or_recover()
+    }
+
+    /// Register a callback to be notified of connection state changes.
+    /// The callback is immediately invoked with the current state.
+    /// Returns a guard that unsubscribes when dropped.
+    pub fn on_connection_state_change<F>(&self, callback: F) -> ConnectionStateGuard
+    where
+        F: Fn(IIIConnectionState) + Send + Sync + 'static,
+    {
+        let callback = Arc::new(callback);
+        let callback_id = self
+            .inner
+            .connection_state_callback_counter
+            .fetch_add(1, Ordering::Relaxed);
+
+        let current_state = {
+            let mut cbs = self.inner.connection_state_callbacks.lock_or_recover();
+            cbs.insert(callback_id, callback.clone());
+            *self.inner.connection_state.lock_or_recover()
+        };
+
+        callback(current_state);
+
+        ConnectionStateGuard {
+            iii: self.clone(),
+            callback_id,
+        }
+    }
+
+    fn set_connection_state(&self, state: IIIConnectionState) {
+        let snapshot: Vec<Arc<dyn Fn(IIIConnectionState) + Send + Sync>> = {
+            let mut current = self.inner.connection_state.lock_or_recover();
+            if *current == state {
+                return;
+            }
+            *current = state;
+            let cbs = self.inner.connection_state_callbacks.lock_or_recover();
+            cbs.values().cloned().collect()
+        };
+
+        for callback in &snapshot {
+            callback(state);
+        }
+    }
+
     /// List all registered functions from the engine
     pub async fn list_functions(&self) -> Result<Vec<FunctionInfo>, IIIError> {
         let result = self
@@ -740,11 +848,14 @@ impl III {
     }
 
     /// List all registered triggers from the engine
-    pub async fn list_triggers(&self) -> Result<Vec<TriggerInfo>, IIIError> {
+    pub async fn list_triggers(
+        &self,
+        include_internal: bool,
+    ) -> Result<Vec<TriggerInfo>, IIIError> {
         let result = self
             .trigger(TriggerRequest::new(
                 "engine::triggers::list",
-                serde_json::json!({}),
+                serde_json::json!({ "include_internal": include_internal }),
             ))
             .await?;
 
@@ -821,11 +932,20 @@ impl III {
 
     async fn run_connection(&self, mut rx: mpsc::UnboundedReceiver<Outbound>) {
         let mut queue: Vec<Message> = Vec::new();
+        let mut has_connected_before = false;
 
         while self.inner.running.load(Ordering::SeqCst) {
+            self.set_connection_state(if has_connected_before {
+                IIIConnectionState::Reconnecting
+            } else {
+                IIIConnectionState::Connecting
+            });
+
             match connect_async(&self.inner.address).await {
                 Ok((stream, _)) => {
                     tracing::info!(address = %self.inner.address, "iii connected");
+                    has_connected_before = true;
+                    self.set_connection_state(IIIConnectionState::Connected);
                     let (mut ws_tx, mut ws_rx) = stream.split();
 
                     queue.extend(self.collect_registrations());
