@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import FlowContext, cron
+from motia import cron, logger
 
 config = {
     "name": "SingleCronTrigger",
@@ -14,7 +14,7 @@ config = {
 }
 
 
-async def handler(input: None, ctx: FlowContext[Any]) -> None:
+async def handler(input: None) -> None:
     """Handle single cron trigger."""
     _ = input
-    ctx.logger.info("Single cron trigger fired")
+    logger.info("Single cron trigger fired")

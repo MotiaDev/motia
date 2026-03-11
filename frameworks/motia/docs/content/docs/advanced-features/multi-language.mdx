@@ -67,7 +67,7 @@ Each ExecModule watches its own file patterns and manages its own SDK process in
 A TypeScript HTTP endpoint triggers a Python ML processing step:
 
 ```typescript title="steps/submit-review.step.ts"
-import type { Handlers, StepConfig } from 'motia'
+import { type Handlers, type StepConfig, enqueue } from 'motia'
 import { z } from 'zod'
 
 export const config = {
@@ -80,13 +80,15 @@ export const config = {
   flows: ['review-pipeline'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { enqueue }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   await enqueue({ topic: 'review.submitted', data: { text: request.body.text } })
   return { status: 202, body: { status: 'processing' } }
 }
 ```
 
 ```python title="steps/analyze_review_step.py"
+from motia import state_manager, enqueue
+
 config = {
     "name": "AnalyzeReview",
     "description": "Runs sentiment analysis on the review",
@@ -101,13 +103,13 @@ async def handler(input, ctx):
     text = input.get("text", "")
     sentiment = analyze_sentiment(text)
 
-    await ctx.state.set("reviews", ctx.trace_id, {
+    await state_manager.set("reviews", ctx.trace_id, {
         "text": text,
         "sentiment": sentiment,
         "analyzed": True
     })
 
-    await ctx.enqueue({
+    await enqueue({
         "topic": "review.analyzed",
         "data": {"traceId": ctx.trace_id, "sentiment": sentiment}
     })

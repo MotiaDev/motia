@@ -1,4 +1,4 @@
-import type { StreamConfig } from 'motia'
+import { Stream, type StreamConfig } from 'motia'
 import { z } from 'zod'
 
 const inbox = z.object({
@@ -11,4 +11,5 @@ export const config: StreamConfig = {
   schema: inbox,
 }
 
+export const inboxStream = new Stream(config)
 export type Inbox = z.infer<typeof inbox>

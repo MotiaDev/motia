@@ -1,4 +1,12 @@
-import type { ApiRequest, Handlers, StepConfig, TriggerCondition } from 'motia'
+import {
+  type ApiRequest,
+  enqueue,
+  type Handlers,
+  logger,
+  type StepConfig,
+  stateManager,
+  type TriggerCondition,
+} from 'motia'
 import { z } from 'zod'
 
 const isHighValue: TriggerCondition<{ amount: number; description: string }> = (input, _ctx) => {
@@ -63,7 +71,7 @@ export const config = {
 } as const satisfies StepConfig
 
 export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => {
-  ctx.logger.info('Processing order')
+  logger.info('Processing order')
 
   const orderId = `order-${Date.now()}-${Math.random().toString(36).substring(7)}`
 
@@ -71,12 +79,12 @@ export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => 
     http: async ({ request }) => {
       const body = request.body
 
-      ctx.logger.info('Processing manual order via API', {
+      logger.info('Processing manual order via API', {
         amount: body.amount,
         user: body.user,
       })
 
-      await ctx.state.set('orders', orderId, {
+      await stateManager.set('orders', orderId, {
         id: orderId,
         amount: body.amount,
         description: body.description,
@@ -84,7 +92,7 @@ export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => 
         createdAt: new Date().toISOString(),
       })
 
-      await ctx.enqueue({
+      await enqueue({
         topic: 'order.processed',
         data: {
           orderId,
@@ -106,12 +114,12 @@ export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => 
     queue: async (queueInput) => {
       const { amount, description } = queueInput
 
-      ctx.logger.info('Processing order from queue', {
+      logger.info('Processing order from queue', {
         amount,
         description,
       })
 
-      await ctx.state.set('orders', orderId, {
+      await stateManager.set('orders', orderId, {
         id: orderId,
         amount,
         description,
@@ -119,7 +127,7 @@ export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => 
         createdAt: new Date().toISOString(),
       })
 
-      await ctx.enqueue({
+      await enqueue({
         topic: 'order.processed',
         data: {
           orderId,
@@ -130,12 +138,12 @@ export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => 
     },
 
     cron: async () => {
-      ctx.logger.info('Processing scheduled order batch')
+      logger.info('Processing scheduled order batch')
 
-      const pendingOrders = await ctx.state.list<{ id: string; amount: number }>('pending-orders')
+      const pendingOrders = await stateManager.list<{ id: string; amount: number }>('pending-orders')
 
       for (const order of pendingOrders) {
-        await ctx.enqueue({
+        await enqueue({
           topic: 'order.processed',
           data: {
             orderId: order.id,
@@ -145,7 +153,7 @@ export const handler: Handlers<typeof config> = async (_, ctx): Promise<any> => 
         })
       }
 
-      ctx.logger.info('Scheduled batch processing complete', {
+      logger.info('Scheduled batch processing complete', {
         processedCount: pendingOrders.length,
       })
     },

@@ -1,31 +1,256 @@
-# HTTP Handler Migration Guide
+# Handler & Context Migration Guide
 
-This guide covers migrating HTTP step handlers from the old `(req, ctx)` signature to the new `MotiaHttpArgs`-based approach with `{ request, response }` destructuring. It also introduces Server-Sent Events (SSE) support.
+This guide covers two major migration areas:
+
+1. **HTTP handler signature changes** -- moving from `(req, ctx)` to `MotiaHttpArgs`-based `{ request, response }` destructuring, including SSE support.
+2. **Context API changes** -- `state`, `enqueue`, `logger`, and `streams` have been removed from `FlowContext` and are now standalone imports.
+
+> For a complete migration from Motia v0.17.x to 1.0-RC, see the [full migration guide](https://motia.dev/docs/getting-started/migration-guide).
 
 ---
 
 ## Table of Contents
 
-1. [Overview](#1-overview)
-2. [TypeScript / JavaScript](#2-typescript--javascript)
-3. [Python](#3-python)
-4. [Middleware](#4-middleware)
-5. [Server-Sent Events (SSE)](#5-server-sent-events-sse)
-6. [Migration Checklist](#6-migration-checklist)
+1. [Context API Changes](#1-context-api-changes)
+2. [HTTP Handler Changes](#2-http-handler-changes)
+3. [TypeScript / JavaScript](#3-typescript--javascript)
+4. [Python](#4-python)
+5. [Middleware](#5-middleware)
+6. [Server-Sent Events (SSE)](#6-server-sent-events-sse)
+7. [Migration Checklist](#7-migration-checklist)
 
 ---
 
-## 1. Overview
+## 1. Context API Changes
+
+### What Changed
+
+`FlowContext` (the second argument to handlers, commonly called `ctx`) no longer contains `state`, `enqueue`, `logger`, or `streams`. These are now standalone imports from `'motia'` or from stream files.
+
+| Aspect | Old | New |
+|---|---|---|
+| Logger | `ctx.logger.info(...)` | `import { logger } from 'motia'` then `logger.info(...)` |
+| Enqueue | `ctx.enqueue({ topic, data })` | `import { enqueue } from 'motia'` then `enqueue({ topic, data })` |
+| State | `ctx.state.set(group, key, value)` | `import { stateManager } from 'motia'` then `stateManager.set(group, key, value)` |
+| Streams | `ctx.streams.name.get(groupId, id)` | `import { myStream } from './my.stream'` then `myStream.get(groupId, id)` |
+
+### New FlowContext Shape
+
+After migration, `FlowContext` only contains:
+
+```typescript
+interface FlowContext<TEnqueueData = never, TInput = unknown> {
+  traceId: string
+  trigger: TriggerInfo
+  is: {
+    queue: (input: TInput) => input is ExtractQueueInput<TInput>
+    http: (input: TInput) => input is ExtractApiInput<TInput>
+    cron: (input: TInput) => input is never
+    state: (input: TInput) => input is ExtractStateInput<TInput>
+    stream: (input: TInput) => input is ExtractStreamInput<TInput>
+  }
+  getData: () => ExtractDataPayload<TInput>
+  match: <TResult>(handlers: MatchHandlers<TInput, TEnqueueData, TResult>) => Promise<TResult | undefined>
+}
+```
+
+### Logger
+
+**Old:**
+
+```typescript
+import { type Handlers, type StepConfig } from 'motia'
+
+export const handler: Handlers<typeof config> = async (input, { logger }) => {
+  logger.info('Processing', { input })
+}
+```
+
+**New:**
+
+```typescript
+import { type Handlers, logger, type StepConfig } from 'motia'
+
+export const handler: Handlers<typeof config> = async (input) => {
+  logger.info('Processing', { input })
+}
+```
+
+### Enqueue
+
+**Old:**
+
+```typescript
+import { type Handlers, type StepConfig } from 'motia'
+
+export const handler: Handlers<typeof config> = async ({ request }, { enqueue }) => {
+  await enqueue({ topic: 'process-order', data: request.body })
+  return { status: 200, body: { ok: true } }
+}
+```
+
+**New:**
+
+```typescript
+import { enqueue, type Handlers, type StepConfig } from 'motia'
+
+export const handler: Handlers<typeof config> = async ({ request }) => {
+  await enqueue({ topic: 'process-order', data: request.body })
+  return { status: 200, body: { ok: true } }
+}
+```
+
+### State Manager
+
+**Old:**
+
+```typescript
+import { type Handlers, type StepConfig } from 'motia'
+
+export const handler: Handlers<typeof config> = async (input, { state, logger }) => {
+  logger.info('Saving order')
+  await state.set('orders', input.orderId, input)
+  const orders = await state.list<Order>('orders')
+}
+```
+
+**New:**
+
+```typescript
+import { type Handlers, logger, type StepConfig, stateManager } from 'motia'
+
+export const handler: Handlers<typeof config> = async (input) => {
+  logger.info('Saving order')
+  await stateManager.set('orders', input.orderId, input)
+  const orders = await stateManager.list<Order>('orders')
+}
+```
+
+### Streams
+
+Streams are no longer accessed via `ctx.streams`. Instead, create a `Stream` instance in a `.stream.ts` file and import it into your steps.
+
+**Old:**
+
+```typescript
+import { type Handlers, type StepConfig } from 'motia'
+
+export const handler: Handlers<typeof config> = async (input, { streams, logger }) => {
+  const todo = await streams.todo.get('inbox', todoId)
+  await streams.todo.set('inbox', todoId, newTodo)
+  await streams.todo.delete('inbox', todoId)
+  await streams.todo.update('inbox', todoId, [
+    { type: 'set', path: 'status', value: 'done' },
+  ])
+}
+```
+
+**New:**
+
+First, define your stream in a `.stream.ts` file:
+
+```typescript
+// todo.stream.ts
+import { Stream, type StreamConfig } from 'motia'
+import { z } from 'zod'
+
+const todoSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  createdAt: z.string(),
+})
+
+export const config: StreamConfig = {
+  baseConfig: { storageType: 'default' },
+  name: 'todo',
+  schema: todoSchema,
+}
+
+export const todoStream = new Stream(config)
+export type Todo = z.infer<typeof todoSchema>
+```
+
+Then import and use it in your step:
+
+```typescript
+// create-todo.step.ts
+import { type Handlers, logger, type StepConfig } from 'motia'
+import { todoStream } from './todo.stream'
+
+export const handler: Handlers<typeof config> = async ({ request }) => {
+  const todo = await todoStream.get('inbox', todoId)
+  await todoStream.set('inbox', todoId, newTodo)
+  await todoStream.delete('inbox', todoId)
+  await todoStream.update('inbox', todoId, [
+    { type: 'set', path: 'status', value: 'done' },
+  ])
+}
+```
+
+### Multi-Trigger Steps with Context
+
+When using `ctx.match()`, `logger`, `enqueue`, and `stateManager` are imports -- `ctx` is only used for `match()`, `traceId`, and `trigger`:
+
+**Old:**
+
+```typescript
+export const handler: Handlers<typeof config> = async (_, ctx) => {
+  return ctx.match({
+    http: async ({ request }) => {
+      ctx.logger.info('Processing via API')
+      await ctx.state.set('orders', orderId, request.body)
+      await ctx.enqueue({ topic: 'order.processed', data: request.body })
+      return { status: 200, body: { ok: true } }
+    },
+    queue: async (input) => {
+      ctx.logger.info('Processing from queue')
+      await ctx.state.set('orders', orderId, input)
+    },
+    cron: async () => {
+      const orders = await ctx.state.list('pending-orders')
+      ctx.logger.info('Batch processing', { count: orders.length })
+    },
+  })
+}
+```
+
+**New:**
+
+```typescript
+import { enqueue, type Handlers, logger, type StepConfig, stateManager } from 'motia'
+
+export const handler: Handlers<typeof config> = async (_, ctx) => {
+  return ctx.match({
+    http: async ({ request }) => {
+      logger.info('Processing via API')
+      await stateManager.set('orders', orderId, request.body)
+      await enqueue({ topic: 'order.processed', data: request.body })
+      return { status: 200, body: { ok: true } }
+    },
+    queue: async (input) => {
+      logger.info('Processing from queue')
+      await stateManager.set('orders', orderId, input)
+    },
+    cron: async () => {
+      const orders = await stateManager.list('pending-orders')
+      logger.info('Batch processing', { count: orders.length })
+    },
+  })
+}
+```
+
+---
+
+## 2. HTTP Handler Changes
 
 HTTP step handlers now receive a `MotiaHttpArgs` object as their first argument instead of a bare request object. This object contains both `request` and `response`, enabling streaming patterns like SSE alongside standard request/response flows.
 
 | Aspect | Old | New |
 |---|---|---|
-| First argument (TS/JS) | `req` (request object directly) | `{ request, response }` (`MotiaHttpArgs`) |
-| First argument (Python) | `req` (dict-like object) | `request: ApiRequest` or `args: MotiaHttpArgs` |
+| First arg (TS/JS) | `req` (request object directly) | `{ request, response }` (`MotiaHttpArgs`) |
+| First arg (Python) | `req` (dict-like object) | `request: ApiRequest` or `args: MotiaHttpArgs` |
 | Body access (TS/JS) | `req.body` | `request.body` |
 | Path params (TS/JS) | `req.pathParams` | `request.pathParams` |
-| Query params (TS/JS) | `req.queryParams` | `request.queryParams` |
 | Headers (TS/JS) | `req.headers` | `request.headers` |
 | Body access (Python) | `req.get("body", {})` | `request.body` |
 | Path params (Python) | `req.get("pathParams", {}).get("id")` | `request.path_params.get("id")` |
@@ -35,7 +260,7 @@ HTTP step handlers now receive a `MotiaHttpArgs` object as their first argument 
 
 ---
 
-## 2. TypeScript / JavaScript
+## 3. TypeScript / JavaScript
 
 ### Standard HTTP Handler
 
@@ -54,16 +279,15 @@ export const config = {
 
 export const handler: Handlers<typeof config> = async (req, { logger }) => {
   const userId = req.pathParams.id
-  const { name } = req.body
   logger.info('Getting user', { userId })
-  return { status: 200, body: { id: userId, name } }
+  return { status: 200, body: { id: userId } }
 }
 ```
 
 **New:**
 
 ```typescript
-import { type Handlers, type StepConfig } from 'motia'
+import { type Handlers, logger, type StepConfig } from 'motia'
 
 export const config = {
   name: 'GetUser',
@@ -73,19 +297,19 @@ export const config = {
   enqueues: [],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   const userId = request.pathParams.id
-  const { name } = request.body
   logger.info('Getting user', { userId })
-  return { status: 200, body: { id: userId, name } }
+  return { status: 200, body: { id: userId } }
 }
 ```
 
 ### Key Changes
 
-1. Destructure `{ request }` (or `{ request, response }`) from the first argument
-2. Access `request.body`, `request.pathParams`, `request.queryParams`, `request.headers` instead of `req.body`, etc.
-3. Return value stays the same: `{ status, body, headers? }`
+1. Import `logger` from `'motia'` instead of destructuring from `ctx`
+2. Destructure `{ request }` (or `{ request, response }` for SSE) from the first argument
+3. Access `request.body`, `request.pathParams`, `request.queryParams`, `request.headers`
+4. Return value stays the same: `{ status, body, headers? }`
 
 ### Types
 
@@ -140,7 +364,7 @@ return ctx.match({
 
 ---
 
-## 3. Python
+## 4. Python
 
 ### Standard HTTP Handler
 
@@ -165,7 +389,7 @@ async def handler(req, ctx):
 
 ```python
 from typing import Any
-from motia import ApiRequest, ApiResponse, FlowContext, http
+from motia import ApiRequest, ApiResponse, http, logger
 
 config = {
     "name": "GetUser",
@@ -175,17 +399,17 @@ config = {
     "enqueues": [],
 }
 
-async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+async def handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
     user_id = request.path_params.get("id")
-    ctx.logger.info("Getting user", {"userId": user_id})
+    logger.info("Getting user", {"userId": user_id})
     return ApiResponse(status=200, body={"id": user_id})
 ```
 
 ### Key Changes
 
-1. Import `ApiRequest`, `ApiResponse`, `FlowContext` from `motia`
+1. Import `ApiRequest`, `ApiResponse`, `logger` from `motia`
 2. Use `http()` helper for trigger definitions
-3. Handler signature: `request: ApiRequest[Any]` and `ctx: FlowContext[Any]`
+3. `logger`, `enqueue`, and `stateManager` are standalone imports -- not accessed via `ctx`
 4. Access typed properties: `request.body`, `request.path_params`, `request.query_params`, `request.headers`
 5. Return `ApiResponse(status=..., body=...)` instead of a plain dict
 
@@ -201,16 +425,16 @@ class ApiRequest(BaseModel, Generic[TBody]):
 class ApiResponse(BaseModel, Generic[TOutput]):
     status: int
     body: Any
-    headers: dict[str, str] = Field(default_factory=dict)
+    headers: dict[str, str] = {}
 ```
 
 ---
 
-## 4. Middleware
+## 5. Middleware
 
 ### Placement Change
 
-Middleware has moved from the config root into the HTTP trigger object.
+Middleware has moved from the config root **into the HTTP trigger object**.
 
 **Old:**
 
@@ -220,7 +444,7 @@ export const config = {
   triggers: [
     { type: 'http', path: '/protected', method: 'GET' },
   ],
-  middleware: [authMiddleware],  // at config root
+  middleware: [authMiddleware],
   enqueues: [],
 } as const satisfies StepConfig
 ```
@@ -263,14 +487,14 @@ const authMiddleware: ApiMiddleware = async ({ request }, ctx, next) => {
 
 ---
 
-## 5. Server-Sent Events (SSE)
+## 6. Server-Sent Events (SSE)
 
-SSE is a new capability enabled by the `response` object in `MotiaHttpArgs`. Instead of returning a response, you write directly to the stream.
+SSE is enabled by the `response` object in `MotiaHttpArgs`. Instead of returning a response, you write directly to the stream.
 
 ### TypeScript
 
 ```typescript
-import { type Handlers, http, type StepConfig } from 'motia'
+import { type Handlers, http, logger, type StepConfig } from 'motia'
 
 export const config = {
   name: 'SSE Example',
@@ -280,7 +504,7 @@ export const config = {
   enqueues: [],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request, response }, { logger }) => {
+export const handler: Handlers<typeof config> = async ({ request, response }) => {
   logger.info('SSE request received')
 
   response.status(200)
@@ -313,7 +537,7 @@ import asyncio
 import json
 from typing import Any
 
-from motia import MotiaHttpArgs, FlowContext, http
+from motia import MotiaHttpArgs, http, logger
 
 config = {
     "name": "SSE Example",
@@ -325,11 +549,11 @@ config = {
     "enqueues": [],
 }
 
-async def handler(args: MotiaHttpArgs[Any], ctx: FlowContext[Any]) -> None:
+async def handler(args: MotiaHttpArgs[Any]) -> None:
     request = args.request
     response = args.response
 
-    ctx.logger.info("SSE request received")
+    logger.info("SSE request received")
 
     await response.status(200)
     await response.headers({
@@ -368,9 +592,19 @@ async def handler(args: MotiaHttpArgs[Any], ctx: FlowContext[Any]) -> None:
 
 ---
 
-## 6. Migration Checklist
+## 7. Migration Checklist
 
-### TypeScript / JavaScript
+### Context API
+
+- [ ] Replace `ctx.logger` / `context.logger` with `import { logger } from 'motia'`
+- [ ] Replace `ctx.enqueue` / `context.enqueue` with `import { enqueue } from 'motia'`
+- [ ] Replace `ctx.state` / `context.state` with `import { stateManager } from 'motia'`
+- [ ] Replace `ctx.streams.name` / `context.streams.name` with `import { myStream } from './my.stream'`
+- [ ] Create `.stream.ts` files with `new Stream(config)` for each stream used
+- [ ] Remove `state`, `enqueue`, `logger`, `streams` from handler destructuring of `ctx`
+- [ ] Update handler signatures: if `ctx` is only used for destructuring those removed properties, the second argument can be omitted entirely
+
+### TypeScript / JavaScript (HTTP)
 
 - [ ] Change handler first argument from `(req, ctx)` to `({ request }, ctx)` for all HTTP steps
 - [ ] Replace `req.body` with `request.body`

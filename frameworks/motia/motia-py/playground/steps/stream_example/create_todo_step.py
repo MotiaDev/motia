@@ -3,7 +3,7 @@
 import uuid
 from typing import Any
 
-from motia import FlowContext, Stream, http
+from motia import Stream, http, logger
 
 todo_stream: Stream[dict[str, Any]] = Stream("todo")
 
@@ -27,7 +27,7 @@ config = {
 }
 
 
-async def handler(request: Any, ctx: FlowContext[Any]) -> dict[str, Any]:
+async def handler(request: Any) -> dict[str, Any]:
     """Create a new todo item."""
     todo_id = str(uuid.uuid4())
     body = request.body or {}
@@ -40,10 +40,9 @@ async def handler(request: Any, ctx: FlowContext[Any]) -> dict[str, Any]:
         "completed": False,
     }
 
-    # Set in stream - this will trigger stream listeners
     await todo_stream.set(group_id, todo_id, todo)
 
-    ctx.logger.info(f"Created todo {todo_id} in group {group_id}")
+    logger.info(f"Created todo {todo_id} in group {group_id}")
 
     return {
         "status": 201,

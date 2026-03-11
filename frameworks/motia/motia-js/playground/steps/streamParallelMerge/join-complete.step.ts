@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig, StreamTriggerInput } from 'motia'
+import { type Handlers, logger, type StepConfig, type StreamTriggerInput } from 'motia'
 import type { ParallelMergeStreamItem } from './parallel-merge.stream'
 
 export const config = {
@@ -17,7 +17,7 @@ export const config = {
   flows: ['stream-parallel-merge'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (request, { logger }) => {
+export const handler: Handlers<typeof config> = async (request) => {
   logger.info('[stream-join-complete] Handling Stream Join Complete', { request })
 
   const endTime = Date.now()

@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig } from 'motia'
+import { logger, type Handlers, type StepConfig } from 'motia'
 import { z } from 'zod'
 
 export const config = {
@@ -22,7 +22,7 @@ export const config = {
   flows: ['dotenv-example'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (_, { logger }) => {
+export const handler: Handlers<typeof config> = async () => {
   const greetingPrefix = process.env.GREETING_PREFIX || 'NOT_SET'
   const appName = process.env.APP_NAME || 'NOT_SET'
   const hasSecretKey = !!process.env.SECRET_KEY

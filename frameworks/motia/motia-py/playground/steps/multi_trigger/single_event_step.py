@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import FlowContext, queue
+from motia import logger, queue
 
 config = {
     "name": "SingleEventTrigger",
@@ -14,6 +14,6 @@ config = {
 }
 
 
-async def handler(input: Any, ctx: FlowContext[Any]) -> None:
+async def handler(input: Any) -> None:
     """Handle single event trigger."""
-    ctx.logger.info("Single event trigger fired", {"data": input})
+    logger.info("Single event trigger fired", {"data": input})

@@ -1,4 +1,4 @@
-import type { Handlers, StepConfig } from 'motia'
+import { type Handlers, logger, type StepConfig, stateManager } from 'motia'
 import { z } from 'zod'
 import type { ParallelMergeResult } from './parallel-merge.types'
 
@@ -15,7 +15,7 @@ export const config = {
   flows: ['parallel-merge'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (request, { state, logger }) => {
+export const handler: Handlers<typeof config> = async (request) => {
   if (request.waitTime) {
     const waitTime = request.waitTime as number
     logger.info(`[step-process] received pms.step.process, waiting ${waitTime}ms`, { request })
@@ -24,7 +24,7 @@ export const handler: Handlers<typeof config> = async (request, { state, logger 
     logger.info(`[step-process] received pms.step.process, no waiting`, { request })
   }
 
-  await state.update<ParallelMergeResult>('users', request.traceId, [
+  await stateManager.update<ParallelMergeResult>('users', request.traceId, [
     { type: 'increment', path: 'completedSteps', by: 1 },
     {
       type: 'set',

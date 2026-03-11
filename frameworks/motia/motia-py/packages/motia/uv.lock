@@ -396,7 +396,7 @@ wheels = [
 
 [[package]]
 name = "iii-sdk"
-version = "0.4.1"
+version = "0.8.0"
 source = { directory = "../../../../../sdk/packages/python/iii" }
 dependencies = [
     { name = "pydantic" },
@@ -415,6 +415,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.2" },
     { name = "websockets", specifier = ">=12.0" },
 ]
@@ -528,7 +529,7 @@ wheels = [
 
 [[package]]
 name = "motia"
-version = "1.0.0rc26"
+version = "1.0.1rc1"
 source = { editable = "." }
 dependencies = [
     { name = "iii-sdk" },

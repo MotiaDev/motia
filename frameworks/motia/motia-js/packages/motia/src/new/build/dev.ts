@@ -1,10 +1,8 @@
 import * as esbuild from 'esbuild'
 import { generateIndex } from './generate-index'
-import { typegen } from './typegen'
 
 export const dev = async () => {
-  await typegen({ silent: false })
-  await esbuild.build({
+  return esbuild.build({
     stdin: {
       contents: generateIndex(),
       sourcefile: 'index-dev.js',

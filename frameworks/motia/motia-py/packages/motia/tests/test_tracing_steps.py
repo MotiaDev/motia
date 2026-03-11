@@ -37,16 +37,8 @@ def mock_bridge():
     return bridge
 
 
-@pytest.fixture
-def mock_logger():
-    """Create a mock logger."""
-    import logging
-
-    return logging.getLogger("test")
-
-
 @pytest.mark.asyncio
-async def test_api_handler_creates_span(otel_exporter, mock_bridge, mock_logger):
+async def test_api_handler_creates_span(otel_exporter, mock_bridge):
     """Register API step, call handler, verify step:name span with motia.trigger.type=http."""
     from motia.runtime import Motia
 
@@ -58,10 +50,7 @@ async def test_api_handler_creates_span(otel_exporter, mock_bridge, mock_logger)
     async def handler(req, ctx):
         return ApiResponse(status=200, body={"ok": True})
 
-    with (
-        patch("motia.runtime.get_instance", return_value=mock_bridge),
-        patch("motia.runtime.Logger", return_value=mock_logger),
-    ):
+    with patch("motia.runtime.get_instance", return_value=mock_bridge):
         motia = Motia()
         motia.add_step(config, "steps/test_step.py", handler)
 
@@ -103,7 +92,7 @@ async def test_api_handler_creates_span(otel_exporter, mock_bridge, mock_logger)
 
 
 @pytest.mark.asyncio
-async def test_event_handler_creates_span(otel_exporter, mock_bridge, mock_logger):
+async def test_event_handler_creates_span(otel_exporter, mock_bridge):
     """Register queue step, call handler, verify step:name span with motia.trigger.type=queue."""
     from motia.runtime import Motia
 
@@ -115,10 +104,7 @@ async def test_event_handler_creates_span(otel_exporter, mock_bridge, mock_logge
     async def handler(input_data, ctx):
         return {"processed": True}
 
-    with (
-        patch("motia.runtime.get_instance", return_value=mock_bridge),
-        patch("motia.runtime.Logger", return_value=mock_logger),
-    ):
+    with patch("motia.runtime.get_instance", return_value=mock_bridge):
         motia = Motia()
         motia.add_step(config, "steps/test_step.py", handler)
 
@@ -141,7 +127,7 @@ async def test_event_handler_creates_span(otel_exporter, mock_bridge, mock_logge
 
 
 @pytest.mark.asyncio
-async def test_handler_error_records_on_span(otel_exporter, mock_bridge, mock_logger):
+async def test_handler_error_records_on_span(otel_exporter, mock_bridge):
     """Register step with handler that raises, verify span has ERROR status."""
     from motia.runtime import Motia
 
@@ -153,10 +139,7 @@ async def test_handler_error_records_on_span(otel_exporter, mock_bridge, mock_lo
     async def handler(input_data, ctx):
         raise ValueError("something went wrong")
 
-    with (
-        patch("motia.runtime.get_instance", return_value=mock_bridge),
-        patch("motia.runtime.Logger", return_value=mock_logger),
-    ):
+    with patch("motia.runtime.get_instance", return_value=mock_bridge):
         motia = Motia()
         motia.add_step(config, "steps/test_step.py", handler)
 
@@ -175,7 +158,7 @@ async def test_handler_error_records_on_span(otel_exporter, mock_bridge, mock_lo
 
 
 @pytest.mark.asyncio
-async def test_trace_id_uses_otel_trace_id(otel_exporter, mock_bridge, mock_logger):
+async def test_trace_id_uses_otel_trace_id(otel_exporter, mock_bridge):
     """Register API step, capture ctx.trace_id in handler, verify it is 32 hex chars."""
     from motia.runtime import Motia
 
@@ -191,10 +174,7 @@ async def test_trace_id_uses_otel_trace_id(otel_exporter, mock_bridge, mock_logg
         captured_trace_id = ctx.trace_id
         return ApiResponse(status=200, body={"trace_id": ctx.trace_id})
 
-    with (
-        patch("motia.runtime.get_instance", return_value=mock_bridge),
-        patch("motia.runtime.Logger", return_value=mock_logger),
-    ):
+    with patch("motia.runtime.get_instance", return_value=mock_bridge):
         motia = Motia()
         motia.add_step(config, "steps/test_step.py", handler)
 

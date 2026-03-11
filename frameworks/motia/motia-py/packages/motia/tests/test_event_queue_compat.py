@@ -19,13 +19,7 @@ def mock_bridge() -> MagicMock:
     return bridge
 
 
-@pytest.fixture
-def mock_logger() -> MagicMock:
-    """Create mock logger."""
-    return MagicMock()
-
-
-def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
+def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock) -> None:
     """Queue trigger should map to queue trigger type for engine registration."""
     config = StepConfig(
         name="queue-trigger-compat",
@@ -37,7 +31,6 @@ def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock, mock_l
 
     with (
         patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
-        patch("motia.runtime.Logger", return_value=mock_logger),
         patch("motia.runtime.get_instance", return_value=mock_bridge),
     ):
         motia = Motia()
@@ -49,25 +42,41 @@ def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock, mock_l
 
 
 @pytest.mark.asyncio
-async def test_ctx_enqueue_uses_enqueue_for_queue_triggers(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
-    """ctx.enqueue should invoke queue enqueue function for queue-trigger handlers."""
+async def test_standalone_enqueue_calls_bridge(mock_bridge: MagicMock) -> None:
+    """Standalone enqueue() should call get_instance().call('enqueue', event)."""
+    import sys
+
+    _enqueue_mod = sys.modules["motia.enqueue"]
+
+    with patch.object(_enqueue_mod, "get_instance", return_value=mock_bridge):
+        from motia.enqueue import enqueue
+
+        await enqueue({"topic": "orders.processed", "data": {"order_id": "123"}})
+
+    mock_bridge.call.assert_awaited_once_with(
+        "enqueue",
+        {"topic": "orders.processed", "data": {"order_id": "123"}},
+    )
+
+
+@pytest.mark.asyncio
+async def test_queue_handler_invoked_with_flow_context(mock_bridge: MagicMock) -> None:
+    """Registered queue handler should pass input and FlowContext to the user handler."""
+    captured_ctx = None
+    captured_input = None
+
     config = StepConfig(
-        name="queue-enqueue-compat",
+        name="queue-handler-ctx",
         triggers=[queue("orders.created")],
     )
 
     async def handler(input_data: object, ctx: FlowContext[object]) -> None:
-        _ = input_data
-        await ctx.enqueue(
-            {
-                "topic": "orders.processed",
-                "data": {"order_id": "123"},
-            }
-        )
+        nonlocal captured_ctx, captured_input
+        captured_ctx = ctx
+        captured_input = input_data
 
     with (
         patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
-        patch("motia.runtime.Logger", return_value=mock_logger),
         patch("motia.runtime.get_instance", return_value=mock_bridge),
     ):
         motia = Motia()
@@ -75,36 +84,28 @@ async def test_ctx_enqueue_uses_enqueue_for_queue_triggers(mock_bridge: MagicMoc
         registered_handler = mock_bridge.register_function.call_args_list[0][0][1]
         await registered_handler({"source": "test"})
 
-    mock_bridge.call.assert_awaited_once_with(
-        "enqueue",
-        {
-            "topic": "orders.processed",
-            "data": {"order_id": "123"},
-        },
-    )
+    assert captured_ctx is not None
+    assert captured_ctx.trigger.type == "queue"
+    assert captured_input == {"source": "test"}
 
 
 @pytest.mark.asyncio
-async def test_ctx_enqueue_uses_enqueue_for_api_triggers(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
-    """ctx.enqueue should invoke queue enqueue function for API-trigger handlers too."""
+async def test_api_handler_invoked_with_flow_context(mock_bridge: MagicMock) -> None:
+    """Registered API handler should pass MotiaHttpArgs and FlowContext to the user handler."""
+    captured_ctx = None
+
     config = StepConfig(
-        name="api-emit-compat",
+        name="api-handler-ctx",
         triggers=[http("POST", "/orders")],
     )
 
-    async def handler(req: ApiRequest[dict], ctx: FlowContext[dict]) -> ApiResponse[dict]:
-        _ = req
-        await ctx.enqueue(
-            {
-                "topic": "orders.created",
-                "data": {"order_id": "abc"},
-            }
-        )
+    async def handler(req: object, ctx: FlowContext[dict]) -> ApiResponse[dict]:
+        nonlocal captured_ctx
+        captured_ctx = ctx
         return ApiResponse(status=200, body={"ok": True})
 
     with (
         patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
-        patch("motia.runtime.Logger", return_value=mock_logger),
         patch("motia.runtime.get_instance", return_value=mock_bridge),
     ):
         motia = Motia()
@@ -129,48 +130,11 @@ async def test_ctx_enqueue_uses_enqueue_for_api_triggers(mock_bridge: MagicMock,
             }
         )
 
-    mock_bridge.call.assert_awaited_once_with(
-        "enqueue",
-        {
-            "topic": "orders.created",
-            "data": {"order_id": "abc"},
-        },
-    )
-
-
-@pytest.mark.asyncio
-async def test_runtime_context_enqueue_uses_enqueue(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
-    """Runtime-built context should enqueue using the III instance call method."""
-    config = StepConfig(
-        name="runtime-enqueue-test",
-        triggers=[queue("runtime.topic")],
-    )
-
-    captured_ctx = None
-
-    async def handler(input_data: object, ctx: FlowContext[object]) -> None:
-        nonlocal captured_ctx
-        captured_ctx = ctx
-        await ctx.enqueue({"topic": "runtime.topic", "data": {"value": 1}})
-
-    with (
-        patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
-        patch("motia.runtime.Logger", return_value=mock_logger),
-        patch("motia.runtime.get_instance", return_value=mock_bridge),
-    ):
-        motia = Motia()
-        motia.add_step(config, "steps/test_step.py", handler)
-        registered_handler = mock_bridge.register_function.call_args_list[0][0][1]
-        await registered_handler({"source": "test"})
-
     assert captured_ctx is not None
-    mock_bridge.call.assert_awaited_once_with(
-        "enqueue",
-        {"topic": "runtime.topic", "data": {"value": 1}},
-    )
+    assert captured_ctx.trigger.type == "http"
 
 
-def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
+def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock) -> None:
     """Queue trigger with config should include it as queue_config."""
     config = StepConfig(
         name="queue-config-test",
@@ -184,7 +148,6 @@ def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock, mock_logger: 
 
     with (
         patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
-        patch("motia.runtime.Logger", return_value=mock_logger),
         patch("motia.runtime.get_instance", return_value=mock_bridge),
     ):
         motia = Motia()
@@ -196,7 +159,7 @@ def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock, mock_logger: 
     assert trigger_config["queue_config"]["type"] == "fifo"
 
 
-def test_queue_trigger_omits_queue_config_when_not_provided(mock_bridge: MagicMock, mock_logger: MagicMock) -> None:
+def test_queue_trigger_omits_queue_config_when_not_provided(mock_bridge: MagicMock) -> None:
     """Queue trigger without config should not include queue_config."""
     config = StepConfig(
         name="queue-no-config-test",
@@ -208,7 +171,6 @@ def test_queue_trigger_omits_queue_config_when_not_provided(mock_bridge: MagicMo
 
     with (
         patch("motia.runtime.current_trace_id", return_value="test-trace-id"),
-        patch("motia.runtime.Logger", return_value=mock_logger),
         patch("motia.runtime.get_instance", return_value=mock_bridge),
     ):
         motia = Motia()

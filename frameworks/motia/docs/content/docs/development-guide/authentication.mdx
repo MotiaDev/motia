@@ -63,7 +63,7 @@ If the function throws or returns no result, the connection proceeds without an 
 When a client joins a specific stream, a `stream` trigger handler can reject the subscription by returning `{ unauthorized: true }`. This allows per-stream, per-group access control using the auth context from the connection:
 
 ```typescript title="src/stream-guard.step.ts"
-import type { Handlers, StepConfig } from 'motia'
+import { logger, type Handlers, type StepConfig } from 'motia'
 
 export const config = {
   name: 'StreamGuard',
@@ -79,7 +79,7 @@ export const config = {
   flows: ['auth'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (input, { logger }) => {
+export const handler: Handlers<typeof config> = async (input) => {
   // input includes context from connection-level auth
   if (!input.context?.userId) {
     return { unauthorized: true }
@@ -123,7 +123,7 @@ export class HttpError extends Error {
 Then use it in your Step handlers:
 
 ```typescript title="src/get-profile.step.ts"
-import type { Handlers, StepConfig } from 'motia'
+import { logger, stateManager, type Handlers, type StepConfig } from 'motia'
 import { requireAuth, HttpError } from './utils/auth'
 
 export const config = {
@@ -134,10 +134,10 @@ export const config = {
   flows: ['users'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async ({ request }, { logger, state }) => {
+export const handler: Handlers<typeof config> = async ({ request }) => {
   try {
     const tokenData = await requireAuth(request)
-    const user = await state.get('users', tokenData.userId)
+    const user = await stateManager.get('users', tokenData.userId)
 
     return { status: 200, body: user }
   } catch (error) {
@@ -156,7 +156,9 @@ export const handler: Handlers<typeof config> = async ({ request }, { logger, st
 Wrap your handler logic in try/catch blocks for error handling. This replaces the previous middleware-based `coreMiddleware` pattern:
 
 ```typescript
-export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
+import { logger } from 'motia'
+
+export const handler: Handlers<typeof config> = async ({ request }) => {
   try {
     const result = await processRequest(request)
     return { status: 200, body: result }
@@ -183,12 +185,12 @@ import type { ApiRequest, ApiResponse } from 'motia'
 import { requireAuth, HttpError, type TokenData } from './auth'
 
 export function withAuth<TBody>(
-  fn: (request: ApiRequest<TBody>, tokenData: TokenData, ctx: any) => Promise<ApiResponse<any, any>>
+  fn: (request: ApiRequest<TBody>, tokenData: TokenData) => Promise<ApiResponse<any, any>>
 ) {
-  return async ({ request }: { request: ApiRequest<TBody> }, ctx: any) => {
+  return async ({ request }: { request: ApiRequest<TBody> }) => {
     try {
       const tokenData = await requireAuth(request)
-      return await fn(request, tokenData, ctx)
+      return await fn(request, tokenData)
     } catch (error) {
       if (error instanceof HttpError) {
         return { status: error.status, body: { error: error.message } }
@@ -201,9 +203,10 @@ export function withAuth<TBody>(
 
 ```typescript title="src/protected-endpoint.step.ts"
 import { withAuth } from './utils/with-auth'
+import { logger } from 'motia'
 
-export const handler = withAuth(async (request, tokenData, ctx) => {
-  ctx.logger.info('Authenticated request', { userId: tokenData.userId })
+export const handler = withAuth(async (request, tokenData) => {
+  logger.info('Authenticated request', { userId: tokenData.userId })
   return { status: 200, body: { message: 'Protected content' } }
 })
 ```

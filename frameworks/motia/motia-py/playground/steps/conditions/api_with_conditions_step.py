@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from motia import ApiRequest, ApiResponse, FlowContext, http
+from motia import ApiRequest, ApiResponse, FlowContext, http, logger
 
 
 def is_high_value(input: Any, ctx: FlowContext[Any]) -> bool:
@@ -39,7 +39,7 @@ config = {
 }
 
 
-async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+async def handler(request: ApiRequest[Any]) -> ApiResponse[Any]:
     """Handle API requests that pass conditions."""
-    ctx.logger.info("Processing premium order via API")
+    logger.info("Processing premium order via API")
     return ApiResponse(status=200, body={"message": "Premium order processed", "data": request.body})

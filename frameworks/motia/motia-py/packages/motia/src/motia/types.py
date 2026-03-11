@@ -6,8 +6,6 @@ from typing import Any, Awaitable, Callable, Generic, Literal, Protocol, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .streams import Stream
-
 _list = list  # module-level alias; InternalStateManager.list() shadows the builtin
 
 TInput = TypeVar("TInput")
@@ -38,11 +36,7 @@ class FlowContext(BaseModel, Generic[TEnqueueData]):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    enqueue: Enqueuer
     trace_id: str
-    state: Any  # InternalStateManager
-    logger: Any  # Logger
-    streams: dict[str, Stream[Any]] = Field(default_factory=dict)
     trigger: "TriggerInfo"
     input_value: Any = None
 

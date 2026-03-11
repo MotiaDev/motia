@@ -7,6 +7,8 @@ import pytest
 
 from tests.conftest import flush_bridge_queue, wait_for_registration
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.asyncio
 async def test_enqueue_delivers_message_to_subscribed_handler(bridge):
