@@ -396,7 +396,7 @@ wheels = [
 
 [[package]]
 name = "iii-sdk"
-version = "0.8.0"
+version = "0.8.3"
 source = { directory = "../../../../../sdk/packages/python/iii" }
 dependencies = [
     { name = "pydantic" },
@@ -529,7 +529,7 @@ wheels = [
 
 [[package]]
 name = "motia"
-version = "1.0.1rc1"
+version = "1.0.2rc1"
 source = { editable = "." }
 dependencies = [
     { name = "iii-sdk" },

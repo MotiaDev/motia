@@ -19,14 +19,15 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use super::{QueueAdapter, SubscriberQueueConfig, config::QueueModuleConfig};
+use tracing::Instrument;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::{
-    engine::{Engine, EngineTrait, Handler, RegisterFunctionRequest},
+    engine::{Engine, EngineTrait, Handler, QueueEnqueuer, RegisterFunctionRequest},
     function::FunctionResult,
     modules::module::{AdapterFactory, ConfigurableModule, Module},
     protocol::ErrorBody,
-    telemetry::{inject_baggage_from_context, inject_traceparent_from_context},
+    telemetry::{SpanExt, inject_baggage_from_context, inject_traceparent_from_context},
     trigger::{Trigger, TriggerRegistrator, TriggerType},
 };
 
@@ -45,6 +46,70 @@ pub struct QueueInput {
 
 #[service(name = "queue")]
 impl QueueCoreModule {
+    pub async fn enqueue_to_function_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: Value,
+        message_id: &str,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+    ) -> anyhow::Result<()> {
+        let queue_config = self._config.queue_configs.get(queue_name).ok_or_else(|| {
+            tracing::warn!(
+                queue_name = %queue_name,
+                available = ?self._config.queue_configs.keys().collect::<Vec<_>>(),
+                "Enqueue attempted for unknown queue"
+            );
+            anyhow::anyhow!("Queue '{}' not found", queue_name)
+        })?;
+
+        // FIFO validation: ensure message_group_field is configured and present in data
+        if queue_config.r#type == "fifo" {
+            let group_field = queue_config.message_group_field.as_ref().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "FIFO queue '{}' requires 'message_group_field' to be configured",
+                    queue_name
+                )
+            })?;
+            let group_value = data.get(group_field).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "FIFO queue '{}' requires field '{}' in data, but it was not found",
+                    queue_name,
+                    group_field
+                )
+            })?;
+            if group_value.is_null() {
+                return Err(anyhow::anyhow!(
+                    "FIFO queue '{}': field '{}' must not be null",
+                    queue_name,
+                    group_field
+                ));
+            }
+        }
+
+        self.adapter
+            .publish_to_function_queue(
+                queue_name,
+                function_id,
+                data,
+                message_id,
+                queue_config.max_retries,
+                queue_config.backoff_ms,
+                traceparent,
+                baggage,
+            )
+            .await;
+        crate::modules::telemetry::collector::track_queue_emit();
+        Ok(())
+    }
+
+    /// Returns the number of messages in the DLQ for a function queue.
+    pub async fn function_queue_dlq_count(&self, queue_name: &str) -> anyhow::Result<u64> {
+        let namespaced = format!("__fn_queue::{}", queue_name);
+        self.adapter.dlq_count(&namespaced).await
+    }
+
     #[function(id = "enqueue", description = "Enqueue a message")]
     pub async fn enqueue(&self, input: QueueInput) -> FunctionResult<Option<Value>, ErrorBody> {
         let adapter = self.adapter.clone();
@@ -76,6 +141,33 @@ impl QueueCoreModule {
         crate::modules::telemetry::collector::track_queue_emit();
 
         FunctionResult::Success(None)
+    }
+}
+
+#[async_trait]
+impl QueueEnqueuer for QueueCoreModule {
+    async fn enqueue_to_function_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: Value,
+        message_id: String,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+    ) -> anyhow::Result<()> {
+        self.enqueue_to_function_queue(
+            queue_name,
+            function_id,
+            data,
+            &message_id,
+            traceparent,
+            baggage,
+        )
+        .await
+    }
+
+    async fn function_queue_dlq_count(&self, queue_name: &str) -> anyhow::Result<u64> {
+        self.function_queue_dlq_count(queue_name).await
     }
 }
 
@@ -176,6 +268,112 @@ impl Module for QueueCoreModule {
 
     async fn initialize(&self) -> anyhow::Result<()> {
         tracing::info!("Initializing QueueModule");
+        self._config.validate()?;
+        self.engine.set_queue_module(Arc::new(self.clone())).await;
+
+        for (name, config) in &self._config.queue_configs {
+            self.adapter.setup_function_queue(name, config).await?;
+
+            let prefetch = if config.r#type == "fifo" {
+                1
+            } else {
+                config.concurrency
+            };
+            let max_retries = config.max_retries;
+            let mut receiver = self.adapter.consume_function_queue(name, prefetch).await?;
+
+            let adapter = self.adapter.clone();
+            let engine = self.engine.clone();
+            let queue_name = name.clone();
+
+            let semaphore = Arc::new(tokio::sync::Semaphore::new(prefetch as usize));
+
+            tokio::spawn(async move {
+                while let Some(msg) = receiver.recv().await {
+                    let adapter = adapter.clone();
+                    let engine = engine.clone();
+                    let queue_name = queue_name.clone();
+                    let semaphore = semaphore.clone();
+
+                    let permit = semaphore.acquire_owned().await;
+                    if permit.is_err() {
+                        break;
+                    }
+                    let permit = permit.unwrap();
+
+                    let traceparent = msg.traceparent.clone();
+                    let baggage = msg.baggage.clone();
+
+                    tokio::spawn(async move {
+                        let delivery_id = msg.delivery_id;
+                        let function_id = msg.function_id.clone();
+                        let attempt = msg.attempt;
+
+                        let span = tracing::info_span!(
+                            "fn_queue_job",
+                            otel.name = %format!("fn_queue {}", queue_name),
+                            function_id = %function_id,
+                            queue = %queue_name,
+                            attempt = %attempt,
+                            delivery_id = %delivery_id,
+                            "messaging.system" = "iii-queue",
+                            "messaging.destination.name" = %queue_name,
+                            "messaging.operation.type" = "process",
+                            otel.status_code = tracing::field::Empty,
+                        )
+                        .with_parent_headers(traceparent.as_deref(), baggage.as_deref());
+
+                        let result = async { engine.call(&function_id, msg.data).await }
+                            .instrument(span)
+                            .await;
+
+                        match result {
+                            Ok(_) => {
+                                tracing::Span::current().record("otel.status_code", "OK");
+                                if let Err(e) =
+                                    adapter.ack_function_queue(&queue_name, delivery_id).await
+                                {
+                                    tracing::error!(error = %e, "Failed to ack message");
+                                }
+                            }
+                            Err(ref err) => {
+                                tracing::Span::current().record("otel.status_code", "ERROR");
+                                tracing::warn!(
+                                    function_id = %function_id,
+                                    queue = %queue_name,
+                                    attempt = %attempt,
+                                    max_retries = %max_retries,
+                                    error = ?err,
+                                    "Function queue job failed"
+                                );
+                                if let Err(e) = adapter
+                                    .nack_function_queue(
+                                        &queue_name,
+                                        delivery_id,
+                                        attempt,
+                                        max_retries,
+                                    )
+                                    .await
+                                {
+                                    tracing::error!(error = %e, "Failed to nack message");
+                                }
+                            }
+                        }
+
+                        drop(permit);
+                    });
+                }
+
+                tracing::warn!(queue = %queue_name, "Consumer loop ended");
+            });
+
+            tracing::info!(
+                queue = %name,
+                r#type = %config.r#type,
+                concurrency = %config.concurrency,
+                "Started function queue consumer"
+            );
+        }
 
         let trigger_type = TriggerType {
             id: "queue".to_string(),
@@ -387,6 +585,7 @@ mod tests {
 
     struct MockQueueAdapter {
         enqueue_count: AtomicU64,
+        enqueue_to_queue_count: AtomicU64,
         subscribe_count: AtomicU64,
         unsubscribe_count: AtomicU64,
         last_topic: Mutex<String>,
@@ -399,6 +598,7 @@ mod tests {
         fn new() -> Self {
             Self {
                 enqueue_count: AtomicU64::new(0),
+                enqueue_to_queue_count: AtomicU64::new(0),
                 subscribe_count: AtomicU64::new(0),
                 unsubscribe_count: AtomicU64::new(0),
                 last_topic: Mutex::new(String::new()),
@@ -425,6 +625,20 @@ mod tests {
             *self.last_baggage.lock().await = baggage;
         }
 
+        async fn publish_to_function_queue(
+            &self,
+            _queue_name: &str,
+            _function_id: &str,
+            _data: Value,
+            _message_id: &str,
+            _max_retries: u32,
+            _backoff_ms: u64,
+            _traceparent: Option<String>,
+            _baggage: Option<String>,
+        ) {
+            self.enqueue_to_queue_count.fetch_add(1, Ordering::SeqCst);
+        }
+
         async fn subscribe(
             &self,
             _topic: &str,
@@ -446,6 +660,23 @@ mod tests {
 
         async fn dlq_count(&self, _topic: &str) -> anyhow::Result<u64> {
             Ok(0)
+        }
+
+        async fn setup_function_queue(
+            &self,
+            _queue_name: &str,
+            _config: &super::super::config::FunctionQueueConfig,
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        async fn consume_function_queue(
+            &self,
+            _queue_name: &str,
+            _prefetch: u32,
+        ) -> anyhow::Result<tokio::sync::mpsc::Receiver<super::super::QueueMessage>> {
+            let (_tx, rx) = tokio::sync::mpsc::channel(1);
+            Ok(rx)
         }
     }
 
@@ -664,6 +895,7 @@ mod tests {
                 class: "my::CustomAdapter".to_string(),
                 config: None,
             }),
+            ..Default::default()
         };
         assert_eq!(
             QueueCoreModule::adapter_class_from_config(&config),
@@ -684,6 +916,7 @@ mod tests {
                 class: "my::Adapter".to_string(),
                 config: Some(json!({"url": "redis://localhost"})),
             }),
+            ..Default::default()
         };
         assert_eq!(
             QueueCoreModule::adapter_config_from_config(&config),
@@ -698,6 +931,7 @@ mod tests {
                 class: "my::Adapter".to_string(),
                 config: None,
             }),
+            ..Default::default()
         };
         assert!(QueueCoreModule::adapter_config_from_config(&config).is_none());
     }
@@ -726,5 +960,465 @@ mod tests {
         let config = super::super::config::QueueModuleConfig::default();
         let module = QueueCoreModule::build(engine.clone(), config, adapter);
         assert_eq!(Module::name(&module), "QueueModule");
+    }
+
+    // =========================================================================
+    // enqueue_to_function_queue tests
+    // =========================================================================
+
+    fn setup_queue_module_with_configs() -> (Arc<Engine>, QueueCoreModule, Arc<MockQueueAdapter>) {
+        use super::super::config::{FunctionQueueConfig, QueueModuleConfig};
+
+        crate::modules::observability::metrics::ensure_default_meter();
+        let engine = Arc::new(Engine::new());
+        let adapter = Arc::new(MockQueueAdapter::new());
+
+        let mut queue_configs = HashMap::new();
+        queue_configs.insert(
+            "default".to_string(),
+            FunctionQueueConfig {
+                r#type: "standard".to_string(),
+                ..Default::default()
+            },
+        );
+        queue_configs.insert(
+            "payment".to_string(),
+            FunctionQueueConfig {
+                r#type: "fifo".to_string(),
+                message_group_field: Some("transaction_id".to_string()),
+                ..Default::default()
+            },
+        );
+
+        let config = QueueModuleConfig {
+            adapter: None,
+            queue_configs,
+        };
+
+        let module = QueueCoreModule {
+            adapter: adapter.clone(),
+            engine: engine.clone(),
+            _config: config,
+        };
+
+        (engine, module, adapter)
+    }
+
+    #[tokio::test]
+    async fn enqueue_to_function_queue_unknown_queue_fails() {
+        let (_engine, module, _adapter) = setup_queue_module_with_configs();
+        let result = module
+            .enqueue_to_function_queue(
+                "nonexistent",
+                "fn-1",
+                json!({"key": "value"}),
+                "test-msg-id",
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("not found"),
+            "Error should contain 'not found', got: {}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn enqueue_to_function_queue_fifo_missing_group_field_fails() {
+        let (_engine, module, _adapter) = setup_queue_module_with_configs();
+        let result = module
+            .enqueue_to_function_queue(
+                "payment",
+                "fn-1",
+                json!({"amount": 100}), // missing "transaction_id"
+                "test-msg-id",
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("transaction_id"),
+            "Error should mention the missing field name, got: {}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn enqueue_to_function_queue_fifo_null_group_field_fails() {
+        let (_engine, module, _adapter) = setup_queue_module_with_configs();
+        let result = module
+            .enqueue_to_function_queue(
+                "payment",
+                "fn-1",
+                json!({"transaction_id": null, "amount": 100}),
+                "test-msg-id",
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("null"),
+            "Error should mention null, got: {}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn enqueue_to_function_queue_fifo_with_group_field_ok() {
+        let (_engine, module, adapter) = setup_queue_module_with_configs();
+        let result = module
+            .enqueue_to_function_queue(
+                "payment",
+                "fn-1",
+                json!({"transaction_id": "txn-123", "amount": 100}),
+                "test-msg-id",
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(adapter.enqueue_to_queue_count.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn enqueue_to_function_queue_standard_ok() {
+        let (_engine, module, adapter) = setup_queue_module_with_configs();
+        let result = module
+            .enqueue_to_function_queue(
+                "default",
+                "fn-1",
+                json!({"key": "value"}),
+                "test-msg-id",
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(adapter.enqueue_to_queue_count.load(Ordering::SeqCst), 1);
+    }
+
+    // =========================================================================
+    // Integration tests with real BuiltinQueueAdapter
+    // =========================================================================
+
+    use crate::modules::module::ConfigurableModule;
+
+    async fn setup_integration_module() -> (
+        Arc<Engine>,
+        QueueCoreModule,
+        Arc<dyn super::super::QueueAdapter>,
+    ) {
+        use super::super::config::{FunctionQueueConfig, QueueModuleConfig};
+
+        crate::modules::observability::metrics::ensure_default_meter();
+
+        let engine = Arc::new(Engine::new());
+
+        let factory = QueueCoreModule::get_adapter("modules::queue::BuiltinQueueAdapter")
+            .await
+            .expect("BuiltinQueueAdapter factory must be registered");
+        let adapter = factory(engine.clone(), None)
+            .await
+            .expect("BuiltinQueueAdapter creation should succeed");
+
+        let mut queue_configs = HashMap::new();
+        queue_configs.insert(
+            "default".to_string(),
+            FunctionQueueConfig {
+                r#type: "standard".to_string(),
+                concurrency: 3,
+                ..Default::default()
+            },
+        );
+        queue_configs.insert(
+            "payment".to_string(),
+            FunctionQueueConfig {
+                r#type: "fifo".to_string(),
+                message_group_field: Some("transaction_id".to_string()),
+                concurrency: 1,
+                ..Default::default()
+            },
+        );
+
+        let config = QueueModuleConfig {
+            adapter: None,
+            queue_configs,
+        };
+
+        let module = QueueCoreModule {
+            adapter: adapter.clone(),
+            engine: engine.clone(),
+            _config: config,
+        };
+
+        (engine, module, adapter)
+    }
+
+    #[tokio::test]
+    async fn integration_enqueue_consume_invoke_ack() {
+        let (engine, module, adapter) = setup_integration_module().await;
+
+        let call_count = Arc::new(AtomicU64::new(0));
+        let counter = call_count.clone();
+
+        let function = crate::function::Function {
+            handler: Arc::new(move |_invocation_id, _input| {
+                let counter = counter.clone();
+                Box::pin(async move {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                    FunctionResult::Success(Some(json!({ "ok": true })))
+                })
+            }),
+            _function_id: "integration::ack_fn".to_string(),
+            _description: Some("test".to_string()),
+            request_format: None,
+            response_format: None,
+            metadata: None,
+        };
+        engine
+            .functions
+            .register_function("integration::ack_fn".to_string(), function);
+
+        // Publish a message before initializing the consumer loop
+        adapter
+            .publish_to_function_queue(
+                "default",
+                "integration::ack_fn",
+                json!({"task": "do_work"}),
+                "test-msg-id",
+                3,
+                1000,
+                None,
+                None,
+            )
+            .await;
+
+        // Initialize starts the consumer loop
+        module
+            .initialize()
+            .await
+            .expect("initialize should succeed");
+
+        // Wait for the consumer loop to pick up and process the message
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+        assert_eq!(
+            call_count.load(Ordering::SeqCst),
+            1,
+            "Function should have been called exactly once"
+        );
+    }
+
+    #[tokio::test]
+    async fn integration_function_failure_nacks() {
+        let (engine, module, adapter) = setup_integration_module().await;
+
+        let call_count = Arc::new(AtomicU64::new(0));
+        let counter = call_count.clone();
+
+        let function = crate::function::Function {
+            handler: Arc::new(move |_invocation_id, _input| {
+                let counter = counter.clone();
+                Box::pin(async move {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                    FunctionResult::Failure(ErrorBody {
+                        code: "QUEUE_FAIL".to_string(),
+                        message: "job failed".to_string(),
+                        stacktrace: None,
+                    })
+                })
+            }),
+            _function_id: "integration::fail_fn".to_string(),
+            _description: Some("test".to_string()),
+            request_format: None,
+            response_format: None,
+            metadata: None,
+        };
+        engine
+            .functions
+            .register_function("integration::fail_fn".to_string(), function);
+
+        adapter
+            .publish_to_function_queue(
+                "default",
+                "integration::fail_fn",
+                json!({"task": "will_fail"}),
+                "test-msg-id",
+                3,
+                100,
+                None,
+                None,
+            )
+            .await;
+
+        module
+            .initialize()
+            .await
+            .expect("initialize should succeed");
+
+        // Wait for the consumer to process the message (and potentially retries)
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+        let count = call_count.load(Ordering::SeqCst);
+        assert!(
+            count >= 1,
+            "Failing function should have been called at least once, got {}",
+            count
+        );
+    }
+
+    #[tokio::test]
+    async fn integration_fifo_ordering() {
+        let (engine, module, adapter) = setup_integration_module().await;
+
+        let invocation_order = Arc::new(Mutex::new(Vec::<String>::new()));
+        let order_ref = invocation_order.clone();
+
+        let function = crate::function::Function {
+            handler: Arc::new(move |_invocation_id, input| {
+                let order_ref = order_ref.clone();
+                Box::pin(async move {
+                    let txn_id = input
+                        .get("transaction_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    order_ref.lock().await.push(txn_id);
+                    FunctionResult::Success(Some(json!({ "ok": true })))
+                })
+            }),
+            _function_id: "integration::fifo_fn".to_string(),
+            _description: Some("test".to_string()),
+            request_format: None,
+            response_format: None,
+            metadata: None,
+        };
+        engine
+            .functions
+            .register_function("integration::fifo_fn".to_string(), function);
+
+        // Enqueue 3 messages in order to the FIFO "payment" queue
+        for txn_id in &["txn-001", "txn-002", "txn-003"] {
+            adapter
+                .publish_to_function_queue(
+                    "payment",
+                    "integration::fifo_fn",
+                    json!({"transaction_id": txn_id, "amount": 100}),
+                    "test-msg-id",
+                    3,
+                    1000,
+                    None,
+                    None,
+                )
+                .await;
+        }
+
+        module
+            .initialize()
+            .await
+            .expect("initialize should succeed");
+
+        // Wait for consumer to process all 3 messages
+        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+
+        let order = invocation_order.lock().await;
+        assert_eq!(
+            order.len(),
+            3,
+            "All 3 messages should have been processed, got {}",
+            order.len()
+        );
+        assert_eq!(
+            *order,
+            vec!["txn-001", "txn-002", "txn-003"],
+            "FIFO queue should process messages in order"
+        );
+    }
+
+    #[tokio::test]
+    async fn integration_standard_queue_concurrency() {
+        let (engine, module, adapter) = setup_integration_module().await;
+
+        let timestamps = Arc::new(Mutex::new(Vec::<(String, std::time::Instant)>::new()));
+        let ts_ref = timestamps.clone();
+
+        let function = crate::function::Function {
+            handler: Arc::new(move |_invocation_id, input| {
+                let ts_ref = ts_ref.clone();
+                Box::pin(async move {
+                    let task_id = input
+                        .get("task_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    let start = std::time::Instant::now();
+                    // Simulate work that takes time so concurrent processing is observable
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    ts_ref.lock().await.push((task_id, start));
+                    FunctionResult::Success(Some(json!({ "ok": true })))
+                })
+            }),
+            _function_id: "integration::concurrent_fn".to_string(),
+            _description: Some("test".to_string()),
+            request_format: None,
+            response_format: None,
+            metadata: None,
+        };
+        engine
+            .functions
+            .register_function("integration::concurrent_fn".to_string(), function);
+
+        // Enqueue 3 messages to the "default" queue (concurrency=3)
+        for i in 0..3 {
+            adapter
+                .publish_to_function_queue(
+                    "default",
+                    "integration::concurrent_fn",
+                    json!({"task_id": format!("task-{}", i)}),
+                    "test-msg-id",
+                    3,
+                    1000,
+                    None,
+                    None,
+                )
+                .await;
+        }
+
+        module
+            .initialize()
+            .await
+            .expect("initialize should succeed");
+
+        // Wait enough for all tasks to be picked up and processed concurrently
+        // With concurrency=3 and 200ms sleep each, concurrent execution should
+        // finish around 200-400ms; sequential would take 600ms+.
+        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+
+        let ts = timestamps.lock().await;
+        assert_eq!(
+            ts.len(),
+            3,
+            "All 3 messages should have been processed, got {}",
+            ts.len()
+        );
+
+        // Check that tasks started concurrently: the time between the earliest
+        // and latest start times should be less than 200ms (the handler sleep
+        // duration). If processed sequentially, the gap would be >= 200ms.
+        let earliest_start = ts.iter().map(|(_, t)| *t).min().unwrap();
+        let latest_start = ts.iter().map(|(_, t)| *t).max().unwrap();
+        let start_gap = latest_start.duration_since(earliest_start);
+        assert!(
+            start_gap < std::time::Duration::from_millis(200),
+            "Tasks should start concurrently. Start gap was {:?} (expected < 200ms)",
+            start_gap
+        );
     }
 }

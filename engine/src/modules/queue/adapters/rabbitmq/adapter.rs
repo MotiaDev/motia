@@ -6,10 +6,17 @@
 
 #![cfg(feature = "rabbitmq")]
 
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{
+    collections::HashMap,
+    str::FromStr,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+};
 
 use async_trait::async_trait;
-use lapin::{Channel, Connection, ConnectionProperties, options::*};
+use lapin::{Channel, Connection, ConnectionProperties, message::Delivery, options::*};
 use serde_json::Value;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
@@ -17,7 +24,7 @@ use uuid::Uuid;
 use crate::{
     engine::Engine,
     modules::queue::{
-        QueueAdapter, SubscriberQueueConfig,
+        FunctionQueueConfig, QueueAdapter, SubscriberQueueConfig,
         registry::{QueueAdapterFuture, QueueAdapterRegistration},
     },
 };
@@ -38,6 +45,8 @@ pub struct RabbitMQAdapter {
     subscriptions: Arc<RwLock<HashMap<String, SubscriptionInfo>>>,
     engine: Arc<Engine>,
     config: RabbitMQConfig,
+    delivery_map: Arc<RwLock<HashMap<u64, Delivery>>>,
+    delivery_counter: Arc<AtomicU64>,
 }
 
 struct SubscriptionInfo {
@@ -86,6 +95,8 @@ impl RabbitMQAdapter {
             subscriptions: Arc::new(RwLock::new(HashMap::new())),
             engine,
             config,
+            delivery_map: Arc::new(RwLock::new(HashMap::new())),
+            delivery_counter: Arc::new(AtomicU64::new(0)),
         })
     }
 }
@@ -100,6 +111,8 @@ impl Clone for RabbitMQAdapter {
             subscriptions: Arc::clone(&self.subscriptions),
             engine: Arc::clone(&self.engine),
             config: self.config.clone(),
+            delivery_map: Arc::clone(&self.delivery_map),
+            delivery_counter: Arc::clone(&self.delivery_counter),
         }
     }
 }
@@ -343,10 +356,16 @@ impl QueueAdapter for RabbitMQAdapter {
     }
 
     async fn dlq_count(&self, topic: &str) -> anyhow::Result<u64> {
-        use super::naming::RabbitNames;
+        use super::naming::{FnQueueNames, RabbitNames};
 
-        let names = RabbitNames::new(topic);
-        let dlq_name = names.dlq();
+        // Function queues use FnQueueNames (e.g., __fn_queue::orders → ::dlq.queue),
+        // while topic-based queues use RabbitNames (e.g., user.created → .dlq).
+        let dlq_name = if topic.starts_with("__fn_queue::") {
+            let queue_name = topic.strip_prefix("__fn_queue::").unwrap();
+            FnQueueNames::new(queue_name).dlq()
+        } else {
+            RabbitNames::new(topic).dlq()
+        };
 
         let queue = self
             .channel
@@ -362,6 +381,314 @@ impl QueueAdapter for RabbitMQAdapter {
             .map_err(|e| anyhow::anyhow!("Failed to get DLQ info: {}", e))?;
 
         Ok(queue.message_count() as u64)
+    }
+
+    async fn publish_to_function_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: Value,
+        message_id: &str,
+        _max_retries: u32,
+        _backoff_ms: u64,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+    ) {
+        use super::naming::FnQueueNames;
+
+        let names = FnQueueNames::new(queue_name);
+
+        let payload = match serde_json::to_vec(&data) {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to serialize data");
+                return;
+            }
+        };
+
+        let mut headers = lapin::types::FieldTable::default();
+        headers.insert(
+            "function_id".into(),
+            lapin::types::AMQPValue::LongString(function_id.into()),
+        );
+        if let Some(tp) = &traceparent {
+            headers.insert(
+                "traceparent".into(),
+                lapin::types::AMQPValue::LongString(tp.as_str().into()),
+            );
+        }
+        if let Some(bg) = &baggage {
+            headers.insert(
+                "baggage".into(),
+                lapin::types::AMQPValue::LongString(bg.as_str().into()),
+            );
+        }
+
+        let properties = lapin::BasicProperties::default()
+            .with_content_type("application/json".into())
+            .with_delivery_mode(2)
+            .with_message_id(message_id.into())
+            .with_headers(headers);
+
+        match self
+            .channel
+            .basic_publish(
+                &names.exchange(),
+                queue_name,
+                BasicPublishOptions::default(),
+                &payload,
+                properties,
+            )
+            .await
+        {
+            Ok(confirm) => {
+                if let Err(e) = confirm.await {
+                    tracing::error!(error = %e, queue = %queue_name, "Failed to confirm publish to function queue");
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, queue = %queue_name, "Failed to publish to function queue");
+            }
+        }
+    }
+
+    async fn setup_function_queue(
+        &self,
+        queue_name: &str,
+        config: &FunctionQueueConfig,
+    ) -> anyhow::Result<()> {
+        self.topology
+            .setup_function_queue(queue_name, config.backoff_ms)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to setup function queue topology: {}", e))
+    }
+
+    async fn consume_function_queue(
+        &self,
+        queue_name: &str,
+        prefetch: u32,
+    ) -> anyhow::Result<tokio::sync::mpsc::Receiver<crate::modules::queue::QueueMessage>> {
+        use super::naming::FnQueueNames;
+        use crate::modules::queue::QueueMessage;
+        use futures::StreamExt;
+
+        let names = FnQueueNames::new(queue_name);
+
+        self.channel
+            .basic_qos(prefetch as u16, BasicQosOptions::default())
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to set QoS: {}", e))?;
+
+        let consumer_tag = format!("fn-queue-{}-{}", queue_name, Uuid::new_v4());
+        let mut consumer = self
+            .channel
+            .basic_consume(
+                &names.queue(),
+                &consumer_tag,
+                BasicConsumeOptions::default(),
+                lapin::types::FieldTable::default(),
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to create consumer: {}", e))?;
+
+        let (tx, rx) = tokio::sync::mpsc::channel(prefetch as usize);
+        let delivery_map = Arc::clone(&self.delivery_map);
+        let delivery_counter = Arc::clone(&self.delivery_counter);
+
+        tokio::spawn(async move {
+            while let Some(delivery_result) = consumer.next().await {
+                match delivery_result {
+                    Ok(delivery) => {
+                        let delivery_id = delivery_counter.fetch_add(1, Ordering::SeqCst);
+
+                        let data: serde_json::Value = match serde_json::from_slice(&delivery.data) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                tracing::error!(error = %e, "Failed to parse function queue message");
+                                let _ = delivery
+                                    .nack(BasicNackOptions {
+                                        requeue: false,
+                                        ..Default::default()
+                                    })
+                                    .await;
+                                continue;
+                            }
+                        };
+
+                        let headers = delivery.properties.headers().as_ref();
+
+                        let function_id = headers
+                            .and_then(|h| h.inner().get("function_id"))
+                            .and_then(|v| match v {
+                                lapin::types::AMQPValue::LongString(s) => Some(s.to_string()),
+                                _ => None,
+                            })
+                            .unwrap_or_default();
+
+                        let traceparent = headers
+                            .and_then(|h| h.inner().get("traceparent"))
+                            .and_then(|v| match v {
+                                lapin::types::AMQPValue::LongString(s) => Some(s.to_string()),
+                                _ => None,
+                            });
+
+                        let baggage =
+                            headers
+                                .and_then(|h| h.inner().get("baggage"))
+                                .and_then(|v| match v {
+                                    lapin::types::AMQPValue::LongString(s) => Some(s.to_string()),
+                                    _ => None,
+                                });
+
+                        let attempt = headers
+                            .and_then(|h| h.inner().get("x-attempt"))
+                            .and_then(|v| match v {
+                                lapin::types::AMQPValue::LongUInt(n) => Some(*n),
+                                _ => None,
+                            })
+                            .unwrap_or(0);
+
+                        let message_id = delivery
+                            .properties
+                            .message_id()
+                            .as_ref()
+                            .map(|s| s.to_string());
+
+                        delivery_map.write().await.insert(delivery_id, delivery);
+
+                        let msg = QueueMessage {
+                            delivery_id,
+                            function_id,
+                            data,
+                            attempt,
+                            message_id,
+                            traceparent,
+                            baggage,
+                        };
+
+                        if tx.send(msg).await.is_err() {
+                            // Receiver dropped — nack the delivery we just stored so
+                            // RabbitMQ requeues it rather than leaving it stranded.
+                            if let Some(d) = delivery_map.write().await.remove(&delivery_id) {
+                                let _ = d
+                                    .nack(BasicNackOptions {
+                                        requeue: true,
+                                        ..Default::default()
+                                    })
+                                    .await;
+                            }
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, "Error receiving delivery from function queue");
+                    }
+                }
+            }
+        });
+
+        Ok(rx)
+    }
+
+    async fn ack_function_queue(&self, _queue_name: &str, delivery_id: u64) -> anyhow::Result<()> {
+        let delivery = self.delivery_map.write().await.remove(&delivery_id);
+        if let Some(delivery) = delivery {
+            delivery
+                .ack(BasicAckOptions::default())
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to ack: {}", e))?;
+        }
+        Ok(())
+    }
+
+    async fn nack_function_queue(
+        &self,
+        queue_name: &str,
+        delivery_id: u64,
+        attempt: u32,
+        max_retries: u32,
+    ) -> anyhow::Result<()> {
+        use super::naming::FnQueueNames;
+
+        let delivery = self.delivery_map.write().await.remove(&delivery_id);
+        let delivery = match delivery {
+            Some(d) => d,
+            None => return Ok(()),
+        };
+
+        if attempt < max_retries {
+            // Retry: ack the original delivery, republish to the retry exchange.
+            // The retry queue has a TTL; after expiry RabbitMQ dead-letters the
+            // message back to the main exchange (configured via x-dead-letter-exchange
+            // on the retry queue).
+            delivery
+                .ack(BasicAckOptions::default())
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to ack for retry: {}", e))?;
+
+            let names = FnQueueNames::new(queue_name);
+
+            let mut headers = delivery.properties.headers().clone().unwrap_or_default();
+
+            // Increment our own attempt counter so classic queues (which do not
+            // populate x-delivery-count) can still track retry depth.
+            let current_attempt = headers
+                .inner()
+                .get("x-attempt")
+                .and_then(|v| match v {
+                    lapin::types::AMQPValue::LongUInt(n) => Some(*n),
+                    _ => None,
+                })
+                .unwrap_or(0);
+            headers.insert(
+                "x-attempt".into(),
+                lapin::types::AMQPValue::LongUInt(current_attempt + 1),
+            );
+
+            let properties = lapin::BasicProperties::default()
+                .with_content_type("application/json".into())
+                .with_delivery_mode(2)
+                .with_headers(headers);
+
+            self.channel
+                .basic_publish(
+                    &names.retry_exchange(),
+                    queue_name,
+                    BasicPublishOptions::default(),
+                    &delivery.data,
+                    properties,
+                )
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to publish to retry exchange: {}", e))?
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to confirm retry publish: {}", e))?;
+
+            tracing::debug!(
+                queue = %queue_name,
+                attempt = attempt,
+                max_retries = max_retries,
+                "Message sent to retry queue"
+            );
+        } else {
+            // Exhausted: nack without requeue. The main queue's DLX points to the
+            // DLQ exchange, so RabbitMQ routes the message there automatically.
+            delivery
+                .nack(BasicNackOptions {
+                    requeue: false,
+                    ..Default::default()
+                })
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to nack to DLQ: {}", e))?;
+
+            tracing::warn!(
+                queue = %queue_name,
+                attempt = attempt,
+                max_retries = max_retries,
+                "Message exhausted retries, routed to DLQ"
+            );
+        }
+
+        Ok(())
     }
 }
 

@@ -41,14 +41,14 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                value: TData | None = await get_instance().call(
-                    "stream::get",
-                    {
+                value: TData | None = await get_instance().trigger({
+                    "function_id": "stream::get",
+                    "payload": {
                         "stream_name": self.stream_name,
                         "group_id": group_id,
                         "item_id": item_id,
                     },
-                )
+                })
                 set_span_ok(span)
                 return value
             except Exception as exc:
@@ -66,15 +66,15 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                result: Any = await get_instance().call(
-                    "stream::set",
-                    {
+                result: Any = await get_instance().trigger({
+                    "function_id": "stream::set",
+                    "payload": {
                         "stream_name": self.stream_name,
                         "group_id": group_id,
                         "item_id": item_id,
                         "data": data,
                     },
-                )
+                })
                 set_span_ok(span)
                 return result
             except Exception as exc:
@@ -92,14 +92,14 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                await get_instance().call(
-                    "stream::delete",
-                    {
+                await get_instance().trigger({
+                    "function_id": "stream::delete",
+                    "payload": {
                         "stream_name": self.stream_name,
                         "group_id": group_id,
                         "item_id": item_id,
                     },
-                )
+                })
                 set_span_ok(span)
             except Exception as exc:
                 record_exception(span, exc)
@@ -115,13 +115,13 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                items: list[TData] = await get_instance().call(
-                    "stream::list",
-                    {
+                items: list[TData] = await get_instance().trigger({
+                    "function_id": "stream::list",
+                    "payload": {
                         "stream_name": self.stream_name,
                         "group_id": group_id,
                     },
-                )
+                })
                 set_span_ok(span)
                 return items
             except Exception as exc:
@@ -143,15 +143,15 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                result = await get_instance().call(
-                    "stream::update",
-                    {
+                result = await get_instance().trigger({
+                    "function_id": "stream::update",
+                    "payload": {
                         "stream_name": self.stream_name,
                         "group_id": group_id,
                         "item_id": item_id,
                         "ops": ops,
                     },
-                )
+                })
                 set_span_ok(span)
                 return result
             except Exception as exc:
@@ -167,12 +167,12 @@ class Stream(Generic[TData]):
             },
         ) as span:
             try:
-                groups: _list[str] = await get_instance().call(
-                    "stream::list_groups",
-                    {
+                groups: _list[str] = await get_instance().trigger({
+                    "function_id": "stream::list_groups",
+                    "payload": {
                         "stream_name": self.stream_name,
                     },
-                )
+                })
                 set_span_ok(span)
                 return groups
             except Exception as exc:

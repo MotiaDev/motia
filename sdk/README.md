@@ -36,7 +36,7 @@ iii.registerTrigger({
   config: { api_path: '/greet', http_method: 'POST' },
 });
 
-const result = await iii.trigger('greet', { name: 'world' });
+const result = await iii.trigger({ function_id: 'greet', payload: { name: 'world' } });
 ```
 
 ### Python
@@ -59,7 +59,7 @@ async def main():
         config={"api_path": "/greet", "http_method": "POST"}
     )
 
-    result = await iii.trigger("greet", {"name": "world"})
+    result = await iii.trigger({"function_id": "greet", "payload": {"name": "world"}})
 
 asyncio.run(main())
 ```
@@ -67,7 +67,7 @@ asyncio.run(main())
 ### Rust
 
 ```rust
-use iii_sdk::{init, InitOptions};
+use iii_sdk::{init, InitOptions, TriggerRequest};
 use serde_json::json;
 
 #[tokio::main]
@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }))?;
 
     let result: serde_json::Value = iii
-        .trigger("greet", json!({ "name": "world" }))
+        .trigger(TriggerRequest::new("greet", json!({ "name": "world" })))
         .await?;
 
     Ok(())
@@ -99,7 +99,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Initialize               | `init(url)`                                          | `init(url, options?)`                       | `init(url, options)`                         | Create an SDK instance and auto-connect                |
 | Register function        | `iii.registerFunction({ id }, handler)`              | `iii.register_function(id, handler)`        | `iii.register_function(id, \|input\| ...)`   | Register a function that can be invoked by name        |
 | Register trigger         | `iii.registerTrigger({ type, function_id, config })` | `iii.register_trigger(type, fn_id, config)` | `iii.register_trigger(type, fn_id, config)?` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
-| Invoke (await)           | `await iii.trigger(id, data)`                        | `await iii.trigger(id, data)`               | `iii.trigger(id, data).await?`               | Invoke a function and wait for the result              |
+| Invoke (await)           | `await iii.trigger({ function_id, payload })`        | `await iii.trigger({"function_id": id, "payload": data})` | `iii.trigger(TriggerRequest::new(id, data)).await?` | Invoke a function and wait for the result              |
 | Invoke (fire-and-forget) | `iii.triggerVoid(id, data)`                          | `iii.trigger_void(id, data)`                | `iii.trigger_void(id, data)?`                | Invoke a function without waiting                      |
 
 `init()` creates an SDK instance and auto-connects to the engine. It handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation. All three SDKs expose the same API surface — register functions and triggers, then invoke them.

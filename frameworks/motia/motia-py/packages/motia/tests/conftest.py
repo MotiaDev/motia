@@ -34,7 +34,7 @@ async def wait_for_registration(bridge, function_id: str, timeout: float = 5.0) 
     poll_interval = 0.1
     while time.monotonic() < deadline:
         try:
-            result = await bridge.call("engine::functions::list", {})
+            result = await bridge.trigger({"function_id": "engine::functions::list", "payload": {}})
             functions = result.get("functions", []) if isinstance(result, dict) else []
             ids = [f.get("function_id") for f in functions if isinstance(f, dict) and f.get("function_id")]
             if function_id in ids:

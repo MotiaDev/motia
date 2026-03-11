@@ -4,8 +4,27 @@ import asyncio
 import logging
 
 from .channels import ChannelReader, ChannelWriter, ReadableStream, WritableStream
-from .iii import III, ConnectionStateCallback, FunctionRef, IIIConnectionState, InitOptions, ReconnectionConfig
-from .iii_types import FunctionInfo, HttpAuthConfig, HttpInvocationConfig, StreamChannelRef, WorkerInfo, WorkerStatus
+from .iii import (
+    III,
+    ConnectionStateCallback,
+    FunctionRef,
+    IIIConnectionState,
+    InitOptions,
+    ReconnectionConfig,
+    TriggerAction,
+)
+from .iii_types import (
+    EnqueueResult,
+    FunctionInfo,
+    HttpAuthConfig,
+    HttpInvocationConfig,
+    StreamChannelRef,
+    TriggerActionEnqueue,
+    TriggerActionVoid,
+    TriggerRequest,
+    WorkerInfo,
+    WorkerStatus,
+)
 from .logger import Logger
 from .stream import (
     IStream,
@@ -88,6 +107,7 @@ __all__ = [
     "IIIConnectionState",
     "ConnectionStateCallback",
     "FunctionRef",
+    "TriggerAction",
     "Logger",
     # API types
     "ApiRequest",
@@ -104,9 +124,13 @@ __all__ = [
     "StreamChannelRef",
     "is_channel_ref",
     # SDK types
+    "EnqueueResult",
     "FunctionInfo",
     "HttpAuthConfig",
     "HttpInvocationConfig",
+    "TriggerActionEnqueue",
+    "TriggerActionVoid",
+    "TriggerRequest",
     "WorkerInfo",
     "WorkerStatus",
     # Stream types

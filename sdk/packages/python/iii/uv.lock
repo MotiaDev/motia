@@ -465,7 +465,7 @@ wheels = [
 
 [[package]]
 name = "iii-sdk"
-version = "0.8.0"
+version = "0.8.3"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },

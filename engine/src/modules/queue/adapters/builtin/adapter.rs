@@ -4,11 +4,17 @@
 // This software is patent protected. We welcome discussions - reach out at support@motia.dev
 // See LICENSE and PATENTS files for details.
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+};
 
 use async_trait::async_trait;
 use serde_json::Value;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, mpsc};
 
 use tracing::Instrument;
 
@@ -17,7 +23,7 @@ use crate::{
         kv::BuiltinKvStore,
         pubsub_lite::BuiltInPubSubLite,
         queue::{
-            BuiltinQueue, JobHandler, QueueConfig, QueueMode, SubscriptionConfig,
+            BuiltinQueue, Job, JobHandler, QueueConfig, QueueMode, SubscriptionConfig,
             SubscriptionHandle,
         },
         queue_kv::QueueKvStore,
@@ -31,10 +37,18 @@ use crate::{
     telemetry::SpanExt,
 };
 
+struct DeliveryInfo {
+    queue_name: String,
+    job_id: String,
+}
+
 pub struct BuiltinQueueAdapter {
     queue: Arc<BuiltinQueue>,
     engine: Arc<Engine>,
     subscriptions: Arc<RwLock<HashMap<String, SubscriptionHandle>>>,
+    delivery_map: Arc<RwLock<HashMap<u64, DeliveryInfo>>>,
+    delivery_counter: Arc<AtomicU64>,
+    poll_intervals: Arc<RwLock<HashMap<String, u64>>>,
 }
 
 struct FunctionHandler {
@@ -128,6 +142,9 @@ impl BuiltinQueueAdapter {
             queue,
             engine,
             subscriptions: Arc::new(RwLock::new(HashMap::new())),
+            delivery_map: Arc::new(RwLock::new(HashMap::new())),
+            delivery_counter: Arc::new(AtomicU64::new(0)),
+            poll_intervals: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }
@@ -138,6 +155,9 @@ impl Clone for BuiltinQueueAdapter {
             queue: Arc::clone(&self.queue),
             engine: Arc::clone(&self.engine),
             subscriptions: Arc::clone(&self.subscriptions),
+            delivery_map: Arc::clone(&self.delivery_map),
+            delivery_counter: Arc::clone(&self.delivery_counter),
+            poll_intervals: Arc::clone(&self.poll_intervals),
         }
     }
 }
@@ -231,6 +251,146 @@ impl QueueAdapter for BuiltinQueueAdapter {
     async fn dlq_count(&self, topic: &str) -> anyhow::Result<u64> {
         Ok(self.queue.dlq_count(topic).await)
     }
+
+    async fn setup_function_queue(
+        &self,
+        queue_name: &str,
+        config: &crate::modules::queue::FunctionQueueConfig,
+    ) -> anyhow::Result<()> {
+        self.poll_intervals
+            .write()
+            .await
+            .insert(queue_name.to_string(), config.poll_interval_ms);
+        Ok(())
+    }
+
+    async fn publish_to_function_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: Value,
+        message_id: &str,
+        max_retries: u32,
+        backoff_ms: u64,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+    ) {
+        let namespaced_queue = format!("__fn_queue::{}", queue_name);
+        let job = Job {
+            function_id: Some(function_id.to_string()),
+            message_id: Some(message_id.to_string()),
+            ..Job::new(
+                &namespaced_queue,
+                data,
+                max_retries,
+                backoff_ms,
+                traceparent,
+                baggage,
+            )
+        };
+        self.queue.push_job(job).await;
+    }
+
+    async fn consume_function_queue(
+        &self,
+        queue_name: &str,
+        prefetch: u32,
+    ) -> anyhow::Result<mpsc::Receiver<crate::modules::queue::QueueMessage>> {
+        use crate::modules::queue::QueueMessage;
+
+        let poll_interval_ms = self
+            .poll_intervals
+            .read()
+            .await
+            .get(queue_name)
+            .copied()
+            .unwrap_or(100);
+
+        let (tx, rx) = mpsc::channel(prefetch as usize);
+        let queue = Arc::clone(&self.queue);
+        let delivery_map = Arc::clone(&self.delivery_map);
+        let delivery_counter = Arc::clone(&self.delivery_counter);
+        let namespaced_queue = format!("__fn_queue::{}", queue_name);
+
+        tokio::spawn(async move {
+            let poll_interval = std::time::Duration::from_millis(poll_interval_ms);
+            loop {
+                if tx.is_closed() {
+                    break;
+                }
+
+                // Move delayed jobs to waiting
+                if let Err(e) = queue.move_delayed_to_waiting(&namespaced_queue).await {
+                    tracing::error!(error = %e, queue = %namespaced_queue, "Failed to move delayed jobs");
+                }
+
+                if let Some(job) = queue.pop(&namespaced_queue).await {
+                    let delivery_id = delivery_counter.fetch_add(1, Ordering::SeqCst);
+
+                    delivery_map.write().await.insert(
+                        delivery_id,
+                        DeliveryInfo {
+                            queue_name: namespaced_queue.clone(),
+                            job_id: job.id.clone(),
+                        },
+                    );
+
+                    let msg = QueueMessage {
+                        delivery_id,
+                        function_id: job.function_id.unwrap_or_default(),
+                        data: job.data,
+                        attempt: job.attempts_made,
+                        message_id: job.message_id,
+                        traceparent: job.traceparent,
+                        baggage: job.baggage,
+                    };
+
+                    if tx.send(msg).await.is_err() {
+                        // Channel closed — nack the job so it returns to the queue
+                        if let Some(info) = delivery_map.write().await.remove(&delivery_id) {
+                            if let Err(e) = queue
+                                .nack(&info.queue_name, &info.job_id, "consumer channel closed")
+                                .await
+                            {
+                                tracing::error!(error = %e, "Failed to nack stranded job");
+                            }
+                        }
+                        break;
+                    }
+                } else {
+                    tokio::time::sleep(poll_interval).await;
+                }
+            }
+        });
+
+        Ok(rx)
+    }
+
+    async fn ack_function_queue(&self, _queue_name: &str, delivery_id: u64) -> anyhow::Result<()> {
+        let info = self.delivery_map.write().await.remove(&delivery_id);
+        if let Some(info) = info {
+            self.queue.ack(&info.queue_name, &info.job_id).await?;
+        }
+        Ok(())
+    }
+
+    async fn nack_function_queue(
+        &self,
+        _queue_name: &str,
+        delivery_id: u64,
+        _attempt: u32,
+        _max_retries: u32,
+    ) -> anyhow::Result<()> {
+        let info = self.delivery_map.write().await.remove(&delivery_id);
+        if let Some(info) = info {
+            // BuiltinQueue::nack() handles retry vs DLQ internally
+            // using the job's own attempts_made and max_attempts fields.
+            self.queue
+                .nack(&info.queue_name, &info.job_id, "function call failed")
+                .await?;
+        }
+        Ok(())
+    }
 }
 
 crate::register_adapter!(
@@ -246,7 +406,11 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+    use std::collections::HashSet;
+    use std::time::Duration;
+
     use crate::modules::queue::SubscriberQueueConfig;
+    use crate::modules::queue::config::FunctionQueueConfig;
     use crate::{
         builtins::queue::{Job, QueueMode},
         function::{Function, FunctionResult},
@@ -496,5 +660,282 @@ mod tests {
             .enqueue("jobs", json!({ "task": "queued" }), None, None)
             .await;
         assert_eq!(adapter.dlq_count("jobs").await.unwrap(), 0);
+    }
+
+    // =========================================================================
+    // Function queue transport integration tests
+    // =========================================================================
+
+    #[tokio::test]
+    async fn publish_and_consume_delivers_message() {
+        let engine = Arc::new(Engine::new());
+        let adapter = make_adapter(Arc::clone(&engine));
+        let config = FunctionQueueConfig::default();
+
+        adapter
+            .setup_function_queue("test-q", &config)
+            .await
+            .expect("setup should succeed");
+
+        let mut rx = adapter
+            .consume_function_queue("test-q", 1)
+            .await
+            .expect("consume should return receiver");
+
+        adapter
+            .publish_to_function_queue(
+                "test-q",
+                "fn::handler",
+                json!({"key": "value"}),
+                "test-msg-id",
+                3,
+                1000,
+                None,
+                None,
+            )
+            .await;
+
+        let msg = tokio::time::timeout(Duration::from_secs(2), rx.recv())
+            .await
+            .expect("should receive within timeout")
+            .expect("channel should not be closed");
+
+        assert_eq!(msg.function_id, "fn::handler");
+        assert_eq!(msg.data, json!({"key": "value"}));
+        assert_eq!(msg.attempt, 0);
+        // delivery_id is assigned, just verify it exists (u64)
+        let _ = msg.delivery_id;
+    }
+
+    #[tokio::test]
+    async fn ack_removes_delivery_tracking() {
+        let engine = Arc::new(Engine::new());
+        let adapter = make_adapter(Arc::clone(&engine));
+        let config = FunctionQueueConfig::default();
+
+        adapter
+            .setup_function_queue("test-q", &config)
+            .await
+            .expect("setup should succeed");
+
+        let mut rx = adapter
+            .consume_function_queue("test-q", 1)
+            .await
+            .expect("consume should return receiver");
+
+        adapter
+            .publish_to_function_queue(
+                "test-q",
+                "fn::handler",
+                json!({"ack": true}),
+                "test-msg-id",
+                3,
+                1000,
+                None,
+                None,
+            )
+            .await;
+
+        let msg = tokio::time::timeout(Duration::from_secs(2), rx.recv())
+            .await
+            .expect("should receive within timeout")
+            .expect("channel should not be closed");
+
+        let result = adapter.ack_function_queue("test-q", msg.delivery_id).await;
+        assert!(result.is_ok(), "ack should succeed");
+
+        assert!(
+            adapter.delivery_map.read().await.is_empty(),
+            "delivery_map should be empty after ack"
+        );
+    }
+
+    #[tokio::test]
+    async fn nack_removes_delivery_tracking() {
+        let engine = Arc::new(Engine::new());
+        let adapter = make_adapter(Arc::clone(&engine));
+        let config = FunctionQueueConfig::default();
+
+        adapter
+            .setup_function_queue("test-q", &config)
+            .await
+            .expect("setup should succeed");
+
+        let mut rx = adapter
+            .consume_function_queue("test-q", 1)
+            .await
+            .expect("consume should return receiver");
+
+        adapter
+            .publish_to_function_queue(
+                "test-q",
+                "fn::handler",
+                json!({"nack": true}),
+                "test-msg-id",
+                3,
+                1000,
+                None,
+                None,
+            )
+            .await;
+
+        let msg = tokio::time::timeout(Duration::from_secs(2), rx.recv())
+            .await
+            .expect("should receive within timeout")
+            .expect("channel should not be closed");
+
+        let result = adapter
+            .nack_function_queue("test-q", msg.delivery_id, 0, 3)
+            .await;
+        assert!(result.is_ok(), "nack should succeed");
+
+        assert!(
+            adapter.delivery_map.read().await.is_empty(),
+            "delivery_map should be empty after nack"
+        );
+    }
+
+    #[tokio::test]
+    async fn consume_multiple_messages_in_order() {
+        let engine = Arc::new(Engine::new());
+        let adapter = make_adapter(Arc::clone(&engine));
+        let config = FunctionQueueConfig::default();
+
+        adapter
+            .setup_function_queue("test-q", &config)
+            .await
+            .expect("setup should succeed");
+
+        let mut rx = adapter
+            .consume_function_queue("test-q", 10)
+            .await
+            .expect("consume should return receiver");
+
+        for i in 0..3 {
+            adapter
+                .publish_to_function_queue(
+                    "test-q",
+                    "fn::handler",
+                    json!({"order": i}),
+                    "test-msg-id",
+                    3,
+                    1000,
+                    None,
+                    None,
+                )
+                .await;
+        }
+
+        let mut delivery_ids = Vec::new();
+        for i in 0..3 {
+            let msg = tokio::time::timeout(Duration::from_secs(2), rx.recv())
+                .await
+                .unwrap_or_else(|_| panic!("should receive message {} within timeout", i))
+                .unwrap_or_else(|| panic!("channel should not be closed for message {}", i));
+
+            assert_eq!(
+                msg.data,
+                json!({"order": i}),
+                "messages should arrive in order"
+            );
+            delivery_ids.push(msg.delivery_id);
+        }
+
+        // All delivery IDs must be unique
+        let unique: HashSet<u64> = delivery_ids.iter().copied().collect();
+        assert_eq!(
+            unique.len(),
+            3,
+            "each message should have a unique delivery_id"
+        );
+    }
+
+    #[tokio::test]
+    async fn delivery_ids_are_unique() {
+        let engine = Arc::new(Engine::new());
+        let adapter = make_adapter(Arc::clone(&engine));
+        let config = FunctionQueueConfig::default();
+
+        adapter
+            .setup_function_queue("test-q", &config)
+            .await
+            .expect("setup should succeed");
+
+        let mut rx = adapter
+            .consume_function_queue("test-q", 10)
+            .await
+            .expect("consume should return receiver");
+
+        for i in 0..5 {
+            adapter
+                .publish_to_function_queue(
+                    "test-q",
+                    "fn::handler",
+                    json!({"idx": i}),
+                    "test-msg-id",
+                    3,
+                    1000,
+                    None,
+                    None,
+                )
+                .await;
+        }
+
+        let mut ids = HashSet::new();
+        for i in 0..5 {
+            let msg = tokio::time::timeout(Duration::from_secs(2), rx.recv())
+                .await
+                .unwrap_or_else(|_| panic!("should receive message {} within timeout", i))
+                .unwrap_or_else(|| panic!("channel should not be closed for message {}", i));
+            ids.insert(msg.delivery_id);
+        }
+
+        assert_eq!(ids.len(), 5, "all 5 delivery_ids should be unique");
+    }
+
+    #[tokio::test]
+    async fn publish_with_trace_context_propagates() {
+        let engine = Arc::new(Engine::new());
+        let adapter = make_adapter(Arc::clone(&engine));
+        let config = FunctionQueueConfig::default();
+
+        adapter
+            .setup_function_queue("test-q", &config)
+            .await
+            .expect("setup should succeed");
+
+        let mut rx = adapter
+            .consume_function_queue("test-q", 1)
+            .await
+            .expect("consume should return receiver");
+
+        adapter
+            .publish_to_function_queue(
+                "test-q",
+                "fn::handler",
+                json!({"traced": true}),
+                "test-msg-id",
+                3,
+                1000,
+                Some("00-abc-def-01".to_string()),
+                Some("key=value".to_string()),
+            )
+            .await;
+
+        let msg = tokio::time::timeout(Duration::from_secs(2), rx.recv())
+            .await
+            .expect("should receive within timeout")
+            .expect("channel should not be closed");
+
+        assert_eq!(
+            msg.traceparent.as_deref(),
+            Some("00-abc-def-01"),
+            "traceparent should propagate"
+        );
+        assert_eq!(
+            msg.baggage.as_deref(),
+            Some("key=value"),
+            "baggage should propagate"
+        );
     }
 }

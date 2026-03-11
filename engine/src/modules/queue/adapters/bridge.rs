@@ -113,7 +113,11 @@ impl QueueAdapter for BridgeAdapter {
         let input = Self::build_enqueue_payload(topic, data);
         if let Err(e) = self
             .bridge
-            .call_void(Self::queue_enqueue_function_id(), input)
+            .trigger(
+                iii_sdk::TriggerRequest::new(Self::queue_enqueue_function_id(), input)
+                    .action(iii_sdk::TriggerAction::void()),
+            )
+            .await
         {
             tracing::error!(error = %e, topic = %topic, "Failed to enqueue message via bridge");
         }
@@ -244,6 +248,40 @@ impl QueueAdapter for BridgeAdapter {
         Err(anyhow::anyhow!(
             "Bridge queue adapter does not support DLQ operations"
         ))
+    }
+
+    async fn publish_to_function_queue(
+        &self,
+        queue_name: &str,
+        function_id: &str,
+        data: Value,
+        _message_id: &str,
+        _max_retries: u32,
+        _backoff_ms: u64,
+        _traceparent: Option<String>,
+        _baggage: Option<String>,
+    ) {
+        if let Err(e) = self
+            .bridge
+            .trigger(
+                iii_sdk::TriggerRequest::new(function_id, data)
+                    .action(iii_sdk::TriggerAction::enqueue(queue_name)),
+            )
+            .await
+        {
+            tracing::error!(error = %e, queue = %queue_name, function_id = %function_id, "Failed to enqueue via bridge");
+        }
+    }
+
+    async fn consume_function_queue(
+        &self,
+        _queue_name: &str,
+        _prefetch: u32,
+    ) -> anyhow::Result<tokio::sync::mpsc::Receiver<crate::modules::queue::QueueMessage>> {
+        // Bridge adapter: consuming happens on the remote engine.
+        // Return a channel that will never receive (consumer loop stays idle).
+        let (_tx, rx) = tokio::sync::mpsc::channel(1);
+        Ok(rx)
     }
 }
 

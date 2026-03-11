@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { TriggerAction } from '../src/iii'
 import { execute, iii, sleep } from './utils'
 
 describe('Bridge Operations', () => {
@@ -18,10 +19,10 @@ describe('Bridge Operations', () => {
 
     await sleep(300)
 
-    const result = await iii.call<Record<string, unknown>, { echoed: Record<string, unknown> }>(
-      'test.echo',
-      { message: 'hello' },
-    )
+    const result = await iii.trigger<Record<string, unknown>, { echoed: Record<string, unknown> }>({
+      function_id: 'test.echo',
+      payload: { message: 'hello' },
+    })
 
     expect(result).toHaveProperty('echoed')
     expect(result.echoed).toHaveProperty('message', 'hello')
@@ -48,7 +49,7 @@ describe('Bridge Operations', () => {
 
     await sleep(300)
 
-    iii.callVoid('test.receiver', { value: 42 })
+    iii.trigger({ function_id: 'test.receiver', payload: { value: 42 }, action: TriggerAction.Void() })
 
     await Promise.race([
       received,
@@ -79,6 +80,6 @@ describe('Bridge Operations', () => {
   })
 
   it('should reject when invoking non-existent function', async () => {
-    await expect(iii.call('nonexistent.function', {}, 2000)).rejects.toThrow()
+    await expect(iii.trigger({ function_id: 'nonexistent.function', payload: {}, timeoutMs: 2000 })).rejects.toThrow()
   })
 })

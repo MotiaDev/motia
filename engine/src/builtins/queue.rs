@@ -41,6 +41,10 @@ pub struct Job {
     pub traceparent: Option<String>,
     #[serde(default)]
     pub baggage: Option<String>,
+    #[serde(default)]
+    pub function_id: Option<String>,
+    #[serde(default)]
+    pub message_id: Option<String>,
 }
 
 impl Job {
@@ -87,6 +91,8 @@ impl Job {
             group_id,
             traceparent,
             baggage,
+            function_id: None,
+            message_id: None,
         }
     }
 
@@ -314,6 +320,29 @@ impl BuiltinQueue {
         format!("queue:{}:dlq", queue)
     }
 
+    pub async fn push_job(&self, job: Job) -> String {
+        let queue = &job.queue;
+        let job_id = job.id.clone();
+
+        let job_key = self.job_key(queue, &job.id);
+        let job_json =
+            serde_json::to_value(&job).expect("Job serialization failed - this is a bug");
+        self.kv_store.set_job(&job_key, job_json).await;
+
+        let waiting_key = self.waiting_key(queue);
+        self.kv_store.lpush(&waiting_key, job.id.clone()).await;
+
+        self.pubsub.send_msg(serde_json::json!({
+            "topic": format!("queue:job:{}", queue),
+            "type": "available",
+            "job_id": &job.id,
+        }));
+
+        tracing::debug!(queue = %queue, job_id = %job_id, "Job pushed to queue");
+
+        job_id
+    }
+
     pub async fn push(
         &self,
         queue: &str,
@@ -436,7 +465,7 @@ impl BuiltinQueue {
         job_id
     }
 
-    async fn pop(&self, queue: &str) -> Option<Job> {
+    pub async fn pop(&self, queue: &str) -> Option<Job> {
         let waiting_key = self.waiting_key(queue);
         let job_id = self.kv_store.rpop(&waiting_key).await?;
 
@@ -450,7 +479,7 @@ impl BuiltinQueue {
         Some(job)
     }
 
-    async fn ack(&self, queue: &str, job_id: &str) -> anyhow::Result<()> {
+    pub async fn ack(&self, queue: &str, job_id: &str) -> anyhow::Result<()> {
         let active_key = self.active_key(queue);
         self.kv_store.lrem(&active_key, 1, job_id).await;
 
@@ -461,7 +490,7 @@ impl BuiltinQueue {
         Ok(())
     }
 
-    async fn nack(&self, queue: &str, job_id: &str, error: &str) -> anyhow::Result<()> {
+    pub async fn nack(&self, queue: &str, job_id: &str, error: &str) -> anyhow::Result<()> {
         let job_key = self.job_key(queue, job_id);
         let job_value = self.kv_store.get_job(&job_key).await;
 
@@ -528,7 +557,7 @@ impl BuiltinQueue {
         Ok(())
     }
 
-    async fn move_delayed_to_waiting(&self, queue: &str) -> anyhow::Result<()> {
+    pub async fn move_delayed_to_waiting(&self, queue: &str) -> anyhow::Result<()> {
         let delayed_key = self.delayed_key(queue);
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)

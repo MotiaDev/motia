@@ -15,23 +15,23 @@ async def test_kv_set_and_get(bridge):
     test_value = {"name": "test", "value": 123}
 
     # Set value
-    await bridge.call(
-        "kv_server::set",
-        {
+    await bridge.trigger({
+        "function_id": "kv_server::set",
+        "payload": {
             "index": "test_index",
             "key": test_key,
             "value": test_value,
         },
-    )
+    })
 
     # Get value
-    result = await bridge.call(
-        "kv_server::get",
-        {
+    result = await bridge.trigger({
+        "function_id": "kv_server::get",
+        "payload": {
             "index": "test_index",
             "key": test_key,
         },
-    )
+    })
 
     assert result == test_value
 
@@ -42,42 +42,42 @@ async def test_kv_delete(bridge):
     test_key = f"delete_key_{uuid.uuid4()}"
 
     # Set value
-    await bridge.call(
-        "kv_server::set",
-        {
+    await bridge.trigger({
+        "function_id": "kv_server::set",
+        "payload": {
             "index": "test_index",
             "key": test_key,
             "value": {"data": "to_delete"},
         },
-    )
+    })
 
     # Verify it exists
-    result = await bridge.call(
-        "kv_server::get",
-        {
+    result = await bridge.trigger({
+        "function_id": "kv_server::get",
+        "payload": {
             "index": "test_index",
             "key": test_key,
         },
-    )
+    })
     assert result is not None
 
     # Delete
-    await bridge.call(
-        "kv_server::delete",
-        {
+    await bridge.trigger({
+        "function_id": "kv_server::delete",
+        "payload": {
             "index": "test_index",
             "key": test_key,
         },
-    )
+    })
 
     # Verify it's gone
-    result = await bridge.call(
-        "kv_server::get",
-        {
+    result = await bridge.trigger({
+        "function_id": "kv_server::get",
+        "payload": {
             "index": "test_index",
             "key": test_key,
         },
-    )
+    })
     assert result is None
 
 
@@ -88,22 +88,22 @@ async def test_kv_list(bridge):
 
     # Set multiple values
     for i in range(3):
-        await bridge.call(
-            "kv_server::set",
-            {
+        await bridge.trigger({
+            "function_id": "kv_server::set",
+            "payload": {
                 "index": test_index,
                 "key": f"item_{i}",
                 "value": {"id": i},
             },
-        )
+        })
 
     # List all
-    result = await bridge.call(
-        "kv_server::list",
-        {
+    result = await bridge.trigger({
+        "function_id": "kv_server::list",
+        "payload": {
             "index": test_index,
         },
-    )
+    })
 
     assert isinstance(result, list)
     assert len(result) == 3
@@ -112,12 +112,12 @@ async def test_kv_list(bridge):
 @pytest.mark.asyncio
 async def test_kv_get_nonexistent_key(bridge):
     """Test getting a non-existent key returns None."""
-    result = await bridge.call(
-        "kv_server::get",
-        {
+    result = await bridge.trigger({
+        "function_id": "kv_server::get",
+        "payload": {
             "index": "nonexistent_index",
             "key": "nonexistent_key",
         },
-    )
+    })
 
     assert result is None

@@ -30,14 +30,14 @@ def otel_exporter():
 def mock_iii():
     """Create a mock III SDK instance."""
     iii = MagicMock()
-    iii.call = AsyncMock()
+    iii.trigger = AsyncMock()
     return iii
 
 
 @pytest.mark.asyncio
 async def test_stream_get_creates_span(otel_exporter, mock_iii):
     """stream.get() should create a span named 'stream.get' with correct attributes."""
-    mock_iii.call.return_value = {"id": "item1", "value": "data"}
+    mock_iii.trigger.return_value = {"id": "item1", "value": "data"}
 
     with patch("motia.streams.get_instance", return_value=mock_iii):
         stream = Stream("my-stream")
@@ -59,7 +59,7 @@ async def test_stream_get_creates_span(otel_exporter, mock_iii):
 @pytest.mark.asyncio
 async def test_stream_set_creates_span(otel_exporter, mock_iii):
     """stream.set() should create a span named 'stream.set' with correct attributes."""
-    mock_iii.call.return_value = {"id": "item1", "value": "hello"}
+    mock_iii.trigger.return_value = {"id": "item1", "value": "hello"}
 
     with patch("motia.streams.get_instance", return_value=mock_iii):
         stream = Stream("my-stream")
@@ -81,7 +81,7 @@ async def test_stream_set_creates_span(otel_exporter, mock_iii):
 @pytest.mark.asyncio
 async def test_stream_delete_creates_span(otel_exporter, mock_iii):
     """stream.delete() should create a span named 'stream.delete' with correct attributes."""
-    mock_iii.call.return_value = None
+    mock_iii.trigger.return_value = None
 
     with patch("motia.streams.get_instance", return_value=mock_iii):
         stream = Stream("my-stream")
@@ -101,7 +101,7 @@ async def test_stream_delete_creates_span(otel_exporter, mock_iii):
 @pytest.mark.asyncio
 async def test_stream_get_group_creates_span(otel_exporter, mock_iii):
     """stream.get_group() should create a span named 'stream.list' with correct attributes."""
-    mock_iii.call.return_value = [{"id": "a"}, {"id": "b"}]
+    mock_iii.trigger.return_value = [{"id": "a"}, {"id": "b"}]
 
     with patch("motia.streams.get_instance", return_value=mock_iii):
         stream = Stream("my-stream")
@@ -122,7 +122,7 @@ async def test_stream_get_group_creates_span(otel_exporter, mock_iii):
 @pytest.mark.asyncio
 async def test_stream_list_groups_creates_span(otel_exporter, mock_iii):
     """stream.list_groups() should create a span named 'stream.list_groups' with correct attributes."""
-    mock_iii.call.return_value = ["group1", "group2"]
+    mock_iii.trigger.return_value = ["group1", "group2"]
 
     with patch("motia.streams.get_instance", return_value=mock_iii):
         stream = Stream("my-stream")

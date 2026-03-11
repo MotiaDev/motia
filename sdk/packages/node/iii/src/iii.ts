@@ -22,7 +22,9 @@ import {
   type RegisterServiceMessage,
   type RegisterTriggerMessage,
   type RegisterTriggerTypeMessage,
+  type TriggerAction as TriggerActionType,
   type TriggerRegistrationResultMessage,
+  type TriggerRequest,
   type WorkerInfo,
   type WorkerRegisteredMessage,
   type StreamChannelRef,
@@ -255,10 +257,10 @@ class Sdk implements ISdk {
   }
 
   createChannel = async (bufferSize?: number): Promise<import('./types').Channel> => {
-    const result = await this.call<
+    const result = await this.trigger<
       { buffer_size?: number },
       { writer: StreamChannelRef; reader: StreamChannelRef }
-    >('engine::channels::create', { buffer_size: bufferSize })
+    >({ function_id: 'engine::channels::create', payload: { buffer_size: bufferSize } })
 
     return {
       writer: new ChannelWriter(this.address, result.writer),
@@ -269,14 +271,29 @@ class Sdk implements ISdk {
   }
 
   trigger = async <TInput, TOutput>(
-    function_id: string,
-    data: TInput,
-    timeoutMs?: number,
+    request: TriggerRequest<TInput>,
   ): Promise<TOutput> => {
+    const { function_id, payload, action, timeoutMs } = request
+    const effectiveTimeout = timeoutMs ?? this.invocationTimeoutMs
+
+    // Void is fire-and-forget — no invocation_id, no response
+    if (action?.type === 'void') {
+      const traceparent = injectTraceparent()
+      const baggage = injectBaggage()
+      this.sendMessage(MessageType.InvokeFunction, {
+        function_id,
+        data: payload,
+        traceparent,
+        baggage,
+        action,
+      })
+      return undefined as TOutput
+    }
+
+    // Enqueue and default: send invocation_id, await response
     const invocation_id = crypto.randomUUID()
     const traceparent = injectTraceparent()
     const baggage = injectBaggage()
-    const effectiveTimeout = timeoutMs ?? this.invocationTimeoutMs
 
     return new Promise<TOutput>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -302,41 +319,27 @@ class Sdk implements ISdk {
       this.sendMessage(MessageType.InvokeFunction, {
         invocation_id,
         function_id,
-        data,
+        data: payload,
         traceparent,
         baggage,
+        action,
       })
     })
   }
 
-  triggerVoid = <TInput>(function_id: string, data: TInput): void => {
-    const traceparent = injectTraceparent()
-    const baggage = injectBaggage()
-    this.sendMessage(MessageType.InvokeFunction, { function_id, data, traceparent, baggage })
-  }
-
-  call = async <TInput, TOutput>(
-    function_id: string,
-    data: TInput,
-    timeoutMs?: number,
-  ): Promise<TOutput> => this.trigger<TInput, TOutput>(function_id, data, timeoutMs)
-
-  callVoid = <TInput>(function_id: string, data: TInput): void =>
-    this.triggerVoid(function_id, data)
-
   listFunctions = async (): Promise<FunctionInfo[]> => {
-    const result = await this.trigger<Record<string, never>, { functions: FunctionInfo[] }>(
-      EngineFunctions.LIST_FUNCTIONS,
-      {},
-    )
+    const result = await this.trigger<Record<string, never>, { functions: FunctionInfo[] }>({
+      function_id: EngineFunctions.LIST_FUNCTIONS,
+      payload: {},
+    })
     return result.functions
   }
 
   listWorkers = async (): Promise<WorkerInfo[]> => {
-    const result = await this.trigger<Record<string, never>, { workers: WorkerInfo[] }>(
-      EngineFunctions.LIST_WORKERS,
-      {},
-    )
+    const result = await this.trigger<Record<string, never>, { workers: WorkerInfo[] }>({
+      function_id: EngineFunctions.LIST_WORKERS,
+      payload: {},
+    })
     return result.workers
   }
 
@@ -347,18 +350,22 @@ class Sdk implements ISdk {
       Intl.DateTimeFormat().resolvedOptions().locale ??
       process.env.LANG?.split('.')[0]
 
-    this.triggerVoid(EngineFunctions.REGISTER_WORKER, {
-      runtime: 'node',
-      version: SDK_VERSION,
-      name: this.workerName,
-      os: getOsInfo(),
-      pid: process.pid,
-      telemetry: {
-        language,
-        project_name: telemetryOpts?.project_name,
-        framework: telemetryOpts?.framework,
-        amplitude_api_key: telemetryOpts?.amplitude_api_key,
+    this.trigger({
+      function_id: EngineFunctions.REGISTER_WORKER,
+      payload: {
+        runtime: 'node',
+        version: SDK_VERSION,
+        name: this.workerName,
+        os: getOsInfo(),
+        pid: process.pid,
+        telemetry: {
+          language,
+          project_name: telemetryOpts?.project_name,
+          framework: telemetryOpts?.framework,
+          amplitude_api_key: telemetryOpts?.amplitude_api_key,
+        },
       },
+      action: { type: 'void' },
     })
   }
 
@@ -899,6 +906,12 @@ class Sdk implements ISdk {
     }
   }
 }
+
+export const TriggerAction = {
+  Enqueue: (opts: { queue: string }): TriggerActionType => ({ type: 'enqueue', ...opts }),
+  Void: (): TriggerActionType => ({ type: 'void' }),
+} as const
+
 
 export const registerWorker = (address: string, options?: InitOptions): ISdk =>
   new Sdk(address, options)

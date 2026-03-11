@@ -49,6 +49,79 @@ fn default_http_method() -> HttpMethod {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
+pub enum TriggerAction {
+    Enqueue { queue: String },
+    Void,
+}
+
+impl TriggerAction {
+    pub fn enqueue(queue: &str) -> Self {
+        TriggerAction::Enqueue {
+            queue: queue.to_string(),
+        }
+    }
+    pub fn void() -> Self {
+        TriggerAction::Void
+    }
+}
+
+/// Result returned by the engine when a message is successfully enqueued.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnqueueResult {
+    #[serde(rename = "messageReceiptId")]
+    pub message_receipt_id: String,
+}
+
+/// Request object for `trigger()`. Matches the Node/Python SDK signature:
+/// `trigger({ function_id, payload, action?, timeout? })`
+///
+/// Build with the constructor or the builder-style methods:
+/// ```rust,no_run
+/// # use iii_sdk::protocol::{TriggerRequest, TriggerAction};
+/// # use serde_json::json;
+/// # use std::time::Duration;
+/// // Simple call
+/// TriggerRequest::new("my::function", json!({ "key": "value" }));
+///
+/// // With action
+/// TriggerRequest::new("my::function", json!({}))
+///     .action(TriggerAction::enqueue("payments"));
+///
+/// // With timeout
+/// TriggerRequest::new("my::function", json!({}))
+///     .timeout(Duration::from_secs(10));
+/// ```
+#[derive(Debug, Clone)]
+pub struct TriggerRequest {
+    pub function_id: String,
+    pub payload: Value,
+    pub action: Option<TriggerAction>,
+    pub timeout: Option<std::time::Duration>,
+}
+
+impl TriggerRequest {
+    pub fn new(function_id: impl Into<String>, payload: impl serde::Serialize) -> Self {
+        Self {
+            function_id: function_id.into(),
+            payload: serde_json::to_value(payload).unwrap_or(Value::Null),
+            action: None,
+            timeout: None,
+        }
+    }
+
+    pub fn action(mut self, action: TriggerAction) -> Self {
+        self.action = Some(action);
+        self
+    }
+
+    pub fn timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum Message {
     RegisterTriggerType {
         id: String,
@@ -98,6 +171,8 @@ pub enum Message {
         traceparent: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         baggage: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        action: Option<TriggerAction>,
     },
     InvocationResult {
         invocation_id: Uuid,

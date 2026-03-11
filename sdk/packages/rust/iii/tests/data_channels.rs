@@ -90,13 +90,13 @@ async fn stream_data_from_sender_to_processor() {
                 .map_err(|e| IIIError::Handler(e.to_string()))?;
 
             let result = iii
-                .call(
+                .trigger(iii_sdk::TriggerRequest::new(
                     "test.data.processor.rs",
                     json!({
                         "label": "metrics-batch",
                         "reader": channel.reader_ref,
                     }),
-                )
+                ))
                 .await
                 .map_err(|e| IIIError::Handler(e.to_string()))?;
 
@@ -115,7 +115,10 @@ async fn stream_data_from_sender_to_processor() {
     ]);
 
     let result = iii
-        .call("test.data.sender.rs", json!({"records": records}))
+        .trigger(iii_sdk::TriggerRequest::new(
+            "test.data.sender.rs",
+            json!({"records": records}),
+        ))
         .await
         .expect("call failed");
 
@@ -282,13 +285,13 @@ async fn bidirectional_streaming() {
                 let reader_ref = input_channel.reader_ref.clone();
                 let writer_ref = output_channel.writer_ref.clone();
                 tokio::spawn(async move {
-                    iii.call(
+                    iii.trigger(iii_sdk::TriggerRequest::new(
                         "test.stream.worker.rs",
                         json!({
                             "reader": reader_ref,
                             "writer": writer_ref,
                         }),
-                    )
+                    ))
                     .await
                 })
             };
@@ -327,13 +330,13 @@ async fn bidirectional_streaming() {
     let text = "The quick brown fox jumps over the lazy dog and then runs around the park";
 
     let result = iii
-        .call(
+        .trigger(iii_sdk::TriggerRequest::new(
             "test.stream.coordinator.rs",
             json!({
                 "text": text,
                 "chunkSize": 10,
             }),
-        )
+        ))
         .await
         .expect("call failed");
 

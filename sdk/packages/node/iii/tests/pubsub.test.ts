@@ -31,10 +31,10 @@ describe('PubSub', () => {
 
     await sleep(300)
 
-    await iii.call('publish', {
+    await iii.trigger({ function_id: 'publish', payload: {
       topic,
       data: { message: 'Hello PubSub!' },
-    })
+    } })
 
     await Promise.race([
       received,
@@ -92,10 +92,10 @@ describe('PubSub', () => {
 
     await sleep(300)
 
-    await iii.call('publish', {
+    await iii.trigger({ function_id: 'publish', payload: {
       topic: topicA,
       data: { for: 'a' },
-    })
+    } })
 
     await Promise.race([
       receivedAPromise,

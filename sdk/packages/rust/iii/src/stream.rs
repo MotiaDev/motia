@@ -91,7 +91,13 @@ impl Streams {
             ops,
         };
 
-        let result = self.iii.trigger("stream::update", input).await?;
+        let result = self
+            .iii
+            .trigger(crate::protocol::TriggerRequest::new(
+                "stream::update",
+                input,
+            ))
+            .await?;
 
         serde_json::from_value(result).map_err(|e| IIIError::Serde(e.to_string()))
     }

@@ -159,7 +159,7 @@ describe('HTTP external functions', () => {
       })
       await sleep(300)
 
-      await execute(async () => iii.call('enqueue', { topic, data: payload }))
+      await execute(async () => iii.trigger({ function_id: 'enqueue', payload: { topic, data: payload } }))
 
       const webhook = await webhookProbe.waitForWebhook(7000)
 
@@ -247,7 +247,7 @@ describe('HTTP external functions', () => {
       })
       await sleep(300)
 
-      await execute(async () => iii.call('enqueue', { topic, data: payload }))
+      await execute(async () => iii.trigger({ function_id: 'enqueue', payload: { topic, data: payload } }))
 
       const webhook = await webhookProbe.waitForWebhook(7000)
 
@@ -318,8 +318,8 @@ describe('HTTP external functions', () => {
       })
       await sleep(300)
 
-      await execute(async () => iii.call('enqueue', { topic: topicA, data: payloadA }))
-      await execute(async () => iii.call('enqueue', { topic: topicB, data: payloadB }))
+      await execute(async () => iii.trigger({ function_id: 'enqueue', payload: { topic: topicA, data: payloadA } }))
+      await execute(async () => iii.trigger({ function_id: 'enqueue', payload: { topic: topicB, data: payloadB } }))
 
       const webhookA = await webhookProbeA.waitForWebhook(7000)
       const webhookB = await webhookProbeB.waitForWebhook(7000)
@@ -373,7 +373,7 @@ describe('HTTP external functions', () => {
       })
       await sleep(300)
 
-      await execute(async () => iii.call('enqueue', { topic, data: payloadBefore }))
+      await execute(async () => iii.trigger({ function_id: 'enqueue', payload: { topic, data: payloadBefore } }))
 
       const webhookBefore = await webhookProbe.waitForWebhook(7000)
       expect(webhookBefore.body).toMatchObject(payloadBefore)
@@ -384,7 +384,7 @@ describe('HTTP external functions', () => {
       httpFn = undefined
       await sleep(500)
 
-      await execute(async () => iii.call('enqueue', { topic, data: payloadAfter }))
+      await execute(async () => iii.trigger({ function_id: 'enqueue', payload: { topic, data: payloadAfter } }))
 
       let receivedAfterUnregister = false
       try {
@@ -435,7 +435,7 @@ describe('HTTP external functions', () => {
       })
       await sleep(300)
 
-      await execute(async () => iii.call('enqueue', { topic, data: payload }))
+      await execute(async () => iii.trigger({ function_id: 'enqueue', payload: { topic, data: payload } }))
 
       const webhook = await webhookProbe.waitForWebhook(7000)
 

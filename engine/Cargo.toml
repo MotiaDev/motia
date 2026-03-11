@@ -85,7 +85,7 @@ name = "worker_invocation_tracking_bench"
 harness = false
 
 [features]
-default = []
+default = ["rabbitmq"]
 rabbitmq = ["lapin"]
 
 [dependencies]

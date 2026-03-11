@@ -6,6 +6,8 @@ import type {
   RegisterTriggerMessage,
   RegisterTriggerTypeMessage,
   StreamChannelRef,
+  TriggerAction,
+  TriggerRequest,
 } from './iii-types'
 import type { TriggerHandler } from './triggers'
 import type { IStream } from './stream'
@@ -109,29 +111,17 @@ export interface ISdk {
   registerFunction(func: RegisterFunctionInput, invocation: HttpInvocationConfig): FunctionRef
 
   /**
-   * Invokes a function.
-   * @param function_id - The path to the function
-   * @param data - The data to pass to the function
-   * @param timeoutMs - Optional timeout in milliseconds
+   * Invokes a function using a request object.
+   *
+   * @param request - The trigger request containing function_id, payload, and optional action/timeout
    * @returns The result of the function
    */
-  trigger<TInput, TOutput>(function_id: string, data: TInput, timeoutMs?: number): Promise<TOutput>
+  trigger<TInput, TOutput>(request: TriggerRequest<TInput>): Promise<TOutput>
 
   /**
    * Lists all registered functions.
    */
   listFunctions(): Promise<FunctionInfo[]>
-
-  /**
-   * Invokes a function asynchronously.
-   * @param function_id - The path to the function
-   * @param data - The data to pass to the function
-   */
-  triggerVoid<TInput>(function_id: string, data: TInput): void
-
-  call<TInput, TOutput>(function_id: string, data: TInput, timeoutMs?: number): Promise<TOutput>
-
-  callVoid<TInput>(function_id: string, data: TInput): void
 
   /**
    * Registers a new trigger type. A trigger type is a way to invoke a function when a certain event occurs.

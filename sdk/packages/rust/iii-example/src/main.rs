@@ -1,7 +1,8 @@
 use std::time::Duration;
 
 use iii_sdk::{
-    IIIError, InitOptions, OtelConfig, Streams, UpdateBuilder, UpdateOp, register_worker,
+    IIIError, InitOptions, OtelConfig, Streams, TriggerRequest, UpdateBuilder, UpdateOp,
+    register_worker,
 };
 use serde_json::json;
 
@@ -46,7 +47,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let result = iii
-        .call("example.echo", json!({ "message": "hello" }))
+        .trigger(TriggerRequest::new(
+            "example.echo",
+            json!({ "message": "hello" }),
+        ))
         .await?;
     println!("Echo result: {result}");
 

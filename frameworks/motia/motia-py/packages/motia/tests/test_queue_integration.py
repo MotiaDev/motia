@@ -26,7 +26,7 @@ async def test_enqueue_delivers_message_to_subscribed_handler(bridge):
     await flush_bridge_queue(bridge)
     await asyncio.sleep(0.5)
 
-    await bridge.call("enqueue", {"topic": topic, "data": {"order": "abc"}})
+    await bridge.trigger({"function_id": "enqueue", "payload": {"topic": topic, "data": {"order": "abc"}}})
     await asyncio.sleep(1.5)
 
     assert received == [{"order": "abc"}]
@@ -49,7 +49,7 @@ async def test_handler_receives_exact_data_payload_from_enqueue(bridge):
     await flush_bridge_queue(bridge)
     await asyncio.sleep(0.5)
 
-    await bridge.call("enqueue", {"topic": topic, "data": payload})
+    await bridge.trigger({"function_id": "enqueue", "payload": {"topic": topic, "data": payload}})
     await asyncio.sleep(1.5)
 
     assert received == [payload]
@@ -82,7 +82,7 @@ async def test_subscription_with_queue_config_receives_messages(bridge):
     await flush_bridge_queue(bridge)
     await asyncio.sleep(0.5)
 
-    await bridge.call("enqueue", {"topic": topic, "data": {"infra": True}})
+    await bridge.trigger({"function_id": "enqueue", "payload": {"topic": topic, "data": {"infra": True}}})
     await asyncio.sleep(1.5)
 
     assert received == [{"infra": True}]
@@ -111,8 +111,8 @@ async def test_multiple_subscribers_on_same_topic_messages_delivered_to_one(brid
     await flush_bridge_queue(bridge)
     await asyncio.sleep(0.5)
 
-    await bridge.call("enqueue", {"topic": topic, "data": {"msg": 1}})
-    await bridge.call("enqueue", {"topic": topic, "data": {"msg": 2}})
+    await bridge.trigger({"function_id": "enqueue", "payload": {"topic": topic, "data": {"msg": 1}}})
+    await bridge.trigger({"function_id": "enqueue", "payload": {"topic": topic, "data": {"msg": 2}}})
     await asyncio.sleep(2.0)
 
     total = len(received1) + len(received2)
@@ -151,8 +151,8 @@ async def test_condition_function_filters_messages(bridge):
     await wait_for_registration(bridge, function_id)
     await wait_for_registration(bridge, condition_path)
 
-    await bridge.call("enqueue", {"topic": topic, "data": {"accept": False}})
-    await bridge.call("enqueue", {"topic": topic, "data": {"accept": True}})
+    await bridge.trigger({"function_id": "enqueue", "payload": {"topic": topic, "data": {"accept": False}}})
+    await bridge.trigger({"function_id": "enqueue", "payload": {"topic": topic, "data": {"accept": True}}})
     await asyncio.sleep(2.0)
 
     assert len(handler_calls) == 1

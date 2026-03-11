@@ -122,12 +122,15 @@ impl Module for BridgeClientModule {
                         .unwrap_or_else(|| Duration::from_secs(30));
 
                     match bridge
-                        .call_with_timeout(&invoke.function_id, invoke.data, timeout)
+                        .trigger(
+                            iii_sdk::TriggerRequest::new(&invoke.function_id, invoke.data)
+                                .timeout(timeout),
+                        )
                         .await
                     {
                         Ok(result) => FunctionResult::Success(Some(result)),
                         Err(err) => {
-                            tracing::error!(error = ?err, "Bridge call_with_timeout failed");
+                            tracing::error!(error = ?err, "Bridge trigger failed");
                             FunctionResult::Failure(ErrorBody {
                                 code: "bridge_error".into(),
                                 message: err.to_string(),
@@ -163,8 +166,14 @@ impl Module for BridgeClientModule {
                         }
                     };
 
-                    if let Err(err) = bridge.call_void(&invoke.function_id, invoke.data) {
-                        tracing::error!(error = ?err, "Bridge call_void failed");
+                    if let Err(err) = bridge
+                        .trigger(
+                            iii_sdk::TriggerRequest::new(&invoke.function_id, invoke.data)
+                                .action(iii_sdk::TriggerAction::void()),
+                        )
+                        .await
+                    {
+                        tracing::error!(error = ?err, "Bridge fire-and-forget failed");
                         return FunctionResult::Failure(ErrorBody {
                             code: "bridge_error".into(),
                             message: err.to_string(),
@@ -200,12 +209,15 @@ impl Module for BridgeClientModule {
                             .unwrap_or_else(|| Duration::from_secs(30));
 
                         match bridge
-                            .call_with_timeout(&remote_function, input, timeout)
+                            .trigger(
+                                iii_sdk::TriggerRequest::new(&remote_function, input)
+                                    .timeout(timeout),
+                            )
                             .await
                         {
                             Ok(result) => FunctionResult::Success(Some(result)),
                             Err(err) => {
-                                tracing::error!(error = ?err, "Bridge call_with_timeout failed");
+                                tracing::error!(error = ?err, "Bridge trigger failed");
                                 FunctionResult::Failure(ErrorBody {
                                     code: "bridge_error".into(),
                                     message: err.to_string(),
@@ -336,6 +348,7 @@ mod tests {
                                 data: json!({ "source": "server" }),
                                 traceparent: None,
                                 baggage: None,
+                                action: None,
                             };
                             websocket
                                 .send(WsMessage::Text(
