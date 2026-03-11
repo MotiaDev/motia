@@ -646,8 +646,12 @@ class III:
         return FunctionRef(id=path, unregister=unregister)
 
     def register_service(
-        self, id: str, name: str | None = None,
-        description: str | None = None, parent_id: str | None = None,
+        self,
+        id: str,
+        description: str | None = None,
+        parent_id: str | None = None,
+        *,
+        name: str | None = None,
     ) -> None:
         msg = RegisterServiceMessage(id=id, name=name or id, description=description, parent_service_id=parent_id)
         self._services[id] = msg
@@ -727,9 +731,12 @@ class III:
         workers_data = result.get("workers", [])
         return [WorkerInfo(**w) for w in workers_data]
 
-    async def list_triggers(self) -> list[TriggerInfo]:
+    async def list_triggers(self, include_internal: bool = False) -> list[TriggerInfo]:
         """List all registered triggers from the engine."""
-        result = await self.trigger({"function_id": "engine::triggers::list", "payload": {}})
+        result = await self.trigger({
+            "function_id": "engine::triggers::list",
+            "payload": {"include_internal": include_internal},
+        })
         triggers_data = result.get("triggers", [])
         return [TriggerInfo(**t) for t in triggers_data]
 
@@ -877,10 +884,11 @@ class III:
             result = await stream.set(input_data)
             return result.model_dump() if result else None
 
-        async def delete_handler(data: Any) -> None:
+        async def delete_handler(data: Any) -> Any:
             from .stream import StreamDeleteInput
             input_data = StreamDeleteInput(**data) if isinstance(data, dict) else data
-            await stream.delete(input_data)
+            result = await stream.delete(input_data)
+            return result.model_dump() if result else None
 
         async def list_handler(data: Any) -> list[Any]:
             from .stream import StreamListInput

@@ -121,6 +121,7 @@ impl ServicesRegistry {
 pub struct Service {
     _id: String,
     name: String,
+    pub parent_service_id: Option<String>,
     functions: HashSet<String>,
 }
 
@@ -129,6 +130,16 @@ impl Service {
         Service {
             _id: id,
             name,
+            parent_service_id: None,
+            functions: HashSet::new(),
+        }
+    }
+
+    pub fn with_parent(name: String, id: String, parent_service_id: Option<String>) -> Self {
+        Service {
+            _id: id,
+            name,
+            parent_service_id,
             functions: HashSet::new(),
         }
     }

@@ -188,6 +188,7 @@ pub enum Message {
     },
     RegisterService {
         id: String,
+        #[serde(default)]
         name: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         description: Option<String>,

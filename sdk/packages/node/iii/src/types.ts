@@ -126,8 +126,9 @@ export interface ISdk {
 
   /**
    * Lists all registered triggers.
+   * @param includeInternal - Whether to include internal triggers (default: false)
    */
-  listTriggers(): Promise<TriggerInfo[]>
+  listTriggers(includeInternal?: boolean): Promise<TriggerInfo[]>
 
   /**
    * Registers a new trigger type. A trigger type is a way to invoke a function when a certain event occurs.
@@ -135,10 +136,7 @@ export interface ISdk {
    * @param handler - The handler for the trigger type
    * @returns A trigger type object that can be used to unregister the trigger type
    */
-  registerTriggerType<TConfig>(
-    triggerType: RegisterTriggerTypeInput,
-    handler: TriggerHandler<TConfig>,
-  ): void
+  registerTriggerType<TConfig>(triggerType: RegisterTriggerTypeInput, handler: TriggerHandler<TConfig>): void
 
   /**
    * Unregisters a trigger type.
@@ -229,10 +227,7 @@ export type HttpResponse = {
 export type HttpRequest<TBody = unknown> = Omit<InternalHttpRequest<TBody>, 'response'>
 export type ApiRequest<TBody = unknown> = HttpRequest<TBody>
 
-export type ApiResponse<
-  TStatus extends number = number,
-  TBody = string | Buffer | Record<string, unknown>,
-> = {
+export type ApiResponse<TStatus extends number = number, TBody = string | Buffer | Record<string, unknown>> = {
   status_code: TStatus
   headers?: Record<string, string>
   body?: TBody

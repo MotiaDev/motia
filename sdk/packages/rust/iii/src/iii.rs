@@ -546,6 +546,28 @@ impl III {
         let _ = self.send_message(message.to_message());
     }
 
+    pub fn register_service_with_parent(
+        &self,
+        id: impl Into<String>,
+        name: Option<String>,
+        description: Option<String>,
+        parent_service_id: Option<String>,
+    ) {
+        let id = id.into();
+        let message = RegisterServiceMessage {
+            name: name.unwrap_or_else(|| id.clone()),
+            id,
+            description,
+            parent_service_id,
+        };
+
+        self.inner
+            .services
+            .lock_or_recover()
+            .insert(message.id.clone(), message.clone());
+        let _ = self.send_message(message.to_message());
+    }
+
     pub fn register_trigger_type<H>(
         &self,
         id: impl Into<String>,
@@ -680,12 +702,13 @@ impl III {
             .connection_state_callback_counter
             .fetch_add(1, Ordering::Relaxed);
 
-        callback(*self.inner.connection_state.lock_or_recover());
+        let current_state = {
+            let mut cbs = self.inner.connection_state_callbacks.lock_or_recover();
+            cbs.insert(callback_id, callback.clone());
+            *self.inner.connection_state.lock_or_recover()
+        };
 
-        self.inner
-            .connection_state_callbacks
-            .lock_or_recover()
-            .insert(callback_id, callback);
+        callback(current_state);
 
         ConnectionStateGuard {
             iii: self.clone(),
@@ -694,13 +717,18 @@ impl III {
     }
 
     fn set_connection_state(&self, state: IIIConnectionState) {
-        let mut current = self.inner.connection_state.lock_or_recover();
-        if *current != state {
-            *current = state;
-            let callbacks = self.inner.connection_state_callbacks.lock_or_recover();
-            for callback in callbacks.values() {
-                callback(state);
+        let snapshot: Vec<Arc<dyn Fn(IIIConnectionState) + Send + Sync>> = {
+            let mut current = self.inner.connection_state.lock_or_recover();
+            if *current == state {
+                return;
             }
+            *current = state;
+            let cbs = self.inner.connection_state_callbacks.lock_or_recover();
+            cbs.values().cloned().collect()
+        };
+
+        for callback in &snapshot {
+            callback(state);
         }
     }
 
@@ -820,11 +848,11 @@ impl III {
     }
 
     /// List all registered triggers from the engine
-    pub async fn list_triggers(&self) -> Result<Vec<TriggerInfo>, IIIError> {
+    pub async fn list_triggers(&self, include_internal: bool) -> Result<Vec<TriggerInfo>, IIIError> {
         let result = self
             .trigger(TriggerRequest::new(
                 "engine::triggers::list",
-                serde_json::json!({}),
+                serde_json::json!({ "include_internal": include_internal }),
             ))
             .await?;
 

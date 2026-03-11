@@ -755,8 +755,11 @@ impl Engine {
                     .collect::<Vec<_>>();
                 tracing::debug!(services = ?services, "Current services");
 
-                self.service_registry
-                    .insert_service(Service::new(effective_name.to_string(), id.clone()));
+                self.service_registry.insert_service(Service::with_parent(
+                    effective_name.to_string(),
+                    id.clone(),
+                    parent_service_id.clone(),
+                ));
 
                 Ok(())
             }
