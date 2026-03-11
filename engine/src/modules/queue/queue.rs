@@ -1052,4 +1052,302 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(adapter.enqueue_to_queue_count.load(Ordering::SeqCst), 1);
     }
+
+    // =========================================================================
+    // Integration tests with real BuiltinQueueAdapter
+    // =========================================================================
+
+    use crate::modules::module::ConfigurableModule;
+
+    async fn setup_integration_module() -> (Arc<Engine>, QueueCoreModule, Arc<dyn super::super::QueueAdapter>) {
+        use super::super::config::{FunctionQueueConfig, QueueModuleConfig};
+
+        crate::modules::observability::metrics::ensure_default_meter();
+
+        let engine = Arc::new(Engine::new());
+
+        let factory = QueueCoreModule::get_adapter("modules::queue::BuiltinQueueAdapter")
+            .await
+            .expect("BuiltinQueueAdapter factory must be registered");
+        let adapter = factory(engine.clone(), None)
+            .await
+            .expect("BuiltinQueueAdapter creation should succeed");
+
+        let mut queue_configs = HashMap::new();
+        queue_configs.insert(
+            "default".to_string(),
+            FunctionQueueConfig {
+                r#type: "standard".to_string(),
+                concurrency: 3,
+                ..Default::default()
+            },
+        );
+        queue_configs.insert(
+            "payment".to_string(),
+            FunctionQueueConfig {
+                r#type: "fifo".to_string(),
+                message_group_field: Some("transaction_id".to_string()),
+                concurrency: 1,
+                ..Default::default()
+            },
+        );
+
+        let config = QueueModuleConfig {
+            adapter: None,
+            queue_configs,
+        };
+
+        let module = QueueCoreModule {
+            adapter: adapter.clone(),
+            engine: engine.clone(),
+            _config: config,
+        };
+
+        (engine, module, adapter)
+    }
+
+    #[tokio::test]
+    async fn integration_enqueue_consume_invoke_ack() {
+        let (engine, module, adapter) = setup_integration_module().await;
+
+        let call_count = Arc::new(AtomicU64::new(0));
+        let counter = call_count.clone();
+
+        let function = crate::function::Function {
+            handler: Arc::new(move |_invocation_id, _input| {
+                let counter = counter.clone();
+                Box::pin(async move {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                    FunctionResult::Success(Some(json!({ "ok": true })))
+                })
+            }),
+            _function_id: "integration::ack_fn".to_string(),
+            _description: Some("test".to_string()),
+            request_format: None,
+            response_format: None,
+            metadata: None,
+        };
+        engine
+            .functions
+            .register_function("integration::ack_fn".to_string(), function);
+
+        // Publish a message before initializing the consumer loop
+        adapter
+            .publish_to_function_queue(
+                "default",
+                "integration::ack_fn",
+                json!({"task": "do_work"}),
+                3,
+                1000,
+                None,
+                None,
+            )
+            .await;
+
+        // Initialize starts the consumer loop
+        module.initialize().await.expect("initialize should succeed");
+
+        // Wait for the consumer loop to pick up and process the message
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+        assert_eq!(
+            call_count.load(Ordering::SeqCst),
+            1,
+            "Function should have been called exactly once"
+        );
+    }
+
+    #[tokio::test]
+    async fn integration_function_failure_nacks() {
+        let (engine, module, adapter) = setup_integration_module().await;
+
+        let call_count = Arc::new(AtomicU64::new(0));
+        let counter = call_count.clone();
+
+        let function = crate::function::Function {
+            handler: Arc::new(move |_invocation_id, _input| {
+                let counter = counter.clone();
+                Box::pin(async move {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                    FunctionResult::Failure(ErrorBody {
+                        code: "QUEUE_FAIL".to_string(),
+                        message: "job failed".to_string(),
+                        stacktrace: None,
+                    })
+                })
+            }),
+            _function_id: "integration::fail_fn".to_string(),
+            _description: Some("test".to_string()),
+            request_format: None,
+            response_format: None,
+            metadata: None,
+        };
+        engine
+            .functions
+            .register_function("integration::fail_fn".to_string(), function);
+
+        adapter
+            .publish_to_function_queue(
+                "default",
+                "integration::fail_fn",
+                json!({"task": "will_fail"}),
+                3,
+                100,
+                None,
+                None,
+            )
+            .await;
+
+        module.initialize().await.expect("initialize should succeed");
+
+        // Wait for the consumer to process the message (and potentially retries)
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+        let count = call_count.load(Ordering::SeqCst);
+        assert!(
+            count >= 1,
+            "Failing function should have been called at least once, got {}",
+            count
+        );
+    }
+
+    #[tokio::test]
+    async fn integration_fifo_ordering() {
+        let (engine, module, adapter) = setup_integration_module().await;
+
+        let invocation_order = Arc::new(Mutex::new(Vec::<String>::new()));
+        let order_ref = invocation_order.clone();
+
+        let function = crate::function::Function {
+            handler: Arc::new(move |_invocation_id, input| {
+                let order_ref = order_ref.clone();
+                Box::pin(async move {
+                    let txn_id = input
+                        .get("transaction_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    order_ref.lock().await.push(txn_id);
+                    FunctionResult::Success(Some(json!({ "ok": true })))
+                })
+            }),
+            _function_id: "integration::fifo_fn".to_string(),
+            _description: Some("test".to_string()),
+            request_format: None,
+            response_format: None,
+            metadata: None,
+        };
+        engine
+            .functions
+            .register_function("integration::fifo_fn".to_string(), function);
+
+        // Enqueue 3 messages in order to the FIFO "payment" queue
+        for txn_id in &["txn-001", "txn-002", "txn-003"] {
+            adapter
+                .publish_to_function_queue(
+                    "payment",
+                    "integration::fifo_fn",
+                    json!({"transaction_id": txn_id, "amount": 100}),
+                    3,
+                    1000,
+                    None,
+                    None,
+                )
+                .await;
+        }
+
+        module.initialize().await.expect("initialize should succeed");
+
+        // Wait for consumer to process all 3 messages
+        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+
+        let order = invocation_order.lock().await;
+        assert_eq!(
+            order.len(),
+            3,
+            "All 3 messages should have been processed, got {}",
+            order.len()
+        );
+        assert_eq!(
+            *order,
+            vec!["txn-001", "txn-002", "txn-003"],
+            "FIFO queue should process messages in order"
+        );
+    }
+
+    #[tokio::test]
+    async fn integration_standard_queue_concurrency() {
+        let (engine, module, adapter) = setup_integration_module().await;
+
+        let timestamps = Arc::new(Mutex::new(Vec::<(String, std::time::Instant)>::new()));
+        let ts_ref = timestamps.clone();
+
+        let function = crate::function::Function {
+            handler: Arc::new(move |_invocation_id, input| {
+                let ts_ref = ts_ref.clone();
+                Box::pin(async move {
+                    let task_id = input
+                        .get("task_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    let start = std::time::Instant::now();
+                    // Simulate work that takes time so concurrent processing is observable
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    ts_ref.lock().await.push((task_id, start));
+                    FunctionResult::Success(Some(json!({ "ok": true })))
+                })
+            }),
+            _function_id: "integration::concurrent_fn".to_string(),
+            _description: Some("test".to_string()),
+            request_format: None,
+            response_format: None,
+            metadata: None,
+        };
+        engine
+            .functions
+            .register_function("integration::concurrent_fn".to_string(), function);
+
+        // Enqueue 3 messages to the "default" queue (concurrency=3)
+        for i in 0..3 {
+            adapter
+                .publish_to_function_queue(
+                    "default",
+                    "integration::concurrent_fn",
+                    json!({"task_id": format!("task-{}", i)}),
+                    3,
+                    1000,
+                    None,
+                    None,
+                )
+                .await;
+        }
+
+        module.initialize().await.expect("initialize should succeed");
+
+        // Wait enough for all tasks to be picked up and processed concurrently
+        // With concurrency=3 and 200ms sleep each, concurrent execution should
+        // finish around 200-400ms; sequential would take 600ms+.
+        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+
+        let ts = timestamps.lock().await;
+        assert_eq!(
+            ts.len(),
+            3,
+            "All 3 messages should have been processed, got {}",
+            ts.len()
+        );
+
+        // Check that tasks started concurrently: the time between the earliest
+        // and latest start times should be less than 200ms (the handler sleep
+        // duration). If processed sequentially, the gap would be >= 200ms.
+        let earliest_start = ts.iter().map(|(_, t)| *t).min().unwrap();
+        let latest_start = ts.iter().map(|(_, t)| *t).max().unwrap();
+        let start_gap = latest_start.duration_since(earliest_start);
+        assert!(
+            start_gap < std::time::Duration::from_millis(200),
+            "Tasks should start concurrently. Start gap was {:?} (expected < 200ms)",
+            start_gap
+        );
+    }
 }
