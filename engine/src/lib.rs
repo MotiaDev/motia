@@ -23,7 +23,6 @@ pub mod modules {
     pub mod config;
     pub mod cron;
     pub mod http_functions;
-    pub mod kv_server;
     pub mod module;
     pub mod observability;
     pub mod pubsub;

@@ -24,12 +24,6 @@ modules:
       port: 3199
       default_timeout: 30000
 
-  - class: modules::kv_server::KvServer
-    config:
-      store_method: file_based
-      file_path: ./data/kv_store
-      save_interval_ms: 1000
-
   - class: modules::pubsub::PubSubModule
     config:
       adapter:
