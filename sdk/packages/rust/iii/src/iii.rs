@@ -848,7 +848,10 @@ impl III {
     }
 
     /// List all registered triggers from the engine
-    pub async fn list_triggers(&self, include_internal: bool) -> Result<Vec<TriggerInfo>, IIIError> {
+    pub async fn list_triggers(
+        &self,
+        include_internal: bool,
+    ) -> Result<Vec<TriggerInfo>, IIIError> {
         let result = self
             .trigger(TriggerRequest::new(
                 "engine::triggers::list",
