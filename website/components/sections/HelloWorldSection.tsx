@@ -133,7 +133,7 @@ export function HelloWorldSection({
         {/* Header */}
         <div className="text-center mb-10 md:mb-16 space-y-4">
           <h2 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter leading-[1.1]">
-            <span className="block sm:inline">One service.</span>{" "}
+            <span className="block sm:inline">One protocol.</span>{" "}
             <span className={`${accentColor} relative inline-block`}>
               Any language.
               <svg

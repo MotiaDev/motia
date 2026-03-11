@@ -93,7 +93,7 @@ iii.registerTrigger({
 
 // Python ML service registers the same way
 // Rust service registers the same way
-// One unified service, any language`,
+// One unified protocol, any language`,
     },
     linesTraditional: 35,
     linesIII: 32,
@@ -197,7 +197,7 @@ iii.triggerVoid('enqueue', {
 
   events: {
     description:
-      "Pub/Sub without RabbitMQ or Kafka. Events flow through the service.",
+      "Pub/Sub without RabbitMQ or Kafka. Events flow through the protocol.",
     traditional: {
       title: "Redis Pub/Sub + RabbitMQ",
       tools: ["Redis Pub/Sub", "RabbitMQ", "Kafka", "NATS", "AWS SQS"],
@@ -648,7 +648,7 @@ iii.registerTrigger({
 
   logging: {
     description:
-      "Observability without Datadog setup. Logging flows through the service.",
+      "Observability without Datadog setup. Logging flows through the protocol.",
     traditional: {
       title: "Winston + Pino + Manual",
       tools: ["Winston", "Pino", "Bunyan", "OpenTelemetry", "Datadog SDK"],

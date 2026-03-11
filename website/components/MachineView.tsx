@@ -59,7 +59,7 @@ React simplified frontend with Component and Context. iii does the same for back
 | Worker     | Any process that registers functions and triggers            |
 
 Key properties:
-- Polyglot execution — any language participates through one universal service
+- Polyglot execution — any language participates through one universal protocol
 - Complete observability — logs and traces auto-injected into every invocation
 - Self-hosting / BYOC — connect existing domains and services, full portability
 - Shared capabilities — State, Streaming, Observability accessible to every function
@@ -68,7 +68,7 @@ Languages: TypeScript, Python, Rust
 Integrations: PostgreSQL, MongoDB, Redis, Kafka, GraphQL, gRPC
 Platforms: AWS, Google Cloud, Azure, Cloudflare, Vercel, Fly.io, Docker, Kubernetes`}</pre>
 
-          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# SDK — One Service, Any Language
+          <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# SDK — One Protocol, Any Language
 
 ## TypeScript
 \`\`\`typescript
@@ -414,7 +414,7 @@ iii.registerTrigger({
 Start building now. Scale your way.
 Built-in defaults get you running without thinking about architecture.
 When you outgrow them, swap in Redis, BullMQ, or whatever you prefer.
-All capabilities available via the same iii service — accessible from any language.
+All capabilities available via the same iii protocol — accessible from any language.
 
 ## Shared State — Cross-language state access
 Python worker sets a value, Node.js worker reads it instantly — no Redis required.
@@ -455,16 +455,16 @@ Active development. Join Discord for early access and to shape what ships next.`
 
           <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# Manifesto — 10 Paradigm Shifts
 
-The future of backend engineering demands a new foundation. Not another framework. Not another service.
+The future of backend engineering demands a new foundation. Not another framework. Not another protocol.
 A universal execution kernel built on primitives that compose infinitely.
 
- 1. POLYGLOT — Language agnostic by design. Node.js, Python, Rust, Go, browser, edge, embedded — all connect via the same service.
+ 1. POLYGLOT — Language agnostic by design. Node.js, Python, Rust, Go, browser, edge, embedded — all connect via the same protocol.
  2. SMALL SURFACE AREA — A small set of core primitives that compose infinitely. One kernel replaces domain-specific frameworks.
  3. UNIVERSAL ACCESSIBILITY — Every dependency and integration accessible to every service. Legacy servers, edge functions, serverless, embedded devices — all first-class participants.
- 4. SECURE BIDIRECTIONAL COMMUNICATION — Every service can push and pull. Every connection is encrypted. Trust is built into the service.
+ 4. SECURE BIDIRECTIONAL COMMUNICATION — Every service can push and pull. Every connection is encrypted. Trust is built into the protocol.
  5. DYNAMIC REGISTRATION — Workers connect, register functions, and they're immediately available. No compilation, no code generation, no spec files.
  6. SELF DISCOVERABLE — The mesh knows what exists and how to reach it. No external discovery layer required.
- 7. OBSERVABLE BY DEFAULT — Tracing, metrics, and logging built into the service. Every invocation is observable. Every transaction is traceable.
+ 7. OBSERVABLE BY DEFAULT — Tracing, metrics, and logging built into the protocol. Every invocation is observable. Every transaction is traceable.
  8. POLYMORPHIC TRIGGERS — HTTP, state updates, gRPC, cron, events, hardware interrupts — all normalize to the same invocation model. One function, infinite triggers.
  9. AGENT-FIRST — Maximize the surface area for agent success. Functions self-describe with schemas and semantic metadata. The system adapts to agent behavior, not vice versa.
 10. REVERSIBLE TRANSACTIONS — Every transaction chain is replayable, modifiable, and reversible. Debug by replaying. Recover by rewinding.
