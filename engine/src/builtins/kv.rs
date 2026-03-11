@@ -619,16 +619,35 @@ mod test {
         kv_store
             .set(index.to_string(), key.to_string(), updated.clone())
             .await;
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-        let bytes = std::fs::read(&file_path).unwrap();
-        let storage = rkyv::from_bytes::<KeyStorage, rkyv::rancor::Error>(&bytes).unwrap();
-        let on_disk_index_map: IndexMap<String, Value> = serde_json::from_str(&storage.0).unwrap();
-        let on_disk_value = on_disk_index_map.get(key).unwrap();
-        assert_eq!(on_disk_value, &updated);
+
+        let timeout = std::time::Duration::from_secs(5);
+        let start = tokio::time::Instant::now();
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            let bytes = std::fs::read(&file_path).unwrap();
+            let storage = rkyv::from_bytes::<KeyStorage, rkyv::rancor::Error>(&bytes).unwrap();
+            let on_disk: IndexMap<String, Value> = serde_json::from_str(&storage.0).unwrap();
+            if on_disk.get(key) == Some(&updated) {
+                break;
+            }
+            assert!(
+                start.elapsed() < timeout,
+                "Timed out waiting for updated value to be persisted to disk"
+            );
+        }
 
         kv_store.delete(index.to_string(), key.to_string()).await;
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-        assert!(!file_path.exists());
+        let start = tokio::time::Instant::now();
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            if !file_path.exists() {
+                break;
+            }
+            assert!(
+                start.elapsed() < timeout,
+                "Timed out waiting for file to be deleted from disk"
+            );
+        }
 
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -1175,7 +1194,7 @@ mod test {
             }
 
             // Wait for persistence
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         }
 
         // Reload from disk and verify order is preserved
@@ -1187,5 +1206,115 @@ mod test {
         assert_eq!(positions, vec![1, 2, 3]);
 
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    // ---- Pure utility function tests ----
+
+    #[test]
+    fn encode_index_alphanumeric_passthrough() {
+        assert_eq!(encode_index("simple"), "simple");
+        assert_eq!(encode_index("ABC123"), "ABC123");
+        assert_eq!(encode_index("with-dashes"), "with-dashes");
+        assert_eq!(encode_index("with_underscores"), "with_underscores");
+        assert_eq!(encode_index("with.dots"), "with.dots");
+    }
+
+    #[test]
+    fn encode_index_special_chars_encoded() {
+        assert_eq!(encode_index("with space"), "with%20space");
+        assert_eq!(encode_index("with/slash"), "with%2Fslash");
+        assert_eq!(encode_index("a@b"), "a%40b");
+        assert_eq!(encode_index(""), "");
+    }
+
+    #[test]
+    fn decode_index_valid() {
+        assert_eq!(decode_index("simple"), Some("simple".into()));
+        assert_eq!(decode_index("with%20space"), Some("with space".into()));
+        assert_eq!(decode_index("a%2Fb"), Some("a/b".into()));
+        assert_eq!(decode_index(""), Some("".into()));
+    }
+
+    #[test]
+    fn decode_index_invalid() {
+        assert_eq!(decode_index("%"), None);
+        assert_eq!(decode_index("%2"), None);
+        assert_eq!(decode_index("%ZZ"), None);
+    }
+
+    #[test]
+    fn encode_decode_roundtrip() {
+        for input in ["hello world", "foo/bar", "special!@#", "empty", ""] {
+            let encoded = encode_index(input);
+            let decoded = decode_index(&encoded).unwrap();
+            assert_eq!(decoded, input);
+        }
+    }
+
+    #[test]
+    fn index_file_name_appends_extension() {
+        assert_eq!(index_file_name("test"), "test.bin");
+        assert_eq!(index_file_name("with space"), "with%20space.bin");
+    }
+
+    #[test]
+    fn index_from_path_valid() {
+        let path = Path::new("/dir/test.bin");
+        assert_eq!(index_from_path(path), Some("test".into()));
+        let path = Path::new("/dir/with%20space.bin");
+        assert_eq!(index_from_path(path), Some("with space".into()));
+    }
+
+    #[test]
+    fn index_from_path_invalid() {
+        assert_eq!(index_from_path(Path::new("/dir/test.txt")), None);
+        assert_eq!(index_from_path(Path::new("/dir/test")), None);
+    }
+
+    #[tokio::test]
+    async fn list_keys_with_prefix_filters_correctly() {
+        let store = BuiltinKvStore::new(None);
+        store
+            .set("alpha".into(), "key1".into(), serde_json::json!(1))
+            .await;
+        store
+            .set("alpha-2".into(), "key1".into(), serde_json::json!(2))
+            .await;
+        store
+            .set("beta".into(), "key1".into(), serde_json::json!(3))
+            .await;
+
+        let mut keys = store.list_keys_with_prefix("alpha".into()).await;
+        keys.sort();
+        assert_eq!(keys, vec!["alpha", "alpha-2"]);
+
+        let keys = store.list_keys_with_prefix("gamma".into()).await;
+        assert!(keys.is_empty());
+    }
+
+    #[tokio::test]
+    async fn list_groups_returns_all_indices() {
+        let store = BuiltinKvStore::new(None);
+        store
+            .set("idx1".into(), "k".into(), serde_json::json!(1))
+            .await;
+        store
+            .set("idx2".into(), "k".into(), serde_json::json!(2))
+            .await;
+
+        let mut groups = store.list_groups().await;
+        groups.sort();
+        assert_eq!(groups, vec!["idx1", "idx2"]);
+    }
+
+    #[test]
+    fn kv_lock_entry_is_expired() {
+        let entry = KvLockEntry {
+            owner: "o".into(),
+            expires_at_ms: 1000,
+        };
+        assert!(entry.is_expired(1000));
+        assert!(entry.is_expired(1001));
+        assert!(!entry.is_expired(999));
     }
 }

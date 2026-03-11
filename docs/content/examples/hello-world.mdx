@@ -22,7 +22,7 @@ Every iii worker starts by initialising the SDK and connecting to the engine.
 
 ```typescript
 // worker.ts
-import { init, getContext, type ApiRequest, type ApiResponse } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 ```
@@ -33,7 +33,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 ```python
 # worker.py
 import asyncio
-from iii import III, InitOptions, ApiRequest, ApiResponse, get_context
+from iii import III, InitOptions, ApiRequest, ApiResponse
 
 iii = III(
     address="ws://localhost:49134",
@@ -46,7 +46,7 @@ iii = III(
 
 ```rust
 // main.rs
-use iii_sdk::{III, get_context};
+use iii_sdk::{III, Logger};
 use serde_json::json;
 
 #[tokio::main]
@@ -72,11 +72,11 @@ Registers a function and binds it to an HTTP trigger. Returns immediately after 
 iii.registerFunction(
   { id: 'hello.api', description: 'Receives hello request' },
   async (req: ApiRequest) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const appName = 'III App'
     const requestId = Math.random().toString(36).substring(7)
 
-    ctx.logger.info('Hello API called', { appName, requestId })
+    logger.info('Hello API called', { appName, requestId })
 
     iii.triggerVoid('enqueue', {
       topic: 'greet.process',
@@ -120,7 +120,7 @@ async def hello_api(req: ApiRequest, ctx) -> ApiResponse:
     app_name = "III App"
     request_id = "".join(random.choices(string.ascii_lowercase + string.digits, k=7))
 
-    ctx.logger.info("Hello API called", {"appName": app_name, "requestId": request_id})
+    logger.info("Hello API called", {"appName": app_name, "requestId": request_id})
 
     iii.trigger_void("enqueue", {
         "topic": "greet.process",
@@ -144,7 +144,7 @@ async def hello_api(req: ApiRequest, ctx) -> ApiResponse:
 
 iii.register_function("hello.api", lambda data: hello_api(
     ApiRequest(**data) if isinstance(data, dict) else data,
-    get_context(),
+    Logger(),
 ))
 iii.register_trigger(
     type="http",
@@ -157,14 +157,14 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, get_context, types::ApiRequest};
+use iii_sdk::{III, Logger, types::ApiRequest};
 
 iii.register_function("hello.api", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let app_name = "III App";
     let request_id = uuid::Uuid::new_v4().to_string();
 
-    ctx.logger.info("Hello API called", Some(json!({
+    logger.info("Hello API called", Some(json!({
         "appName": app_name,
         "requestId": request_id,
     })));
@@ -209,7 +209,7 @@ Consumes the event, builds the greeting, and persists it to state.
 iii.registerFunction(
   { id: 'greet.process', description: 'Processes greeting in background' },
   async (data) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const { requestId, appName, greetingPrefix, timestamp } = data as {
       requestId: string
       appName: string
@@ -217,7 +217,7 @@ iii.registerFunction(
       timestamp: string
     }
 
-    ctx.logger.info('Processing greeting', { requestId, appName })
+    logger.info('Processing greeting', { requestId, appName })
 
     const greeting = `${greetingPrefix} ${appName}!`
 
@@ -231,7 +231,7 @@ iii.registerFunction(
       },
     })
 
-    ctx.logger.info('Greeting processed', { requestId, greeting })
+    logger.info('Greeting processed', { requestId, greeting })
   },
 )
 
@@ -255,7 +255,7 @@ async def greet_process(data: dict, ctx) -> None:
     greeting_prefix = data.get("greetingPrefix", "Hello")
     timestamp = data.get("timestamp", "")
 
-    ctx.logger.info("Processing greeting", {"requestId": request_id, "appName": app_name})
+    logger.info("Processing greeting", {"requestId": request_id, "appName": app_name})
 
     greeting = f"{greeting_prefix} {app_name}!"
 
@@ -269,10 +269,10 @@ async def greet_process(data: dict, ctx) -> None:
         },
     })
 
-    ctx.logger.info("Greeting processed", {"requestId": request_id, "greeting": greeting})
+    logger.info("Greeting processed", {"requestId": request_id, "greeting": greeting})
 
 
-iii.register_function("greet.process", lambda data: greet_process(data, get_context()))
+iii.register_function("greet.process", lambda data: greet_process(data, Logger()))
 iii.register_trigger(
     type="queue",
     function_id="greet.process",
@@ -285,13 +285,13 @@ iii.register_trigger(
 
 ```rust
 iii.register_function("greet.process", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let request_id = input["requestId"].as_str().unwrap_or("unknown");
     let app_name = input["appName"].as_str().unwrap_or("III App");
     let prefix = input["greetingPrefix"].as_str().unwrap_or("Hello");
     let timestamp = input["timestamp"].as_str().unwrap_or("");
 
-    ctx.logger.info("Processing greeting", Some(json!({
+    logger.info("Processing greeting", Some(json!({
         "requestId": request_id,
         "appName": app_name,
     })));
@@ -308,7 +308,7 @@ iii.register_function("greet.process", |input| async move {
         },
     }))?;
 
-    ctx.logger.info("Greeting processed", Some(json!({ "requestId": request_id })));
+    logger.info("Greeting processed", Some(json!({ "requestId": request_id })));
 
     Ok(json!(null))
 });

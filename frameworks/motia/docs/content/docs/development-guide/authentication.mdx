@@ -134,9 +134,9 @@ export const config = {
   flows: ['users'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { logger, state }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { logger, state }) => {
   try {
-    const tokenData = await requireAuth(req)
+    const tokenData = await requireAuth(request)
     const user = await state.get('users', tokenData.userId)
 
     return { status: 200, body: user }
@@ -156,9 +156,9 @@ export const handler: Handlers<typeof config> = async (req, { logger, state }) =
 Wrap your handler logic in try/catch blocks for error handling. This replaces the previous middleware-based `coreMiddleware` pattern:
 
 ```typescript
-export const handler: Handlers<typeof config> = async (req, { logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
   try {
-    const result = await processRequest(req)
+    const result = await processRequest(request)
     return { status: 200, body: result }
   } catch (error) {
     logger.error('Request failed', { error: error.message })
@@ -183,12 +183,12 @@ import type { ApiRequest, ApiResponse } from 'motia'
 import { requireAuth, HttpError, type TokenData } from './auth'
 
 export function withAuth<TBody>(
-  fn: (req: ApiRequest<TBody>, tokenData: TokenData, ctx: any) => Promise<ApiResponse<any, any>>
+  fn: (request: ApiRequest<TBody>, tokenData: TokenData, ctx: any) => Promise<ApiResponse<any, any>>
 ) {
-  return async (req: ApiRequest<TBody>, ctx: any) => {
+  return async ({ request }: { request: ApiRequest<TBody> }, ctx: any) => {
     try {
-      const tokenData = await requireAuth(req)
-      return await fn(req, tokenData, ctx)
+      const tokenData = await requireAuth(request)
+      return await fn(request, tokenData, ctx)
     } catch (error) {
       if (error instanceof HttpError) {
         return { status: error.status, body: { error: error.message } }
@@ -202,7 +202,7 @@ export function withAuth<TBody>(
 ```typescript title="src/protected-endpoint.step.ts"
 import { withAuth } from './utils/with-auth'
 
-export const handler = withAuth(async (req, tokenData, ctx) => {
+export const handler = withAuth(async (request, tokenData, ctx) => {
   ctx.logger.info('Authenticated request', { userId: tokenData.userId })
   return { status: 200, body: { message: 'Protected content' } }
 })

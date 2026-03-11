@@ -135,7 +135,7 @@ Our application consists of specialized components handling different aspects of
       },
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async (_, { logger }) => {
+    export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
       logger.info('Received available models request')
 
       return {
@@ -210,10 +210,10 @@ Our application consists of specialized components handling different aspects of
       },
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async (req, { logger, enqueue, streams }) => {
+    export const handler: Handlers<typeof config> = async ({ request }, { logger, enqueue, streams }) => {
       logger.info('[CreateGame] Creating new chess game')
 
-      const game = await createGame(req.body.players, req.user, streams, logger)
+      const game = await createGame(request.body.players, request.user, streams, logger)
 
       await enqueue({
         topic: 'chess-game-created',
@@ -519,8 +519,8 @@ Our application consists of specialized components handling different aspects of
       },
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async (req, { logger, enqueue }) => {
-      const { email, password } = req.body
+    export const handler: Handlers<typeof config> = async ({ request }, { logger, enqueue }) => {
+      const { email, password } = request.body
 
       try {
         const authResult = await authenticateUser(email, password)

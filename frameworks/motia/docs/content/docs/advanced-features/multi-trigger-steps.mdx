@@ -27,7 +27,7 @@ export const config = {
 
 export const handler: Handlers<typeof config> = async (input, ctx) => {
   return ctx.match({
-    http: async (request) => {
+    http: async ({ request }) => {
       await processOrder(request.body, ctx)
       return { status: 200, body: { success: true } }
     },
@@ -65,7 +65,7 @@ The `match()` method routes execution based on which trigger activated the handl
 
 ```typescript
 return ctx.match({
-  http: async (request) => {
+  http: async ({ request }) => {
     return { status: 200, body: { ok: true } }
   },
   queue: async (data) => {

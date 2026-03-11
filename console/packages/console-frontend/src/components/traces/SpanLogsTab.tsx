@@ -25,9 +25,11 @@ function formatRelative(offsetMs: number): string {
 }
 
 export function SpanLogsTab({ span }: SpanLogsTabProps) {
-  const events = span.events || []
+  const sortedEvents = [...(span.events || [])].sort(
+    (a, b) => a.timestamp_unix_nano - b.timestamp_unix_nano,
+  )
 
-  if (events.length === 0) {
+  if (sortedEvents.length === 0) {
     return (
       <div className="p-8 text-center">
         <div className="w-10 h-10 mb-3 mx-auto rounded-lg bg-[#141414] border border-[#1D1D1D] flex items-center justify-center">
@@ -41,19 +43,19 @@ export function SpanLogsTab({ span }: SpanLogsTabProps) {
     )
   }
 
-  const firstEventMs = events.length > 0 ? toMs(events[0].timestamp) : 0
+  const firstEventMs = sortedEvents.length > 0 ? toMs(sortedEvents[0].timestamp_unix_nano) : 0
 
   return (
     <div className="p-5 space-y-2">
-      {events.map((event, index) => {
-        const eventMs = toMs(event.timestamp)
+      {sortedEvents.map((event, index) => {
+        const eventMs = toMs(event.timestamp_unix_nano)
         const offsetMs = eventMs - firstEventMs
         const isException = event.name === 'exception' || event.name?.startsWith('exception')
         const attrEntries = event.attributes ? Object.entries(event.attributes) : []
 
         return (
           <div
-            key={`${event.name}-${event.timestamp}`}
+            key={`${event.name}-${event.timestamp_unix_nano}`}
             className={`rounded-lg border overflow-hidden ${
               isException ? 'bg-[#EF4444]/5 border-[#EF4444]/15' : 'bg-[#141414] border-[#1D1D1D]'
             }`}
@@ -103,7 +105,7 @@ export function SpanLogsTab({ span }: SpanLogsTabProps) {
       })}
 
       <div className="text-[10px] text-gray-600 text-center pt-2">
-        {events.length} event{events.length !== 1 ? 's' : ''}
+        {sortedEvents.length} event{sortedEvents.length !== 1 ? 's' : ''}
       </div>
     </div>
   )

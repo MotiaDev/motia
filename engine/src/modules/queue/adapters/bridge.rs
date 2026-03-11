@@ -179,6 +179,7 @@ impl QueueAdapter for BridgeAdapter {
                                 return Err(IIIError::Remote {
                                     code: err.code,
                                     message: err.message,
+                                    stacktrace: err.stacktrace,
                                 });
                             }
                         }
@@ -190,6 +191,7 @@ impl QueueAdapter for BridgeAdapter {
                         Err(err) => Err(IIIError::Remote {
                             code: err.code,
                             message: err.message,
+                            stacktrace: err.stacktrace,
                         }),
                     }
                 }

@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { PageActions } from '@/lib/components/PageActions'
 import { SectionCards } from '@/lib/components/SectionCards'
+import { getConfigReferenceToc } from '@/lib/config-toc'
 import { getPageImage, source } from '@/lib/source'
 import { getMDXComponents } from '@/mdx-components'
 
@@ -33,9 +34,14 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
   const isRootIndex = !params.slug || params.slug.length === 0
   const showCards = isIndex && !page.data.hideCards && !!params.slug
 
+  const slugPath = params.slug?.join('/') ?? ''
+  const isConfigEngine = slugPath === 'how-to/configure-engine'
+  const extraToc = isConfigEngine ? await getConfigReferenceToc() : []
+  const toc = [...page.data.toc, ...extraToc]
+
   return (
     <DocsPage
-      toc={page.data.toc}
+      toc={toc}
       full={page.data.full}
       tableOfContent={{ style: 'clerk' }}
       footer={

@@ -1,4 +1,4 @@
-import { type ApiRequest, type ApiResponse, type Context, getContext } from 'iii-sdk'
+import { type ApiRequest, type ApiResponse, Logger } from 'iii-sdk'
 import { iii } from './iii'
 
 // biome-ignore lint/suspicious/noExplicitAny: generic default requires any for handler flexibility
@@ -9,13 +9,12 @@ export const useApi = <TBody = any>(
     description?: string
     metadata?: Record<string, unknown>
   },
-  handler: (req: ApiRequest<TBody>, context: Context) => Promise<ApiResponse>,
+  handler: (req: ApiRequest<TBody>, logger: Logger) => Promise<ApiResponse>,
 ) => {
   const function_id = `api::${config.http_method.toLowerCase()}::${config.api_path}`
+  const logger = new Logger(undefined, function_id)
 
-  iii.registerFunction({ id: function_id, metadata: config.metadata }, req =>
-    handler(req, getContext()),
-  )
+  iii.registerFunction({ id: function_id, metadata: config.metadata }, req => handler(req, logger))
   iii.registerTrigger({
     type: 'http',
     function_id,

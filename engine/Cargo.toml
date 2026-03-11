@@ -1,6 +1,6 @@
 [package]
 name = "iii"
-version = "0.8.0"
+version = "0.8.3"
 edition = "2024"
 license = "Elastic-2.0"
 
@@ -144,5 +144,5 @@ subtle = "2.6"
 mockall = "0.13"
 serial_test = "3"
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
-tempfile = "3"
 tokio-tungstenite = "0.28"
+tempfile = "3"

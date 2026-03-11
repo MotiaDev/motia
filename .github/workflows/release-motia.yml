@@ -104,7 +104,7 @@ jobs:
       slack_thread_ts: ${{ needs.setup.outputs.slack_ts }}
       slack_label: Motia Python (pypi)
     secrets:
-      PYPI_API_TOKEN: ${{ secrets.PYPI_MOTIA_TOKEN }}
+      PYPI_API_TOKEN: ${{ secrets.MOTIA_PYPI_API_TOKEN }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
 

@@ -15,9 +15,9 @@ export const config = {
   flows: ['onboarding'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { enqueue, logger }) => {
-  logger.info('Creating user', { email: req.body.email })
-  await enqueue({ topic: 'user.created', data: req.body })
+export const handler: Handlers<typeof config> = async ({ request }, { enqueue, logger }) => {
+  logger.info('Creating user', { email: request.body.email })
+  await enqueue({ topic: 'user.created', data: request.body })
   return { status: 201, body: { success: true } }
 }
 ```

@@ -13,3 +13,4 @@ dependencies = [
 
 [tool.uv.sources]
 motia = { path = "../packages/motia" }
+iii-sdk = { path = "../../../../sdk/packages/python/iii" }

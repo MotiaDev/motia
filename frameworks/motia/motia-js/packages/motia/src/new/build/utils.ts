@@ -4,8 +4,9 @@ import type {
   HttpRequest as IIIHttpRequest,
   HttpResponse as IIIHttpResponse,
 } from 'iii-sdk'
-import { getContext, http as iiiHttp } from 'iii-sdk'
+import { Logger, http as iiiHttp } from 'iii-sdk'
 import type { StreamAuthInput, StreamJoinLeaveEvent } from 'iii-sdk/stream'
+import { currentTraceId } from 'iii-sdk/telemetry'
 import { isApiTrigger, isCronTrigger, isQueueTrigger, isStateTrigger, isStreamTrigger } from '../../guards'
 import type {
   ApiMiddleware,
@@ -37,7 +38,7 @@ type StepWithHandler = Step & { handler: StepHandler<unknown> }
 
 type TriggerConfigBase = {
   metadata: StepConfig & { filePath: string }
-  _condition_path?: string
+  condition_function_id?: string
 }
 
 type ApiTriggerConfig = TriggerConfigBase & {
@@ -76,8 +77,8 @@ const flowContext = <EnqueueData, TInput = unknown>(
   trigger: TriggerInfo,
   input?: TInput,
 ): FlowContext<EnqueueData, TInput> => {
-  const { logger, trace } = getContext()
-  const traceId = trace?.spanContext().traceId ?? crypto.randomUUID()
+  const logger = new Logger()
+  const traceId = currentTraceId() ?? crypto.randomUUID()
   const enqueue: Enqueuer<EnqueueData> = async (queue: EnqueueData): Promise<void> =>
     getInstance().call('enqueue', queue)
 
@@ -241,7 +242,7 @@ export class Motia {
             },
           )
 
-          triggerConfig._condition_path = conditionPath
+          triggerConfig.condition_function_id = conditionPath
         }
 
         getInstance().registerTrigger({
@@ -271,7 +272,7 @@ export class Motia {
             return trigger.condition?.(input, flowContext(this, triggerInfo, input))
           })
 
-          triggerConfig._condition_path = conditionPath
+          triggerConfig.condition_function_id = conditionPath
         }
 
         getInstance().registerTrigger({
@@ -298,7 +299,7 @@ export class Motia {
             return trigger.condition?.(undefined, flowContext(this, triggerInfo))
           })
 
-          triggerConfig._condition_path = conditionPath
+          triggerConfig.condition_function_id = conditionPath
         }
 
         getInstance().registerTrigger({

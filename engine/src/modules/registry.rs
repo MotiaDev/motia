@@ -97,3 +97,45 @@ macro_rules! register_module {
     };
 }
 inventory::collect!(ModuleRegistration);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn dummy_adapter_factory(
+        _engine: Arc<Engine>,
+        _config: Option<Value>,
+    ) -> AdapterFuture<dyn Send + Sync> {
+        Box::pin(async { Ok(Arc::new(()) as Arc<dyn Send + Sync>) })
+    }
+
+    #[test]
+    fn adapter_registration_class_and_factory() {
+        let reg = AdapterRegistration::<dyn Send + Sync> {
+            class: "test-adapter",
+            factory: dummy_adapter_factory,
+        };
+        assert_eq!(
+            AdapterRegistrationEntry::<dyn Send + Sync>::class(&reg),
+            "test-adapter"
+        );
+        let _f = AdapterRegistrationEntry::<dyn Send + Sync>::factory(&reg);
+    }
+
+    fn dummy_module_factory(_engine: Arc<Engine>, _config: Option<Value>) -> ModuleFuture {
+        Box::pin(async { unimplemented!() })
+    }
+
+    #[test]
+    fn module_registration_fields() {
+        let reg = ModuleRegistration {
+            class: "test-module",
+            factory: dummy_module_factory,
+            is_default: true,
+            mandatory: false,
+        };
+        assert_eq!(reg.class, "test-module");
+        assert!(reg.is_default);
+        assert!(!reg.mandatory);
+    }
+}

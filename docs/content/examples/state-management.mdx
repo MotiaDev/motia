@@ -21,14 +21,14 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import { init, getContext, type ApiRequest } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'users.update_status', description: 'Update user status in state' },
   async (req: ApiRequest<{ status: string }>) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const userId = req.path_params?.id
 
     if (!userId) {
@@ -44,7 +44,7 @@ iii.registerFunction(
       value: { status, updatedAt: new Date().toISOString() },
     })
 
-    ctx.logger.info(`Updated user ${userId} status to ${status}`)
+    logger.info(`Updated user ${userId} status to ${status}`)
 
     return { status_code: 200, body: { userId, status } }
   },
@@ -62,7 +62,7 @@ iii.registerTrigger({
 
 ```python
 from datetime import datetime, timezone
-from iii import III, InitOptions, ApiRequest, ApiResponse, get_context
+from iii import III, InitOptions, ApiRequest, ApiResponse
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="state-worker"))
 
@@ -82,13 +82,13 @@ async def update_user_status(req: ApiRequest, ctx) -> ApiResponse:
         "value": {"status": new_status, "updatedAt": datetime.now(timezone.utc).isoformat()},
     })
 
-    ctx.logger.info(f"Updated user {user_id} status to {new_status}")
+    logger.info(f"Updated user {user_id} status to {new_status}")
 
     return ApiResponse(statusCode=200, body={"userId": user_id, "status": new_status})
 
 
 iii.register_function("users.update_status", lambda data: update_user_status(
-    ApiRequest(**data) if isinstance(data, dict) else data, get_context()
+    ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
 iii.register_trigger(
     type="http", function_id="users.update_status",
@@ -100,11 +100,11 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, get_context, types::ApiRequest};
+use iii_sdk::{III, Logger, types::ApiRequest};
 use serde_json::json;
 
 iii.register_function("users.update_status", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let req: ApiRequest = serde_json::from_value(input)?;
     let user_id = req.path_params.get("id").cloned().unwrap_or_default();
 
@@ -124,7 +124,7 @@ iii.register_function("users.update_status", |input| async move {
         },
     }))?;
 
-    ctx.logger.info(&format!("Updated user {} status to {}", user_id, new_status), None);
+    logger.info(&format!("Updated user {} status to {}", user_id, new_status), None);
 
     Ok(json!({ "status_code": 200, "body": { "userId": user_id, "status": new_status } }))
 });
@@ -147,7 +147,7 @@ iii.register_trigger("http", "users.update_status", json!({
 iii.registerFunction(
   { id: 'users.get_status', description: 'Read user status from state' },
   async (req: ApiRequest) => {
-    const ctx = getContext()
+    const logger = new Logger()
     const userId = req.path_params?.id
 
     if (!userId) {
@@ -163,7 +163,7 @@ iii.registerFunction(
       return { status_code: 404, body: { error: 'User not found' } }
     }
 
-    ctx.logger.info('Got user status', { userId, status: user.status })
+    logger.info('Got user status', { userId, status: user.status })
     return { status_code: 200, body: user }
   },
 )
@@ -187,12 +187,12 @@ async def get_user_status(req: ApiRequest, ctx) -> ApiResponse:
     if not user:
         return ApiResponse(statusCode=404, body={"error": "User not found"})
 
-    ctx.logger.info("Got user status", {"userId": user_id, "status": user.get("status")})
+    logger.info("Got user status", {"userId": user_id, "status": user.get("status")})
     return ApiResponse(statusCode=200, body=user)
 
 
 iii.register_function("users.get_status", lambda data: get_user_status(
-    ApiRequest(**data) if isinstance(data, dict) else data, get_context()
+    ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
 iii.register_trigger(
     type="http", function_id="users.get_status",
@@ -205,7 +205,7 @@ iii.register_trigger(
 
 ```rust
 iii.register_function("users.get_status", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
     let req: ApiRequest = serde_json::from_value(input)?;
     let user_id = req.path_params.get("id").cloned().unwrap_or_default();
 
@@ -218,7 +218,7 @@ iii.register_function("users.get_status", |input| async move {
         return Ok(json!({ "status_code": 404, "body": { "error": "User not found" } }));
     }
 
-    ctx.logger.info("Got user status", Some(json!({ "userId": user_id })));
+    logger.info("Got user status", Some(json!({ "userId": user_id })));
     Ok(json!({ "status_code": 200, "body": user }))
 });
 
@@ -242,7 +242,7 @@ iii.register_trigger("http", "users.get_status", json!({
 iii.registerFunction(
   { id: 'cron.orders_audit', description: 'Checks for overdue orders' },
   async () => {
-    const ctx = getContext()
+    const logger = new Logger()
 
     const orders = await iii.trigger<{ id: string; shipDate: string; complete: boolean; status: string }[]>(
       'state::list',
@@ -251,7 +251,7 @@ iii.registerFunction(
 
     for (const order of orders ?? []) {
       if (!order.complete && new Date() > new Date(order.shipDate)) {
-        ctx.logger.warn('Order overdue', { orderId: order.id })
+        logger.warn('Order overdue', { orderId: order.id })
 
         iii.triggerVoid('enqueue', {
           topic: 'notification',
@@ -289,7 +289,7 @@ async def orders_audit(_data, ctx) -> None:
             continue
 
         if not complete and datetime.now(timezone.utc) > ship_date:
-            ctx.logger.warn("Order overdue", {"orderId": order.get("id")})
+            logger.warn("Order overdue", {"orderId": order.get("id")})
 
             iii.trigger_void("enqueue", {
                 "topic": "notification",
@@ -297,7 +297,7 @@ async def orders_audit(_data, ctx) -> None:
             })
 
 
-iii.register_function("cron.orders_audit", lambda data: orders_audit(data, get_context()))
+iii.register_function("cron.orders_audit", lambda data: orders_audit(data, Logger()))
 iii.register_trigger(type="cron", function_id="cron.orders_audit", config={"expression": "*/5 * * * *"})
 ```
 
@@ -306,7 +306,7 @@ iii.register_trigger(type="cron", function_id="cron.orders_audit", config={"expr
 
 ```rust
 iii.register_function("cron.orders_audit", |_input| async move {
-    let ctx = get_context();
+    let logger = Logger();
 
     let orders_val = iii.trigger("state::list", json!({ "scope": "orders" })).await?;
     let orders = orders_val.as_array().cloned().unwrap_or_default();
@@ -317,7 +317,7 @@ iii.register_function("cron.orders_audit", |_input| async move {
 
         if let Ok(ship_date) = chrono::DateTime::parse_from_rfc3339(ship_date_str) {
             if !complete && chrono::Utc::now() > ship_date {
-                ctx.logger.warn("Order overdue", Some(json!({ "orderId": order["id"] })));
+                logger.warn("Order overdue", Some(json!({ "orderId": order["id"] })));
 
                 iii.trigger_void("enqueue", json!({
                     "topic": "notification",

@@ -20,21 +20,21 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import { init, getContext, type ApiRequest } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'orders.handle', description: 'Handles orders from API, queue, or cron' },
   async (input) => {
-    const ctx = getContext()
+    const logger = new Logger()
 
     // HTTP trigger — input is an ApiRequest shape
     if (input && typeof input === 'object' && 'path_params' in input) {
       const req = input as ApiRequest<{ amount: number; description: string }>
       const orderId = `order-${Date.now()}`
 
-      ctx.logger.info('Processing manual order via API', { amount: req.body?.amount })
+      logger.info('Processing manual order via API', { amount: req.body?.amount })
 
       iii.triggerVoid('state::set', {
         scope: 'orders',
@@ -55,7 +55,7 @@ iii.registerFunction(
       const { amount, description } = input as { amount: number; description: string }
       const orderId = `order-${Date.now()}`
 
-      ctx.logger.info('Processing order from queue', { amount })
+      logger.info('Processing order from queue', { amount })
 
       iii.triggerVoid('state::set', {
         scope: 'orders',
@@ -72,7 +72,7 @@ iii.registerFunction(
     }
 
     // Cron trigger — input is null/empty
-    ctx.logger.info('Processing scheduled order batch')
+    logger.info('Processing scheduled order batch')
 
     const pendingOrders = await iii.trigger<{ id: string; amount: number }[]>('state::list', {
       scope: 'pending-orders',
@@ -85,7 +85,7 @@ iii.registerFunction(
       })
     }
 
-    ctx.logger.info('Batch complete', { count: pendingOrders?.length ?? 0 })
+    logger.info('Batch complete', { count: pendingOrders?.length ?? 0 })
   },
 )
 
@@ -114,7 +114,7 @@ iii.registerTrigger({
 
 ```python
 import asyncio
-from iii import III, InitOptions, ApiRequest, ApiResponse, get_context
+from iii import III, InitOptions, ApiRequest, ApiResponse
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-worker"))
 
@@ -125,7 +125,7 @@ async def orders_handle(data, ctx) -> dict | None:
         req = ApiRequest(**data)
         order_id = f"order-{int(__import__('time').time() * 1000)}"
 
-        ctx.logger.info("Processing manual order via API", {"amount": req.body.get("amount")})
+        logger.info("Processing manual order via API", {"amount": req.body.get("amount")})
 
         iii.trigger_void("state::set", {
             "scope": "orders",
@@ -146,7 +146,7 @@ async def orders_handle(data, ctx) -> dict | None:
         amount = data.get("amount", 0)
         order_id = f"order-{int(__import__('time').time() * 1000)}"
 
-        ctx.logger.info("Processing order from queue", {"amount": amount})
+        logger.info("Processing order from queue", {"amount": amount})
 
         iii.trigger_void("state::set", {
             "scope": "orders",
@@ -160,7 +160,7 @@ async def orders_handle(data, ctx) -> dict | None:
         return None
 
     # Cron trigger — data is None or empty
-    ctx.logger.info("Processing scheduled order batch")
+    logger.info("Processing scheduled order batch")
 
     pending = await iii.trigger("state::list", {"scope": "pending-orders"}) or []
     for order in pending:
@@ -169,11 +169,11 @@ async def orders_handle(data, ctx) -> dict | None:
             "data": {"orderId": order["id"], "source": "cron"},
         })
 
-    ctx.logger.info("Batch complete", {"count": len(pending)})
+    logger.info("Batch complete", {"count": len(pending)})
     return None
 
 
-iii.register_function("orders.handle", lambda data: orders_handle(data, get_context()))
+iii.register_function("orders.handle", lambda data: orders_handle(data, Logger()))
 
 iii.register_trigger(type="http", function_id="orders.handle",
                      config={"api_path": "orders/manual", "http_method": "POST"})
@@ -187,17 +187,17 @@ iii.register_trigger(type="cron", function_id="orders.handle",
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, get_context, types::ApiRequest};
+use iii_sdk::{III, Logger, types::ApiRequest};
 use serde_json::json;
 
 iii.register_function("orders.handle", |input| async move {
-    let ctx = get_context();
+    let logger = Logger();
 
     // HTTP trigger — try to parse as ApiRequest
     if let Ok(req) = serde_json::from_value::<ApiRequest>(input.clone()) {
         let order_id = format!("order-{}", chrono::Utc::now().timestamp_millis());
 
-        ctx.logger.info("Processing manual order via API", Some(json!({
+        logger.info("Processing manual order via API", Some(json!({
             "amount": req.body["amount"]
         })));
 
@@ -220,7 +220,7 @@ iii.register_function("orders.handle", |input| async move {
         let amount = input["amount"].as_f64().unwrap_or(0.0);
         let order_id = format!("order-{}", chrono::Utc::now().timestamp_millis());
 
-        ctx.logger.info("Processing order from queue", Some(json!({ "amount": amount })));
+        logger.info("Processing order from queue", Some(json!({ "amount": amount })));
 
         iii.trigger_void("enqueue", json!({
             "topic": "order.processed",
@@ -231,7 +231,7 @@ iii.register_function("orders.handle", |input| async move {
     }
 
     // Cron trigger
-    ctx.logger.info("Processing scheduled batch", None);
+    logger.info("Processing scheduled batch", None);
 
     let pending = iii.trigger("state::list", json!({ "scope": "pending-orders" })).await?;
     let orders = pending.as_array().cloned().unwrap_or_default();
@@ -243,7 +243,7 @@ iii.register_function("orders.handle", |input| async move {
         }))?;
     }
 
-    ctx.logger.info("Batch complete", Some(json!({ "count": orders.len() })));
+    logger.info("Batch complete", Some(json!({ "count": orders.len() })));
     Ok(json!(null))
 });
 

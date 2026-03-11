@@ -54,3 +54,44 @@ pub struct KvUpdateInput {
     pub key: String,
     pub ops: Vec<UpdateOp>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn kv_set_input_roundtrip() {
+        let json = json!({"index": "idx", "key": "k", "value": {"nested": true}});
+        let input: KvSetInput = serde_json::from_value(json).unwrap();
+        assert_eq!(input.index, "idx");
+        assert_eq!(input.key, "k");
+        let back = serde_json::to_value(&input).unwrap();
+        assert_eq!(back["value"]["nested"], true);
+    }
+
+    #[test]
+    fn kv_get_delete_input_roundtrip() {
+        let json = json!({"index": "i", "key": "k"});
+        let _get: KvGetInput = serde_json::from_value(json.clone()).unwrap();
+        let _del: KvDeleteInput = serde_json::from_value(json).unwrap();
+    }
+
+    #[test]
+    fn kv_list_keys_input_roundtrip() {
+        let _lk: KvListKeysInput = serde_json::from_value(json!({"prefix": "p"})).unwrap();
+        let _lkp: KvListKeysWithPrefixInput =
+            serde_json::from_value(json!({"prefix": "p"})).unwrap();
+        let _li: KvListInput = serde_json::from_value(json!({"index": "i"})).unwrap();
+    }
+
+    #[test]
+    fn update_result_roundtrip() {
+        let json = json!({"old_value": null, "new_value": 42});
+        let result: UpdateResult = serde_json::from_value(json).unwrap();
+        assert!(result.old_value.is_none());
+        assert_eq!(result.new_value, json!(42));
+        let back = serde_json::to_value(&result).unwrap();
+        assert_eq!(back["new_value"], 42);
+    }
+}

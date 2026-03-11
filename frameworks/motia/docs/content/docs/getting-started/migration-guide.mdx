@@ -331,7 +331,7 @@ export const config = {
   enqueues: [],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, ctx) => { /* ... */ }
+export const handler: Handlers<typeof config> = async ({ request }, ctx) => { /* ... */ }
 ```
 
 </Tab>
@@ -405,8 +405,8 @@ export const config = {
   enqueues: ['user-created'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { enqueue, logger }) => {
-  const { name, email } = req.body
+export const handler: Handlers<typeof config> = async ({ request }, { enqueue, logger }) => {
+  const { name, email } = request.body
   logger.info('Creating user', { name, email })
   await enqueue({ topic: 'user-created', data: { name, email } })
   return { status: 200, body: { id: 'user-123' } }
@@ -866,7 +866,7 @@ export const config = {
 You can also use shared utility functions called directly within handlers as an alternative:
 
 ```typescript title="Alternative: handler-level auth"
-export async function requireAuth(request: ApiRequest<any>): Promise<TokenData> {
+export async function requireAuth(request: MotiaHttpRequest<any>): Promise<TokenData> {
   const authToken = request.headers['authorization'] as string
   if (!authToken) {
     throw new HttpError(401, 'Unauthorized')
@@ -875,7 +875,7 @@ export async function requireAuth(request: ApiRequest<any>): Promise<TokenData> 
   return jwt.verify(token, process.env.JWT_SECRET!) as TokenData
 }
 
-export const handler: Handlers<typeof config> = async (request, { logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
   const tokenData = await requireAuth(request)
   // ... rest of handler
 }
@@ -923,7 +923,7 @@ export const { config, handler } = step(stepConfig, async (input, ctx) => {
   const data = ctx.getData()
 
   return ctx.match({
-    http: async (request) => {
+    http: async ({ request }) => {
       return { status: 200, body: { success: true } }
     },
     queue: async (queueInput) => {

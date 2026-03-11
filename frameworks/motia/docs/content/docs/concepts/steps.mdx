@@ -44,7 +44,7 @@ export const config = {
   flows: ['my-flow'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
   logger.info('Hello endpoint called')
   return { status: 200, body: { message: 'Hello world!' } }
 }
@@ -54,19 +54,22 @@ export const handler: Handlers<typeof config> = async (req, { logger }) => {
 <Tab value='Python'>
 
 ```python title="src/hello_step.py"
+from typing import Any
+from motia import ApiRequest, ApiResponse, FlowContext, http
+
 config = {
     "name": "HelloStep",
     "description": "Hello endpoint",
     "triggers": [
-        {"type": "http", "path": "/hello", "method": "GET"}
+        http("GET", "/hello"),
     ],
     "enqueues": [],
     "flows": ["my-flow"]
 }
 
-async def handler(req, ctx):
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
     ctx.logger.info("Hello endpoint called")
-    return {"status": 200, "body": {"message": "Hello world!"}}
+    return ApiResponse(status=200, body={"message": "Hello world!"})
 ```
 
 </Tab>
@@ -85,7 +88,7 @@ export const config = {
   flows: ['my-flow'],
 }
 
-export const handler = async (req, { logger }) => {
+export const handler = async ({ request }, { logger }) => {
   logger.info('Hello endpoint called')
   return { status: 200, body: { message: 'Hello world!' } }
 }
@@ -123,10 +126,10 @@ export const config = {
   flows: ['messaging'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { enqueue }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { enqueue }) => {
   await enqueue({
     topic: 'message.sent',
-    data: { text: req.body.text }
+    data: { text: request.body.text }
   })
   return { status: 200, body: { ok: true } }
 }
@@ -156,22 +159,25 @@ export const handler: Handlers<typeof config> = async (input, { logger, enqueue 
 <Tab value='Python'>
 
 ```python title="send_message_step.py"
+from typing import Any
+from motia import ApiRequest, ApiResponse, FlowContext, http
+
 config = {
     "name": "SendMessage",
     "description": "Sends a message",
     "triggers": [
-        {"type": "http", "path": "/messages", "method": "POST"}
+        http("POST", "/messages"),
     ],
     "enqueues": ["message.sent"],
     "flows": ["messaging"]
 }
 
-async def handler(req, ctx):
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
     await ctx.enqueue({
         "topic": "message.sent",
-        "data": {"text": req.body["text"]}
+        "data": {"text": request.body["text"]}
     })
-    return {"status": 200, "body": {"ok": True}}
+    return ApiResponse(status=200, body={"ok": True})
 ```
 
 ```python title="process_message_step.py"
@@ -204,10 +210,10 @@ export const config = {
   flows: ['messaging'],
 }
 
-export const handler = async (req, { enqueue }) => {
+export const handler = async ({ request }, { enqueue }) => {
   await enqueue({
     topic: 'message.sent',
-    data: { text: req.body.text }
+    data: { text: request.body.text }
   })
   return { status: 200, body: { ok: true } }
 }
@@ -281,8 +287,8 @@ Runs when an HTTP request hits the path.
       flows: ['users'],
     } as const satisfies StepConfig
 
-    export const handler: Handlers<typeof config> = async (req, { logger }) => {
-      const userId = req.pathParams.id
+    export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
+      const userId = request.pathParams.id
       logger.info('Getting user', { userId })
       return { status: 200, body: { id: userId, name: 'John' } }
     }
@@ -300,8 +306,8 @@ Runs when an HTTP request hits the path.
       flows: ['users'],
     }
 
-    export const handler = async (req, { logger }) => {
-      const userId = req.pathParams.id
+    export const handler = async ({ request }, { logger }) => {
+      const userId = request.pathParams.id
       logger.info('Getting user', { userId })
       return { status: 200, body: { id: userId, name: 'John' } }
     }
@@ -309,20 +315,23 @@ Runs when an HTTP request hits the path.
   </Tab>
   <Tab value="Python">
     ```python
+    from typing import Any
+    from motia import ApiRequest, ApiResponse, FlowContext, http
+
     config = {
         "name": "GetUser",
         "description": "Get user by ID",
         "triggers": [
-            {"type": "http", "path": "/users/:id", "method": "GET"}
+            http("GET", "/users/:id"),
         ],
         "enqueues": [],
         "flows": ["users"]
     }
 
-    async def handler(req, ctx):
-        user_id = req.get("pathParams", {}).get("id")
+    async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+        user_id = request.path_params.get("id")
         ctx.logger.info("Getting user", {"userId": user_id})
-        return {"status": 200, "body": {"id": user_id, "name": "John"}}
+        return ApiResponse(status=200, body={"id": user_id, "name": "John"})
     ```
   </Tab>
 </Tabs>
@@ -337,11 +346,12 @@ Runs when an HTTP request hits the path.
 | `method` | GET, POST, PUT, DELETE |
 | `bodySchema` | Validate request body |
 
-**Handler:** `handler(req, ctx)`
+**Handler:** `handler({ request, response }, ctx)`
 
-- `req` - Request with `body`, `headers`, `pathParams`, `queryParams`, `rawBody`
+- `request` - Request with `body`, `headers`, `pathParams`, `queryParams`, `method`, `requestBody`
+- `response` - Response object for streaming (SSE): `status()`, `headers()`, `stream`, `close()`
 - `ctx` - Context with `logger`, `enqueue`, `state`, `streams`, `traceId`, `trigger`, `is`, `getData`, `match`
-- Returns `{ status, body, headers? }`
+- Returns `{ status, body, headers? }` for standard responses, or use `response` for streaming (SSE)
 
 </Tab>
 

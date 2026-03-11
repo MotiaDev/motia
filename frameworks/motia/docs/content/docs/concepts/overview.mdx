@@ -40,7 +40,7 @@ export const config = {
   flows: ['my-flow'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { enqueue, logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { enqueue, logger }) => {
   logger.info('Processing request')
 
   await enqueue({
@@ -56,25 +56,28 @@ export const handler: Handlers<typeof config> = async (req, { enqueue, logger })
 <Tab value='Python'>
 
 ```python title="src/my_step.py"
+from typing import Any
+from motia import ApiRequest, ApiResponse, FlowContext, http
+
 config = {
     "name": "MyStep",
     "description": "Handles incoming requests",
     "triggers": [
-        {"type": "http", "path": "/endpoint", "method": "POST"}
+        http("POST", "/endpoint"),
     ],
     "enqueues": ["task.done"],
     "flows": ["my-flow"]
 }
 
-async def handler(req, context):
-    context.logger.info("Processing request")
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+    ctx.logger.info("Processing request")
 
-    await context.enqueue({
+    await ctx.enqueue({
         "topic": "task.done",
         "data": {"result": "success"}
     })
 
-    return {"status": 200, "body": {"success": True}}
+    return ApiResponse(status=200, body={"success": True})
 ```
 
 </Tab>
@@ -91,7 +94,7 @@ export const config = {
   flows: ['my-flow'],
 }
 
-export const handler = async (req, { enqueue, logger }) => {
+export const handler = async ({ request }, { enqueue, logger }) => {
   logger.info('Processing request')
 
   await enqueue({

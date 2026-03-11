@@ -14,3 +14,35 @@ pub fn sign_request(body: &[u8], secret: &str, timestamp: u64) -> String {
     let signature = hmac::sign(&key, payload.as_bytes());
     format!("sha256={}", hex::encode(signature.as_ref()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sign_request_has_sha256_prefix() {
+        let sig = sign_request(b"hello", "secret", 1000);
+        assert!(sig.starts_with("sha256="));
+    }
+
+    #[test]
+    fn sign_request_is_deterministic() {
+        let sig1 = sign_request(b"hello", "secret", 1000);
+        let sig2 = sign_request(b"hello", "secret", 1000);
+        assert_eq!(sig1, sig2);
+    }
+
+    #[test]
+    fn sign_request_changes_with_different_secret() {
+        let sig1 = sign_request(b"hello", "secret1", 1000);
+        let sig2 = sign_request(b"hello", "secret2", 1000);
+        assert_ne!(sig1, sig2);
+    }
+
+    #[test]
+    fn sign_request_changes_with_different_timestamp() {
+        let sig1 = sign_request(b"hello", "secret", 1000);
+        let sig2 = sign_request(b"hello", "secret", 2000);
+        assert_ne!(sig1, sig2);
+    }
+}

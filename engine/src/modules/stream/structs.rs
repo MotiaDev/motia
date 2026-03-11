@@ -163,3 +163,149 @@ pub struct StreamMetadata {
     pub id: String,
     pub groups: Vec<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn stream_incoming_message_join_roundtrip() {
+        let json = json!({
+            "type": "join",
+            "data": {
+                "subscriptionId": "sub-1",
+                "streamName": "stream-1",
+                "groupId": "group-1",
+                "id": "item-1"
+            }
+        });
+        let msg: StreamIncomingMessage = serde_json::from_value(json).unwrap();
+        match &msg {
+            StreamIncomingMessage::Join { data } => {
+                assert_eq!(data.subscription_id, "sub-1");
+                assert_eq!(data.stream_name, "stream-1");
+                assert_eq!(data.group_id, "group-1");
+                assert_eq!(data.id.as_deref(), Some("item-1"));
+            }
+            _ => panic!("Expected Join"),
+        }
+        let back = serde_json::to_value(&msg).unwrap();
+        assert_eq!(back["type"], "join");
+    }
+
+    #[test]
+    fn stream_incoming_message_leave_roundtrip() {
+        let json = json!({
+            "type": "leave",
+            "data": {
+                "subscriptionId": "sub-2",
+                "streamName": "s",
+                "groupId": "g"
+            }
+        });
+        let msg: StreamIncomingMessage = serde_json::from_value(json).unwrap();
+        assert!(matches!(msg, StreamIncomingMessage::Leave { .. }));
+    }
+
+    #[test]
+    fn stream_outbound_message_variants() {
+        let cases = vec![
+            json!({"type": "unauthorized"}),
+            json!({"type": "sync", "data": 1}),
+            json!({"type": "create", "data": "x"}),
+            json!({"type": "update", "data": null}),
+            json!({"type": "delete", "data": []}),
+            json!({"type": "event", "event": {"type": "click", "data": {}}}),
+        ];
+        for case in cases {
+            let msg: StreamOutboundMessage = serde_json::from_value(case.clone()).unwrap();
+            let back = serde_json::to_value(&msg).unwrap();
+            assert_eq!(back["type"], case["type"]);
+        }
+    }
+
+    #[test]
+    fn stream_wrapper_message_roundtrip() {
+        let json = json!({
+            "type": "wrapper",
+            "timestamp": 12345,
+            "streamName": "s",
+            "groupId": "g",
+            "id": null,
+            "event": {"type": "sync", "data": {}}
+        });
+        let msg: StreamWrapperMessage = serde_json::from_value(json).unwrap();
+        assert_eq!(msg.event_type, "wrapper");
+        assert_eq!(msg.timestamp, 12345);
+        assert_eq!(msg.stream_name, "s");
+    }
+
+    #[test]
+    fn stream_set_input_roundtrip() {
+        let json = json!({
+            "stream_name": "s",
+            "group_id": "g",
+            "item_id": "i",
+            "data": {"key": "value"}
+        });
+        let input: StreamSetInput = serde_json::from_value(json).unwrap();
+        assert_eq!(input.stream_name, "s");
+        let back = serde_json::to_value(&input).unwrap();
+        assert_eq!(back["item_id"], "i");
+    }
+
+    #[test]
+    fn stream_get_delete_input_roundtrip() {
+        let json = json!({"stream_name": "s", "group_id": "g", "item_id": "i"});
+        let _get: StreamGetInput = serde_json::from_value(json.clone()).unwrap();
+        let _del: StreamDeleteInput = serde_json::from_value(json).unwrap();
+    }
+
+    #[test]
+    fn stream_list_and_list_groups_roundtrip() {
+        let list: StreamListInput =
+            serde_json::from_value(json!({"stream_name": "s", "group_id": "g"})).unwrap();
+        assert_eq!(list.stream_name, "s");
+
+        let lg: StreamListGroupsInput =
+            serde_json::from_value(json!({"stream_name": "s"})).unwrap();
+        assert_eq!(lg.stream_name, "s");
+    }
+
+    #[test]
+    fn stream_auth_input_roundtrip() {
+        let json = json!({
+            "headers": {"auth": "bearer x"},
+            "path": "/ws",
+            "query_params": {"key": ["val"]},
+            "addr": "127.0.0.1"
+        });
+        let input: StreamAuthInput = serde_json::from_value(json).unwrap();
+        assert_eq!(input.path, "/ws");
+        assert_eq!(input.addr, "127.0.0.1");
+    }
+
+    #[test]
+    fn stream_send_input_roundtrip() {
+        let json = json!({
+            "stream_name": "s",
+            "group_id": "g",
+            "id": "i",
+            "type": "custom",
+            "data": {"x": 1}
+        });
+        let input: StreamSendInput = serde_json::from_value(json).unwrap();
+        assert_eq!(input.event_type, "custom");
+        let back = serde_json::to_value(&input).unwrap();
+        assert_eq!(back["type"], "custom");
+    }
+
+    #[test]
+    fn stream_metadata_roundtrip() {
+        let json = json!({"id": "stream-1", "groups": ["a", "b"]});
+        let meta: StreamMetadata = serde_json::from_value(json).unwrap();
+        assert_eq!(meta.id, "stream-1");
+        assert_eq!(meta.groups, vec!["a", "b"]);
+    }
+}

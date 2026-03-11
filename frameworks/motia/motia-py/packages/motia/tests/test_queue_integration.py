@@ -141,7 +141,7 @@ async def test_condition_function_filters_messages(bridge):
         function_id,
         {
             "topic": topic,
-            "_condition_path": condition_path,
+            "condition_function_id": condition_path,
         },
     )
 

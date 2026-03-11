@@ -70,25 +70,23 @@ export const config = {
   flows: ['order-approval'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { state, enqueue, logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { state, enqueue, logger }) => {
   const orderId = crypto.randomUUID()
   
   const order = {
     id: orderId,
-    items: req.body.items,
-    total: req.body.total,
+    items: request.body.items,
+    total: request.body.total,
     status: 'pending_analysis',
     currentStep: 'submitted',
-    completedSteps: ['submitted'],  // Track progress for idempotency
+    completedSteps: ['submitted'],
     createdAt: new Date().toISOString()
   }
   
-  // Save immediately - this is our first checkpoint
   await state.set('orders', orderId, order)
   
   logger.info('Order submitted', { orderId })
   
-  // Kick off risk analysis
   await enqueue({
     topic: 'order.submitted',
     data: { orderId }
@@ -104,45 +102,42 @@ export const handler: Handlers<typeof config> = async (req, { state, enqueue, lo
 ```python title="src/submit_order_step.py"
 import uuid
 from datetime import datetime
+from typing import Any
+from motia import ApiRequest, ApiResponse, FlowContext, http
 
 config = {
     "name": "SubmitOrder",
     "description": "Submit an order for processing",
     "triggers": [
-        {"type": "http", "path": "/orders", "method": "POST"}
+        http("POST", "/orders"),
     ],
     "enqueues": ["order.submitted"],
     "flows": ["order-approval"]
 }
 
-async def handler(req, context):
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
     order_id = str(uuid.uuid4())
-    
-    # Access request body
-    body = req.get("body", {})
     
     order = {
         "id": order_id,
-        "items": body.get("items"),
-        "total": body.get("total"),
+        "items": request.body.get("items"),
+        "total": request.body.get("total"),
         "status": "pending_analysis",
         "current_step": "submitted",
         "completed_steps": ["submitted"],
         "created_at": datetime.now().isoformat()
     }
     
-    # Save immediately - first checkpoint
-    await context.state.set("orders", order_id, order)
+    await ctx.state.set("orders", order_id, order)
     
-    context.logger.info("Order submitted", {"orderId": order_id})
+    ctx.logger.info("Order submitted", {"orderId": order_id})
     
-    # Kick off risk analysis
-    await context.enqueue({
+    await ctx.enqueue({
         "topic": "order.submitted",
         "data": {"orderId": order_id}
     })
 
-    return {"status": 201, "body": {"orderId": order_id, "status": order["status"]}}
+    return ApiResponse(status=201, body={"orderId": order_id, "status": order["status"]})
 ```
 
 </Tab>
@@ -161,9 +156,9 @@ export const config = {
   flows: ['order-approval'],
 }
 
-export const handler = async (req, { state, enqueue, logger }) => {
+export const handler = async ({ request }, { state, enqueue, logger }) => {
   const orderId = crypto.randomUUID()
-  const { items, total } = req.body
+  const { items, total } = request.body
 
   const order = {
     id: orderId,
@@ -175,7 +170,6 @@ export const handler = async (req, { state, enqueue, logger }) => {
     createdAt: new Date().toISOString()
   }
 
-  // Save immediately - first checkpoint
   await state.set('orders', orderId, order)
 
   logger.info('Order submitted', { orderId })
@@ -452,24 +446,21 @@ export const config = {
   flows: ['order-approval'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { state, enqueue, logger }) => {
-  const { orderId } = req.pathParams
-  const { approved, approvedBy, notes } = req.body
+export const handler: Handlers<typeof config> = async ({ request }, { state, enqueue, logger }) => {
+  const { orderId } = request.pathParams
+  const { approved, approvedBy, notes } = request.body
   
-  // Load the checkpoint
   const order = await state.get('orders', orderId)
   
   if (!order) {
     return { status: 404, body: { error: 'Order not found' } }
   }
   
-  // Verify we're at the right pause point
   if (order.currentStep !== 'awaiting_approval') {
     return { status: 400, body: { error: 'Order not awaiting approval' } }
   }
   
   if (approved) {
-    // Apply decision
     order.status = 'approved'
     order.approvedBy = approvedBy
     order.approvedAt = new Date().toISOString()
@@ -478,12 +469,10 @@ export const handler: Handlers<typeof config> = async (req, { state, enqueue, lo
     
     logger.info('Order approved - resuming workflow', { orderId, approvedBy })
     
-    // Resume the workflow
     await enqueue({ topic: 'order.approved', data: { orderId } })
 
     return { status: 200, body: { success: true, message: 'Order approved' } }
   } else {
-    // Rejected - workflow ends
     order.status = 'rejected'
     order.rejectedBy = approvedBy
     order.rejectionReason = notes
@@ -500,62 +489,56 @@ export const handler: Handlers<typeof config> = async (req, { state, enqueue, lo
 
 ```python title="src/approval_webhook_step.py"
 from datetime import datetime
+from typing import Any
+from motia import ApiRequest, ApiResponse, FlowContext, http
 
 config = {
     "name": "ApprovalWebhook",
     "description": "Webhook for human approval decisions",
     "triggers": [
-        {"type": "http", "path": "/webhooks/orders/:orderId/approve", "method": "POST"}
+        http("POST", "/webhooks/orders/:orderId/approve"),
     ],
     "enqueues": ["order.approved"],
     "virtualSubscribes": ["human.decision"],
     "flows": ["order-approval"]
 }
 
-async def handler(req, context):
-    # Access path params and body
-    path_params = req.get("pathParams", {})
-    body = req.get("body", {})
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+    order_id = request.path_params.get("orderId")
+    approved = request.body.get("approved")
+    approved_by = request.body.get("approvedBy")
+    notes = request.body.get("notes")
     
-    order_id = path_params.get("orderId")
-    approved = body.get("approved")
-    approved_by = body.get("approvedBy")
-    notes = body.get("notes")
-    
-    # Load checkpoint
-    order = await context.state.get("orders", order_id)
+    order = await ctx.state.get("orders", order_id)
     
     if not order:
-        return {"status": 404, "body": {"error": "Order not found"}}
+        return ApiResponse(status=404, body={"error": "Order not found"})
     
-    # Verify pause point
     if order["current_step"] != "awaiting_approval":
-        return {"status": 400, "body": {"error": "Not awaiting approval"}}
+        return ApiResponse(status=400, body={"error": "Not awaiting approval"})
     
     if approved:
-        # Resume workflow
         order["status"] = "approved"
         order["approved_by"] = approved_by
         order["approved_at"] = datetime.now().isoformat()
         order["completed_steps"].append("approved")
-        await context.state.set("orders", order_id, order)
+        await ctx.state.set("orders", order_id, order)
         
-        context.logger.info("Order approved - resuming workflow", 
+        ctx.logger.info("Order approved - resuming workflow", 
                            {"orderId": order_id, "approvedBy": approved_by})
         
-        await context.enqueue({
+        await ctx.enqueue({
             "topic": "order.approved",
             "data": {"orderId": order_id}
         })
         
-        return {"status": 200, "body": {"success": True}}
+        return ApiResponse(status=200, body={"success": True})
     else:
-        # Rejected - end workflow
         order["status"] = "rejected"
         order["rejected_by"] = approved_by
-        await context.state.set("orders", order_id, order)
+        await ctx.state.set("orders", order_id, order)
         
-        return {"status": 200, "body": {"success": True}}
+        return ApiResponse(status=200, body={"success": True})
 ```
 
 </Tab>
@@ -573,24 +556,21 @@ export const config = {
   flows: ['order-approval'],
 }
 
-export const handler = async (req, { state, enqueue, logger }) => {
-  const { orderId } = req.pathParams
-  const { approved, approvedBy, notes } = req.body
+export const handler = async ({ request }, { state, enqueue, logger }) => {
+  const { orderId } = request.pathParams
+  const { approved, approvedBy, notes } = request.body
   
-  // Load checkpoint
   const order = await state.get('orders', orderId)
   
   if (!order) {
     return { status: 404, body: { error: 'Order not found' } }
   }
   
-  // Verify pause point
   if (order.currentStep !== 'awaiting_approval') {
     return { status: 400, body: { error: 'Not awaiting approval' } }
   }
   
   if (approved) {
-    // Resume workflow
     order.status = 'approved'
     order.approvedBy = approvedBy
     order.approvedAt = new Date().toISOString()

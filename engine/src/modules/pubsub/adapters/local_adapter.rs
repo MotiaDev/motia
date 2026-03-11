@@ -95,3 +95,114 @@ impl PubSubAdapter for LocalAdapter {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use serde_json::{Value, json};
+    use tokio::{
+        sync::mpsc,
+        time::{Duration, timeout},
+    };
+
+    use super::*;
+    use crate::{
+        engine::{Engine, Handler, RegisterFunctionRequest},
+        function::FunctionResult,
+        modules::observability::metrics::ensure_default_meter,
+    };
+
+    fn register_listener(
+        engine: &Arc<Engine>,
+        function_id: &str,
+        tx: mpsc::UnboundedSender<String>,
+    ) {
+        let function_id_owned = function_id.to_string();
+        engine.register_function_handler(
+            RegisterFunctionRequest {
+                function_id: function_id_owned.clone(),
+                description: None,
+                request_format: None,
+                response_format: None,
+                metadata: None,
+            },
+            Handler::new(move |input: Value| {
+                let tx = tx.clone();
+                let function_id = function_id_owned.clone();
+                async move {
+                    tx.send(format!("{function_id}:{}", input["id"]))
+                        .expect("send invoked function");
+                    FunctionResult::Success(None)
+                }
+            }),
+        );
+    }
+
+    #[tokio::test]
+    async fn new_and_make_adapter_create_empty_subscription_store() {
+        ensure_default_meter();
+        let engine = Arc::new(Engine::new());
+
+        let adapter = LocalAdapter::new(engine.clone())
+            .await
+            .expect("new local adapter");
+        assert!(adapter.subscriptions.read().await.is_empty());
+
+        let adapter = make_adapter(engine, None).await.expect("make adapter");
+        adapter.subscribe("orders", "sub-1", "test::listener").await;
+        adapter.unsubscribe("orders", "sub-1").await;
+    }
+
+    #[tokio::test]
+    async fn publish_without_subscriptions_is_noop() {
+        ensure_default_meter();
+        let engine = Arc::new(Engine::new());
+        let adapter = LocalAdapter::new(engine).await.expect("new local adapter");
+
+        adapter.publish("orders", json!({ "id": 1 })).await;
+        assert!(adapter.subscriptions.read().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn unsubscribe_removes_topic_entry_from_map() {
+        // The engine's unsubscribe does `subs.remove(&topic)` first, removes the
+        // subscription id from the returned map, then only re-checks emptiness
+        // but never re-inserts remaining subscribers. So unsubscribing any id
+        // on a topic causes the entire topic entry to be dropped from the map.
+        ensure_default_meter();
+        let engine = Arc::new(Engine::new());
+        let adapter = LocalAdapter::new(engine.clone())
+            .await
+            .expect("new local adapter");
+        let (tx, mut rx) = mpsc::unbounded_channel();
+
+        register_listener(&engine, "test::listener_a", tx.clone());
+        register_listener(&engine, "test::listener_b", tx);
+
+        adapter
+            .subscribe("orders", "sub-a", "test::listener_a")
+            .await;
+        adapter
+            .subscribe("orders", "sub-b", "test::listener_b")
+            .await;
+        adapter.unsubscribe("orders", "sub-a").await;
+
+        // The topic entry is completely removed from the subscriptions map
+        let subscriptions = adapter.subscriptions.read().await;
+        assert!(
+            subscriptions.get("orders").is_none(),
+            "topic should be removed from subscriptions after unsubscribe"
+        );
+        drop(subscriptions);
+
+        // Publishing should have no effect since the topic is gone
+        adapter.publish("orders", json!({ "id": 7 })).await;
+        assert!(
+            timeout(Duration::from_millis(100), rx.recv())
+                .await
+                .is_err(),
+            "no listener should be invoked after topic is removed"
+        );
+    }
+}

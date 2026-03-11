@@ -80,15 +80,15 @@ npm install iii-sdk
 ### Basic Usage
 
 ```typescript
-import { init, getContext, type ApiRequest, type ApiResponse } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init('ws://127.0.0.1:49134')
 
 iii.registerFunction(
   { id: 'users::create', description: 'Create a user' },
   async (data) => {
-    const ctx = getContext()
-    ctx.logger.info('Creating user', data)
+    const logger = new Logger()
+    logger.info('Creating user', data)
     const user = { id: crypto.randomUUID(), ...data }
     return { status_code: 201, body: user } satisfies ApiResponse
   },
@@ -119,7 +119,7 @@ OpenTelemetry is initialized automatically by default. Each function invocation 
 
 | Import | Contents |
 | --- | --- |
-| `iii-sdk` | `init`, `getContext`, `withContext`, `Logger`, `ISdk`, `ApiRequest`, `ApiResponse` |
+| `iii-sdk` | `init`, `Logger`, `OTel context`, `Logger`, `ISdk`, `ApiRequest`, `ApiResponse` |
 | `iii-sdk/stream` | `IStream`, stream input/output types, `UpdateOp` |
 | `iii-sdk/state` | State management types |
 | `iii-sdk/telemetry` | `initOtel`, `getTracer`, `getMeter`, `withSpan`, `SpanKind`, etc. |
@@ -138,7 +138,7 @@ pip install iii-sdk
 
 ```python
 import asyncio
-from iii import III, InitOptions, get_context, ApiRequest, ApiResponse
+from iii import III, InitOptions, ApiRequest, ApiResponse
 
 iii = III(
     address="ws://127.0.0.1:49134",
@@ -146,8 +146,8 @@ iii = III(
 )
 
 async def create_user(data):
-    ctx = get_context()
-    ctx.logger.info("Creating user")
+    logger = Logger()
+    logger.info("Creating user")
     user = {"id": "123", **data}
     return {"status_code": 201, "body": user}
 
@@ -186,11 +186,11 @@ asyncio.run(main())
     Context-aware logger that sends log events to the engine via `engine::log::*` functions.
 
     ```python
-    from iii import get_context
+    from iii import Logger
 
-    ctx = get_context()
-    ctx.logger.info("Processing started")
-    ctx.logger.error("Something failed")
+    logger = Logger()
+    logger.info("Processing started")
+    logger.error("Something failed")
     ```
 
   </Accordion>
@@ -246,7 +246,7 @@ iii-sdk = { version = "0.2", features = ["otel"] }
 ### Basic Usage
 
 ```rust
-use iii_sdk::{III, get_context};
+use iii_sdk::{III, Logger};
 use serde_json::json;
 
 #[tokio::main]
@@ -254,8 +254,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let iii = III::new("ws://127.0.0.1:49134");
 
     iii.register_function("users::create", |input| async move {
-        let ctx = get_context();
-        ctx.logger.info("Creating user", None);
+        let logger = Logger();
+        logger.info("Creating user", None);
         Ok(json!({
             "status_code": 201,
             "body": { "id": "123", "name": input["name"] },
@@ -446,8 +446,8 @@ iii.register_function("handler", |input| async move {
             result = await process_data(data)
             return ApiResponse(status_code=200, body=result)
         except ValueError as e:
-            ctx = get_context()
-            ctx.logger.error(f"Validation error: {e}")
+            logger = Logger()
+            logger.error(f"Validation error: {e}")
             return ApiResponse(status_code=400, body={"error": str(e)})
     ```
 

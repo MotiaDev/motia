@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from iii import III, InitOptions, init
+from iii import III, InitOptions, register_worker
 
 
 @pytest.fixture
@@ -19,7 +19,7 @@ async def test_init_schedules_connect(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(III, "connect", fake_connect)
 
-    client = init("ws://fake")
+    client = register_worker("ws://fake")
     assert isinstance(client, III)
 
     await asyncio.wait_for(called.wait(), timeout=0.2)
@@ -27,7 +27,7 @@ async def test_init_schedules_connect(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_init_requires_running_loop() -> None:
     with pytest.raises(RuntimeError, match="active asyncio event loop"):
-        init("ws://fake")
+        register_worker("ws://fake")
 
 
 @pytest.mark.anyio
@@ -49,7 +49,7 @@ async def test_connect_consumes_otel_from_init_options(monkeypatch: pytest.Monke
     monkeypatch.setattr(telemetry, "attach_event_loop", fake_attach_event_loop)
     monkeypatch.setattr(III, "_do_connect", fake_do_connect)
 
-    client = init(
+    client = register_worker(
         "ws://fake",
         InitOptions(otel={"enabled": True, "service_name": "iii-python-init-test"}),
     )

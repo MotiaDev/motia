@@ -52,6 +52,6 @@ With file watching:
   Glob patterns that trigger a full pipeline restart on file change. See the warning below for matching limitations.
 </ResponseField>
 
-<Callout type="warning" title="watch pattern limitations">
+<Callout type="warn" title="watch pattern limitations">
   Patterns match by root directory and file extension only — the filename portion is ignored. `src/**/*.test.ts` matches all `.ts` files under `src/`, not only test files. Use `**` to watch subdirectories recursively: `config/*.json` only watches the top level of `config/`, while `config/**/*.json` watches at any depth. Files without an extension (e.g., `Makefile`, shell scripts) are never matched.
 </Callout>

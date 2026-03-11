@@ -13,5 +13,7 @@ export async function GET() {
     "",
     ...pages.map((page) => `- [${page.data.title}](${page.url}.mdx)`),
   ];
-  return new Response(lines.join("\n"));
+  return new Response(lines.join("\n"), {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }

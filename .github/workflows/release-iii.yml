@@ -9,6 +9,7 @@ permissions:
   contents: write
   id-token: write
   actions: write
+  security-events: write
 
 concurrency:
   group: release-iii-${{ github.repository }}
@@ -273,7 +274,7 @@ jobs:
       release_tag: ${{ needs.setup.outputs.tag }}
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
 
   # ──────────────────────────────────────────────────────────────
   # Homebrew

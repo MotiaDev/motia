@@ -9,7 +9,11 @@ pub enum IIIError {
     #[error("runtime error: {0}")]
     Runtime(String),
     #[error("remote error ({code}): {message}")]
-    Remote { code: String, message: String },
+    Remote {
+        code: String,
+        message: String,
+        stacktrace: Option<String>,
+    },
     #[error("handler error: {0}")]
     Handler(String),
     #[error("serialization error: {0}")]

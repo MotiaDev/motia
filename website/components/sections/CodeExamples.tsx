@@ -61,7 +61,7 @@ app.listen(3000)`,
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Language-agnostic API
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -69,7 +69,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 iii.registerFunction(
   { id: 'users::create' },
   async (req) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     logger.info('Creating user', { email: req.body.email })
 
     const user = await createUser(req.body)
@@ -152,7 +152,7 @@ await emailQueue.add('welcome', { userId, email }, {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Functions ARE the jobs
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -160,7 +160,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 iii.registerFunction(
   { id: 'jobs::sendWelcomeEmail' },
   async (input) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     logger.info('Sending welcome email', { userId: input.userId })
 
     await sendWelcomeEmail(input.email)
@@ -256,7 +256,7 @@ await subscribe('order.placed', async (order) => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Events are function invocations
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -264,7 +264,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 iii.registerFunction(
   { id: 'events::user::created' },
   async (user) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     logger.info('Syncing user to CRM', { userId: user.id })
     await syncToCRM(user)
   }
@@ -365,7 +365,7 @@ io.on('connection', (socket) => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Streams are built-in
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -396,7 +396,7 @@ iii.createStream('chat', {
 iii.registerFunction(
   { id: 'chat::onJoin' },
   async ({ subscription_id, group_id }) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     logger.info(\`User joined room: \${group_id}\`)
   }
 )
@@ -497,7 +497,7 @@ async function setSession(sessionId: string, data: any, ttl: number) {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - State is a module
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -505,7 +505,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 iii.registerFunction(
   { id: 'workflow::process' },
   async (input) => {
-    const { logger } = getContext()
+    const logger = new Logger()
 
     // Get state - works across all workers
     const currentStep = await iii.trigger(
@@ -597,7 +597,7 @@ await agenda.every('1 week', 'send-weekly-digest', { userId: 123 })
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Cron is a trigger type
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -605,7 +605,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 iii.registerFunction(
   { id: 'reports::daily' },
   async () => {
-    const { logger } = getContext()
+    const logger = new Logger()
     logger.info('Generating daily report')
 
     const report = await generateDailyReport()
@@ -715,7 +715,7 @@ async function handleRequest(req: Request) {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Logging is built-in
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -723,7 +723,7 @@ iii.registerFunction(
   { id: 'orders::process' },
   async (input) => {
     // Context includes logger with trace_id
-    const { logger } = getContext()
+    const logger = new Logger()
     
     // Logs include trace_id + function id automatically
     logger.info('Processing order', { 
@@ -826,7 +826,7 @@ await worker.run()
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Durable workflows from plain functions
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -834,7 +834,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 iii.registerFunction(
   { id: 'order::start' },
   async (order) => {
-    const { logger } = getContext()
+    const logger = new Logger()
 
     await sendConfirmation({ email: order.email, orderId: order.id })
 
@@ -860,7 +860,7 @@ iii.registerTrigger({
 iii.registerFunction(
   { id: 'order::charge' },
   async (order) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     const payment = await chargeCard({ amount: order.total, token: order.paymentToken })
 
     if (!payment.success) {
@@ -886,7 +886,7 @@ iii.registerTrigger({
 iii.registerFunction(
   { id: 'order::ship' },
   async (order) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     const shipment = await shipOrder({ orderId: order.id, address: order.address })
 
     await iii.trigger('state::set', { scope: order.id, key: 'status', value: 'shipped' })
@@ -966,7 +966,7 @@ const stream = await executor.streamEvents(
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Functions ARE tools, State IS memory
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -998,7 +998,7 @@ iii.registerFunction(
 iii.registerFunction(
   { id: 'agent::chat' },
   async ({ sessionId, message }) => {
-    const { logger } = getContext()
+    const logger = new Logger()
 
     // Get conversation history from StateModule
     const history = await iii.trigger('state::get', {
@@ -1101,7 +1101,7 @@ process.on('SIGTERM', () => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - State + Streams = Feature Flags
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -1109,7 +1109,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 iii.registerFunction(
   { id: 'flags::set' },
   async ({ flagKey, config }) => {
-    const { logger } = getContext()
+    const logger = new Logger()
 
     // Store flag config
     await iii.trigger('state::set', {
@@ -1371,7 +1371,7 @@ cron.schedule('0 2 * * *', async () => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Staged pipeline, events for flow, state for recovery
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -1379,7 +1379,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 iii.registerFunction(
   { id: 'etl::extract' },
   async ({ pipeline }) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     const checkpoint = await iii.trigger('state::get', {
       scope: pipeline, key: 'checkpoint'
     })
@@ -1410,7 +1410,7 @@ iii.registerFunction(
 iii.registerFunction(
   { id: 'etl::load' },
   async ({ pipeline, data }) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     await warehouse.bulkInsert('user_analytics', data)
     await iii.trigger('state::set', {
       scope: pipeline, key: 'checkpoint', value: new Date().toISOString()
@@ -1493,7 +1493,7 @@ app.post('/messages', async (req, res) => {
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Reactive backend, your database, your infrastructure
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -1501,7 +1501,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 iii.registerFunction(
   { id: 'chat::sendMessage' },
   async ({ channelId, content }) => {
-    const { logger } = getContext()
+    const logger = new Logger()
 
     // Use YOUR database — Postgres, Mongo, anything
     const message = await db.messages.create({
@@ -1545,7 +1545,7 @@ iii.registerTrigger({
 iii.registerFunction(
   { id: 'chat::onMessage' },
   async (message) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     logger.info('Broadcasting', { channelId: message.channelId })
   }
 )
@@ -1644,7 +1644,7 @@ app.listen(3000)`,
       title: "iii Engine",
       language: "typescript",
       code: `// iii SDK - Functions as universal remote invokers
-import { init, getContext } from "iii-sdk"
+import { init, Logger } from "iii-sdk"
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -1652,7 +1652,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 iii.registerFunction(
   { id: 'remote::stripe::checkout' },
   async ({ items, successUrl }) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     const stripe = new Stripe(process.env.STRIPE_KEY!)
 
     const session = await stripe.checkout.sessions.create({
@@ -1670,7 +1670,7 @@ iii.registerFunction(
 iii.registerFunction(
   { id: 'remote::lambda::process' },
   async (payload) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     const lambda = new Lambda({ region: 'us-east-1' })
 
     const result = await lambda.invoke({

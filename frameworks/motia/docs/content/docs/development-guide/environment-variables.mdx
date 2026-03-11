@@ -63,7 +63,7 @@ export const config = {
   flows: ['ai-chat'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { logger }) => {
+export const handler: Handlers<typeof config> = async ({ request }, { logger }) => {
   const apiKey = process.env.OPENAI_API_KEY
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL
 

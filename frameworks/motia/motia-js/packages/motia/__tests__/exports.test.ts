@@ -20,7 +20,9 @@ describe('public exports', () => {
   it('exports jsonSchema', () => expect(motia.jsonSchema).toBeDefined())
 
   // Re-exports from iii-sdk
-  it('exports getContext', () => expect(motia.getContext).toBeDefined())
+  it('does not export removed getContext helper', () => {
+    expect('getContext' in motia).toBe(false)
+  })
   it('exports Logger', () => expect(motia.Logger).toBeDefined())
 
   // Core runtime utilities

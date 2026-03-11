@@ -246,7 +246,7 @@ Only runs for stable (non-prerelease) versions.
 | `NPM_TOKEN` | npm registry authentication |
 | `PYPI_API_TOKEN` / `PYPI_MOTIA_TOKEN` | PyPI publishing (separate tokens for iii and motia) |
 | `CARGO_REGISTRY_TOKEN` | crates.io publishing |
-| `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` | DockerHub publishing |
+| `DOCKERHUB_USERNAME` / `DOCKERHUB_PASSWORD` | DockerHub publishing |
 | `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` | Slack release notifications |
 | `SLACK_WEBHOOK_URL` | Slack Docker notifications |
 

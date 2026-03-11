@@ -1,5 +1,9 @@
 import { AnyValue, AnyValueMap, SeverityNumber } from '@opentelemetry/api-logs'
-import { getLogger as getOtelLogger } from './telemetry-system'
+import {
+  currentSpanId,
+  currentTraceId,
+  getLogger as getOtelLogger,
+} from './telemetry-system'
 
 export type LoggerParams = {
   message: string
@@ -30,12 +34,14 @@ export class Logger {
 
   private emit(message: string, severity: SeverityNumber, data?: unknown): void {
     const attributes: AnyValueMap = {}
+    const traceId = this.traceId ?? currentTraceId()
+    const spanId = this.spanId ?? currentSpanId()
 
-    if (this.traceId) {
-      attributes.trace_id = this.traceId
+    if (traceId) {
+      attributes.trace_id = traceId
     }
-    if (this.spanId) {
-      attributes.span_id = this.spanId
+    if (spanId) {
+      attributes.span_id = spanId
     }
     if (this.serviceName) {
       attributes['service.name'] = this.serviceName

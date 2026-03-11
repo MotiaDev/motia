@@ -25,7 +25,7 @@ iii-sdk = { version = "0.2", features = ["otel"] }
 The Rust SDK requires an explicit `connect().await` call.
 
 ```rust
-use iii_sdk::{III, get_context};
+use iii_sdk::{III, Logger};
 use serde_json::json;
 
 #[tokio::main]
@@ -234,7 +234,7 @@ All fallible operations return `Result<T, IIIError>`. Common variants:
 ```rust
 use iii_sdk::{
     III,
-    Context, get_context, with_context,
+    Context, Logger, OTel context,
     IIIError,
     FunctionInfo, WorkerInfo, WorkerMetadata,
     TriggerInfo,
@@ -277,11 +277,11 @@ use iii_sdk::{
 ## Context
 
 ```rust
-use iii_sdk::get_context;
+use iii_sdk::Logger;
 
-let ctx = get_context();
-ctx.logger.info("Processing started", None);
-ctx.logger.warn("Low memory", Some(json!({ "available_mb": 128 })));
+let logger = Logger();
+logger.info("Processing started", None);
+logger.warn("Low memory", Some(json!({ "available_mb": 128 })));
 ```
 
-The `get_context()` function returns the current `Context` (with `logger`) from within a function handler. The logger sends log events to the engine via `engine::log::*` functions.
+The `Logger()` function returns the current `Context` (with `logger`) from within a function handler. The logger sends log events to the engine via `engine::log::*` functions.

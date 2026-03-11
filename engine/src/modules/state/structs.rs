@@ -63,3 +63,64 @@ pub struct StateEventData {
     pub old_value: Option<Value>,
     pub new_value: Value,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn state_set_input_data_alias() {
+        let json = json!({"scope": "s", "key": "k", "data": "hello"});
+        let input: StateSetInput = serde_json::from_value(json).unwrap();
+        assert_eq!(input.value, json!("hello"));
+    }
+
+    #[test]
+    fn state_set_input_value_field() {
+        let json = json!({"scope": "s", "key": "k", "value": 42});
+        let input: StateSetInput = serde_json::from_value(json).unwrap();
+        assert_eq!(input.value, json!(42));
+    }
+
+    #[test]
+    fn state_event_type_serde() {
+        let created = StateEventType::Created;
+        let json = serde_json::to_value(&created).unwrap();
+        assert_eq!(json, json!("state:created"));
+
+        let back: StateEventType = serde_json::from_value(json!("state:updated")).unwrap();
+        assert!(matches!(back, StateEventType::Updated));
+
+        let deleted: StateEventType = serde_json::from_value(json!("state:deleted")).unwrap();
+        assert!(matches!(deleted, StateEventType::Deleted));
+    }
+
+    #[test]
+    fn state_event_data_roundtrip() {
+        let json = json!({
+            "type": "state_event",
+            "event_type": "state:created",
+            "scope": "users",
+            "key": "user-1",
+            "old_value": null,
+            "new_value": {"name": "Alice"}
+        });
+        let data: StateEventData = serde_json::from_value(json).unwrap();
+        assert_eq!(data.message_type, "state_event");
+        assert!(matches!(data.event_type, StateEventType::Created));
+        assert!(data.old_value.is_none());
+        let back = serde_json::to_value(&data).unwrap();
+        assert_eq!(back["type"], "state_event");
+    }
+
+    #[test]
+    fn state_get_delete_group_roundtrip() {
+        let _get: StateGetInput =
+            serde_json::from_value(json!({"scope": "s", "key": "k"})).unwrap();
+        let _del: StateDeleteInput =
+            serde_json::from_value(json!({"scope": "s", "key": "k"})).unwrap();
+        let _group: StateGetGroupInput = serde_json::from_value(json!({"scope": "s"})).unwrap();
+        let _list: StateListGroupsInput = serde_json::from_value(json!({})).unwrap();
+    }
+}

@@ -283,7 +283,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "iii-sdk", specifier = ">=0.4.0" },
+    { name = "iii-sdk", directory = "../../../../sdk/packages/python/iii" },
     { name = "motia", extras = ["otel"], directory = "../packages/motia" },
     { name = "pydantic", specifier = ">=2.0" },
 ]

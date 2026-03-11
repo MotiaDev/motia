@@ -12,7 +12,7 @@ pip install iii-sdk
 The package is imported as `iii`:
 
 ```python
-from iii import III, InitOptions, get_context, ApiRequest, ApiResponse
+from iii import III, InitOptions, ApiRequest, ApiResponse
 ```
 
 ## Initialization
@@ -312,10 +312,10 @@ from iii import (
 ## Context
 
 ```python
-from iii import get_context
+from iii import Logger
 
-ctx = get_context()
-ctx.logger.info("Processing started")
+logger = Logger()
+logger.info("Processing started")
 ```
 
-The `get_context()` function returns the current `Context` (with `logger`) from within a function handler. The logger automatically sends log events to the engine.
+The `Logger()` function returns the current `Context` (with `logger`) from within a function handler. The logger automatically sends log events to the engine.

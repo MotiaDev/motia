@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use iii_sdk::{InitOptions, OtelConfig, Streams, UpdateBuilder, UpdateOp, init};
+use iii_sdk::{
+    IIIError, InitOptions, OtelConfig, Streams, UpdateBuilder, UpdateOp, register_worker,
+};
 use serde_json::json;
 
 mod http_example;
@@ -8,7 +10,7 @@ mod http_example;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let iii_iii_url = std::env::var("REMOTE_III_URL").unwrap_or("ws://127.0.0.1:49134".into());
-    let iii = init(
+    let iii = register_worker(
         &iii_iii_url,
         InitOptions {
             otel: Some(OtelConfig::default()),
@@ -18,6 +20,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Register HTTP fetch API handlers (GET & POST http-fetch with OTel instrumentation)
     http_example::setup(&iii);
+
+    // Error-test handler for verifying OTEL exception.stacktrace
+    iii.register_function("api::get::error-test", |_input| async move {
+        Err(IIIError::Handler(
+            "Intentional error for OTEL stacktrace testing".into(),
+        ))
+    });
+    iii.register_trigger(
+        "http",
+        "api::get::error-test",
+        json!({
+            "api_path": "error-test",
+            "http_method": "GET",
+            "description": "Returns an error to test OTEL stack traces",
+        }),
+    )
+    .expect("failed to register error-test trigger");
 
     // Create a Streams instance for atomic updates
     let streams = Streams::new(iii.clone());

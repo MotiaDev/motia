@@ -7,7 +7,7 @@ import { unwrapResponse } from '../utils'
 
 export interface SpanEvent {
   name: string
-  timestamp: number
+  timestamp_unix_nano: number
   attributes: Record<string, unknown>
 }
 

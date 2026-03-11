@@ -85,12 +85,12 @@ export const config = {
   flows: ['resource-management'],
 } as const satisfies StepConfig
 
-export const handler: Handlers<typeof config> = async (req, { enqueue, logger }) => {
-  logger.info('Creating resource', { title: req.body.title })
+export const handler: Handlers<typeof config> = async ({ request }, { enqueue, logger }) => {
+  logger.info('Creating resource', { title: request.body.title })
 
   await enqueue({
     topic: 'send-email',
-    data: { email: req.body.email }
+    data: { email: request.body.email }
   })
 
   return { status: 201, body: { id: '123' } }
@@ -101,25 +101,28 @@ export const handler: Handlers<typeof config> = async (req, { enqueue, logger })
 <Tab value='Python'>
 
 ```python title="src/create_resource_step.py"
+from typing import Any
+from motia import ApiRequest, ApiResponse, FlowContext, http
+
 config = {
     "name": "CreateResource",
     "description": "Create a new resource and trigger email",
     "triggers": [
-        {"type": "http", "path": "/resources", "method": "POST"}
+        http("POST", "/resources"),
     ],
     "enqueues": ["send-email"],
     "flows": ["resource-management"]
 }
 
-async def handler(req, ctx):
-    ctx.logger.info("Creating resource", {"title": req["body"]["title"]})
+async def handler(request: ApiRequest[Any], ctx: FlowContext[Any]) -> ApiResponse[Any]:
+    ctx.logger.info("Creating resource", {"title": request.body["title"]})
 
     await ctx.enqueue({
         "topic": "send-email",
-        "data": {"email": req["body"]["email"]}
+        "data": {"email": request.body["email"]}
     })
 
-    return {"status": 201, "body": {"id": "123"}}
+    return ApiResponse(status=201, body={"id": "123"})
 ```
 
 </Tab>
@@ -136,12 +139,12 @@ export const config = {
   flows: ['resource-management']
 }
 
-export const handler = async (req, { enqueue, logger }) => {
-  logger.info('Creating resource', { title: req.body.title })
+export const handler = async ({ request }, { enqueue, logger }) => {
+  logger.info('Creating resource', { title: request.body.title })
 
   await enqueue({
     topic: 'send-email',
-    data: { email: req.body.email }
+    data: { email: request.body.email }
   })
 
   return { status: 201, body: { id: '123' } }

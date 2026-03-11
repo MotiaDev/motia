@@ -41,7 +41,7 @@ pub struct InitOptions {
     pub otel: Option<crate::telemetry::types::OtelConfig>,
 }
 
-pub fn init(address: &str, options: InitOptions) -> Result<III, IIIError> {
+pub fn register_worker(address: &str, options: InitOptions) -> Result<III, IIIError> {
     let InitOptions {
         metadata,
         #[cfg(feature = "otel")]
@@ -59,13 +59,14 @@ pub fn init(address: &str, options: InitOptions) -> Result<III, IIIError> {
         iii.set_otel_config(cfg);
     }
 
-    let handle = tokio::runtime::Handle::try_current()
-        .map_err(|_| IIIError::Runtime("iii_sdk::init requires an active Tokio runtime".into()))?;
+    let handle = tokio::runtime::Handle::try_current().map_err(|_| {
+        IIIError::Runtime("iii_sdk::register_worker requires an active Tokio runtime".into())
+    })?;
 
     let client = iii.clone();
     handle.spawn(async move {
         if let Err(err) = client.connect().await {
-            tracing::warn!(error = %err, "iii_sdk::init auto-connect failed");
+            tracing::warn!(error = %err, "iii_sdk::register_worker auto-connect failed");
         }
     });
 

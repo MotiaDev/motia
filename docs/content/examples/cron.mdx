@@ -19,15 +19,15 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import { init, getContext } from 'iii-sdk'
+import {Logger} from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'cron.periodic_job', description: 'Fires on schedule and enqueues work' },
   async () => {
-    const ctx = getContext()
-    ctx.logger.info('Periodic job fired')
+    const logger = new Logger()
+    logger.info('Periodic job fired')
 
     iii.triggerVoid('enqueue', {
       topic: 'job.tick',
@@ -49,13 +49,13 @@ iii.registerTrigger({
 ```python
 import asyncio
 from datetime import datetime, timezone
-from iii import III, InitOptions, get_context
+from iii import III, InitOptions
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="cron-worker"))
 
 
 async def periodic_job(_data, ctx) -> None:
-    ctx.logger.info("Periodic job fired")
+    logger.info("Periodic job fired")
 
     iii.trigger_void("enqueue", {
         "topic": "job.tick",
@@ -66,7 +66,7 @@ async def periodic_job(_data, ctx) -> None:
     })
 
 
-iii.register_function("cron.periodic_job", lambda data: periodic_job(data, get_context()))
+iii.register_function("cron.periodic_job", lambda data: periodic_job(data, Logger()))
 iii.register_trigger(
     type="cron",
     function_id="cron.periodic_job",
@@ -78,14 +78,14 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, get_context};
+use iii_sdk::{III, Logger};
 use serde_json::json;
 
 let iii = III::new("ws://127.0.0.1:49134");
 
 iii.register_function("cron.periodic_job", |_input| async move {
-    let ctx = get_context();
-    ctx.logger.info("Periodic job fired", None);
+    let logger = Logger();
+    logger.info("Periodic job fired", None);
 
     iii.trigger_void("enqueue", json!({
         "topic": "job.tick",
@@ -119,8 +119,8 @@ The function that consumes the cron's emitted event:
 iii.registerFunction(
   { id: 'job.handle_tick', description: 'Processes the periodic job event' },
   async (data: { firedAt: string; message: string }) => {
-    const ctx = getContext()
-    ctx.logger.info('Periodic job processed', { firedAt: data.firedAt, message: data.message })
+    const logger = new Logger()
+    logger.info('Periodic job processed', { firedAt: data.firedAt, message: data.message })
   },
 )
 
@@ -136,13 +136,13 @@ iii.registerTrigger({
 
 ```python
 async def handle_tick(data: dict, ctx) -> None:
-    ctx.logger.info("Periodic job processed", {
+    logger.info("Periodic job processed", {
         "firedAt": data.get("firedAt"),
         "message": data.get("message"),
     })
 
 
-iii.register_function("job.handle_tick", lambda data: handle_tick(data, get_context()))
+iii.register_function("job.handle_tick", lambda data: handle_tick(data, Logger()))
 iii.register_trigger(type="queue", function_id="job.handle_tick", config={"topic": "job.tick"})
 ```
 
@@ -151,8 +151,8 @@ iii.register_trigger(type="queue", function_id="job.handle_tick", config={"topic
 
 ```rust
 iii.register_function("job.handle_tick", |input| async move {
-    let ctx = get_context();
-    ctx.logger.info("Periodic job processed", Some(input));
+    let logger = Logger();
+    logger.info("Periodic job processed", Some(input));
     Ok(json!(null))
 });
 
@@ -173,7 +173,7 @@ A common pattern: read all records in a state scope, filter them by a business r
 iii.registerFunction(
   { id: 'cron.orders_sweep', description: 'Checks for overdue orders every 5 minutes' },
   async () => {
-    const ctx = getContext()
+    const logger = new Logger()
 
     const orders = await iii.trigger<{
       id: string
@@ -186,7 +186,7 @@ iii.registerFunction(
 
     for (const order of orders ?? []) {
       if (!order.complete && new Date() > new Date(order.shipDate)) {
-        ctx.logger.warn('Order overdue', { orderId: order.id, shipDate: order.shipDate })
+        logger.warn('Order overdue', { orderId: order.id, shipDate: order.shipDate })
 
         iii.triggerVoid('enqueue', {
           topic: 'notification',
@@ -202,7 +202,7 @@ iii.registerFunction(
       }
     }
 
-    ctx.logger.info('Sweep complete', { checked: orders?.length ?? 0, swept })
+    logger.info('Sweep complete', { checked: orders?.length ?? 0, swept })
   },
 )
 
@@ -234,7 +234,7 @@ async def orders_sweep(_data, ctx) -> None:
             continue
 
         if not complete and datetime.now(timezone.utc) > ship_date:
-            ctx.logger.warn("Order overdue", {"orderId": order.get("id")})
+            logger.warn("Order overdue", {"orderId": order.get("id")})
 
             iii.trigger_void("enqueue", {
                 "topic": "notification",
@@ -246,10 +246,10 @@ async def orders_sweep(_data, ctx) -> None:
             })
             swept += 1
 
-    ctx.logger.info("Sweep complete", {"checked": len(orders), "swept": swept})
+    logger.info("Sweep complete", {"checked": len(orders), "swept": swept})
 
 
-iii.register_function("cron.orders_sweep", lambda data: orders_sweep(data, get_context()))
+iii.register_function("cron.orders_sweep", lambda data: orders_sweep(data, Logger()))
 iii.register_trigger(type="cron", function_id="cron.orders_sweep", config={"expression": "*/5 * * * *"})
 ```
 
@@ -258,7 +258,7 @@ iii.register_trigger(type="cron", function_id="cron.orders_sweep", config={"expr
 
 ```rust
 iii.register_function("cron.orders_sweep", |_input| async move {
-    let ctx = get_context();
+    let logger = Logger();
 
     let orders_val = iii.trigger("state::list", json!({ "scope": "orders" })).await?;
     let orders = orders_val.as_array().cloned().unwrap_or_default();
@@ -270,7 +270,7 @@ iii.register_function("cron.orders_sweep", |_input| async move {
 
         if let Ok(ship_date) = chrono::DateTime::parse_from_rfc3339(ship_date_str) {
             if !complete && chrono::Utc::now() > ship_date {
-                ctx.logger.warn("Order overdue", Some(json!({ "orderId": order["id"] })));
+                logger.warn("Order overdue", Some(json!({ "orderId": order["id"] })));
 
                 iii.trigger_void("enqueue", json!({
                     "topic": "notification",
@@ -285,7 +285,7 @@ iii.register_function("cron.orders_sweep", |_input| async move {
         }
     }
 
-    ctx.logger.info("Sweep complete", Some(json!({
+    logger.info("Sweep complete", Some(json!({
         "checked": orders.len(),
         "swept": swept,
     })));

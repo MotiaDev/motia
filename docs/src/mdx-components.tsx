@@ -24,6 +24,8 @@ import type { MDXComponents } from 'mdx/types'
 import { Card } from '@/lib/components/Card'
 import { Accordion, AccordionGroup } from './lib/components/Accordion'
 import { Columns } from './lib/components/Columns'
+import { ConfigReference } from './lib/components/ConfigReference'
+import { ConfigReferenceLoader } from './lib/components/ConfigReferenceLoader'
 import { Expandable } from './lib/components/Expandable'
 import { Image } from './lib/components/Image'
 import { TabsConditional } from './lib/components/TabsConditional'
@@ -40,6 +42,8 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     ...components,
     Card,
     Columns,
+    ConfigReference,
+    ConfigReferenceLoader,
     AccordionGroup,
     Accordion,
     Expandable,

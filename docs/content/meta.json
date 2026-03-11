@@ -1,4 +1,15 @@
 {
   "title": "iii",
-  "pages": ["index", "tutorials", "concepts", "how-to", "architecture", "modules", "console", "advanced", "examples", "api-reference"]
+  "pages": [
+    "index",
+    "tutorials",
+    "primitives-and-concepts",
+    "how-to",
+    "architecture",
+    "modules",
+    "console",
+    "advanced",
+    "examples",
+    "api-reference"
+  ]
 }

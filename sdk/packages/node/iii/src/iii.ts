@@ -1,4 +1,4 @@
-import { context } from '@opentelemetry/api'
+import { context, trace } from '@opentelemetry/api'
 import { createRequire } from 'node:module'
 import * as os from 'node:os'
 import { type Data, WebSocket } from 'ws'
@@ -27,12 +27,8 @@ import {
   type WorkerRegisteredMessage,
   type StreamChannelRef,
 } from './iii-types'
-import { withContext } from './context'
-import { Logger } from './logger'
 import type { IStream } from './stream'
 import {
-  currentSpanId,
-  currentTraceId,
   extractContext,
   getLogger,
   getMeter,
@@ -222,22 +218,22 @@ class Sdk implements ISdk {
             const parentContext = extractContext(traceparent, baggage)
 
             return context.with(parentContext, () =>
-              withSpan(`call ${message.id}`, { kind: SpanKind.SERVER }, async span => {
-                const traceId = currentTraceId() ?? crypto.randomUUID()
-                const spanId = currentSpanId()
-                const logger = new Logger(traceId, message.id, spanId)
-                const ctx = { logger, trace: span }
-
-                return withContext(async () => await handler(input), ctx)
-              }),
+              withSpan(
+                `call ${message.id}`,
+                { kind: SpanKind.SERVER },
+                async () => await handler(input),
+              ),
             )
           }
 
-          const traceId = crypto.randomUUID()
-          const logger = new Logger(traceId, message.id)
-          const ctx = { logger }
+          const traceId = crypto.randomUUID().replace(/-/g, '')
+          const spanId = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+          const syntheticSpan = trace.wrapSpanContext({ traceId, spanId, traceFlags: 1 })
 
-          return withContext(async () => await handler(input), ctx)
+          return context.with(
+            trace.setSpan(context.active(), syntheticSpan),
+            async () => await handler(input),
+          )
         },
       })
     } else {
@@ -356,6 +352,7 @@ class Sdk implements ISdk {
       version: SDK_VERSION,
       name: this.workerName,
       os: getOsInfo(),
+      pid: process.pid,
       telemetry: {
         language,
         project_name: telemetryOpts?.project_name,
@@ -801,10 +798,15 @@ class Sdk implements ISdk {
           baggage: getResponseBaggage(),
         })
       } catch (error) {
+        const isError = error instanceof Error
         this.sendMessage(MessageType.InvocationResult, {
           invocation_id,
           function_id,
-          error: { code: 'invocation_failed', message: (error as Error).message },
+          error: {
+            code: 'invocation_failed',
+            message: isError ? error.message : String(error),
+            stacktrace: isError ? error.stack : undefined,
+          },
           traceparent: getResponseTraceparent(),
           baggage: getResponseBaggage(),
         })
@@ -898,4 +900,5 @@ class Sdk implements ISdk {
   }
 }
 
-export const init = (address: string, options?: InitOptions): ISdk => new Sdk(address, options)
+export const registerWorker = (address: string, options?: InitOptions): ISdk =>
+  new Sdk(address, options)

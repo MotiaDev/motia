@@ -4,7 +4,6 @@ import asyncio
 import logging
 
 from .channels import ChannelReader, ChannelWriter, ReadableStream, WritableStream
-from .context import Context, get_context, with_context
 from .iii import III, ConnectionStateCallback, FunctionRef, IIIConnectionState, InitOptions, ReconnectionConfig
 from .iii_types import FunctionInfo, HttpAuthConfig, HttpInvocationConfig, StreamChannelRef, WorkerInfo, WorkerStatus
 from .logger import Logger
@@ -28,7 +27,15 @@ from .stream import (
     UpdateRemove,
     UpdateSet,
 )
-from .telemetry import get_meter, get_tracer, init_otel, is_initialized, shutdown_otel
+from .telemetry import (
+    current_span_id,
+    current_trace_id,
+    get_meter,
+    get_tracer,
+    init_otel,
+    is_initialized,
+    shutdown_otel,
+)
 from .telemetry_types import OtelConfig
 from .types import (
     ApiRequest,
@@ -42,7 +49,7 @@ from .types import (
 from .utils import http, is_channel_ref
 
 
-def init(address: str, options: InitOptions | None = None) -> III:
+def register_worker(address: str, options: InitOptions | None = None) -> III:
     """Create an III client and auto-start its connection task."""
     client = III(address, options)
 
@@ -50,7 +57,7 @@ def init(address: str, options: InitOptions | None = None) -> III:
         loop = asyncio.get_running_loop()
     except RuntimeError as exc:
         raise RuntimeError(
-            "iii.init() requires an active asyncio event loop. "
+            "iii.register_worker() requires an active asyncio event loop. "
             "Call it inside async code or use `client = III(...); await client.connect()`"
         ) from exc
 
@@ -75,16 +82,13 @@ def configure_logging(level: int = logging.INFO, format: str | None = None) -> N
 __all__ = [
     # Core
     "III",
-    "init",
+    "register_worker",
     "InitOptions",
     "ReconnectionConfig",
     "IIIConnectionState",
     "ConnectionStateCallback",
     "FunctionRef",
     "Logger",
-    "Context",
-    "get_context",
-    "with_context",
     # API types
     "ApiRequest",
     "ApiResponse",
@@ -133,6 +137,8 @@ __all__ = [
     "shutdown_otel",
     "get_tracer",
     "get_meter",
+    "current_trace_id",
+    "current_span_id",
     "is_initialized",
     # Utility
     "configure_logging",

@@ -5,7 +5,11 @@
     "use-functions-and-triggers",
     "expose-http-endpoint",
     "manage-state",
+    "react-to-state-changes",
+    "use-trigger-conditions",
     "schedule-cron-task",
-    "stream-realtime-data"
+    "create-ephemeral-worker",
+    "stream-realtime-data",
+    "configure-engine"
   ]
 }
