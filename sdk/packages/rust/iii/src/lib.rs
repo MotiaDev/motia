@@ -24,7 +24,7 @@ pub use logger::Logger;
 pub use protocol::{
     ErrorBody, FunctionMessage, HttpAuthConfig, HttpInvocationConfig, HttpMethod, Message,
     RegisterFunctionMessage, RegisterServiceMessage, RegisterTriggerMessage,
-    RegisterTriggerTypeMessage, TriggerAction, TriggerOptions,
+    RegisterTriggerTypeMessage, TriggerAction, TriggerRequest,
 };
 pub use stream::{Streams, UpdateBuilder};
 pub use triggers::{Trigger, TriggerConfig, TriggerHandler};

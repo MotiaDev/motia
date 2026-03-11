@@ -6,17 +6,21 @@
 
 pub mod adapters;
 mod config;
+mod message;
 #[allow(clippy::module_inception)]
 mod queue;
 pub mod registry;
 mod subscriber_config;
 
 use serde_json::Value;
+use tokio::sync::mpsc;
 
-pub use self::config::NamedQueueConfig;
+pub use self::config::FunctionQueueConfig;
+pub use self::message::QueueMessage;
 pub use self::queue::QueueCoreModule;
 pub use self::subscriber_config::SubscriberQueueConfig;
 
+#[allow(clippy::too_many_arguments)]
 #[async_trait::async_trait]
 pub trait QueueAdapter: Send + Sync + 'static {
     async fn enqueue(
@@ -38,23 +42,56 @@ pub trait QueueAdapter: Send + Sync + 'static {
     async fn redrive_dlq(&self, topic: &str) -> anyhow::Result<u64>;
     async fn dlq_count(&self, topic: &str) -> anyhow::Result<u64>;
 
-    // New methods for named queues (default impls so existing adapters compile)
-    async fn enqueue_to_queue(
+    // Function queue transport methods
+    async fn publish_to_function_queue(
         &self,
         _queue_name: &str,
         _function_id: &str,
         _data: Value,
+        _max_retries: u32,
+        _backoff_ms: u64,
         _traceparent: Option<String>,
         _baggage: Option<String>,
     ) {
-        unimplemented!("enqueue_to_queue not implemented for this adapter")
+        unimplemented!("publish_to_function_queue not implemented for this adapter")
     }
 
-    async fn start_named_queue(&self, _queue_name: &str, _config: &NamedQueueConfig) {
-        unimplemented!("start_named_queue not implemented for this adapter")
+    /// Set up transport topology for a function queue (exchanges, queues, bindings).
+    /// Called once per queue during initialization.
+    async fn setup_function_queue(
+        &self,
+        _queue_name: &str,
+        _config: &FunctionQueueConfig,
+    ) -> anyhow::Result<()> {
+        Ok(()) // no-op by default (schemaless stores like builtin)
     }
 
-    async fn stop_named_queue(&self, _queue_name: &str) {
-        unimplemented!("stop_named_queue not implemented for this adapter")
+    /// Start consuming from a function queue. Returns a receiver that yields QueueMessages.
+    /// The adapter spawns an internal task that forwards messages into the channel.
+    async fn consume_function_queue(
+        &self,
+        _queue_name: &str,
+        _prefetch: u32,
+    ) -> anyhow::Result<mpsc::Receiver<QueueMessage>> {
+        unimplemented!("consume_function_queue not implemented for this adapter")
+    }
+
+    /// Acknowledge successful processing of a message.
+    async fn ack_function_queue(
+        &self,
+        _queue_name: &str,
+        _delivery_id: u64,
+    ) -> anyhow::Result<()> {
+        Ok(()) // no-op by default
+    }
+
+    /// Negative-acknowledge a message. If requeue=false, adapter routes to retry/DLQ.
+    async fn nack_function_queue(
+        &self,
+        _queue_name: &str,
+        _delivery_id: u64,
+        _requeue: bool,
+    ) -> anyhow::Result<()> {
+        Ok(()) // no-op by default
     }
 }

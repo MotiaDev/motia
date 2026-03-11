@@ -38,7 +38,7 @@ use crate::{
 /// creating a circular dependency.
 #[async_trait::async_trait]
 pub trait QueueEnqueuer: Send + Sync {
-    async fn enqueue_to_named_queue(
+    async fn enqueue_to_function_queue(
         &self,
         queue_name: &str,
         function_id: &str,
@@ -495,7 +495,7 @@ impl Engine {
                                 let queue_module = engine.queue_module.read().await;
                                 let result = match queue_module.as_ref() {
                                     Some(qm) => {
-                                        qm.enqueue_to_named_queue(
+                                        qm.enqueue_to_function_queue(
                                             &queue,
                                             &function_id,
                                             data.clone(),

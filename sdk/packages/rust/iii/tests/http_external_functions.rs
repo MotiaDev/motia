@@ -160,7 +160,7 @@ async fn delivers_queue_events_to_external_http_function() {
         .expect("register trigger");
     settle().await;
 
-    iii.call("enqueue", json!({"topic": topic, "data": payload}))
+    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic, "data": payload})))
         .await
         .expect("enqueue failed");
 
@@ -250,7 +250,7 @@ async fn delivers_events_with_custom_headers() {
         .expect("register trigger");
     settle().await;
 
-    iii.call("enqueue", json!({"topic": topic, "data": payload}))
+    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic, "data": payload})))
         .await
         .expect("enqueue failed");
 
@@ -319,10 +319,10 @@ async fn delivers_events_to_multiple_external_functions() {
         .expect("register trigger b");
     settle().await;
 
-    iii.call("enqueue", json!({"topic": topic_a, "data": payload_a}))
+    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic_a, "data": payload_a})))
         .await
         .expect("enqueue a failed");
-    iii.call("enqueue", json!({"topic": topic_b, "data": payload_b}))
+    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic_b, "data": payload_b})))
         .await
         .expect("enqueue b failed");
 
@@ -374,7 +374,7 @@ async fn stops_delivering_events_after_unregister() {
         .expect("register trigger");
     settle().await;
 
-    iii.call("enqueue", json!({"topic": topic, "data": payload_before}))
+    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic, "data": payload_before})))
         .await
         .expect("enqueue before failed");
 
@@ -391,7 +391,7 @@ async fn stops_delivering_events_after_unregister() {
     http_fn.unregister();
     tokio::time::sleep(Duration::from_millis(500)).await;
 
-    iii.call("enqueue", json!({"topic": topic, "data": payload_after}))
+    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic, "data": payload_after})))
         .await
         .expect("enqueue after failed");
 
@@ -435,7 +435,7 @@ async fn delivers_events_using_put_method() {
         .expect("register trigger");
     settle().await;
 
-    iii.call("enqueue", json!({"topic": topic, "data": payload}))
+    iii.trigger(iii_sdk::TriggerRequest::new("enqueue", json!({"topic": topic, "data": payload})))
         .await
         .expect("enqueue failed");
 

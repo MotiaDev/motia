@@ -4,11 +4,17 @@
 // This software is patent protected. We welcome discussions - reach out at support@motia.dev
 // See LICENSE and PATENTS files for details.
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+};
 
 use async_trait::async_trait;
 use serde_json::Value;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, mpsc};
 
 use tracing::Instrument;
 
@@ -25,16 +31,23 @@ use crate::{
     condition::check_condition,
     engine::{Engine, EngineTrait},
     modules::queue::{
-        NamedQueueConfig, QueueAdapter, SubscriberQueueConfig,
+        QueueAdapter, SubscriberQueueConfig,
         registry::{QueueAdapterFuture, QueueAdapterRegistration},
     },
     telemetry::SpanExt,
 };
 
+struct DeliveryInfo {
+    queue_name: String,
+    job_id: String,
+}
+
 pub struct BuiltinQueueAdapter {
     queue: Arc<BuiltinQueue>,
     engine: Arc<Engine>,
     subscriptions: Arc<RwLock<HashMap<String, SubscriptionHandle>>>,
+    delivery_map: Arc<RwLock<HashMap<u64, DeliveryInfo>>>,
+    delivery_counter: Arc<AtomicU64>,
 }
 
 struct FunctionHandler {
@@ -116,40 +129,6 @@ impl JobHandler for FunctionHandler {
     }
 }
 
-struct DynamicFunctionHandler {
-    engine: Arc<Engine>,
-}
-
-#[async_trait]
-impl JobHandler for DynamicFunctionHandler {
-    async fn handle(&self, job: &crate::builtins::queue::Job) -> Result<(), String> {
-        let function_id = job
-            .function_id
-            .as_deref()
-            .ok_or_else(|| "Job missing function_id".to_string())?;
-
-        let span = tracing::info_span!(
-            "named_queue_job",
-            otel.name = %format!("queue_job {}", job.queue),
-            job_id = %job.id,
-            function_id = %function_id,
-            queue = %job.queue,
-            attempt = %job.attempts_made,
-        )
-        .with_parent_headers(job.traceparent.as_deref(), job.baggage.as_deref());
-
-        async {
-            self.engine
-                .call(function_id, job.data.clone())
-                .await
-                .map(|_| ())
-                .map_err(|e| format!("{:?}", e))
-        }
-        .instrument(span)
-        .await
-    }
-}
-
 impl BuiltinQueueAdapter {
     pub fn new(
         kv_store: Arc<QueueKvStore>,
@@ -162,6 +141,8 @@ impl BuiltinQueueAdapter {
             queue,
             engine,
             subscriptions: Arc::new(RwLock::new(HashMap::new())),
+            delivery_map: Arc::new(RwLock::new(HashMap::new())),
+            delivery_counter: Arc::new(AtomicU64::new(0)),
         }
     }
 }
@@ -172,6 +153,8 @@ impl Clone for BuiltinQueueAdapter {
             queue: Arc::clone(&self.queue),
             engine: Arc::clone(&self.engine),
             subscriptions: Arc::clone(&self.subscriptions),
+            delivery_map: Arc::clone(&self.delivery_map),
+            delivery_counter: Arc::clone(&self.delivery_counter),
         }
     }
 }
@@ -266,59 +249,105 @@ impl QueueAdapter for BuiltinQueueAdapter {
         Ok(self.queue.dlq_count(topic).await)
     }
 
-    async fn enqueue_to_queue(
+    async fn publish_to_function_queue(
         &self,
         queue_name: &str,
         function_id: &str,
         data: Value,
+        max_retries: u32,
+        backoff_ms: u64,
         traceparent: Option<String>,
         baggage: Option<String>,
     ) {
         let job = Job {
             function_id: Some(function_id.to_string()),
-            ..Job::new(queue_name, data, 3, 1000, traceparent, baggage)
+            ..Job::new(queue_name, data, max_retries, backoff_ms, traceparent, baggage)
         };
         self.queue.push_job(job).await;
     }
 
-    async fn start_named_queue(&self, queue_name: &str, config: &NamedQueueConfig) {
-        let handler: Arc<dyn JobHandler> = Arc::new(DynamicFunctionHandler {
-            engine: Arc::clone(&self.engine),
+    async fn consume_function_queue(
+        &self,
+        queue_name: &str,
+        prefetch: u32,
+    ) -> anyhow::Result<mpsc::Receiver<crate::modules::queue::QueueMessage>> {
+        use crate::modules::queue::QueueMessage;
+
+        let (tx, rx) = mpsc::channel(prefetch as usize);
+        let queue = Arc::clone(&self.queue);
+        let delivery_map = Arc::clone(&self.delivery_map);
+        let delivery_counter = Arc::clone(&self.delivery_counter);
+        let queue_name = queue_name.to_string();
+
+        tokio::spawn(async move {
+            let poll_interval = std::time::Duration::from_millis(100);
+            loop {
+                if tx.is_closed() {
+                    break;
+                }
+
+                // Move delayed jobs to waiting
+                if let Err(e) = queue.move_delayed_to_waiting(&queue_name).await {
+                    tracing::error!(error = %e, queue = %queue_name, "Failed to move delayed jobs");
+                }
+
+                if let Some(job) = queue.pop(&queue_name).await {
+                    let delivery_id = delivery_counter.fetch_add(1, Ordering::SeqCst);
+
+                    delivery_map.write().await.insert(
+                        delivery_id,
+                        DeliveryInfo {
+                            queue_name: queue_name.clone(),
+                            job_id: job.id.clone(),
+                        },
+                    );
+
+                    let msg = QueueMessage {
+                        delivery_id,
+                        function_id: job.function_id.unwrap_or_default(),
+                        data: job.data,
+                        attempt: job.attempts_made,
+                        traceparent: job.traceparent,
+                        baggage: job.baggage,
+                    };
+
+                    if tx.send(msg).await.is_err() {
+                        break;
+                    }
+                } else {
+                    tokio::time::sleep(poll_interval).await;
+                }
+            }
         });
 
-        let sub_config = SubscriptionConfig {
-            mode: if config.r#type == "fifo" {
-                Some(QueueMode::Fifo)
-            } else {
-                Some(QueueMode::Concurrent)
-            },
-            max_attempts: Some(config.max_retries),
-            concurrency: Some(config.concurrency),
-            backoff_ms: Some(config.backoff_ms),
-        };
-
-        let handle = self
-            .queue
-            .subscribe(queue_name, handler, Some(sub_config))
-            .await;
-
-        let key = format!("named:{}", queue_name);
-        let mut subs = self.subscriptions.write().await;
-        subs.insert(key, handle);
-
-        tracing::debug!(queue_name = %queue_name, "Started named queue");
+        Ok(rx)
     }
 
-    async fn stop_named_queue(&self, queue_name: &str) {
-        let key = format!("named:{}", queue_name);
-        let mut subs = self.subscriptions.write().await;
-
-        if let Some(handle) = subs.remove(&key) {
-            self.queue.unsubscribe(handle).await;
-            tracing::debug!(queue_name = %queue_name, "Stopped named queue");
-        } else {
-            tracing::warn!(queue_name = %queue_name, "No named queue subscription found to stop");
+    async fn ack_function_queue(
+        &self,
+        _queue_name: &str,
+        delivery_id: u64,
+    ) -> anyhow::Result<()> {
+        let info = self.delivery_map.write().await.remove(&delivery_id);
+        if let Some(info) = info {
+            self.queue.ack(&info.queue_name, &info.job_id).await?;
         }
+        Ok(())
+    }
+
+    async fn nack_function_queue(
+        &self,
+        _queue_name: &str,
+        delivery_id: u64,
+        _requeue: bool,
+    ) -> anyhow::Result<()> {
+        let info = self.delivery_map.write().await.remove(&delivery_id);
+        if let Some(info) = info {
+            self.queue
+                .nack(&info.queue_name, &info.job_id, "function call failed")
+                .await?;
+        }
+        Ok(())
     }
 }
 

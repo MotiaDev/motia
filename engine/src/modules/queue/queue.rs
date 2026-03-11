@@ -19,6 +19,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use super::{QueueAdapter, SubscriberQueueConfig, config::QueueModuleConfig};
+use tracing::Instrument;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::{
@@ -45,7 +46,7 @@ pub struct QueueInput {
 
 #[service(name = "queue")]
 impl QueueCoreModule {
-    pub async fn enqueue_to_named_queue(
+    pub async fn enqueue_to_function_queue(
         &self,
         queue_name: &str,
         function_id: &str,
@@ -58,35 +59,44 @@ impl QueueCoreModule {
             .queue_configs
             .get(queue_name)
             .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Queue '{}' not found. Available queues: {:?}",
-                    queue_name,
-                    self._config.queue_configs.keys().collect::<Vec<_>>()
-                )
+                tracing::warn!(
+                    queue_name = %queue_name,
+                    available = ?self._config.queue_configs.keys().collect::<Vec<_>>(),
+                    "Enqueue attempted for unknown queue"
+                );
+                anyhow::anyhow!("Queue '{}' not found", queue_name)
             })?;
 
         // FIFO validation: check that the message_group_field is present in data
-        if queue_config.r#type == "fifo" {
-            if let Some(ref group_field) = queue_config.message_group_field {
-                let group_value = data.get(group_field).ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "FIFO queue '{}' requires field '{}' in data, but it was not found",
-                        queue_name,
-                        group_field
-                    )
-                })?;
-                if group_value.is_null() {
-                    return Err(anyhow::anyhow!(
-                        "FIFO queue '{}': field '{}' must not be null",
-                        queue_name,
-                        group_field
-                    ));
-                }
+        if queue_config.r#type == "fifo"
+            && let Some(ref group_field) = queue_config.message_group_field
+        {
+            let group_value = data.get(group_field).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "FIFO queue '{}' requires field '{}' in data, but it was not found",
+                    queue_name,
+                    group_field
+                )
+            })?;
+            if group_value.is_null() {
+                return Err(anyhow::anyhow!(
+                    "FIFO queue '{}': field '{}' must not be null",
+                    queue_name,
+                    group_field
+                ));
             }
         }
 
         self.adapter
-            .enqueue_to_queue(queue_name, function_id, data, traceparent, baggage)
+            .publish_to_function_queue(
+                queue_name,
+                function_id,
+                data,
+                queue_config.max_retries,
+                queue_config.backoff_ms,
+                traceparent,
+                baggage,
+            )
             .await;
         crate::modules::telemetry::collector::track_queue_emit();
         Ok(())
@@ -128,7 +138,7 @@ impl QueueCoreModule {
 
 #[async_trait]
 impl QueueEnqueuer for QueueCoreModule {
-    async fn enqueue_to_named_queue(
+    async fn enqueue_to_function_queue(
         &self,
         queue_name: &str,
         function_id: &str,
@@ -136,7 +146,7 @@ impl QueueEnqueuer for QueueCoreModule {
         traceparent: Option<String>,
         baggage: Option<String>,
     ) -> anyhow::Result<()> {
-        self.enqueue_to_named_queue(queue_name, function_id, data, traceparent, baggage)
+        self.enqueue_to_function_queue(queue_name, function_id, data, traceparent, baggage)
             .await
     }
 }
@@ -238,27 +248,88 @@ impl Module for QueueCoreModule {
 
     async fn initialize(&self) -> anyhow::Result<()> {
         tracing::info!("Initializing QueueModule");
-
-        // Validate config at startup
         self._config.validate()?;
+        self.engine.set_queue_module(Arc::new(self.clone())).await;
 
-        // Store reference on engine for dispatch access
-        self.engine
-            .set_queue_module(Arc::new(self.clone()))
-            .await;
-
-        // Start a worker for each named queue
         for (name, config) in &self._config.queue_configs {
+            self.adapter.setup_function_queue(name, config).await?;
+
+            let prefetch = if config.r#type == "fifo" { 1 } else { config.concurrency };
+            let mut receiver = self.adapter.consume_function_queue(name, prefetch).await?;
+
+            let adapter = self.adapter.clone();
+            let engine = self.engine.clone();
+            let queue_name = name.clone();
+
+            let semaphore = Arc::new(tokio::sync::Semaphore::new(prefetch as usize));
+
+            tokio::spawn(async move {
+                while let Some(msg) = receiver.recv().await {
+                    let adapter = adapter.clone();
+                    let engine = engine.clone();
+                    let queue_name = queue_name.clone();
+                    let semaphore = semaphore.clone();
+
+                    let permit = semaphore.acquire_owned().await;
+                    if permit.is_err() {
+                        break;
+                    }
+                    let permit = permit.unwrap();
+
+                    tokio::spawn(async move {
+                        let delivery_id = msg.delivery_id;
+                        let function_id = msg.function_id.clone();
+
+                        let span = tracing::info_span!(
+                            "fn_queue_job",
+                            otel.name = %format!("fn_queue {}", queue_name),
+                            function_id = %function_id,
+                            queue = %queue_name,
+                            attempt = %msg.attempt,
+                            delivery_id = %delivery_id,
+                        );
+
+                        let result = async {
+                            engine.call(&function_id, msg.data).await
+                        }
+                        .instrument(span)
+                        .await;
+
+                        match result {
+                            Ok(_) => {
+                                if let Err(e) = adapter.ack_function_queue(&queue_name, delivery_id).await {
+                                    tracing::error!(error = %e, "Failed to ack message");
+                                }
+                            }
+                            Err(ref err) => {
+                                tracing::warn!(
+                                    function_id = %function_id,
+                                    queue = %queue_name,
+                                    attempt = %msg.attempt,
+                                    error = ?err,
+                                    "Function queue job failed"
+                                );
+                                if let Err(e) = adapter.nack_function_queue(&queue_name, delivery_id, false).await {
+                                    tracing::error!(error = %e, "Failed to nack message");
+                                }
+                            }
+                        }
+
+                        drop(permit);
+                    });
+                }
+
+                tracing::warn!(queue = %queue_name, "Consumer loop ended");
+            });
+
             tracing::info!(
                 queue = %name,
                 r#type = %config.r#type,
                 concurrency = %config.concurrency,
-                "Starting named queue"
+                "Started function queue consumer"
             );
-            self.adapter.start_named_queue(name, config).await;
         }
 
-        // Register the queue trigger type (backward compat)
         let trigger_type = TriggerType {
             id: "queue".to_string(),
             _description: "Queue core module".to_string(),
@@ -509,11 +580,13 @@ mod tests {
             *self.last_baggage.lock().await = baggage;
         }
 
-        async fn enqueue_to_queue(
+        async fn publish_to_function_queue(
             &self,
             _queue_name: &str,
             _function_id: &str,
             _data: Value,
+            _max_retries: u32,
+            _backoff_ms: u64,
             _traceparent: Option<String>,
             _baggage: Option<String>,
         ) {
@@ -543,12 +616,21 @@ mod tests {
             Ok(0)
         }
 
-        async fn start_named_queue(
+        async fn setup_function_queue(
             &self,
             _queue_name: &str,
-            _config: &super::super::config::NamedQueueConfig,
-        ) {
-            // no-op for tests
+            _config: &super::super::config::FunctionQueueConfig,
+        ) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        async fn consume_function_queue(
+            &self,
+            _queue_name: &str,
+            _prefetch: u32,
+        ) -> anyhow::Result<tokio::sync::mpsc::Receiver<super::super::QueueMessage>> {
+            let (_tx, rx) = tokio::sync::mpsc::channel(1);
+            Ok(rx)
         }
     }
 
@@ -835,11 +917,11 @@ mod tests {
     }
 
     // =========================================================================
-    // enqueue_to_named_queue tests
+    // enqueue_to_function_queue tests
     // =========================================================================
 
     fn setup_queue_module_with_configs() -> (Arc<Engine>, QueueCoreModule, Arc<MockQueueAdapter>) {
-        use super::super::config::{NamedQueueConfig, QueueModuleConfig};
+        use super::super::config::{FunctionQueueConfig, QueueModuleConfig};
 
         crate::modules::observability::metrics::ensure_default_meter();
         let engine = Arc::new(Engine::new());
@@ -848,14 +930,14 @@ mod tests {
         let mut queue_configs = HashMap::new();
         queue_configs.insert(
             "default".to_string(),
-            NamedQueueConfig {
+            FunctionQueueConfig {
                 r#type: "standard".to_string(),
                 ..Default::default()
             },
         );
         queue_configs.insert(
             "payment".to_string(),
-            NamedQueueConfig {
+            FunctionQueueConfig {
                 r#type: "fifo".to_string(),
                 message_group_field: Some("transaction_id".to_string()),
                 ..Default::default()
@@ -877,10 +959,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn enqueue_to_named_queue_unknown_queue_fails() {
+    async fn enqueue_to_function_queue_unknown_queue_fails() {
         let (_engine, module, _adapter) = setup_queue_module_with_configs();
         let result = module
-            .enqueue_to_named_queue(
+            .enqueue_to_function_queue(
                 "nonexistent",
                 "fn-1",
                 json!({"key": "value"}),
@@ -898,10 +980,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn enqueue_to_named_queue_fifo_missing_group_field_fails() {
+    async fn enqueue_to_function_queue_fifo_missing_group_field_fails() {
         let (_engine, module, _adapter) = setup_queue_module_with_configs();
         let result = module
-            .enqueue_to_named_queue(
+            .enqueue_to_function_queue(
                 "payment",
                 "fn-1",
                 json!({"amount": 100}), // missing "transaction_id"
@@ -919,10 +1001,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn enqueue_to_named_queue_fifo_null_group_field_fails() {
+    async fn enqueue_to_function_queue_fifo_null_group_field_fails() {
         let (_engine, module, _adapter) = setup_queue_module_with_configs();
         let result = module
-            .enqueue_to_named_queue(
+            .enqueue_to_function_queue(
                 "payment",
                 "fn-1",
                 json!({"transaction_id": null, "amount": 100}),
@@ -940,10 +1022,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn enqueue_to_named_queue_fifo_with_group_field_ok() {
+    async fn enqueue_to_function_queue_fifo_with_group_field_ok() {
         let (_engine, module, adapter) = setup_queue_module_with_configs();
         let result = module
-            .enqueue_to_named_queue(
+            .enqueue_to_function_queue(
                 "payment",
                 "fn-1",
                 json!({"transaction_id": "txn-123", "amount": 100}),
@@ -956,10 +1038,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn enqueue_to_named_queue_standard_ok() {
+    async fn enqueue_to_function_queue_standard_ok() {
         let (_engine, module, adapter) = setup_queue_module_with_configs();
         let result = module
-            .enqueue_to_named_queue(
+            .enqueue_to_function_queue(
                 "default",
                 "fn-1",
                 json!({"key": "value"}),

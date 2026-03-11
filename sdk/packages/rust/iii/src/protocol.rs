@@ -65,55 +65,48 @@ impl TriggerAction {
     }
 }
 
-/// Options for `trigger()`. Mirrors the options object in the Node/Python SDKs.
+/// Request object for `trigger()`. Matches the Node/Python SDK signature:
+/// `trigger({ function_id, payload, action?, timeout? })`
 ///
-/// You can construct this directly or use the ergonomic `From` impls:
-/// - `()` → default options (no action, default timeout)
-/// - `Duration` → custom timeout, no action
-/// - `TriggerAction` → fire-and-forget with the given action
-#[derive(Debug, Clone, Default)]
-pub struct TriggerOptions {
-    pub timeout: Option<std::time::Duration>,
+/// Build with the constructor or the builder-style methods:
+/// ```rust
+/// // Simple call
+/// TriggerRequest::new("my::function", json!({ "key": "value" }))
+///
+/// // With action
+/// TriggerRequest::new("my::function", json!({}))
+///     .action(TriggerAction::enqueue("payments"))
+///
+/// // With timeout
+/// TriggerRequest::new("my::function", json!({}))
+///     .timeout(Duration::from_secs(10))
+/// ```
+#[derive(Debug, Clone)]
+pub struct TriggerRequest {
+    pub function_id: String,
+    pub payload: Value,
     pub action: Option<TriggerAction>,
+    pub timeout: Option<std::time::Duration>,
 }
 
-impl TriggerOptions {
-    pub fn new() -> Self {
-        Self::default()
+impl TriggerRequest {
+    pub fn new(function_id: impl Into<String>, payload: impl serde::Serialize) -> Self {
+        Self {
+            function_id: function_id.into(),
+            payload: serde_json::to_value(payload).unwrap_or(Value::Null),
+            action: None,
+            timeout: None,
+        }
     }
 
-    pub fn with_timeout(mut self, timeout: std::time::Duration) -> Self {
-        self.timeout = Some(timeout);
-        self
-    }
-
-    pub fn with_action(mut self, action: TriggerAction) -> Self {
+    pub fn action(mut self, action: TriggerAction) -> Self {
         self.action = Some(action);
         self
     }
-}
 
-impl From<()> for TriggerOptions {
-    fn from(_: ()) -> Self {
-        Self::default()
-    }
-}
-
-impl From<std::time::Duration> for TriggerOptions {
-    fn from(timeout: std::time::Duration) -> Self {
-        Self {
-            timeout: Some(timeout),
-            action: None,
-        }
-    }
-}
-
-impl From<TriggerAction> for TriggerOptions {
-    fn from(action: TriggerAction) -> Self {
-        Self {
-            timeout: None,
-            action: Some(action),
-        }
+    pub fn timeout(mut self, timeout: std::time::Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
     }
 }
 

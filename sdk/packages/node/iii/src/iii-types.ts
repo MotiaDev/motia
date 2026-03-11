@@ -119,6 +119,13 @@ export type TriggerAction =
   | { type: 'enqueue'; queue: string }
   | { type: 'void' }
 
+export type TriggerRequest<TInput = unknown> = {
+  function_id: string
+  payload: TInput
+  action?: TriggerAction
+  timeoutMs?: number
+}
+
 export type InvokeFunctionMessage = {
   message_type: MessageType.InvokeFunction
   /**

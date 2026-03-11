@@ -36,7 +36,7 @@ fn default_poll_interval_ms() -> u64 {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct NamedQueueConfig {
+pub struct FunctionQueueConfig {
     #[serde(default = "default_max_retries")]
     pub max_retries: u32,
 
@@ -56,7 +56,7 @@ pub struct NamedQueueConfig {
     pub poll_interval_ms: u64,
 }
 
-impl Default for NamedQueueConfig {
+impl Default for FunctionQueueConfig {
     fn default() -> Self {
         Self {
             max_retries: default_max_retries(),
@@ -75,7 +75,7 @@ pub struct QueueModuleConfig {
     pub adapter: Option<AdapterEntry>,
 
     #[serde(default)]
-    pub queue_configs: HashMap<String, NamedQueueConfig>,
+    pub queue_configs: HashMap<String, FunctionQueueConfig>,
 }
 
 impl QueueModuleConfig {
@@ -183,8 +183,8 @@ adapter:
     }
 
     #[test]
-    fn named_queue_config_defaults() {
-        let config = NamedQueueConfig::default();
+    fn function_queue_config_defaults() {
+        let config = FunctionQueueConfig::default();
         assert_eq!(config.max_retries, 3);
         assert_eq!(config.concurrency, 10);
         assert_eq!(config.r#type, "standard");
@@ -198,7 +198,7 @@ adapter:
         let mut queue_configs = HashMap::new();
         queue_configs.insert(
             "orders".to_string(),
-            NamedQueueConfig {
+            FunctionQueueConfig {
                 r#type: "fifo".to_string(),
                 message_group_field: None,
                 ..Default::default()
@@ -221,7 +221,7 @@ adapter:
         let mut queue_configs = HashMap::new();
         queue_configs.insert(
             "orders".to_string(),
-            NamedQueueConfig {
+            FunctionQueueConfig {
                 r#type: "fifo".to_string(),
                 message_group_field: Some("order_id".to_string()),
                 ..Default::default()

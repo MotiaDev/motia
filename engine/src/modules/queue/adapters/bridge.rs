@@ -16,7 +16,7 @@ use crate::{
     condition::check_condition,
     engine::{Engine, EngineTrait},
     modules::queue::{
-        NamedQueueConfig, QueueAdapter, SubscriberQueueConfig,
+        QueueAdapter, SubscriberQueueConfig,
         registry::{QueueAdapterFuture, QueueAdapterRegistration},
     },
 };
@@ -113,7 +113,7 @@ impl QueueAdapter for BridgeAdapter {
         let input = Self::build_enqueue_payload(topic, data);
         if let Err(e) = self
             .bridge
-            .trigger(Self::queue_enqueue_function_id(), input, iii_sdk::TriggerAction::void())
+            .trigger(iii_sdk::TriggerRequest::new(Self::queue_enqueue_function_id(), input).action(iii_sdk::TriggerAction::void()))
             .await
         {
             tracing::error!(error = %e, topic = %topic, "Failed to enqueue message via bridge");
@@ -247,11 +247,13 @@ impl QueueAdapter for BridgeAdapter {
         ))
     }
 
-    async fn enqueue_to_queue(
+    async fn publish_to_function_queue(
         &self,
         queue_name: &str,
         function_id: &str,
         data: Value,
+        _max_retries: u32,
+        _backoff_ms: u64,
         _traceparent: Option<String>,
         _baggage: Option<String>,
     ) {
@@ -260,18 +262,20 @@ impl QueueAdapter for BridgeAdapter {
             "function_id": function_id,
             "data": data,
         });
-        if let Err(e) = self.bridge.trigger("enqueue_to_queue", payload, iii_sdk::TriggerAction::void()).await {
+        if let Err(e) = self.bridge.trigger(iii_sdk::TriggerRequest::new("enqueue_to_queue", payload).action(iii_sdk::TriggerAction::void())).await {
             tracing::error!(error = %e, queue = %queue_name, "Failed to enqueue via bridge");
         }
     }
 
-    async fn start_named_queue(&self, _queue_name: &str, _config: &NamedQueueConfig) {
-        // Bridge doesn't manage workers locally — the remote side handles this
-        tracing::debug!("start_named_queue is a no-op for BridgeAdapter");
-    }
-
-    async fn stop_named_queue(&self, _queue_name: &str) {
-        tracing::debug!("stop_named_queue is a no-op for BridgeAdapter");
+    async fn consume_function_queue(
+        &self,
+        _queue_name: &str,
+        _prefetch: u32,
+    ) -> anyhow::Result<tokio::sync::mpsc::Receiver<crate::modules::queue::QueueMessage>> {
+        // Bridge adapter: consuming happens on the remote engine.
+        // Return a channel that will never receive (consumer loop stays idle).
+        let (_tx, rx) = tokio::sync::mpsc::channel(1);
+        Ok(rx)
     }
 }
 

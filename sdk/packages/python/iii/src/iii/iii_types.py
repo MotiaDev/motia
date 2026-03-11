@@ -139,6 +139,15 @@ class TriggerActionVoid(BaseModel):
 TriggerAction = TriggerActionEnqueue | TriggerActionVoid
 
 
+class TriggerRequest(BaseModel):
+    """Request object for trigger() — matches the object form API."""
+
+    function_id: str
+    payload: Any = None
+    action: TriggerActionEnqueue | TriggerActionVoid | None = None
+    timeout: float | None = None
+
+
 class InvokeFunctionMessage(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 

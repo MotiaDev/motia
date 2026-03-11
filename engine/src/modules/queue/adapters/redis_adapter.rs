@@ -22,7 +22,7 @@ use crate::{
     engine::{Engine, EngineTrait},
     modules::{
         queue::{
-            NamedQueueConfig, QueueAdapter, SubscriberQueueConfig,
+            QueueAdapter, SubscriberQueueConfig,
             registry::{QueueAdapterFuture, QueueAdapterRegistration},
         },
         redis::DEFAULT_REDIS_CONNECTION_TIMEOUT,
@@ -341,11 +341,13 @@ impl QueueAdapter for RedisAdapter {
         ))
     }
 
-    async fn enqueue_to_queue(
+    async fn publish_to_function_queue(
         &self,
         queue_name: &str,
         function_id: &str,
         data: Value,
+        _max_retries: u32,
+        _backoff_ms: u64,
         traceparent: Option<String>,
         baggage: Option<String>,
     ) {
@@ -364,25 +366,25 @@ impl QueueAdapter for RedisAdapter {
         let json = match serde_json::to_string(&envelope) {
             Ok(json) => json,
             Err(e) => {
-                tracing::error!(error = %e, queue = %queue_name, "Failed to serialize named queue data");
+                tracing::error!(error = %e, queue = %queue_name, "Failed to serialize function queue data");
                 return;
             }
         };
 
-        tracing::debug!(queue = %queue_name, function_id = %function_id, "Publishing to Redis named queue channel");
+        tracing::debug!(queue = %queue_name, function_id = %function_id, "Publishing to Redis function queue channel");
 
         let mut conn = publisher.lock().await;
 
         if let Err(e) = conn.publish::<_, _, ()>(&channel, &json).await {
-            tracing::error!(error = %e, queue = %queue_name, "Failed to publish to Redis named queue channel");
+            tracing::error!(error = %e, queue = %queue_name, "Failed to publish to Redis function queue channel");
         }
     }
 
-    async fn start_named_queue(&self, _queue_name: &str, _config: &NamedQueueConfig) {
-        tracing::warn!("start_named_queue for Redis requires dedicated consumer implementation — not yet supported");
-    }
-
-    async fn stop_named_queue(&self, _queue_name: &str) {
-        tracing::debug!("stop_named_queue is a no-op for Redis pub/sub adapter");
+    async fn consume_function_queue(
+        &self,
+        _queue_name: &str,
+        _prefetch: u32,
+    ) -> anyhow::Result<tokio::sync::mpsc::Receiver<crate::modules::queue::QueueMessage>> {
+        anyhow::bail!("Redis function queue consumer not yet implemented")
     }
 }

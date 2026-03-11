@@ -6,10 +6,17 @@
 
 #![cfg(feature = "rabbitmq")]
 
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{
+    collections::HashMap,
+    str::FromStr,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
+};
 
 use async_trait::async_trait;
-use lapin::{Channel, Connection, ConnectionProperties, options::*};
+use lapin::{Channel, Connection, ConnectionProperties, message::Delivery, options::*};
 use serde_json::Value;
 use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
@@ -17,7 +24,7 @@ use uuid::Uuid;
 use crate::{
     engine::Engine,
     modules::queue::{
-        NamedQueueConfig, QueueAdapter, SubscriberQueueConfig,
+        FunctionQueueConfig, QueueAdapter, SubscriberQueueConfig,
         registry::{QueueAdapterFuture, QueueAdapterRegistration},
     },
 };
@@ -38,6 +45,8 @@ pub struct RabbitMQAdapter {
     subscriptions: Arc<RwLock<HashMap<String, SubscriptionInfo>>>,
     engine: Arc<Engine>,
     config: RabbitMQConfig,
+    delivery_map: Arc<RwLock<HashMap<u64, Delivery>>>,
+    delivery_counter: Arc<AtomicU64>,
 }
 
 struct SubscriptionInfo {
@@ -86,6 +95,8 @@ impl RabbitMQAdapter {
             subscriptions: Arc::new(RwLock::new(HashMap::new())),
             engine,
             config,
+            delivery_map: Arc::new(RwLock::new(HashMap::new())),
+            delivery_counter: Arc::new(AtomicU64::new(0)),
         })
     }
 }
@@ -100,6 +111,8 @@ impl Clone for RabbitMQAdapter {
             subscriptions: Arc::clone(&self.subscriptions),
             engine: Arc::clone(&self.engine),
             config: self.config.clone(),
+            delivery_map: Arc::clone(&self.delivery_map),
+            delivery_counter: Arc::clone(&self.delivery_counter),
         }
     }
 }
@@ -364,64 +377,227 @@ impl QueueAdapter for RabbitMQAdapter {
         Ok(queue.message_count() as u64)
     }
 
-    async fn enqueue_to_queue(
+    async fn publish_to_function_queue(
         &self,
         queue_name: &str,
         function_id: &str,
         data: Value,
+        _max_retries: u32,
+        _backoff_ms: u64,
         traceparent: Option<String>,
         baggage: Option<String>,
     ) {
-        let channel = format!("__queue::{}", queue_name);
+        use super::naming::FnQueueNames;
 
-        // Wrap the data so the consumer can identify the target function
-        let envelope = serde_json::json!({
-            "function_id": function_id,
-            "data": data,
+        let names = FnQueueNames::new(queue_name);
+
+        let payload = match serde_json::to_vec(&data) {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to serialize data");
+                return;
+            }
+        };
+
+        let mut headers = lapin::types::FieldTable::default();
+        headers.insert(
+            "function_id".into(),
+            lapin::types::AMQPValue::LongString(function_id.into()),
+        );
+        if let Some(tp) = &traceparent {
+            headers.insert(
+                "traceparent".into(),
+                lapin::types::AMQPValue::LongString(tp.as_str().into()),
+            );
+        }
+        if let Some(bg) = &baggage {
+            headers.insert(
+                "baggage".into(),
+                lapin::types::AMQPValue::LongString(bg.as_str().into()),
+            );
+        }
+
+        let properties = lapin::BasicProperties::default()
+            .with_content_type("application/json".into())
+            .with_delivery_mode(2)
+            .with_headers(headers);
+
+        match self
+            .channel
+            .basic_publish(
+                &names.exchange(),
+                queue_name,
+                BasicPublishOptions::default(),
+                &payload,
+                properties,
+            )
+            .await
+        {
+            Ok(confirm) => {
+                if let Err(e) = confirm.await {
+                    tracing::error!(error = %e, queue = %queue_name, "Failed to confirm publish to function queue");
+                }
+            }
+            Err(e) => {
+                tracing::error!(error = %e, queue = %queue_name, "Failed to publish to function queue");
+            }
+        }
+    }
+
+    async fn setup_function_queue(
+        &self,
+        queue_name: &str,
+        config: &FunctionQueueConfig,
+    ) -> anyhow::Result<()> {
+        self.topology
+            .setup_function_queue(queue_name, config.backoff_ms)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to setup function queue topology: {}", e))
+    }
+
+    async fn consume_function_queue(
+        &self,
+        queue_name: &str,
+        prefetch: u32,
+    ) -> anyhow::Result<tokio::sync::mpsc::Receiver<crate::modules::queue::QueueMessage>> {
+        use super::naming::FnQueueNames;
+        use crate::modules::queue::QueueMessage;
+        use futures::StreamExt;
+
+        let names = FnQueueNames::new(queue_name);
+
+        self.channel
+            .basic_qos(prefetch as u16, BasicQosOptions::default())
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to set QoS: {}", e))?;
+
+        let consumer_tag = format!("fn-queue-{}-{}", queue_name, Uuid::new_v4());
+        let mut consumer = self
+            .channel
+            .basic_consume(
+                &names.queue(),
+                &consumer_tag,
+                BasicConsumeOptions::default(),
+                lapin::types::FieldTable::default(),
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to create consumer: {}", e))?;
+
+        let (tx, rx) = tokio::sync::mpsc::channel(prefetch as usize);
+        let delivery_map = Arc::clone(&self.delivery_map);
+        let delivery_counter = Arc::clone(&self.delivery_counter);
+
+        tokio::spawn(async move {
+            while let Some(delivery_result) = consumer.next().await {
+                match delivery_result {
+                    Ok(delivery) => {
+                        let delivery_id = delivery_counter.fetch_add(1, Ordering::SeqCst);
+
+                        let data: serde_json::Value =
+                            match serde_json::from_slice(&delivery.data) {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    tracing::error!(error = %e, "Failed to parse function queue message");
+                                    let _ = delivery
+                                        .nack(BasicNackOptions {
+                                            requeue: false,
+                                            ..Default::default()
+                                        })
+                                        .await;
+                                    continue;
+                                }
+                            };
+
+                        let headers = delivery.properties.headers().as_ref();
+
+                        let function_id = headers
+                            .and_then(|h| h.inner().get("function_id"))
+                            .and_then(|v| match v {
+                                lapin::types::AMQPValue::LongString(s) => Some(s.to_string()),
+                                _ => None,
+                            })
+                            .unwrap_or_default();
+
+                        let traceparent = headers
+                            .and_then(|h| h.inner().get("traceparent"))
+                            .and_then(|v| match v {
+                                lapin::types::AMQPValue::LongString(s) => Some(s.to_string()),
+                                _ => None,
+                            });
+
+                        let baggage = headers
+                            .and_then(|h| h.inner().get("baggage"))
+                            .and_then(|v| match v {
+                                lapin::types::AMQPValue::LongString(s) => Some(s.to_string()),
+                                _ => None,
+                            });
+
+                        let attempt = headers
+                            .and_then(|h| h.inner().get("x-delivery-count"))
+                            .and_then(|v| match v {
+                                lapin::types::AMQPValue::LongUInt(n) => Some(*n),
+                                lapin::types::AMQPValue::LongLongInt(n) => Some(*n as u32),
+                                _ => None,
+                            })
+                            .unwrap_or(0);
+
+                        delivery_map.write().await.insert(delivery_id, delivery);
+
+                        let msg = QueueMessage {
+                            delivery_id,
+                            function_id,
+                            data,
+                            attempt,
+                            traceparent,
+                            baggage,
+                        };
+
+                        if tx.send(msg).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, "Error receiving delivery from function queue");
+                    }
+                }
+            }
         });
 
-        let job = Job::new(
-            &channel,
-            envelope,
-            self.config.max_attempts,
-            traceparent,
-            baggage,
-        );
-
-        if let Err(e) = self.topology.setup_topic(&channel).await {
-            tracing::error!(
-                error = ?e,
-                queue = %queue_name,
-                "Failed to setup RabbitMQ topology for named queue"
-            );
-            return;
-        }
-
-        if let Err(e) = self.publisher.publish(&channel, &job).await {
-            tracing::error!(
-                error = ?e,
-                queue = %queue_name,
-                "Failed to publish to RabbitMQ named queue"
-            );
-        } else {
-            tracing::debug!(
-                queue = %queue_name,
-                function_id = %function_id,
-                job_id = %job.id,
-                "Published to RabbitMQ named queue"
-            );
-        }
+        Ok(rx)
     }
 
-    async fn start_named_queue(&self, _queue_name: &str, _config: &NamedQueueConfig) {
-        // RabbitMQ named queue consumers require a dedicated worker implementation.
-        // For now this is a no-op; the topic-based subscription model already handles
-        // message routing through exchanges.
-        tracing::warn!("start_named_queue for RabbitMQ requires dedicated consumer implementation — not yet supported");
+    async fn ack_function_queue(
+        &self,
+        _queue_name: &str,
+        delivery_id: u64,
+    ) -> anyhow::Result<()> {
+        let delivery = self.delivery_map.write().await.remove(&delivery_id);
+        if let Some(delivery) = delivery {
+            delivery
+                .ack(BasicAckOptions::default())
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to ack: {}", e))?;
+        }
+        Ok(())
     }
 
-    async fn stop_named_queue(&self, _queue_name: &str) {
-        tracing::debug!("stop_named_queue is a no-op for RabbitMQ adapter");
+    async fn nack_function_queue(
+        &self,
+        _queue_name: &str,
+        delivery_id: u64,
+        requeue: bool,
+    ) -> anyhow::Result<()> {
+        let delivery = self.delivery_map.write().await.remove(&delivery_id);
+        if let Some(delivery) = delivery {
+            delivery
+                .nack(BasicNackOptions {
+                    requeue,
+                    ..Default::default()
+                })
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to nack: {}", e))?;
+        }
+        Ok(())
     }
 }
 

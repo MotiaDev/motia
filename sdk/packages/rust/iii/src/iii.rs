@@ -38,7 +38,7 @@ use crate::{
     logger::Logger,
     protocol::{
         ErrorBody, HttpInvocationConfig, Message, RegisterFunctionMessage, RegisterServiceMessage,
-        RegisterTriggerMessage, RegisterTriggerTypeMessage, TriggerAction,
+        RegisterTriggerMessage, RegisterTriggerTypeMessage, TriggerAction, TriggerRequest,
         UnregisterTriggerMessage, UnregisterTriggerTypeMessage,
     },
     triggers::{Trigger, TriggerConfig, TriggerHandler},
@@ -577,20 +577,17 @@ impl III {
 
     pub async fn trigger(
         &self,
-        function_id: &str,
-        data: impl serde::Serialize,
-        options: impl Into<crate::protocol::TriggerOptions>,
+        request: impl Into<crate::protocol::TriggerRequest>,
     ) -> Result<Value, IIIError> {
-        let opts = options.into();
-        let value = serde_json::to_value(data)?;
+        let req = request.into();
         let (tp, bg) = inject_trace_headers();
 
         // Enqueue and Void are fire-and-forget (matches Node/Python behavior)
-        if let Some(action) = opts.action {
+        if let Some(action) = req.action {
             self.send_message(Message::InvokeFunction {
                 invocation_id: None,
-                function_id: function_id.to_string(),
-                data: value,
+                function_id: req.function_id,
+                data: req.payload,
                 traceparent: tp,
                 baggage: bg,
                 action: Some(action),
@@ -599,7 +596,7 @@ impl III {
         }
 
         // Default: synchronous call with timeout
-        let timeout = opts.timeout.unwrap_or(DEFAULT_TIMEOUT);
+        let timeout = req.timeout.unwrap_or(DEFAULT_TIMEOUT);
         let invocation_id = Uuid::new_v4();
         let (tx, rx) = oneshot::channel();
 
@@ -610,8 +607,8 @@ impl III {
 
         self.send_message(Message::InvokeFunction {
             invocation_id: Some(invocation_id),
-            function_id: function_id.to_string(),
-            data: value,
+            function_id: req.function_id,
+            data: req.payload,
             traceparent: tp,
             baggage: bg,
             action: None,
@@ -627,56 +624,10 @@ impl III {
         }
     }
 
-    #[deprecated(note = "Use trigger(fn_id, data, TriggerAction::void()) instead")]
-    pub fn trigger_void<TInput>(&self, function_id: &str, data: TInput) -> Result<(), IIIError>
-    where
-        TInput: Serialize,
-    {
-        let value = serde_json::to_value(data)?;
-
-        let (tp, bg) = inject_trace_headers();
-
-        self.send_message(Message::InvokeFunction {
-            invocation_id: None,
-            function_id: function_id.to_string(),
-            data: value,
-            traceparent: tp,
-            baggage: bg,
-            action: Some(TriggerAction::Void),
-        })
-    }
-
-
-    pub async fn call(
-        &self,
-        function_id: &str,
-        data: impl serde::Serialize,
-    ) -> Result<Value, IIIError> {
-        self.trigger(function_id, data, ()).await
-    }
-
-    #[deprecated(note = "Use trigger(fn_id, data, TriggerAction::void()) instead")]
-    pub fn call_void<TInput>(&self, function_id: &str, data: TInput) -> Result<(), IIIError>
-    where
-        TInput: Serialize,
-    {
-        #[allow(deprecated)]
-        self.trigger_void(function_id, data)
-    }
-
-    pub async fn call_with_timeout(
-        &self,
-        function_id: &str,
-        data: Value,
-        timeout: Duration,
-    ) -> Result<Value, IIIError> {
-        self.trigger(function_id, data, timeout).await
-    }
-
     /// List all registered functions from the engine
     pub async fn list_functions(&self) -> Result<Vec<FunctionInfo>, IIIError> {
         let result = self
-            .trigger("engine::functions::list", serde_json::json!({}), ())
+            .trigger(TriggerRequest::new("engine::functions::list", serde_json::json!({})))
             .await?;
 
         let functions = result
@@ -771,7 +722,7 @@ impl III {
     /// List all connected workers from the engine
     pub async fn list_workers(&self) -> Result<Vec<WorkerInfo>, IIIError> {
         let result = self
-            .trigger("engine::workers::list", serde_json::json!({}), ())
+            .trigger(TriggerRequest::new("engine::workers::list", serde_json::json!({})))
             .await?;
 
         let workers = result
@@ -785,7 +736,7 @@ impl III {
     /// List all registered triggers from the engine
     pub async fn list_triggers(&self) -> Result<Vec<TriggerInfo>, IIIError> {
         let result = self
-            .trigger("engine::triggers::list", serde_json::json!({}), ())
+            .trigger(TriggerRequest::new("engine::triggers::list", serde_json::json!({})))
             .await?;
 
         let triggers = result
@@ -802,10 +753,10 @@ impl III {
     /// that can be passed as fields in invocation data to other functions.
     pub async fn create_channel(&self, buffer_size: Option<usize>) -> Result<Channel, IIIError> {
         let result = self
-            .call(
+            .trigger(TriggerRequest::new(
                 "engine::channels::create",
                 serde_json::json!({ "buffer_size": buffer_size }),
-            )
+            ))
             .await?;
 
         let writer_ref: StreamChannelRef = serde_json::from_value(
@@ -1393,9 +1344,8 @@ mod tests {
         let iii = III::new("ws://localhost:1234");
         let result = iii
             .trigger(
-                "functions.echo",
-                json!({ "a": 1 }),
-                Duration::from_millis(10),
+                TriggerRequest::new("functions.echo", json!({ "a": 1 }))
+                    .timeout(Duration::from_millis(10)),
             )
             .await;
 

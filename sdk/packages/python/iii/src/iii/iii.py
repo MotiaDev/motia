@@ -27,9 +27,9 @@ from .iii_types import (
     RegisterTriggerMessage,
     RegisterTriggerTypeMessage,
     StreamChannelRef,
-    TriggerAction,
     TriggerActionEnqueue,
     TriggerActionVoid,
+    TriggerRequest,
     UnregisterFunctionMessage,
     UnregisterTriggerMessage,
     UnregisterTriggerTypeMessage,
@@ -649,12 +649,30 @@ class III:
         self._services[id] = msg
         self._send_if_connected(msg)
 
-    async def trigger(self, path: str, data: Any, timeout: float = 30.0, action: "TriggerAction | None" = None) -> Any:
+    async def trigger(self, request: "dict[str, Any] | TriggerRequest") -> Any:
+        """Invoke a function using a request object.
+
+        Args:
+            request: A TriggerRequest or dict with function_id, payload, and optional action/timeout.
+        """
+        req = request if isinstance(request, dict) else request.model_dump()
+        function_id = req["function_id"]
+        payload = req.get("payload")
+        action = req.get("action")
+        timeout = req.get("timeout", 30.0) or 30.0
+
         if action is not None:
+            # Normalize raw dict actions
+            if isinstance(action, dict):
+                if action.get("type") == "enqueue":
+                    action = TriggerActionEnqueue(queue=action["queue"])
+                elif action.get("type") == "void":
+                    action = TriggerActionVoid()
+
             # Enqueue and Void are fire-and-forget
             msg = InvokeFunctionMessage(
-                function_id=path,
-                data=data,
+                function_id=function_id,
+                data=payload,
                 traceparent=self._inject_traceparent(),
                 baggage=self._inject_baggage(),
                 action=action,
@@ -673,8 +691,8 @@ class III:
 
         await self._send(
             InvokeFunctionMessage(
-                function_id=path,
-                data=data,
+                function_id=function_id,
+                data=payload,
                 invocation_id=invocation_id,
                 traceparent=self._inject_traceparent(),
                 baggage=self._inject_baggage(),
@@ -685,44 +703,17 @@ class III:
             return await asyncio.wait_for(future, timeout=timeout)
         except asyncio.TimeoutError:
             self._pending.pop(invocation_id, None)
-            raise TimeoutError(f"Invocation of '{path}' timed out after {timeout}s")
-
-    def trigger_void(self, path: str, data: Any) -> None:
-        """Deprecated: Use trigger(path, data, action=TriggerActionVoid())"""
-        import warnings
-
-        warnings.warn(
-            "trigger_void is deprecated, use trigger with action=TriggerActionVoid()",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        msg = InvokeFunctionMessage(
-            function_id=path,
-            data=data,
-            traceparent=self._inject_traceparent(),
-            baggage=self._inject_baggage(),
-            action=TriggerActionVoid(),
-        )
-        try:
-            asyncio.get_running_loop().create_task(self._send(msg))
-        except RuntimeError:
-            self._enqueue(msg)
-
-    async def call(self, path: str, data: Any, timeout: float = 30.0) -> Any:
-        return await self.trigger(path, data, timeout)
-
-    def call_void(self, path: str, data: Any) -> None:
-        self.trigger_void(path, data)
+            raise TimeoutError(f"Invocation of '{function_id}' timed out after {timeout}s")
 
     async def list_functions(self) -> list[FunctionInfo]:
         """List all registered functions from the engine."""
-        result = await self.trigger("engine::functions::list", {})
+        result = await self.trigger({"function_id": "engine::functions::list", "payload": {}})
         functions_data = result.get("functions", [])
         return [FunctionInfo(**f) for f in functions_data]
 
     async def list_workers(self) -> list[WorkerInfo]:
         """List all connected workers from the engine."""
-        result = await self.trigger("engine::workers::list", {})
+        result = await self.trigger({"function_id": "engine::workers::list", "payload": {}})
         workers_data = result.get("workers", [])
         return [WorkerInfo(**w) for w in workers_data]
 
@@ -735,7 +726,7 @@ class III:
         Args:
             buffer_size: Optional buffer size for the channel (default: 64).
         """
-        result = await self.call("engine::channels::create", {"buffer_size": buffer_size})
+        result = await self.trigger({"function_id": "engine::channels::create", "payload": {"buffer_size": buffer_size}})
         writer_ref = StreamChannelRef(**result["writer"])
         reader_ref = StreamChannelRef(**result["reader"])
         return Channel(
@@ -779,7 +770,17 @@ class III:
 
     def _register_worker_metadata(self) -> None:
         """Register this worker's metadata with the engine."""
-        self.trigger_void("engine::workers::register", self._get_worker_metadata())
+        msg = InvokeFunctionMessage(
+            function_id="engine::workers::register",
+            data=self._get_worker_metadata(),
+            traceparent=self._inject_traceparent(),
+            baggage=self._inject_baggage(),
+            action=TriggerActionVoid(),
+        )
+        try:
+            asyncio.get_running_loop().create_task(self._send(msg))
+        except RuntimeError:
+            self._enqueue(msg)
 
     def on_functions_available(self, callback: Callable[[list[FunctionInfo]], None]) -> Callable[[], None]:
         """Subscribe to function availability events.
@@ -886,13 +887,17 @@ class III:
         self.register_function(f"stream::update({stream_name})", update_handler)
 
 
-class TriggerActions:
-    """Helper factory for creating trigger actions."""
+class TriggerAction:
+    """Factory for creating trigger actions."""
 
     @staticmethod
-    def enqueue(queue: str) -> TriggerActionEnqueue:
+    def Enqueue(queue: str) -> TriggerActionEnqueue:
         return TriggerActionEnqueue(queue=queue)
 
     @staticmethod
-    def void() -> TriggerActionVoid:
+    def Void() -> TriggerActionVoid:
         return TriggerActionVoid()
+
+
+# Deprecated alias
+TriggerActions = TriggerAction
