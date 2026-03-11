@@ -1,12 +1,11 @@
-"""Tests for migration to iii-sdk v0.0.5+ API."""
+"""Tests for migration to iii-sdk trigger() API."""
 
 
 def test_bridge_uses_native_iii_methods_without_instance_aliases() -> None:
     """Bridge instance should expose native iii-sdk methods without monkey-patched aliases."""
     from motia.bridge import bridge
 
-    assert hasattr(bridge, "call")
-    assert hasattr(bridge, "call_void")
+    assert hasattr(bridge, "trigger")
     assert hasattr(bridge, "shutdown")
 
     # Legacy aliases should not be injected on the instance in the migrated codebase.

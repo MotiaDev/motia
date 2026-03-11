@@ -39,13 +39,13 @@ async def test_pubsub_subscribe_and_publish(bridge):
     await asyncio.sleep(0.3)
 
     # Publish a message
-    await bridge.call(
-        "publish",
-        {
+    await bridge.trigger({
+        "function_id": "publish",
+        "payload": {
             "topic": topic,
             "data": {"message": "Hello PubSub!"},
         },
-    )
+    })
 
     # Wait for message
     await asyncio.wait_for(message_received.wait(), timeout=5.0)
@@ -84,13 +84,13 @@ async def test_pubsub_different_topics(bridge):
     await asyncio.sleep(0.3)
 
     # Publish to topic A only
-    await bridge.call(
-        "publish",
-        {
+    await bridge.trigger({
+        "function_id": "publish",
+        "payload": {
             "topic": topic_a,
             "data": {"for": "a"},
         },
-    )
+    })
 
     await asyncio.wait_for(message_a_received.wait(), timeout=5.0)
 

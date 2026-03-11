@@ -375,10 +375,10 @@ async def test_data_channels_worker_to_worker(bridge, api_url):
         await channel.writer.write(payload)
         await channel.writer.close_async()
 
-        result = await bridge.call(
-            processor_id,
-            {"label": "test-batch", "reader": channel.reader_ref.__dict__},
-        )
+        result = await bridge.trigger({
+            "function_id": processor_id,
+            "payload": {"label": "test-batch", "reader": channel.reader_ref.__dict__},
+        })
         return result
 
     bridge.register_function(processor_id, processor_handler)
@@ -388,7 +388,7 @@ async def test_data_channels_worker_to_worker(bridge, api_url):
     await asyncio.sleep(0.3)
 
     records = [{"value": 10}, {"value": 20}, {"value": 30}]
-    result = await bridge.call(sender_id, {"records": records})
+    result = await bridge.trigger({"function_id": sender_id, "payload": {"records": records}})
 
     assert result["label"] == "test-batch"
     assert result["count"] == 3

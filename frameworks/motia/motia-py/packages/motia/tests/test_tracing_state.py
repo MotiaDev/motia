@@ -33,14 +33,14 @@ def otel_exporter():
 def mock_iii():
     """Create a mock III SDK instance."""
     iii = MagicMock()
-    iii.call = AsyncMock()
+    iii.trigger = AsyncMock()
     return iii
 
 
 @pytest.mark.asyncio
 async def test_state_get_creates_span(otel_exporter, mock_iii):
     """state.get() should create a span named 'state.get' with correct attributes."""
-    mock_iii.call.return_value = {"key": "value"}
+    mock_iii.trigger.return_value = {"key": "value"}
 
     with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()
@@ -61,7 +61,7 @@ async def test_state_get_creates_span(otel_exporter, mock_iii):
 @pytest.mark.asyncio
 async def test_state_set_creates_span(otel_exporter, mock_iii):
     """state.set() should create a span named 'state.set' with correct attributes."""
-    mock_iii.call.return_value = {"key": "value"}
+    mock_iii.trigger.return_value = {"key": "value"}
 
     with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()
@@ -82,7 +82,7 @@ async def test_state_set_creates_span(otel_exporter, mock_iii):
 @pytest.mark.asyncio
 async def test_state_delete_creates_span(otel_exporter, mock_iii):
     """state.delete() should create a span named 'state.delete' with correct attributes."""
-    mock_iii.call.return_value = None
+    mock_iii.trigger.return_value = None
 
     with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()
@@ -101,7 +101,7 @@ async def test_state_delete_creates_span(otel_exporter, mock_iii):
 @pytest.mark.asyncio
 async def test_state_list_creates_span(otel_exporter, mock_iii):
     """state.list() should create a span named 'state.list' with correct attributes."""
-    mock_iii.call.return_value = [{"id": "a"}, {"id": "b"}]
+    mock_iii.trigger.return_value = [{"id": "a"}, {"id": "b"}]
 
     with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()
@@ -121,7 +121,7 @@ async def test_state_list_creates_span(otel_exporter, mock_iii):
 @pytest.mark.asyncio
 async def test_state_list_groups_creates_span(otel_exporter, mock_iii):
     """state.list_groups() should create a span named 'state.list_groups'."""
-    mock_iii.call.return_value = ["group1", "group2"]
+    mock_iii.trigger.return_value = ["group1", "group2"]
 
     with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()
@@ -140,7 +140,7 @@ async def test_state_list_groups_creates_span(otel_exporter, mock_iii):
 @pytest.mark.asyncio
 async def test_state_clear_creates_span(otel_exporter, mock_iii):
     """state.clear() should create a span named 'state.clear' with correct attributes."""
-    mock_iii.call.return_value = [{"id": "item1"}, {"id": "item2"}]
+    mock_iii.trigger.return_value = [{"id": "item1"}, {"id": "item2"}]
 
     with patch.object(_state_mod, "get_instance", return_value=mock_iii):
         sm = StateManager()

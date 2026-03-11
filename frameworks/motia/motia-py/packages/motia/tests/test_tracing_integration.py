@@ -176,7 +176,7 @@ async def test_engine_receives_traceparent(bridge):
     this RPC method, the test is skipped.
     """
     try:
-        result = await bridge.call("engine.traces.list", {"limit": 10})
+        result = await bridge.trigger({"function_id": "engine.traces.list", "payload": {"limit": 10}})
     except Exception:
         pytest.skip("Engine does not support 'engine.traces.list' RPC; " "skipping traceparent verification")
 

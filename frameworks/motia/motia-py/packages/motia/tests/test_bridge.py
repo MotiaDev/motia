@@ -4,6 +4,7 @@
 import asyncio
 
 import pytest
+from iii import TriggerAction
 
 from tests.conftest import flush_bridge_queue
 
@@ -36,7 +37,7 @@ async def test_register_and_invoke_function(bridge):
     await asyncio.sleep(0.3)
 
     # Invoke the function
-    result = await bridge.call("test.echo", {"message": "hello"})
+    result = await bridge.trigger({"function_id": "test.echo", "payload": {"message": "hello"}})
 
     # Check that the echoed data contains our message
     # (III engine may inject _caller_worker_id into the data)
@@ -64,7 +65,7 @@ async def test_invoke_function_async_fire_and_forget(bridge):
     await asyncio.sleep(0.3)
 
     # Fire and forget
-    bridge.call_void("test.receiver", {"value": 42})
+    await bridge.trigger({"function_id": "test.receiver", "payload": {"value": 42}, "action": TriggerAction.Void()})
 
     # Wait for it to be received
     await asyncio.wait_for(received.wait(), timeout=5.0)
@@ -78,4 +79,4 @@ async def test_invoke_function_async_fire_and_forget(bridge):
 async def test_invoke_nonexistent_function_raises(bridge):
     """Test that invoking a non-existent function raises an error."""
     with pytest.raises(Exception):
-        await bridge.call("nonexistent.function", {}, timeout=2.0)
+        await bridge.trigger({"function_id": "nonexistent.function", "payload": {}, "timeout": 2.0})
