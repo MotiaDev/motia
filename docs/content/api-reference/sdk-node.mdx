@@ -11,17 +11,17 @@ npm install iii-sdk
 
 ## Initialization
 
-The Node.js SDK exports an `init` function that creates a connected SDK instance. The WebSocket connection is established automatically — there is no separate `connect()` call.
+The Node.js SDK exports `registerWorker` that creates a connected SDK instance. The WebSocket connection is established automatically — there is no separate `connect()` call.
 
 ```typescript
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
   workerName: 'my-worker',
 })
 ```
 
-<ResponseField name="init" type="(address: string, options?: InitOptions) => ISdk" required>
+<ResponseField name="registerWorker" type="(address: string, options?: InitOptions) => ISdk" required>
   Creates and returns a connected SDK instance.
 
   <AccordionGroup>
@@ -153,27 +153,74 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
 
 ### trigger
 
-<ResponseField name="trigger" type="&lt;TInput, TOutput&gt;(function_id: string, data: TInput, timeoutMs?: number) => Promise&lt;TOutput&gt;" required>
-  Invokes a remote function and waits for the result. This method is asynchronous and returns a Promise resolving to the function result.
+<ResponseField name="trigger" type="&lt;TInput, TOutput&gt;(request: TriggerRequest&lt;TInput&gt;) => Promise&lt;TOutput&gt;" required>
+  Invokes a remote function. The routing behavior and return type depend on the `action` field of the request.
+
+  | `action` | Behavior | Return type |
+  |----------|----------|-------------|
+  | _(none)_ | Synchronous — waits for the function to return | `Promise<TOutput>` |
+  | `TriggerAction.Enqueue(...)` | Async via named queue — engine acknowledges enqueue | `Promise<EnqueueResult>` |
+  | `TriggerAction.Void()` | Fire-and-forget — no response | `Promise<undefined>` |
 
   <AccordionGroup>
     <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="function_id" type="string" required>
-        ID of the function to invoke.
-      </ResponseField>
-      <ResponseField name="data" type="TInput" required>
-        Payload to pass to the function.
-      </ResponseField>
-      <ResponseField name="timeoutMs" type="number">
-        Override the default invocation timeout.
+      <ResponseField name="request" type="TriggerRequest&lt;TInput&gt;" required>
+        <Expandable title="TriggerRequest">
+          <ResponseField name="function_id" type="string" required>
+            ID of the function to invoke.
+          </ResponseField>
+          <ResponseField name="payload" type="TInput" required>
+            Payload to pass to the function.
+          </ResponseField>
+          <ResponseField name="action" type="TriggerAction">
+            Routing action. Omit for synchronous request/response. Use `TriggerAction.Enqueue(...)` for async queue delivery or `TriggerAction.Void()` for fire-and-forget.
+          </ResponseField>
+          <ResponseField name="timeoutMs" type="number">
+            Override the default invocation timeout for synchronous calls.
+          </ResponseField>
+        </Expandable>
       </ResponseField>
     </Accordion>
     <Accordion iconName="ArrowUpRight" title="Returns" description="">
       <ResponseField name="result" type="Promise&lt;TOutput&gt;">
-        The value returned by the remote function.
+        For synchronous calls: the value returned by the remote function. For enqueue calls, `TOutput` resolves to `EnqueueResult` (`{ messageReceiptId: string }`). For void calls, `TOutput` resolves to `undefined`.
       </ResponseField>
     </Accordion>
+    <Accordion iconName="Code" title="Example" description="">
+      ```typescript
+      import { TriggerAction } from 'iii-sdk'
+
+      // Synchronous — wait for function result
+      const result = await iii.trigger({ function_id: 'get-order', payload: { id: '123' } })
+
+      // Enqueue to named queue — returns { messageReceiptId }
+      const { messageReceiptId } = await iii.trigger({
+        function_id: 'payments::charge',
+        payload: { orderId: '123', amount: 49.99 },
+        action: TriggerAction.Enqueue({ queue: 'payment' }),
+      })
+
+      // Fire-and-forget
+      iii.trigger({
+        function_id: 'notifications::send',
+        payload: { userId: '123' },
+        action: TriggerAction.Void(),
+      })
+      ```
+    </Accordion>
   </AccordionGroup>
+</ResponseField>
+
+### TriggerAction
+
+A factory object that constructs routing actions for `trigger()`. Import from `iii-sdk`.
+
+<ResponseField name="TriggerAction.Enqueue" type="({ queue: string }) => TriggerAction" required>
+  Routes the invocation through a named queue. The engine enqueues the job, acknowledges the caller with `{ messageReceiptId }`, and processes it asynchronously. Returns an error if the queue name is not found in config or if FIFO validation fails.
+</ResponseField>
+
+<ResponseField name="TriggerAction.Void" type="() => TriggerAction" required>
+  Fire-and-forget routing. The engine forwards the invocation without waiting for a response or queuing the job. No acknowledgement is returned.
 </ResponseField>
 
 ### triggerVoid
@@ -194,7 +241,7 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
 </ResponseField>
 
 <Callout type="warn" title="Deprecated methods">
-  `call` and `callVoid` are deprecated. Use `trigger` and `triggerVoid` instead.
+  `call` and `callVoid` are deprecated. Use `trigger` instead. `triggerVoid` is deprecated — replace with `trigger({ function_id, payload, action: TriggerAction.Void() })`.
 </Callout>
 
 ### createStream
@@ -321,7 +368,7 @@ The `iii-sdk` package provides additional entry points:
 
 | Import path | Contents |
 |---|---|
-| `iii-sdk` | `init`, `Logger`, `OTel context`, `Logger`, `ISdk`, `ApiRequest`, `ApiResponse` |
+| `iii-sdk` | `registerWorker`, `Logger`, `OTel context`, `ISdk`, `ApiRequest`, `ApiResponse`, `TriggerAction`, `TriggerRequest`, `EnqueueResult` |
 | `iii-sdk/stream` | `IStream` and all stream types (`StreamGetInput`, `StreamSetInput`, `UpdateOp`, etc.) |
 | `iii-sdk/state` | State management types |
 | `iii-sdk/telemetry` | OpenTelemetry utilities (`initOtel`, `getTracer`, `getMeter`, `withSpan`, etc.) |
@@ -329,6 +376,17 @@ The `iii-sdk` package provides additional entry points:
 ## Types
 
 ```typescript
+type TriggerRequest<TInput = unknown> = {
+  function_id: string
+  payload: TInput
+  action?: TriggerAction
+  timeoutMs?: number
+}
+
+type EnqueueResult = {
+  messageReceiptId: string
+}
+
 type ApiRequest<TBody = unknown> = {
   path_params: Record<string, string>
   query_params: Record<string, string | string[]>

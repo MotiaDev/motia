@@ -73,13 +73,12 @@ pub struct EnqueueResult {
 }
 
 /// Request object for `trigger()`. Matches the Node/Python SDK signature:
-/// `trigger({ function_id, payload, action?, timeout? })`
+/// `trigger({ function_id, payload, action?, timeout_ms? })`
 ///
 /// Build with the constructor or the builder-style methods:
 /// ```rust,no_run
 /// # use iii_sdk::protocol::{TriggerRequest, TriggerAction};
 /// # use serde_json::json;
-/// # use std::time::Duration;
 /// // Simple call
 /// TriggerRequest::new("my::function", json!({ "key": "value" }));
 ///
@@ -89,14 +88,14 @@ pub struct EnqueueResult {
 ///
 /// // With timeout
 /// TriggerRequest::new("my::function", json!({}))
-///     .timeout(Duration::from_secs(10));
+///     .timeout_ms(10_000);
 /// ```
 #[derive(Debug, Clone)]
 pub struct TriggerRequest {
     pub function_id: String,
     pub payload: Value,
     pub action: Option<TriggerAction>,
-    pub timeout: Option<std::time::Duration>,
+    pub timeout_ms: Option<u64>,
 }
 
 impl TriggerRequest {
@@ -105,7 +104,7 @@ impl TriggerRequest {
             function_id: function_id.into(),
             payload: serde_json::to_value(payload).unwrap_or(Value::Null),
             action: None,
-            timeout: None,
+            timeout_ms: None,
         }
     }
 
@@ -114,8 +113,14 @@ impl TriggerRequest {
         self
     }
 
+    pub fn timeout_ms(mut self, timeout_ms: u64) -> Self {
+        self.timeout_ms = Some(timeout_ms);
+        self
+    }
+
+    #[deprecated(since = "0.3.0", note = "Use timeout_ms(milliseconds) instead")]
     pub fn timeout(mut self, timeout: std::time::Duration) -> Self {
-        self.timeout = Some(timeout);
+        self.timeout_ms = Some(timeout.as_millis() as u64);
         self
     }
 }

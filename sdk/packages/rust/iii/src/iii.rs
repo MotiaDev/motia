@@ -50,7 +50,7 @@ use crate::telemetry;
 #[cfg(feature = "otel")]
 use crate::telemetry::types::OtelConfig;
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 
 /// Worker information returned by `engine::workers::list`
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -656,7 +656,7 @@ impl III {
         }
 
         // Enqueue and default: use invocation_id to receive acknowledgement/result
-        let timeout = req.timeout.unwrap_or(DEFAULT_TIMEOUT);
+        let timeout = Duration::from_millis(req.timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS));
         let invocation_id = Uuid::new_v4();
         let (tx, rx) = oneshot::channel();
 
@@ -1474,7 +1474,7 @@ mod tests {
         let result = iii
             .trigger(
                 TriggerRequest::new("functions.echo", json!({ "a": 1 }))
-                    .timeout(Duration::from_millis(10)),
+                    .timeout_ms(10),
             )
             .await;
 

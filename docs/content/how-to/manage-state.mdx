@@ -35,7 +35,7 @@ modules:
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="state-writer.ts"
-import {Logger, registerWorker} from 'iii-sdk'
+import { registerWorker, Logger , registerWorker} from 'iii-sdk'
 
 const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 

@@ -661,13 +661,26 @@ class III:
         """Invoke a function using a request object.
 
         Args:
-            request: A TriggerRequest or dict with function_id, payload, and optional action/timeout.
+            request: A TriggerRequest or dict with function_id, payload, and optional action/timeout_ms.
         """
+        import warnings
+
         req = request if isinstance(request, dict) else request.model_dump()
         function_id = req["function_id"]
         payload = req.get("payload")
         action = req.get("action")
-        timeout = req.get("timeout", 30.0) or 30.0
+
+        if "timeout" in req and req["timeout"] is not None and "timeout_ms" not in req:
+            warnings.warn(
+                "TriggerRequest 'timeout' (seconds) is deprecated. Use 'timeout_ms' (milliseconds) instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            timeout_ms: int = int(req["timeout"] * 1000)
+        else:
+            timeout_ms = req.get("timeout_ms") or self._options.invocation_timeout_ms
+
+        timeout_secs = timeout_ms / 1000.0
 
         if action is not None:
             # Normalize raw dict actions
@@ -714,10 +727,10 @@ class III:
         )
 
         try:
-            return await asyncio.wait_for(future, timeout=timeout)
+            return await asyncio.wait_for(future, timeout=timeout_secs)
         except asyncio.TimeoutError:
             self._pending.pop(invocation_id, None)
-            raise TimeoutError(f"Invocation of '{function_id}' timed out after {timeout}s")
+            raise TimeoutError(f"Invocation of '{function_id}' timed out after {timeout_ms}ms")
 
     async def list_functions(self) -> list[FunctionInfo]:
         """List all registered functions from the engine."""

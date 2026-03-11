@@ -1,68 +1,135 @@
 ---
 title: 'Queue'
-description: 'Queue module for event-driven messaging.'
+description: 'Queue module for async job processing with named queues, retries, and dead-letter support.'
 ---
 
-A queue module for event-driven messaging patterns.
+A module for asynchronous job processing. It supports two modes: **topic-based queues** (register a consumer per topic, emit events) and **named queues** (enqueue function calls via `TriggerAction.Enqueue`, no trigger registration).
 
 ```
 modules::queue::QueueModule
 ```
+
+<Callout title="How-to guidance" type="info">
+  For step-by-step instructions, see [Use Queues](../how-to/use-queues) and [Manage Failed Triggers](../how-to/dead-letter-queues).
+</Callout>
+
+## Queue modes
+
+### Topic-based queues
+
+Register a consumer for a topic and emit events to it.
+
+1. **Register a consumer** with `registerTrigger({ type: 'queue', function_id: 'my::handler', config: { topic: 'order.created' } })`. This subscribes the handler to that topic.
+2. **Emit events** by calling `trigger('enqueue', { topic: 'order.created', data: payload })` or `triggerVoid('enqueue', { topic, data })`. The `enqueue` function routes the payload to all subscribers of that topic.
+3. **Action on the trigger**: the handler receives the `data` as its input. Optional `queue_config` on the trigger controls per-subscriber retries and concurrency.
+
+The producer knows the topic name; consumers register to receive it. Queue settings can live at the trigger registration site.
+
+### Named queues
+
+Define queues in `iii-config.yaml`, then enqueue function calls directly. No trigger registration.
+
+1. **Define queues** in `queue_configs` (see [Configuration](#configuration)).
+2. **Enqueue a function call** with `trigger({ function_id: 'orders::process', payload, action: TriggerAction.Enqueue({ queue: 'payment' }) })`. The engine routes the job to the named queue and invokes the function when a worker consumes it.
+3. **Action on the trigger**: the target function receives `payload` as its input. Retries, concurrency, and FIFO are configured in `iii-config.yaml`.
+
+The producer targets the function and queue explicitly. Queue configuration is centralized.
+
+### When to use which
+
+| | Topic-based | Named queues |
+|---|---|---|
+| **Producer** | Calls `trigger('enqueue', { topic, data })` | Calls `trigger({ function_id, payload, action: Enqueue({ queue }) })` |
+| **Consumer** | Registers `registerTrigger({ type: 'queue', config: { topic } })` | No registration — function is the target |
+| **Config** | Optional `queue_config` on trigger | `queue_configs` in `iii-config.yaml` |
+| **Use case** | Pub/sub, multiple subscribers per topic | Direct function invocation with retries, FIFO, DLQ |
+
+Both modes are valid. Named queues offer config-driven retries, concurrency, and FIFO. See [Queue System](../architecture/queue-system) for design rationale.
 
 ## Sample Configuration
 
 ```yaml
 - class: modules::queue::QueueModule
   config:
+    queue_configs:
+      default:
+        max_retries: 5
+        concurrency: 5
+        type: standard
+      payment:
+        max_retries: 10
+        concurrency: 2
+        type: fifo
+        message_group_field: transaction_id
     adapter:
       class: modules::queue::BuiltinQueueAdapter
+      config:
+        store_method: file_based
+        file_path: ./data/queue_store
 ```
 
 ## Configuration
 
+<ResponseField name="queue_configs" type="map[string, FunctionQueueConfig]" required>
+  A map of named queue configurations. Each key is the queue name referenced in `TriggerAction.Enqueue({ queue: 'name' })`. Define a queue named `default` in config for the common case; reference it as `TriggerAction.Enqueue({ queue: 'default' })`.
+</ResponseField>
+
 <ResponseField name="adapter" type="Adapter">
-  The adapter to use for queue persistence and distribution. Defaults to `modules::queue::BuiltinQueueAdapter` when not specified.
+  The transport adapter for queue persistence and distribution. Defaults to `modules::queue::BuiltinQueueAdapter` when not specified.
+</ResponseField>
+
+## Queue Configuration
+
+Each entry in `queue_configs` defines an independent named queue with its own retry, concurrency, and ordering settings.
+
+<ResponseField name="max_retries" type="u32">
+  Maximum delivery attempts before routing the job to the dead-letter queue. Defaults to `3`.
+</ResponseField>
+
+<ResponseField name="concurrency" type="u32">
+  Maximum number of jobs processed simultaneously from this queue. Defaults to `10`.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Delivery mode: `standard` (concurrent, default) or `fifo` (ordered within a message group).
+</ResponseField>
+
+<ResponseField name="message_group_field" type="string">
+  Required when `type` is `fifo`. The JSON field in the job payload whose value determines the ordering group. Jobs with the same group value are processed strictly in order. The field must be present and non-null in every enqueued payload.
+</ResponseField>
+
+<ResponseField name="backoff_ms" type="u64">
+  Base retry backoff in milliseconds. Applied with exponential scaling: `backoff_ms × 2^(attempt − 1)`. Defaults to `1000`.
+</ResponseField>
+
+<ResponseField name="poll_interval_ms" type="u64">
+  Worker poll interval in milliseconds. Defaults to `100`.
 </ResponseField>
 
 ## Adapters
 
 ### modules::queue::BuiltinQueueAdapter
 
-Built-in in-process queue with retries and dead-letter queue. No external dependencies. Suitable for single-instance deployments only — messages are not shared across engine instances.
+Built-in in-process queue. No external dependencies. Suitable for single-instance deployments — messages are not shared across engine instances.
 
 ```yaml
 class: modules::queue::BuiltinQueueAdapter
 config:
-  max_attempts: 3
-  backoff_ms: 1000
-  concurrency: 10
-  poll_interval_ms: 100
-  mode: concurrent   # concurrent | fifo
+  store_method: file_based   # in_memory | file_based
+  file_path: ./data/queue_store  # required when store_method is file_based
 ```
 
-<ResponseField name="max_attempts" type="number">
-  Maximum delivery attempts before sending to the dead-letter queue. Defaults to `3`.
+<ResponseField name="store_method" type="string">
+  Persistence strategy: `in_memory` (lost on restart) or `file_based` (durable across restarts). Defaults to `in_memory`.
 </ResponseField>
 
-<ResponseField name="backoff_ms" type="number">
-  Initial backoff delay in milliseconds. Applied with exponential scaling on each retry. Defaults to `1000`.
-</ResponseField>
-
-<ResponseField name="concurrency" type="number">
-  Maximum number of jobs processed simultaneously. Defaults to `10`.
-</ResponseField>
-
-<ResponseField name="poll_interval_ms" type="number">
-  Queue polling interval in milliseconds. Defaults to `100`.
-</ResponseField>
-
-<ResponseField name="mode" type="string">
-  Queue delivery mode: `concurrent` (default) or `fifo`.
+<ResponseField name="file_path" type="string">
+  Path to the queue store directory. Required when `store_method` is `file_based`.
 </ResponseField>
 
 ### modules::queue::RedisAdapter
 
-Uses Redis Pub/Sub as the queue backend. Enables message sharing across multiple engine instances. No retry support and no dead-letter queue — failed messages are not retried. Per-subscription queue config is ignored.
+Uses Redis as the queue backend. Enables message distribution across multiple engine instances. Does not support retries or dead-letter queues.
 
 ```yaml
 class: modules::queue::RedisAdapter
@@ -76,134 +143,57 @@ config:
 
 ### modules::queue::RabbitMQAdapter
 
-Uses RabbitMQ as the queue backend. Supports retries, dead-letter queues, and durable message delivery across multiple engine instances.
+Uses RabbitMQ as the queue backend. Supports durable delivery, retries, and dead-letter queues across multiple engine instances.
+
+The engine owns consumer loops, retry acknowledgement, and backoff logic — RabbitMQ is used as a transport only. Retry uses explicit ack + republish to a retry exchange with an `x-attempt` header, keeping compatibility with both classic and quorum queues.
 
 ```yaml
 class: modules::queue::RabbitMQAdapter
 config:
   amqp_url: ${RABBITMQ_URL:amqp://localhost:5672}
-  max_attempts: 3
-  prefetch_count: 10
-  queue_mode: standard   # standard | fifo
 ```
 
 <ResponseField name="amqp_url" type="string">
   The AMQP URL of the RabbitMQ instance to connect to.
 </ResponseField>
 
-<ResponseField name="max_attempts" type="number">
-  Maximum number of delivery attempts before sending to the dead-letter queue. Defaults to `3`.
-</ResponseField>
+## Adapter Comparison
 
-<ResponseField name="prefetch_count" type="number">
-  Number of messages to prefetch per consumer. Defaults to `10`.
-</ResponseField>
-
-<ResponseField name="queue_mode" type="string">
-  Queue delivery mode: `standard` or `fifo`. Defaults to `standard`.
-</ResponseField>
-
-## Retries and Dead-Letter Queue
-
-Retry behavior depends on the adapter:
-
-| Adapter | Retries | Dead-Letter Queue | Per-subscription config |
-|---------|---------|-------------------|------------------------|
-| BuiltinQueueAdapter | Yes (`max_attempts`, default `3`) | Yes | Yes |
-| RedisAdapter | No | No | No |
-| RabbitMQAdapter | Yes (`max_attempts`, default `3`) | Yes | Partial (`type`, `concurrency`) |
-
-For BuiltinQueueAdapter and RabbitMQAdapter, messages that fail after `max_attempts` delivery attempts are routed to the dead-letter queue. Backoff in BuiltinQueueAdapter is always exponential: `backoff_ms × 2^(attempt − 1)`.
-
-## Functions
-
-<ResponseField name="enqueue" type="function">
-  Enqueue a message to a specific topic.
-
-  <AccordionGroup>
-    <Accordion iconName="settings" title="Parameters">
-      <ResponseField name="topic" type="string" required>
-        The topic to enqueue the message to. Must not be empty.
-      </ResponseField>
-      <ResponseField name="data" type="any" required>
-        The message payload to enqueue.
-      </ResponseField>
-    </Accordion>
-    <Accordion title="Returns">
-      <ResponseField name="result" type="null">
-        Returns `null` on success.
-      </ResponseField>
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
-
-## Trigger Type
-
-This Module adds a new Trigger Type: `queue`.
-
-<Expandable title="Trigger Config">
-  <ResponseField name="topic" type="string" required>
-    The topic to subscribe to. The function will be invoked whenever a message is enqueued to this topic.
-  </ResponseField>
-  <ResponseField name="condition_function_id" type="string">
-    Function ID for conditional execution. The engine invokes it with the message payload; if it returns `false`, the handler function is not called.
-  </ResponseField>
-  <ResponseField name="queue" type="object">
-    Per-subscription queue configuration. Overrides adapter defaults where supported. Supported by `BuiltinQueueAdapter` (all fields) and `RabbitMQAdapter` (`type`, `concurrency`). Ignored by `RedisAdapter`.
-
-    <ResponseField name="maxRetries" type="number">
-      Maximum delivery attempts for this subscription. Overrides the adapter-level `max_attempts`. `BuiltinQueueAdapter` only.
-    </ResponseField>
-    <ResponseField name="concurrency" type="number">
-      Maximum concurrent jobs for this subscription.
-    </ResponseField>
-    <ResponseField name="backoffDelayMs" type="number">
-      Initial backoff delay in milliseconds. `BuiltinQueueAdapter` only.
-    </ResponseField>
-    <ResponseField name="type" type="string">
-      Queue mode for this subscription: `fifo` or `standard` (concurrent).
-    </ResponseField>
-  </ResponseField>
-</Expandable>
-
-### Sample Code
-
-```typescript
-const fn = iii.registerFunction(
-  { id: 'events.onUserCreated' },
-  async (data) => {
-    console.log('User created:', data)
-    return {}
-  },
-)
-
-iii.registerTrigger({
-  type: 'queue',
-  function_id: fn.id,
-  config: { topic: 'user.created' },
-})
-
-iii.triggerVoid('enqueue', {
-  topic: 'user.created',
-  data: { id: '123', email: 'user@example.com' },
-})
-```
+|  | BuiltinQueueAdapter | RabbitMQAdapter | RedisAdapter |
+|---|---|---|---|
+| **Retries** | Yes | Yes | No |
+| **Dead-letter queue** | Yes | Yes | No |
+| **FIFO ordering** | Yes | Yes | No |
+| **Named queues** | Yes | Yes | No |
+| **Multi-instance** | No | Yes | Yes |
 
 ## Queue Flow
 
 ```mermaid
 sequenceDiagram
-    participant W1 as Worker1
+    participant C as Caller
     participant E as Engine
     participant Q as Queue Adapter
-    participant W2 as Worker2
+    participant F as Target Function
 
-    W1->>E: Enqueue (topic: user.created)
-    E->>Q: Enqueue message
-    Q-->>E: Message Enqueued
-    E-->>W1: Success
+    C->>E: trigger({ function_id, payload, action: Enqueue({ queue }) })
+    E->>E: Validate queue config & FIFO field
+    E->>Q: Enqueue job
+    Q-->>E: Job accepted
+    E-->>C: { messageReceiptId }
 
-    Q->>E: Notify Subscribers
-    E->>W2: Invoke Handler (queue trigger)
-    W2-->>E: Processing Complete
+    loop Consumer
+        Q->>E: Job available
+        E->>F: Invoke with payload
+        alt Success
+            F-->>E: Return value
+            E->>Q: Ack
+        else Failure — attempt < max_retries
+            F-->>E: Error
+            E->>Q: Ack + republish with backoff delay
+        else Failure — attempts exhausted
+            F-->>E: Error
+            E->>Q: Route to DLQ
+        end
+    end
 ```
