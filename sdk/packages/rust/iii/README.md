@@ -20,7 +20,7 @@ tokio = { version = "1", features = ["full"] }
 ## Hello World
 
 ```rust
-use iii_sdk::{init, InitOptions};
+use iii_sdk::{init, InitOptions, TriggerRequest};
 use serde_json::json;
 
 #[tokio::main]
@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }))?;
 
     let result: serde_json::Value = iii
-        .trigger("greet", json!({ "name": "world" }))
+        .trigger(TriggerRequest::new("greet", json!({ "name": "world" })))
         .await?;
 
     println!("result: {result}");
@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Initialize               | `init(url, options)`                         | Create an SDK instance and auto-connect                |
 | Register function        | `iii.register_function(id, \|input\| ...)`   | Register a function that can be invoked by name        |
 | Register trigger         | `iii.register_trigger(type, fn_id, config)?` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
-| Invoke (await)           | `iii.trigger(id, data).await?`               | Invoke a function and wait for the result              |
+| Invoke (await)           | `iii.trigger(TriggerRequest::new(id, data)).await?` | Invoke a function and wait for the result              |
 | Invoke (fire-and-forget) | `iii.trigger_void(id, data)?`                | Invoke a function without waiting (fire-and-forget)    |
 
 `init()` spawns a background task that handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation.
@@ -79,7 +79,12 @@ iii.register_trigger("http", "orders.create", json!({
 ### Invoking Functions
 
 ```rust
-let result = iii.trigger("orders.create", json!({ "body": { "item": "widget" } })).await?;
+use iii_sdk::TriggerRequest;
+use serde_json::json;
+
+let result = iii
+    .trigger(TriggerRequest::new("orders.create", json!({ "body": { "item": "widget" } })))
+    .await?;
 
 iii.trigger_void("analytics.track", json!({ "event": "page_view" }))?;
 ```

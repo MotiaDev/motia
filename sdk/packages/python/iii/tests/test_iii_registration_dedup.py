@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 import iii.iii as iii_module
-from iii import III
+from iii import III, TriggerAction
 
 
 @pytest.fixture(autouse=True)
@@ -160,7 +160,7 @@ async def test_call_void_queued_while_disconnected_flushes_after_connect(
     client = III("ws://fake")
     client._register_worker_metadata = lambda: None
 
-    client.call_void("demo.fire", {"x": 1})
+    await client.trigger({"function_id": "demo.fire", "payload": {"x": 1}, "action": TriggerAction.Void()})
     await asyncio.sleep(0)
 
     await client.connect()

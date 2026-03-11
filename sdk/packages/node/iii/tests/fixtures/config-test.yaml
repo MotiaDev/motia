@@ -67,6 +67,22 @@ modules:
           concurrency: 2
           type: fifo
           message_group_field: transaction_id
+        test-orders:
+          max_retries: 3
+          concurrency: 5
+          type: standard
+        test-multi:
+          max_retries: 3
+          concurrency: 5
+          type: standard
+        test-chain:
+          max_retries: 3
+          concurrency: 5
+          type: standard
+        test-chain-entry:
+          max_retries: 3
+          concurrency: 5
+          type: standard
       adapter:
         class: modules::queue::BuiltinQueueAdapter
 

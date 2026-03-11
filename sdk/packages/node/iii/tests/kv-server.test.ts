@@ -10,16 +10,16 @@ describe('KV Server', () => {
     const testKey = uniqueKey('test_key')
     const testValue = { name: 'test', value: 123 }
 
-    await iii.call('kv_server::set', {
+    await iii.trigger({ function_id: 'kv_server::set', payload: {
       index: 'test_index',
       key: testKey,
       value: testValue,
-    })
+    } })
 
-    const result = await iii.call<{ index: string; key: string }, typeof testValue>(
-      'kv_server::get',
-      { index: 'test_index', key: testKey },
-    )
+    const result = await iii.trigger<{ index: string; key: string }, typeof testValue>({
+      function_id: 'kv_server::get',
+      payload: { index: 'test_index', key: testKey },
+    })
 
     expect(result).toEqual(testValue)
   })
@@ -27,28 +27,28 @@ describe('KV Server', () => {
   it('should delete a value', async () => {
     const testKey = uniqueKey('delete_key')
 
-    await iii.call('kv_server::set', {
+    await iii.trigger({ function_id: 'kv_server::set', payload: {
       index: 'test_index',
       key: testKey,
       value: { data: 'to_delete' },
-    })
+    } })
 
-    const beforeDelete = await iii.call('kv_server::get', {
+    const beforeDelete = await iii.trigger({ function_id: 'kv_server::get', payload: {
       index: 'test_index',
       key: testKey,
-    })
+    } })
     expect(beforeDelete).not.toBeNull()
     expect(beforeDelete).toBeDefined()
 
-    await iii.call('kv_server::delete', {
+    await iii.trigger({ function_id: 'kv_server::delete', payload: {
       index: 'test_index',
       key: testKey,
-    })
+    } })
 
-    const afterDelete = await iii.call('kv_server::get', {
+    const afterDelete = await iii.trigger({ function_id: 'kv_server::get', payload: {
       index: 'test_index',
       key: testKey,
-    })
+    } })
     expect(afterDelete).toBeUndefined()
   })
 
@@ -56,26 +56,26 @@ describe('KV Server', () => {
     const testIndex = uniqueKey('list_index')
 
     for (let i = 0; i < 3; i++) {
-      await iii.call('kv_server::set', {
+      await iii.trigger({ function_id: 'kv_server::set', payload: {
         index: testIndex,
         key: `item_${i}`,
         value: { id: i },
-      })
+      } })
     }
 
-    const result = await iii.call<{ index: string }, unknown[]>('kv_server::list', {
+    const result = await iii.trigger<{ index: string }, unknown[]>({ function_id: 'kv_server::list', payload: {
       index: testIndex,
-    })
+    } })
 
     expect(Array.isArray(result)).toBe(true)
     expect(result).toHaveLength(3)
   })
 
   it('should return undefined for non-existent key', async () => {
-    const result = await iii.call('kv_server::get', {
+    const result = await iii.trigger({ function_id: 'kv_server::get', payload: {
       index: 'nonexistent_index',
       key: 'nonexistent_key',
-    })
+    } })
 
     expect(result).toBeUndefined()
   })
