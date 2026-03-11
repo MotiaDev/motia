@@ -161,8 +161,8 @@ Constructor methods for routing actions passed to `trigger()`. Import from `iii_
   Fire-and-forget invocation. Sends the message without waiting for a response.
 </ResponseField>
 
-<Callout type="warn" title="Deprecated methods">
-  `call`, `call_with_timeout`, and `call_void` are deprecated. Use `trigger` instead. `trigger_void` is deprecated — replace with `trigger(TriggerRequest::new(fn_id, data).action(TriggerAction::void()))`.
+<Callout type="warn" title="Removed methods">
+  `call`, `call_with_timeout`, `call_void`, and `trigger_void` have been removed. Use `trigger` for all invocations. For fire-and-forget, use `trigger(TriggerRequest::new(fn_id, data).action(TriggerAction::void()))`.
 </Callout>
 
 ### shutdown_async

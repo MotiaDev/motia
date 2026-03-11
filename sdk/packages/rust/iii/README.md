@@ -125,7 +125,7 @@ iii-sdk = { version = "0.3", features = ["otel"] }
 
 ## Deprecated
 
-`call()` and `call_void()` are deprecated aliases for `trigger()` and `trigger_void()`. They still work but will be removed in a future release.
+`call`, `call_void`, and `trigger_void` have been removed. Use `trigger()` for all invocations. For fire-and-forget, use `trigger(TriggerRequest::new(fn_id, data).action(TriggerAction::void()))`.
 
 ## Resources
 
