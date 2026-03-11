@@ -25,8 +25,8 @@ const NodeIcon = () => (
 );
 
 // Code snippets
-const pythonCode = `from iii import init
-import torch
+const pythonCode = `import torch
+from iii import init
 
 iii = init("ws://localhost:49134")
 
@@ -99,8 +99,8 @@ export function HelloWorldSection({
       language: "rust",
     },
     {
-      title: "Node.js Consumer",
-      subtitle: "Consumer",
+      title: "Node.js Orchestrator",
+      subtitle: "Orchestrator",
       icon: NodeIcon,
       code: nodeCode,
       color: "text-iii-success",
