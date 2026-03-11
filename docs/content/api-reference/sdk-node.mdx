@@ -223,25 +223,8 @@ A factory object that constructs routing actions for `trigger()`. Import from `i
   Fire-and-forget routing. The engine forwards the invocation without waiting for a response or queuing the job. No acknowledgement is returned.
 </ResponseField>
 
-### triggerVoid
-
-<ResponseField name="triggerVoid" type="&lt;TInput&gt;(function_id: string, data: TInput) => void" required>
-  Fire-and-forget invocation. No response is expected.
-
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="function_id" type="string" required>
-        ID of the function to invoke.
-      </ResponseField>
-      <ResponseField name="data" type="TInput" required>
-        Payload to pass to the function.
-      </ResponseField>
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
-
-<Callout type="warn" title="Deprecated methods">
-  `call` and `callVoid` are deprecated. Use `trigger` instead. `triggerVoid` is deprecated — replace with `trigger({ function_id, payload, action: TriggerAction.Void() })`.
+<Callout type="warn" title="Removed methods">
+  `call`, `callVoid`, and `triggerVoid` have been removed. Use `trigger` for all invocations. For fire-and-forget, use `trigger({ function_id, payload, action: TriggerAction.Void() })`.
 </Callout>
 
 ### createStream
