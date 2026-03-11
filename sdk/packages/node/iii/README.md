@@ -14,9 +14,9 @@ npm install iii-sdk
 ## Hello World
 
 ```javascript
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = registerWorker('ws://localhost:49134')
 
 iii.registerFunction({ id: 'greet' }, async (input) => {
   return { message: `Hello, ${input.name}!` }
@@ -35,7 +35,7 @@ const result = await iii.trigger('greet', { name: 'world' })
 
 | Operation                | Signature                                            | Description                                                  |
 | ------------------------ | ---------------------------------------------------- | ------------------------------------------------------------ |
-| Initialize               | `init(url, options?)`                                | Create and connect to the engine. Returns an `ISdk` instance |
+| Initialize               | `registerWorker(url, options?)`                      | Create and connect to the engine. Returns an `ISdk` instance |
 | Register function        | `iii.registerFunction({ id }, handler)`              | Register a function that can be invoked by name              |
 | Register trigger         | `iii.registerTrigger({ type, function_id, config })` | Bind a trigger (HTTP, cron, queue, etc.) to a function       |
 | Invoke (await)           | `await iii.trigger(id, data, timeoutMs?)`            | Invoke a function and wait for the result                    |
@@ -71,7 +71,7 @@ iii.triggerVoid('analytics.track', { event: 'page_view' })
 
 | Import              | What it provides                      |
 | ------------------- | ------------------------------------- |
-| `iii-sdk`           | Core SDK (`init`, types)              |
+| `iii-sdk`           | Core SDK (`registerWorker`, types)    |
 | `iii-sdk/stream`    | Stream client for real-time state     |
 | `iii-sdk/state`     | State client for key-value operations |
 | `iii-sdk/telemetry` | OpenTelemetry integration             |

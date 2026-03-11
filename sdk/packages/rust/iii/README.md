@@ -20,12 +20,12 @@ tokio = { version = "1", features = ["full"] }
 ## Hello World
 
 ```rust
-use iii_sdk::{init, InitOptions, TriggerRequest};
+use iii_sdk::{register_worker, InitOptions};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = init("ws://127.0.0.1:49134", InitOptions::default())?;
+    let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default())?;
 
     iii.register_function("greet", |input| async move {
         let name = input.get("name").and_then(|v| v.as_str()).unwrap_or("world");
@@ -50,13 +50,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 | Operation                | Signature                                    | Description                                            |
 | ------------------------ | -------------------------------------------- | ------------------------------------------------------ |
-| Initialize               | `init(url, options)`                         | Create an SDK instance and auto-connect                |
+| Initialize               | `register_worker(url, options)`              | Create an SDK instance and auto-connect                |
 | Register function        | `iii.register_function(id, \|input\| ...)`   | Register a function that can be invoked by name        |
 | Register trigger         | `iii.register_trigger(type, fn_id, config)?` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
 | Invoke (await)           | `iii.trigger(TriggerRequest::new(id, data)).await?` | Invoke a function and wait for the result              |
 | Invoke (fire-and-forget) | `iii.trigger_void(id, data)?`                | Invoke a function without waiting (fire-and-forget)    |
 
-`init()` spawns a background task that handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation.
+`register_worker()` spawns a background task that handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation.
 
 ### Registering Functions
 
@@ -92,12 +92,12 @@ iii.trigger_void("analytics.track", json!({ "event": "page_view" }))?;
 ### Streams
 
 ```rust
-use iii_sdk::{init, InitOptions, Streams};
+use iii_sdk::{register_worker, InitOptions, Streams};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = init("ws://127.0.0.1:49134", InitOptions::default())?;
+    let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default())?;
 
     let streams = Streams::new(iii.clone());
     streams.set_field("room::123", "users", json!(["alice", "bob"])).await?;

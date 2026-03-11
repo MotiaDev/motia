@@ -16,10 +16,10 @@ pip install iii-sdk
 
 ```python
 import asyncio
-from iii import init
+from iii import register_worker
 
 async def main():
-    iii = init("ws://localhost:49134")
+    iii = register_worker("ws://localhost:49134")
 
     async def greet(data):
         return {"message": f"Hello, {data['name']}!"}
@@ -42,13 +42,13 @@ asyncio.run(main())
 
 | Operation                | Signature                                         | Description                                            |
 | ------------------------ | ------------------------------------------------- | ------------------------------------------------------ |
-| Initialize               | `init(url, options?)`                             | Create an SDK instance and auto-connect                |
+| Initialize               | `register_worker(url, options?)`                  | Create an SDK instance and auto-connect                |
 | Register function        | `iii.register_function(id, handler)`              | Register a function that can be invoked by name        |
 | Register trigger         | `iii.register_trigger(type, function_id, config)` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
 | Invoke (await)           | `await iii.trigger({"function_id": id, "payload": data})` | Invoke a function and wait for the result              |
 | Invoke (fire-and-forget) | `iii.trigger_void(id, data)`                      | Invoke a function without waiting (fire-and-forget)    |
 
-`init()` must be called inside an async context. It creates the SDK instance and auto-connects to the engine.
+`register_worker()` must be called inside an async context. It creates the SDK instance and auto-connects to the engine.
 
 ### Registering Functions
 
