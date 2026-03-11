@@ -4,7 +4,7 @@ import asyncio
 import logging
 
 from .channels import ChannelReader, ChannelWriter, ReadableStream, WritableStream
-from .iii import III, ConnectionStateCallback, FunctionRef, IIIConnectionState, InitOptions, ReconnectionConfig, TriggerAction, TriggerActions
+from .iii import III, ConnectionStateCallback, FunctionRef, IIIConnectionState, InitOptions, ReconnectionConfig, TriggerAction
 from .iii_types import (
     FunctionInfo,
     HttpAuthConfig,
@@ -99,7 +99,6 @@ __all__ = [
     "ConnectionStateCallback",
     "FunctionRef",
     "TriggerAction",
-    "TriggerActions",
     "Logger",
     # API types
     "ApiRequest",

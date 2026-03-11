@@ -533,10 +533,9 @@ impl QueueAdapter for RabbitMQAdapter {
                             });
 
                         let attempt = headers
-                            .and_then(|h| h.inner().get("x-delivery-count"))
+                            .and_then(|h| h.inner().get("x-attempt"))
                             .and_then(|v| match v {
                                 lapin::types::AMQPValue::LongUInt(n) => Some(*n),
-                                lapin::types::AMQPValue::LongLongInt(n) => Some(*n as u32),
                                 _ => None,
                             })
                             .unwrap_or(0);
@@ -553,6 +552,16 @@ impl QueueAdapter for RabbitMQAdapter {
                         };
 
                         if tx.send(msg).await.is_err() {
+                            // Receiver dropped — nack the delivery we just stored so
+                            // RabbitMQ requeues it rather than leaving it stranded.
+                            if let Some(d) = delivery_map.write().await.remove(&delivery_id) {
+                                let _ = d
+                                    .nack(BasicNackOptions {
+                                        requeue: true,
+                                        ..Default::default()
+                                    })
+                                    .await;
+                            }
                             break;
                         }
                     }
@@ -583,20 +592,95 @@ impl QueueAdapter for RabbitMQAdapter {
 
     async fn nack_function_queue(
         &self,
-        _queue_name: &str,
+        queue_name: &str,
         delivery_id: u64,
-        requeue: bool,
+        attempt: u32,
+        max_retries: u32,
     ) -> anyhow::Result<()> {
+        use super::naming::FnQueueNames;
+
         let delivery = self.delivery_map.write().await.remove(&delivery_id);
-        if let Some(delivery) = delivery {
+        let delivery = match delivery {
+            Some(d) => d,
+            None => return Ok(()),
+        };
+
+        if attempt < max_retries {
+            // Retry: ack the original delivery, republish to the retry exchange.
+            // The retry queue has a TTL; after expiry RabbitMQ dead-letters the
+            // message back to the main exchange (configured via x-dead-letter-exchange
+            // on the retry queue).
+            delivery
+                .ack(BasicAckOptions::default())
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to ack for retry: {}", e))?;
+
+            let names = FnQueueNames::new(queue_name);
+
+            let mut headers = delivery
+                .properties
+                .headers()
+                .clone()
+                .unwrap_or_default();
+
+            // Increment our own attempt counter so classic queues (which do not
+            // populate x-delivery-count) can still track retry depth.
+            let current_attempt = headers
+                .inner()
+                .get("x-attempt")
+                .and_then(|v| match v {
+                    lapin::types::AMQPValue::LongUInt(n) => Some(*n),
+                    _ => None,
+                })
+                .unwrap_or(0);
+            headers.insert(
+                "x-attempt".into(),
+                lapin::types::AMQPValue::LongUInt(current_attempt + 1),
+            );
+
+            let properties = lapin::BasicProperties::default()
+                .with_content_type("application/json".into())
+                .with_delivery_mode(2)
+                .with_headers(headers);
+
+            self.channel
+                .basic_publish(
+                    &names.retry_exchange(),
+                    queue_name,
+                    BasicPublishOptions::default(),
+                    &delivery.data,
+                    properties,
+                )
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to publish to retry exchange: {}", e))?
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to confirm retry publish: {}", e))?;
+
+            tracing::debug!(
+                queue = %queue_name,
+                attempt = attempt,
+                max_retries = max_retries,
+                "Message sent to retry queue"
+            );
+        } else {
+            // Exhausted: nack without requeue. The main queue's DLX points to the
+            // DLQ exchange, so RabbitMQ routes the message there automatically.
             delivery
                 .nack(BasicNackOptions {
-                    requeue,
+                    requeue: false,
                     ..Default::default()
                 })
                 .await
-                .map_err(|e| anyhow::anyhow!("Failed to nack: {}", e))?;
+                .map_err(|e| anyhow::anyhow!("Failed to nack to DLQ: {}", e))?;
+
+            tracing::warn!(
+                queue = %queue_name,
+                attempt = attempt,
+                max_retries = max_retries,
+                "Message exhausted retries, routed to DLQ"
+            );
         }
+
         Ok(())
     }
 }

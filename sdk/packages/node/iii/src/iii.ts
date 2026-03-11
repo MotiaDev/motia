@@ -911,8 +911,6 @@ export const TriggerAction = {
   Void: (): TriggerActionType => ({ type: 'void' }),
 } as const
 
-/** @deprecated Use TriggerAction instead */
-export const TriggerActions = TriggerAction
 
 export const registerWorker = (address: string, options?: InitOptions): ISdk =>
   new Sdk(address, options)

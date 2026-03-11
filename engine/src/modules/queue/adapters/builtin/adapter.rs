@@ -48,6 +48,7 @@ pub struct BuiltinQueueAdapter {
     subscriptions: Arc<RwLock<HashMap<String, SubscriptionHandle>>>,
     delivery_map: Arc<RwLock<HashMap<u64, DeliveryInfo>>>,
     delivery_counter: Arc<AtomicU64>,
+    poll_intervals: Arc<RwLock<HashMap<String, u64>>>,
 }
 
 struct FunctionHandler {
@@ -143,6 +144,7 @@ impl BuiltinQueueAdapter {
             subscriptions: Arc::new(RwLock::new(HashMap::new())),
             delivery_map: Arc::new(RwLock::new(HashMap::new())),
             delivery_counter: Arc::new(AtomicU64::new(0)),
+            poll_intervals: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 }
@@ -155,6 +157,7 @@ impl Clone for BuiltinQueueAdapter {
             subscriptions: Arc::clone(&self.subscriptions),
             delivery_map: Arc::clone(&self.delivery_map),
             delivery_counter: Arc::clone(&self.delivery_counter),
+            poll_intervals: Arc::clone(&self.poll_intervals),
         }
     }
 }
@@ -249,6 +252,18 @@ impl QueueAdapter for BuiltinQueueAdapter {
         Ok(self.queue.dlq_count(topic).await)
     }
 
+    async fn setup_function_queue(
+        &self,
+        queue_name: &str,
+        config: &crate::modules::queue::FunctionQueueConfig,
+    ) -> anyhow::Result<()> {
+        self.poll_intervals
+            .write()
+            .await
+            .insert(queue_name.to_string(), config.poll_interval_ms);
+        Ok(())
+    }
+
     async fn publish_to_function_queue(
         &self,
         queue_name: &str,
@@ -259,9 +274,17 @@ impl QueueAdapter for BuiltinQueueAdapter {
         traceparent: Option<String>,
         baggage: Option<String>,
     ) {
+        let namespaced_queue = format!("__fn_queue::{}", queue_name);
         let job = Job {
             function_id: Some(function_id.to_string()),
-            ..Job::new(queue_name, data, max_retries, backoff_ms, traceparent, baggage)
+            ..Job::new(
+                &namespaced_queue,
+                data,
+                max_retries,
+                backoff_ms,
+                traceparent,
+                baggage,
+            )
         };
         self.queue.push_job(job).await;
     }
@@ -273,31 +296,39 @@ impl QueueAdapter for BuiltinQueueAdapter {
     ) -> anyhow::Result<mpsc::Receiver<crate::modules::queue::QueueMessage>> {
         use crate::modules::queue::QueueMessage;
 
+        let poll_interval_ms = self
+            .poll_intervals
+            .read()
+            .await
+            .get(queue_name)
+            .copied()
+            .unwrap_or(100);
+
         let (tx, rx) = mpsc::channel(prefetch as usize);
         let queue = Arc::clone(&self.queue);
         let delivery_map = Arc::clone(&self.delivery_map);
         let delivery_counter = Arc::clone(&self.delivery_counter);
-        let queue_name = queue_name.to_string();
+        let namespaced_queue = format!("__fn_queue::{}", queue_name);
 
         tokio::spawn(async move {
-            let poll_interval = std::time::Duration::from_millis(100);
+            let poll_interval = std::time::Duration::from_millis(poll_interval_ms);
             loop {
                 if tx.is_closed() {
                     break;
                 }
 
                 // Move delayed jobs to waiting
-                if let Err(e) = queue.move_delayed_to_waiting(&queue_name).await {
-                    tracing::error!(error = %e, queue = %queue_name, "Failed to move delayed jobs");
+                if let Err(e) = queue.move_delayed_to_waiting(&namespaced_queue).await {
+                    tracing::error!(error = %e, queue = %namespaced_queue, "Failed to move delayed jobs");
                 }
 
-                if let Some(job) = queue.pop(&queue_name).await {
+                if let Some(job) = queue.pop(&namespaced_queue).await {
                     let delivery_id = delivery_counter.fetch_add(1, Ordering::SeqCst);
 
                     delivery_map.write().await.insert(
                         delivery_id,
                         DeliveryInfo {
-                            queue_name: queue_name.clone(),
+                            queue_name: namespaced_queue.clone(),
                             job_id: job.id.clone(),
                         },
                     );
@@ -312,6 +343,21 @@ impl QueueAdapter for BuiltinQueueAdapter {
                     };
 
                     if tx.send(msg).await.is_err() {
+                        // Channel closed — nack the job so it returns to the queue
+                        if let Some(info) =
+                            delivery_map.write().await.remove(&delivery_id)
+                        {
+                            if let Err(e) = queue
+                                .nack(
+                                    &info.queue_name,
+                                    &info.job_id,
+                                    "consumer channel closed",
+                                )
+                                .await
+                            {
+                                tracing::error!(error = %e, "Failed to nack stranded job");
+                            }
+                        }
                         break;
                     }
                 } else {
@@ -339,10 +385,13 @@ impl QueueAdapter for BuiltinQueueAdapter {
         &self,
         _queue_name: &str,
         delivery_id: u64,
-        _requeue: bool,
+        _attempt: u32,
+        _max_retries: u32,
     ) -> anyhow::Result<()> {
         let info = self.delivery_map.write().await.remove(&delivery_id);
         if let Some(info) = info {
+            // BuiltinQueue::nack() handles retry vs DLQ internally
+            // using the job's own attempts_made and max_attempts fields.
             self.queue
                 .nack(&info.queue_name, &info.job_id, "function call failed")
                 .await?;
@@ -742,7 +791,7 @@ mod tests {
             .expect("channel should not be closed");
 
         let result = adapter
-            .nack_function_queue("test-q", msg.delivery_id, false)
+            .nack_function_queue("test-q", msg.delivery_id, 0, 3)
             .await;
         assert!(result.is_ok(), "nack should succeed");
 

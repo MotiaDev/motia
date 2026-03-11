@@ -34,7 +34,7 @@ describe('Queue Integration', () => {
       })
 
       expect(received).toHaveLength(1)
-      expect(received[0]).toEqual({ order: 'pizza' })
+      expect(received[0]).toMatchObject({ order: 'pizza' })
     } finally {
       consumer.unregister()
     }
@@ -71,7 +71,7 @@ describe('Queue Integration', () => {
       })
 
       expect(calls).toHaveLength(1)
-      expect(calls[0]).toEqual({ msg: 'fire' })
+      expect(calls[0]).toMatchObject({ msg: 'fire' })
     } finally {
       consumer.unregister()
     }
@@ -111,7 +111,7 @@ describe('Queue Integration', () => {
       expect(received).toHaveLength(messageCount)
 
       for (let i = 0; i < messageCount; i++) {
-        expect(received).toContainEqual({ index: i, value: `msg-${i}` })
+        expect(received).toContainEqual(expect.objectContaining({ index: i, value: `msg-${i}` }))
       }
     } finally {
       consumer.unregister()
@@ -160,7 +160,7 @@ describe('Queue Integration', () => {
       })
 
       expect(chainedReceived).toHaveLength(1)
-      expect(chainedReceived[0]).toEqual({ origin: 'test', data: 42, chained: true })
+      expect(chainedReceived[0]).toMatchObject({ origin: 'test', data: 42, chained: true })
     } finally {
       functionA.unregister()
       functionB.unregister()

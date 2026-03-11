@@ -897,7 +897,3 @@ class TriggerAction:
     @staticmethod
     def Void() -> TriggerActionVoid:
         return TriggerActionVoid()
-
-
-# Deprecated alias
-TriggerActions = TriggerAction

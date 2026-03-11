@@ -81,6 +81,13 @@ pub struct QueueModuleConfig {
 impl QueueModuleConfig {
     pub fn validate(&self) -> anyhow::Result<()> {
         for (name, queue_config) in &self.queue_configs {
+            if queue_config.r#type != "standard" && queue_config.r#type != "fifo" {
+                anyhow::bail!(
+                    "Queue '{}' has invalid type '{}'. Must be 'standard' or 'fifo'",
+                    name,
+                    queue_config.r#type
+                );
+            }
             if queue_config.r#type == "fifo" && queue_config.message_group_field.is_none() {
                 anyhow::bail!(
                     "Queue '{}' is of type 'fifo' but 'message_group_field' is not set",
@@ -232,5 +239,25 @@ adapter:
             queue_configs,
         };
         assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn validate_invalid_queue_type_fails() {
+        let mut queue_configs = HashMap::new();
+        queue_configs.insert(
+            "orders".to_string(),
+            FunctionQueueConfig {
+                r#type: "invalid_type".to_string(),
+                ..Default::default()
+            },
+        );
+        let config = QueueModuleConfig {
+            adapter: None,
+            queue_configs,
+        };
+        let result = config.validate();
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("invalid_type"));
     }
 }

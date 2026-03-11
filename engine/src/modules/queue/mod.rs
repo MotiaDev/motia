@@ -85,12 +85,15 @@ pub trait QueueAdapter: Send + Sync + 'static {
         Ok(()) // no-op by default
     }
 
-    /// Negative-acknowledge a message. If requeue=false, adapter routes to retry/DLQ.
+    /// Negative-acknowledge a message.
+    /// When `attempt < max_retries`, the adapter should route to retry.
+    /// When `attempt >= max_retries`, the adapter should route to DLQ.
     async fn nack_function_queue(
         &self,
         _queue_name: &str,
         _delivery_id: u64,
-        _requeue: bool,
+        _attempt: u32,
+        _max_retries: u32,
     ) -> anyhow::Result<()> {
         Ok(()) // no-op by default
     }

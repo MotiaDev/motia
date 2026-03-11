@@ -128,6 +128,32 @@ fn register_order_recording_function(
         .register_function(function_id.to_string(), function);
 }
 
+/// Registers a test function that always fails (returns FunctionResult::Failure).
+/// Records the number of invocations in `call_count`.
+fn register_failing_function(engine: &Arc<Engine>, function_id: &str, call_count: Arc<AtomicU64>) {
+    let function = Function {
+        handler: Arc::new(move |_invocation_id, _input| {
+            let count = call_count.clone();
+            Box::pin(async move {
+                count.fetch_add(1, Ordering::SeqCst);
+                FunctionResult::Failure(iii::protocol::ErrorBody {
+                    code: "FAIL".to_string(),
+                    message: "intentional failure".to_string(),
+                    stacktrace: None,
+                })
+            })
+        }),
+        _function_id: function_id.to_string(),
+        _description: Some("always-failing test handler".to_string()),
+        request_format: None,
+        response_format: None,
+        metadata: None,
+    };
+    engine
+        .functions
+        .register_function(function_id.to_string(), function);
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -300,5 +326,58 @@ async fn full_roundtrip_fifo_preserves_order() {
     assert_eq!(
         *recorded, expected,
         "FIFO queue should preserve insertion order"
+    );
+}
+
+#[tokio::test]
+async fn retry_exhaustion_stops_redelivery() {
+    // The "default" queue has max_retries=2, so a permanently failing function
+    // should be invoked at most 1 (initial) + 2 (retries) = 3 times.
+    let engine = {
+        iii::modules::observability::metrics::ensure_default_meter();
+        Arc::new(Engine::new())
+    };
+
+    let call_count = Arc::new(AtomicU64::new(0));
+    register_failing_function(&engine, "test::always_fails", call_count.clone());
+
+    let module = QueueCoreModule::create(engine.clone(), Some(queue_config_json()))
+        .await
+        .expect("QueueCoreModule::create should succeed");
+
+    module
+        .initialize()
+        .await
+        .expect("Module initialization should succeed");
+
+    enqueue(
+        &engine,
+        "default",
+        "test::always_fails",
+        json!({"key": "should_exhaust"}),
+    )
+    .await
+    .expect("Enqueue should succeed");
+
+    // Wait long enough for initial attempt + retries + backoff intervals.
+    // max_retries=2, backoff_ms=100, poll_interval_ms=50
+    // Worst case: 3 attempts * (100ms backoff + 50ms poll) + margin
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+
+    let total_calls = call_count.load(Ordering::SeqCst);
+    assert!(
+        total_calls >= 1 && total_calls <= 3,
+        "Expected 1-3 invocations (1 initial + up to 2 retries), got {total_calls}"
+    );
+
+    // Wait a bit more to confirm no further redeliveries after exhaustion.
+    let calls_before = total_calls;
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+    let calls_after = call_count.load(Ordering::SeqCst);
+
+    assert_eq!(
+        calls_before, calls_after,
+        "No further invocations should occur after retry exhaustion, \
+         but got {calls_after} (was {calls_before})"
     );
 }

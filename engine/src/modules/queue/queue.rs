@@ -27,7 +27,7 @@ use crate::{
     function::FunctionResult,
     modules::module::{AdapterFactory, ConfigurableModule, Module},
     protocol::ErrorBody,
-    telemetry::{inject_baggage_from_context, inject_traceparent_from_context},
+    telemetry::{SpanExt, inject_baggage_from_context, inject_traceparent_from_context},
     trigger::{Trigger, TriggerRegistrator, TriggerType},
 };
 
@@ -255,6 +255,7 @@ impl Module for QueueCoreModule {
             self.adapter.setup_function_queue(name, config).await?;
 
             let prefetch = if config.r#type == "fifo" { 1 } else { config.concurrency };
+            let max_retries = config.max_retries;
             let mut receiver = self.adapter.consume_function_queue(name, prefetch).await?;
 
             let adapter = self.adapter.clone();
@@ -276,18 +277,27 @@ impl Module for QueueCoreModule {
                     }
                     let permit = permit.unwrap();
 
+                    let traceparent = msg.traceparent.clone();
+                    let baggage = msg.baggage.clone();
+
                     tokio::spawn(async move {
                         let delivery_id = msg.delivery_id;
                         let function_id = msg.function_id.clone();
+                        let attempt = msg.attempt;
 
                         let span = tracing::info_span!(
                             "fn_queue_job",
                             otel.name = %format!("fn_queue {}", queue_name),
                             function_id = %function_id,
                             queue = %queue_name,
-                            attempt = %msg.attempt,
+                            attempt = %attempt,
                             delivery_id = %delivery_id,
-                        );
+                            "messaging.system" = "iii-queue",
+                            "messaging.destination.name" = %queue_name,
+                            "messaging.operation.type" = "process",
+                            otel.status_code = tracing::field::Empty,
+                        )
+                        .with_parent_headers(traceparent.as_deref(), baggage.as_deref());
 
                         let result = async {
                             engine.call(&function_id, msg.data).await
@@ -297,19 +307,22 @@ impl Module for QueueCoreModule {
 
                         match result {
                             Ok(_) => {
+                                tracing::Span::current().record("otel.status_code", "OK");
                                 if let Err(e) = adapter.ack_function_queue(&queue_name, delivery_id).await {
                                     tracing::error!(error = %e, "Failed to ack message");
                                 }
                             }
                             Err(ref err) => {
+                                tracing::Span::current().record("otel.status_code", "ERROR");
                                 tracing::warn!(
                                     function_id = %function_id,
                                     queue = %queue_name,
-                                    attempt = %msg.attempt,
+                                    attempt = %attempt,
+                                    max_retries = %max_retries,
                                     error = ?err,
                                     "Function queue job failed"
                                 );
-                                if let Err(e) = adapter.nack_function_queue(&queue_name, delivery_id, false).await {
+                                if let Err(e) = adapter.nack_function_queue(&queue_name, delivery_id, attempt, max_retries).await {
                                     tracing::error!(error = %e, "Failed to nack message");
                                 }
                             }

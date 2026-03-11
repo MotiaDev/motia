@@ -126,10 +126,13 @@ impl TopologyManager {
             )
             .await?;
 
+        // DLX points to DLQ exchange: nack(requeue=false) sends exhausted
+        // messages to DLQ automatically. Retry is handled explicitly by
+        // the adapter (ack + publish to retry exchange).
         let mut main_queue_args = FieldTable::default();
         main_queue_args.insert(
             "x-dead-letter-exchange".into(),
-            AMQPValue::LongString(names.retry_exchange().into()),
+            AMQPValue::LongString(names.dlq_exchange().into()),
         );
 
         self.channel
