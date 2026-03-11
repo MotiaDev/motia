@@ -107,6 +107,12 @@ export interface ISdk {
    * @param handlerOrInvocation - The handler for local execution, or HTTP invocation config
    * @returns A function object that can be used to unregister the function
    */
+  /**
+   * Registers a new service.
+   * @param message - The service to register
+   */
+  registerService(message: RegisterServiceInput): void
+
   registerFunction(func: RegisterFunctionInput, handler: RemoteFunctionHandler): FunctionRef
   registerFunction(func: RegisterFunctionInput, invocation: HttpInvocationConfig): FunctionRef
 
