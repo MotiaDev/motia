@@ -104,8 +104,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 `registerWorker()` / `register_worker()` creates an SDK instance and auto-connects to the engine. It handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation. All three SDKs expose the same API surface — register functions and triggers, then invoke them.
 
-> `call()` and `callVoid()` / `call_void()` are deprecated and will be removed in a future release. Use `trigger()` and `triggerVoid()` / `trigger_void()`.
-
 For language-specific details (modules, streams, OpenTelemetry), see the per-SDK READMEs linked in the table above.
 
 ## Development

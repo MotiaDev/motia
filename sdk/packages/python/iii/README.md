@@ -105,10 +105,6 @@ mypy src
 ruff check src
 ```
 
-## Deprecated
-
-`call()` and `call_void()` are deprecated aliases for `trigger()` and `trigger_void()`. They still work but will be removed in a future release.
-
 ## Resources
 
 - [Documentation](https://iii.dev/docs)

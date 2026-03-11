@@ -123,10 +123,6 @@ iii-sdk = { version = "0.3", features = ["otel"] }
 | `iii_sdk::stream`    | Stream client (`Streams`, `UpdateBuilder`)          |
 | `iii_sdk::telemetry` | OpenTelemetry integration (requires `otel` feature) |
 
-## Deprecated
-
-`call()` and `call_void()` are deprecated aliases for `trigger()` and `trigger_void()`. They still work but will be removed in a future release.
-
 ## Resources
 
 - [Documentation](https://iii.dev/docs)

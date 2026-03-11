@@ -76,10 +76,6 @@ iii.triggerVoid('analytics.track', { event: 'page_view' })
 | `iii-sdk/state`     | State client for key-value operations |
 | `iii-sdk/telemetry` | OpenTelemetry integration             |
 
-## Deprecated
-
-`call()` and `callVoid()` are deprecated aliases for `trigger()` and `triggerVoid()`. They still work but will be removed in a future release.
-
 ## Resources
 
 - [Documentation](https://iii.dev/docs)
