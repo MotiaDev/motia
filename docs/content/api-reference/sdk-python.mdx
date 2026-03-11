@@ -235,8 +235,8 @@ A class with factory methods that construct routing actions for `trigger()`. Imp
   Fire-and-forget invocation. No response is expected.
 </ResponseField>
 
-<Callout type="warn" title="Deprecated methods">
-  `call` and `call_void` are deprecated. Use `trigger` instead. `trigger_void` is deprecated — replace with `trigger({"function_id": ..., "payload": ..., "action": TriggerAction.Void()})`.
+<Callout type="warn" title="Removed methods">
+  `call`, `call_void`, and `trigger_void` have been removed. Use `trigger` for all invocations. For fire-and-forget, use `trigger({"function_id": ..., "payload": ..., "action": TriggerAction.Void()})`.
 </Callout>
 
 ### create_stream

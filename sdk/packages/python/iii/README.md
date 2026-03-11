@@ -101,6 +101,11 @@ mypy src
 ruff check src
 ```
 
+## Deprecated
+
+`call`, `call_void`, and `trigger_void` have been removed. Use `trigger()` for all invocations. For fire-and-forget, use `trigger({"function_id": ..., "payload": ..., "action": TriggerAction.Void()})`.
+
+
 ## Resources
 
 - [Documentation](https://iii.dev/docs)
