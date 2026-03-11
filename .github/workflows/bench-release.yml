@@ -64,3 +64,44 @@ jobs:
           name: criterion-data-${{ steps.meta.outputs.version }}
           path: target/criterion/
           retention-days: 90
+
+      - name: Generate benchmark summary
+        if: always()
+        id: summary
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          if [[ -f bench-output.txt ]]; then
+            BENCH_COUNT=$(grep -c "^test " bench-output.txt || echo "0")
+            STATUS_ICON=":large_green_circle:"
+          else
+            BENCH_COUNT="0"
+            STATUS_ICON=":red_circle:"
+          fi
+          PAGES_URL="${{ github.server_url }}/${{ github.repository }}/blob/gh-pages/dev/bench/index.html"
+          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          {
+            echo "body<<EOFSLACK"
+            printf '%s %s\n%s\n%s' \
+              "${STATUS_ICON}" "*Benchmark Results* — iii v${VERSION}" \
+              "${BENCH_COUNT} benchmarks collected" \
+              "<${PAGES_URL}|View historical charts> | <${WORKFLOW_URL}|View workflow>"
+            echo ""
+            echo "EOFSLACK"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post to Slack
+        if: always()
+        continue-on-error: true
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: ${{ secrets.SLACK_CHANNEL_ID }}
+            text: "Benchmark results for iii v${{ steps.meta.outputs.version }}"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "${{ steps.summary.outputs.body }}"
