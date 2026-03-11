@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: write
-  deployments: write
 
 concurrency:
   group: bench-release-${{ github.repository }}
@@ -70,14 +69,13 @@ jobs:
         id: summary
         run: |
           VERSION="${{ steps.meta.outputs.version }}"
-          if [[ -f bench-output.txt ]]; then
-            BENCH_COUNT=$(grep -c "^test " bench-output.txt || echo "0")
+          BENCH_COUNT=$(grep -c "^test " bench-output.txt 2>/dev/null || echo "0")
+          if [[ "${{ job.status }}" == "success" ]]; then
             STATUS_ICON=":large_green_circle:"
           else
-            BENCH_COUNT="0"
             STATUS_ICON=":red_circle:"
           fi
-          PAGES_URL="${{ github.server_url }}/${{ github.repository }}/blob/gh-pages/dev/bench/index.html"
+          PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/dev/bench/"
           WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           {
