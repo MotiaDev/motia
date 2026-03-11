@@ -645,7 +645,10 @@ class III:
 
         return FunctionRef(id=path, unregister=unregister)
 
-    def register_service(self, id: str, name: str | None = None, description: str | None = None, parent_id: str | None = None) -> None:
+    def register_service(
+        self, id: str, name: str | None = None,
+        description: str | None = None, parent_id: str | None = None,
+    ) -> None:
         msg = RegisterServiceMessage(id=id, name=name or id, description=description, parent_service_id=parent_id)
         self._services[id] = msg
         self._send_if_connected(msg)
