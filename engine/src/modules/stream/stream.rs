@@ -152,9 +152,9 @@ impl Module for StreamCoreModule {
             self.triggers.clone(),
         ));
         let raw_addr = format!("{}:{}", self.config.host, self.config.port);
-        let addr: SocketAddr = raw_addr.parse().map_err(|err| {
-            anyhow::anyhow!("invalid stream bind address {}: {}", raw_addr, err)
-        })?;
+        let addr: SocketAddr = raw_addr
+            .parse()
+            .map_err(|err| anyhow::anyhow!("invalid stream bind address {}: {}", raw_addr, err))?;
         tracing::info!("Starting StreamCoreModule on {}", addr.to_string().purple());
         let listener = TcpListener::bind(addr)
             .await

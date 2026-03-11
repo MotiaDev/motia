@@ -454,12 +454,9 @@ impl EngineBuilder {
                     anyhow::anyhow!("failed to create module '{}': {}", entry.class, err)
                 })?;
             tracing::debug!("Initializing module: {}", entry.class);
-            module
-                .initialize()
-                .await
-                .map_err(|err| {
-                    anyhow::anyhow!("failed to initialize module '{}': {}", entry.class, err)
-                })?;
+            module.initialize().await.map_err(|err| {
+                anyhow::anyhow!("failed to initialize module '{}': {}", entry.class, err)
+            })?;
             module.register_functions(self.engine.clone());
             self.modules.push(Arc::from(module));
         }
