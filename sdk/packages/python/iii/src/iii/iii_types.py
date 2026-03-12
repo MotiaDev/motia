@@ -116,6 +116,16 @@ class RegisterFunctionFormat(BaseModel):
     required: bool = False
 
 
+class RegisterFunctionInput(BaseModel):
+    """Input for registering a function — matches Node.js RegisterFunctionInput."""
+
+    id: str
+    description: str | None = None
+    request_format: RegisterFunctionFormat | None = None
+    response_format: RegisterFunctionFormat | None = None
+    metadata: dict[str, Any] | None = None
+
+
 class RegisterFunctionMessage(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
