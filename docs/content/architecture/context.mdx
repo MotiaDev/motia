@@ -83,12 +83,14 @@ Context and the SDK object serve different purposes:
 | | Context (`new Logger()`) | SDK (`iii`) |
 |---|---|---|
 | **Scope** | Per-invocation | Application-wide |
-| **Provides** | Logger, trace span | trigger, triggerVoid, registerFunction, registerTrigger |
+| **Provides** | Logger, trace span | trigger, registerFunction, registerTrigger |
 | **Accessed via** | `new Logger()` inside a handler | `init()` return value |
 
 To invoke other Functions or access engine modules (state, stream, queue), use the SDK object:
 
 ```typescript
+import { TriggerAction } from 'iii-sdk'
+
 const iii = init('ws://localhost:49134')
 
 iii.registerFunction(
@@ -99,15 +101,16 @@ iii.registerFunction(
 
     const user = await createUser(data)
 
-    iii.triggerVoid('state::set', {
-      scope: 'users',
-      key: user.id,
-      data: user,
+    iii.trigger({
+      function_id: 'state::set',
+      payload: { scope: 'users', key: user.id, value: user },
+      action: TriggerAction.Void(),
     })
 
-    iii.triggerVoid('enqueue', {
-      topic: 'user.created',
-      data: { userId: user.id },
+    iii.trigger({
+      function_id: 'enqueue',
+      payload: { topic: 'user.created', data: { userId: user.id } },
+      action: TriggerAction.Void(),
     })
 
     return user

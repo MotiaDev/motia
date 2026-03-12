@@ -225,11 +225,19 @@ A class with factory methods that construct routing actions for `trigger()`. Imp
   Fire-and-forget routing. The engine forwards the invocation without waiting for a response or queuing the job. No acknowledgement is returned.
 </ResponseField>
 
-### trigger_void
+### Fire-and-forget (trigger + TriggerAction.Void)
 
-<ResponseField name="trigger_void" type="(path: str, data: Any) => None" required>
-  Fire-and-forget invocation. No response is expected.
-</ResponseField>
+Use `trigger()` with `action: TriggerAction.Void()` for fire-and-forget invocations. No response is expected.
+
+```python
+from iii import TriggerAction
+
+iii.trigger({
+    "function_id": "notifications::send",
+    "payload": {"to": "user@example.com", "subject": "Hello"},
+    "action": TriggerAction.Void(),
+})
+```
 
 ### create_stream
 

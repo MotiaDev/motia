@@ -155,11 +155,23 @@ Constructor methods for routing actions passed to `trigger()`. Import from `iii_
   Fire-and-forget routing. The engine forwards the invocation without waiting for a response or queuing the job. No acknowledgement is returned.
 </ResponseField>
 
-### trigger_void
+### Fire-and-forget (trigger + TriggerAction::void)
 
-<ResponseField name="trigger_void" type="fn(&self, function_id: &str, data: impl Serialize) => Result&lt;(), IIIError&gt;" required>
-  Fire-and-forget invocation. Sends the message without waiting for a response.
-</ResponseField>
+Use `trigger()` with `.action(TriggerAction::void())` for fire-and-forget invocations. No response is expected.
+
+```rust
+use iii_sdk::{TriggerRequest, TriggerAction};
+use serde_json::json;
+
+iii.trigger(
+    TriggerRequest::new("notifications::send", json!({
+        "to": "user@example.com",
+        "subject": "Hello",
+    }))
+    .action(TriggerAction::void()),
+)
+.await?;
+```
 
 ### shutdown_async
 

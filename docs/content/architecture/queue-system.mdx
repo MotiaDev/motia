@@ -7,7 +7,7 @@ This document explains the design decisions behind the Named Queues system intro
 
 ## Why Named Queues replaced topic-based pub/sub
 
-The original queue model was a pub/sub system: a producer called `triggerVoid('enqueue', { topic: 'order.created', data })`, and a consumer registered with `registerTrigger({ type: 'queue', function_id: '...', config: { topic: 'order.created' } })`. This meant:
+The original queue model was a pub/sub system: a producer called `trigger({ function_id: 'enqueue', payload: { topic: 'order.created', data }, action: TriggerAction.Void() })`, and a consumer registered with `registerTrigger({ type: 'queue', function_id: '...', config: { topic: 'order.created' } })`. This meant:
 
 - The producer had to know the topic name, which was a string shared by convention — no structural link between producer and consumer.
 - Adding a consumer required modifying the consuming worker's code to call `registerTrigger`.
@@ -29,7 +29,7 @@ The consequence is behavioral uniformity: the same retry semantics, the same con
 
 ## Why TriggerAction exists
 
-Before Named Queues, the SDK had three separate methods for different routing modes: `trigger()` for synchronous calls, `triggerVoid()` for fire-and-forget, and `triggerVoid('enqueue', ...)` as a special convention for queue delivery. Each was a different API surface that produced different behaviors.
+Before Named Queues, the SDK had three separate methods for different routing modes: `trigger()` for synchronous calls, `triggerVoid()` for fire-and-forget, and `triggerVoid('enqueue', ...)` as a special convention for queue delivery. Each was a different API surface that produced different behaviors. These have been unified into a single `trigger()` with `TriggerAction`.
 
 `TriggerAction` unifies these into a single `trigger()` call with an optional action parameter. The three routing modes map cleanly:
 

@@ -25,7 +25,7 @@ The condition function receives the full API request. If it returns `false`, the
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import {Logger, TriggerAction} from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -60,41 +60,44 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-from iii import III, InitOptions, ApiRequest, ApiResponse
+from iii import III, InitOptions, ApiRequest, ApiResponse, TriggerAction
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-worker"))
 
-def is_premium(data) -> bool:
+
+async def is_premium(data) -> bool:
     req = ApiRequest(**data) if isinstance(data, dict) else data
     return (req.body or {}).get("amount", 0) > 1000
 
-def orders_premium(data, ctx) -> ApiResponse:
+
+async def orders_premium(data, ctx) -> ApiResponse:
     req = ApiRequest(**data) if isinstance(data, dict) else data
     logger.info("Processing premium order", {"amount": (req.body or {}).get("amount")})
     return ApiResponse(statusCode=200, body={"message": "Premium order processed"})
 
-def orders_premium_wrapper(data):
-    return orders_premium(data, Logger())
+
+async def orders_premium_wrapper(data):
+    return await orders_premium(data, Logger())
 
 iii.register_function("conditions::is_premium", is_premium)
 iii.register_function("orders::premium", orders_premium_wrapper)
 
-iii.register_trigger({
-    "type": "http",
-    "function_id": "orders::premium",
-    "config": {
+iii.register_trigger(
+    type="http",
+    function_id="orders::premium",
+    config={
         "api_path": "orders/premium",
         "http_method": "POST",
         "condition_function_id": "conditions::is_premium",
     },
-})
+)
 ```
 
   </Tab>
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger};
+use iii_sdk::{III, Logger, TriggerRequest, TriggerAction};
 use serde_json::json;
 
 #[tokio::main]
@@ -148,9 +151,10 @@ iii.registerFunction(
     const logger = new Logger()
     logger.info('Processing high-value order', { amount: data.amount })
 
-    iii.triggerVoid('enqueue', {
-      topic: 'order.processed',
-      data: { ...data, processedAt: new Date().toISOString() },
+    iii.trigger({
+      function_id: 'enqueue',
+      payload: { topic: 'order.processed', data: { ...data, processedAt: new Date().toISOString() } },
+      action: TriggerAction.Void(),
     })
   },
 )
@@ -168,34 +172,36 @@ iii.registerTrigger({
 ```python
 from datetime import datetime, timezone
 
-def is_high_value(data) -> bool:
+
+async def is_high_value(data) -> bool:
     if isinstance(data, dict):
         return data.get("amount", 0) > 1000
     return False
 
-def orders_high_value(data: dict, ctx) -> None:
-    logger.info("Processing high-value order", {"amount": data.get("amount")})
 
-    # Silent skip
+async def orders_high_value(data: dict, ctx) -> None:
+    amount = data.get("amount", 0)
+    logger.info("Processing high-value order", {"amount": amount})
+
     if amount <= 1000:
         logger.info("Low-value order — skipping", {"amount": amount})
         return
 
-    logger.info("Processing high-value order", {"amount": amount})
-
-    iii.trigger("enqueue", {
-        "topic": "order.processed",
-        "data": {**data, "processedAt": datetime.now(timezone.utc).isoformat()},
+    iii.trigger({
+        "function_id": "enqueue",
+        "payload": {"topic": "order.processed", "data": {**data, "processedAt": datetime.now(timezone.utc).isoformat()}},
+        "action": TriggerAction.Void(),
     })
+
 
 iii.register_function("conditions::is_high_value", is_high_value)
 iii.register_function("orders::high_value", lambda data: orders_high_value(data, Logger()))
 
-iii.register_trigger({
-    "type": "queue",
-    "function_id": "orders::high_value",
-    "config": {"topic": "order.created", "condition_function_id": "conditions::is_high_value"},
-})
+iii.register_trigger(
+    type="queue",
+    function_id="orders::high_value",
+    config={"topic": "order.created", "condition_function_id": "conditions::is_high_value"},
+)
 ```
 
   </Tab>
@@ -212,10 +218,10 @@ iii.register_function("orders::high_value", |input| async move {
     let amount = input["amount"].as_f64().unwrap_or(0.0);
     logger.info("Processing high-value order", Some(json!({ "amount": amount })));
 
-    iii.trigger_void("enqueue", json!({
+    iii.trigger(TriggerRequest::new("enqueue", json!({
         "topic": "order.processed",
         "data": { "amount": amount, "processedAt": chrono::Utc::now().to_rfc3339() },
-    }))?;
+    })).action(TriggerAction::void())).await?;
 
     Ok(json!(null))
 });
@@ -263,22 +269,24 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-def is_update(event) -> bool:
+async def is_update(event) -> bool:
     if isinstance(event, dict):
         return event.get("event_type") == "updated"
     return False
 
-def orders_on_update(event: dict, ctx) -> None:
+
+async def orders_on_update(event: dict, ctx) -> None:
     logger.info("Order updated", {"scope": event.get("scope"), "key": event.get("key")})
+
 
 iii.register_function("conditions::is_update", is_update)
 iii.register_function("orders::on_update", lambda data: orders_on_update(data, Logger()))
 
-iii.register_trigger({
-    "type": "state",
-    "function_id": "orders::on_update",
-    "config": {"scope": "orders", "condition_function_id": "conditions::is_update"},
-})
+iii.register_trigger(
+    type="state",
+    function_id="orders::on_update",
+    config={"scope": "orders", "condition_function_id": "conditions::is_update"},
+)
 ```
 
   </Tab>
