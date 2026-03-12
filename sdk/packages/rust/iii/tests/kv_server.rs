@@ -26,6 +26,7 @@ fn unique_key(prefix: &str) -> String {
 }
 
 #[tokio::test]
+#[ignore = "kv_server module not configured in test engine"]
 async fn set_and_get_value() {
     let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("connect");
@@ -55,6 +56,7 @@ async fn set_and_get_value() {
 }
 
 #[tokio::test]
+#[ignore = "kv_server module not configured in test engine"]
 async fn delete_value() {
     let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("connect");
@@ -100,6 +102,7 @@ async fn delete_value() {
 }
 
 #[tokio::test]
+#[ignore = "kv_server module not configured in test engine"]
 async fn list_values_in_index() {
     let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("connect");
@@ -131,6 +134,7 @@ async fn list_values_in_index() {
 }
 
 #[tokio::test]
+#[ignore = "kv_server module not configured in test engine"]
 async fn get_non_existent_key() {
     let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("connect");
