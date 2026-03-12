@@ -22,6 +22,8 @@ from .iii_types import (
     InvocationResultMessage,
     InvokeFunctionMessage,
     MessageType,
+    RegisterFunctionFormat,
+    RegisterFunctionInput,
     RegisterFunctionMessage,
     RegisterServiceMessage,
     RegisterTriggerMessage,
@@ -608,22 +610,28 @@ class III:
 
     def register_function(
         self,
-        path: str,
+        func: RegisterFunctionInput | dict[str, Any],
         handler_or_invocation: RemoteFunctionHandler | HttpInvocationConfig,
-        description: str | None = None,
-        metadata: dict[str, Any] | None = None,
     ) -> FunctionRef:
-        if not path or not path.strip():
+        if isinstance(func, dict):
+            func = RegisterFunctionInput(**func)
+
+        if not func.id or not func.id.strip():
             raise ValueError("id is required")
-        if path in self._functions:
-            raise ValueError(f"function id '{path}' already registered")
+        if func.id in self._functions:
+            raise ValueError(f"function id '{func.id}' already registered")
 
         if isinstance(handler_or_invocation, HttpInvocationConfig):
             msg = RegisterFunctionMessage(
-                id=path, invocation=handler_or_invocation, description=description, metadata=metadata
+                id=func.id,
+                invocation=handler_or_invocation,
+                description=func.description,
+                metadata=func.metadata,
+                request_format=func.request_format,
+                response_format=func.response_format,
             )
             self._send_if_connected(msg)
-            self._functions[path] = RemoteFunctionData(message=msg)
+            self._functions[func.id] = RemoteFunctionData(message=msg)
         else:
             if not callable(handler_or_invocation):
                 actual_type = type(handler_or_invocation).__name__
@@ -631,19 +639,27 @@ class III:
                     f"handler_or_invocation must be callable or HttpInvocationConfig, got {actual_type}"
                 )
             handler = handler_or_invocation
-            msg = RegisterFunctionMessage(id=path, description=description, metadata=metadata)
+            msg = RegisterFunctionMessage(
+                id=func.id,
+                description=func.description,
+                metadata=func.metadata,
+                request_format=func.request_format,
+                response_format=func.response_format,
+            )
             self._send_if_connected(msg)
 
             async def wrapped(input_data: Any) -> Any:
                 return await handler(input_data)
 
-            self._functions[path] = RemoteFunctionData(message=msg, handler=wrapped)
+            self._functions[func.id] = RemoteFunctionData(message=msg, handler=wrapped)
+
+        func_id = func.id
 
         def unregister() -> None:
-            self._functions.pop(path, None)
-            self._send_if_connected(UnregisterFunctionMessage(id=path))
+            self._functions.pop(func_id, None)
+            self._send_if_connected(UnregisterFunctionMessage(id=func_id))
 
-        return FunctionRef(id=path, unregister=unregister)
+        return FunctionRef(id=func_id, unregister=unregister)
 
     def register_service(
         self,
