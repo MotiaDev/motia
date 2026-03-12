@@ -6,6 +6,7 @@ import logging
 import os
 import platform
 import random
+import threading
 import traceback
 import uuid
 from dataclasses import dataclass
@@ -135,9 +136,38 @@ class III:
         self._state_callbacks: set[ConnectionStateCallback] = set()
         self._worker_id: str | None = None
 
+        # Background event loop thread
+        self._loop = asyncio.new_event_loop()
+        self._thread = threading.Thread(target=self._loop.run_forever, daemon=True)
+        self._thread.start()
+
+    def _run_on_loop(self, coro: Any) -> Any:
+        """Submit a coroutine to the background loop and block for the result."""
+        if threading.current_thread() is self._thread:
+            raise RuntimeError(
+                "Cannot call sync SDK methods from the event loop thread. "
+                "Use async handler methods instead."
+            )
+        future = asyncio.run_coroutine_threadsafe(coro, self._loop)
+        return future.result()
+
+    def _schedule_on_loop(self, coro: Any) -> None:
+        """Submit a coroutine to the background loop without waiting."""
+        asyncio.run_coroutine_threadsafe(coro, self._loop)
+
     # Connection management
 
-    async def connect(self) -> None:
+    def connect(self) -> None:
+        """Connect to the WebSocket server."""
+        self._run_on_loop(self._async_connect())
+
+    def shutdown(self) -> None:
+        """Disconnect from the WebSocket server and stop the background thread."""
+        self._run_on_loop(self._async_shutdown())
+        self._loop.call_soon_threadsafe(self._loop.stop)
+        self._thread.join(timeout=5)
+
+    async def _async_connect(self) -> None:
         """Connect to the WebSocket server."""
         self._running = True
         try:
@@ -156,7 +186,7 @@ class III:
         self._set_connection_state("connecting")
         await self._do_connect()
 
-    async def shutdown(self) -> None:
+    async def _async_shutdown(self) -> None:
         """Disconnect from the WebSocket server."""
         self._running = False
 
