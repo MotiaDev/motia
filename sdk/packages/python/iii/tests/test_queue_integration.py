@@ -2,8 +2,6 @@
 
 import time
 
-import pytest
-
 from iii import III, TriggerAction
 
 

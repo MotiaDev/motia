@@ -1,4 +1,7 @@
-"""Tests for HTTP external functions. Unit tests use FakeWebSocket; integration tests require a running III engine with HttpFunctionsModule."""
+"""Tests for HTTP external functions.
+
+Unit tests use FakeWebSocket; integration tests require a running III engine with HttpFunctionsModule.
+"""
 
 import asyncio
 import json
