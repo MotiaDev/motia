@@ -28,7 +28,7 @@ def test_register_and_invoke_function(bridge):
         received_data = data
         return {"echoed": data}
 
-    bridge.register_function("test.echo", echo_handler)
+    bridge.register_function({"id": "test.echo"}, echo_handler)
 
     flush_bridge_queue(bridge)
 
@@ -56,7 +56,7 @@ def test_invoke_function_async_fire_and_forget(bridge):
         received.set()
         return {}
 
-    bridge.register_function("test.receiver", receiver)
+    bridge.register_function({"id": "test.receiver"}, receiver)
 
     flush_bridge_queue(bridge)
 

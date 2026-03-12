@@ -27,7 +27,7 @@ async def test_api_trigger_get_endpoint(bridge, api_url):
             "body": {"message": "Hello from GET"},
         }
 
-    bridge.register_function("test.api.get", get_handler)
+    bridge.register_function({"id": "test.api.get"}, get_handler)
     bridge.register_trigger(
         "http",
         "test.api.get",
@@ -58,7 +58,7 @@ async def test_api_trigger_post_with_body(bridge, api_url):
             "body": {"received": body, "created": True},
         }
 
-    bridge.register_function("test.api.post", post_handler)
+    bridge.register_function({"id": "test.api.post"}, post_handler)
     bridge.register_trigger(
         "http",
         "test.api.post",
@@ -94,7 +94,7 @@ async def test_api_trigger_path_params(bridge, api_url):
             "body": {"id": path_params.get("id")},
         }
 
-    bridge.register_function("test.api.getById", get_by_id_handler)
+    bridge.register_function({"id": "test.api.getById"}, get_by_id_handler)
     bridge.register_trigger(
         "http",
         "test.api.getById",
@@ -125,7 +125,7 @@ async def test_api_trigger_query_params(bridge, api_url):
             "body": {"query": query_params.get("q"), "limit": query_params.get("limit")},
         }
 
-    bridge.register_function("test.api.search", search_handler)
+    bridge.register_function({"id": "test.api.search"}, search_handler)
     bridge.register_trigger(
         "http",
         "test.api.search",
@@ -157,7 +157,7 @@ async def test_api_trigger_custom_status_code(bridge, api_url):
             "body": {"error": "Not found"},
         }
 
-    bridge.register_function("test.api.notfound", not_found_handler)
+    bridge.register_function({"id": "test.api.notfound"}, not_found_handler)
     bridge.register_trigger(
         "http",
         "test.api.notfound",
@@ -191,7 +191,7 @@ async def test_streaming_response_via_channels(bridge, api_url):
         response.writer.stream.write(json.dumps({"streamed": True, "message": "hello from stream"}).encode("utf-8"))
         response.close()
 
-    bridge.register_function(function_id, stream_handler)
+    bridge.register_function({"id": function_id}, stream_handler)
     bridge.register_trigger(
         "http",
         function_id,
@@ -234,7 +234,7 @@ async def test_streaming_request_body_via_channels(bridge, api_url):
         response.writer.stream.write(json.dumps({"received": body, "size": len(body)}).encode("utf-8"))
         response.close()
 
-    bridge.register_function(function_id, upload_handler)
+    bridge.register_function({"id": function_id}, upload_handler)
     bridge.register_trigger(
         "http",
         function_id,
@@ -302,7 +302,7 @@ async def test_multipart_form_data_via_channels(bridge, api_url):
         )
         response.close()
 
-    bridge.register_function(function_id, multipart_handler)
+    bridge.register_function({"id": function_id}, multipart_handler)
     bridge.register_trigger(
         "http",
         function_id,
@@ -369,19 +369,19 @@ async def test_data_channels_worker_to_worker(bridge, api_url):
 
     async def sender_handler(input_data):
         records = input_data.get("records", []) if isinstance(input_data, dict) else getattr(input_data, "records", [])
-        channel = await bridge.create_channel()
+        channel = await bridge._async_create_channel()
         payload = json.dumps(records).encode("utf-8")
         await channel.writer.write(payload)
         await channel.writer.close_async()
 
-        result = await bridge.trigger({
+        result = await bridge._async_trigger({
             "function_id": processor_id,
             "payload": {"label": "test-batch", "reader": channel.reader_ref.__dict__},
         })
         return result
 
-    bridge.register_function(processor_id, processor_handler)
-    bridge.register_function(sender_id, sender_handler)
+    bridge.register_function({"id": processor_id}, processor_handler)
+    bridge.register_function({"id": sender_id}, sender_handler)
 
     flush_bridge_queue(bridge)
     time.sleep(0.3)

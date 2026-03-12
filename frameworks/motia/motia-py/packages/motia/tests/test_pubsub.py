@@ -24,7 +24,7 @@ def test_pubsub_subscribe_and_publish(bridge):
         return {}
 
     # Register subscriber function
-    bridge.register_function(f"test.pubsub.subscriber.{topic}", subscriber_handler)
+    bridge.register_function({"id": f"test.pubsub.subscriber.{topic}"}, subscriber_handler)
 
     # Register subscribe trigger
     bridge.register_trigger(
@@ -74,8 +74,8 @@ def test_pubsub_different_topics(bridge):
         received_b.append(data)
         return {}
 
-    bridge.register_function(f"test.pubsub.topic_a.{topic_a}", subscriber_a)
-    bridge.register_function(f"test.pubsub.topic_b.{topic_b}", subscriber_b)
+    bridge.register_function({"id": f"test.pubsub.topic_a.{topic_a}"}, subscriber_a)
+    bridge.register_function({"id": f"test.pubsub.topic_b.{topic_b}"}, subscriber_b)
 
     bridge.register_trigger("subscribe", f"test.pubsub.topic_a.{topic_a}", {"topic": topic_a})
     bridge.register_trigger("subscribe", f"test.pubsub.topic_b.{topic_b}", {"topic": topic_b})

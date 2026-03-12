@@ -18,7 +18,7 @@ def test_enqueue_delivers_message_to_subscribed_handler(bridge):
     def handler(data):
         received.append(data)
 
-    bridge.register_function(function_id, handler)
+    bridge.register_function({"id": function_id}, handler)
     bridge.register_trigger("queue", function_id, {"topic": topic})
 
     flush_bridge_queue(bridge)
@@ -40,7 +40,7 @@ def test_handler_receives_exact_data_payload_from_enqueue(bridge):
     def handler(data):
         received.append(data)
 
-    bridge.register_function(function_id, handler)
+    bridge.register_function({"id": function_id}, handler)
     bridge.register_trigger("queue", function_id, {"topic": topic})
 
     flush_bridge_queue(bridge)
@@ -61,7 +61,7 @@ def test_subscription_with_queue_config_receives_messages(bridge):
     def handler(data):
         received.append(data)
 
-    bridge.register_function(function_id, handler)
+    bridge.register_function({"id": function_id}, handler)
     bridge.register_trigger(
         "queue",
         function_id,
@@ -98,8 +98,8 @@ def test_multiple_subscribers_on_same_topic_messages_delivered_to_one(bridge):
     def handler2(data):
         received2.append(data)
 
-    bridge.register_function(function_id1, handler1)
-    bridge.register_function(function_id2, handler2)
+    bridge.register_function({"id": function_id1}, handler1)
+    bridge.register_function({"id": function_id2}, handler2)
     bridge.register_trigger("queue", function_id1, {"topic": topic})
     bridge.register_trigger("queue", function_id2, {"topic": topic})
 
@@ -130,8 +130,8 @@ def test_condition_function_filters_messages(bridge):
     def condition(input_data):
         return input_data.get("accept") is True
 
-    bridge.register_function(function_id, handler)
-    bridge.register_function(condition_path, condition)
+    bridge.register_function({"id": function_id}, handler)
+    bridge.register_function({"id": condition_path}, condition)
     bridge.register_trigger(
         "queue",
         function_id,

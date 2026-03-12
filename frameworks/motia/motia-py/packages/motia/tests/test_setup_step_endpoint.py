@@ -15,8 +15,9 @@ class FakeIII:
         self.functions: dict[str, object] = {}
         self.triggers: list[tuple[str, str, dict[str, object]]] = []
 
-    def register_function(self, function_id: str, handler: object) -> None:
-        self.functions[function_id] = handler
+    def register_function(self, func: dict[str, object] | str, handler: object) -> None:
+        func_id = func["id"] if isinstance(func, dict) else func
+        self.functions[func_id] = handler
 
     def register_trigger(self, trigger_type: str, function_id: str, config: dict[str, object]) -> None:
         self.triggers.append((trigger_type, function_id, config))

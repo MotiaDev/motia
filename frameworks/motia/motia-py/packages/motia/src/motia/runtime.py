@@ -350,7 +350,7 @@ class Motia:
                     record_exception(span, exc)
                     raise
 
-        get_instance().register_function(function_id, api_handler)
+        get_instance().register_function({"id": function_id}, api_handler)
 
         api_path = trigger.path.lstrip("/")
         trigger_config: dict[str, Any] = {
@@ -392,7 +392,7 @@ class Motia:
                     record_exception(span, exc)
                     raise
 
-        get_instance().register_function(function_id, queue_handler)
+        get_instance().register_function({"id": function_id}, queue_handler)
 
         trigger_config: dict[str, Any] = {
             "topic": trigger.topic,
@@ -431,7 +431,7 @@ class Motia:
                     record_exception(span, exc)
                     raise
 
-        get_instance().register_function(function_id, cron_handler)
+        get_instance().register_function({"id": function_id}, cron_handler)
 
         trigger_config: dict[str, Any] = {
             "expression": trigger.expression,
@@ -468,7 +468,7 @@ class Motia:
                     record_exception(span, exc)
                     raise
 
-        get_instance().register_function(function_id, state_handler)
+        get_instance().register_function({"id": function_id}, state_handler)
 
         trigger_config: dict[str, Any] = {"metadata": metadata}
 
@@ -502,7 +502,7 @@ class Motia:
                     record_exception(span, exc)
                     raise
 
-        get_instance().register_function(function_id, stream_handler)
+        get_instance().register_function({"id": function_id}, stream_handler)
 
         trigger_config: dict[str, Any] = {
             "metadata": metadata,
@@ -552,13 +552,13 @@ class Motia:
                 return bool(await result)
             return bool(result)
 
-        get_instance().register_function(condition_path, condition_handler)
+        get_instance().register_function({"id": condition_path}, condition_handler)
 
     def initialize(self) -> None:
         """Initialize the runtime and register bridge functions."""
 
         if self._authenticate:
-            get_instance().register_function("motia::stream::authenticate", self._handle_authenticate)
+            get_instance().register_function({"id": "motia::stream::authenticate"}, self._handle_authenticate)
             log.debug("Registered stream authentication handler")
 
         has_join = any(config.on_join for config in self._stream_configs.values())
@@ -587,7 +587,7 @@ class Motia:
                         result = await result
                     return result
 
-            get_instance().register_function(function_id, join_handler)
+            get_instance().register_function({"id": function_id}, join_handler)
             get_instance().register_trigger("stream:join", function_id, {})
             log.debug("Registered stream join handler")
 
@@ -609,7 +609,7 @@ class Motia:
                     if inspect.iscoroutine(result):
                         await result
 
-            get_instance().register_function(function_id, leave_handler)
+            get_instance().register_function({"id": function_id}, leave_handler)
             get_instance().register_trigger("stream:leave", function_id, {})
             log.debug("Registered stream leave handler")
 
