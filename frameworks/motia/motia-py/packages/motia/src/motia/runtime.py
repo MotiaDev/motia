@@ -54,12 +54,18 @@ def _compose_middleware(
                 p: Callable[..., Any] = composed_handler,
             ) -> Callable[..., Any]:
                 async def next_handler() -> Any:
-                    return await m(req, ctx, p)
+                    result = m(req, ctx, p)
+                    if inspect.iscoroutine(result):
+                        return await result
+                    return result
 
                 return next_handler
 
             composed_handler = make_next()
-        return await composed_handler()
+        result = composed_handler()
+        if inspect.iscoroutine(result):
+            return await result
+        return result
 
     return composed
 
@@ -194,7 +200,7 @@ class Motia:
     def __init__(self) -> None:
         self.streams: dict[str, Stream[Any]] = {}
         self._stream_configs: dict[str, StreamConfig] = {}
-        self._authenticate: Callable[..., Awaitable[StreamAuthResult | bool]] | None = None
+        self._authenticate: Callable[..., StreamAuthResult | bool | Awaitable[StreamAuthResult | bool]] | None = None
 
     def add_stream(self, config: StreamConfig, file_path: str) -> Stream[Any]:
         """Add a stream to the runtime."""
@@ -206,7 +212,7 @@ class Motia:
 
     def set_authenticate(
         self,
-        handler: Callable[..., Awaitable[StreamAuthResult | bool]],
+        handler: Callable[..., StreamAuthResult | bool | Awaitable[StreamAuthResult | bool]],
     ) -> None:
         """Set the global stream authentication handler."""
         self._authenticate = handler
@@ -215,7 +221,7 @@ class Motia:
         self,
         config: Any,
         step_path: str,
-        handler: Callable[..., Awaitable[Any]] | None = None,
+        handler: Callable[..., Any] | None = None,
         file_path: str | None = None,
     ) -> None:
         """Add a step to the runtime and register with III engine.
@@ -306,9 +312,13 @@ class Motia:
 
                     if middlewares:
                         composed = _compose_middleware(middlewares)
-                        result = await composed(motia_request, context, lambda: handler(motia_request, context))
+                        result = composed(motia_request, context, lambda: handler(motia_request, context))
+                        if inspect.iscoroutine(result):
+                            result = await result
                     else:
-                        result = await handler(motia_request, context)
+                        result = handler(motia_request, context)
+                        if inspect.iscoroutine(result):
+                            result = await result
 
                     if result is not None and hasattr(result, "model_dump"):
                         result = result.model_dump()
@@ -373,7 +383,9 @@ class Motia:
                     if trigger.input:
                         input_data = _validate_input_schema(trigger.input, input_data, f"queue:{config.name}")
                     context = _flow_context(trigger_info, input_data)
-                    result = await handler(input_data, context)
+                    result = handler(input_data, context)
+                    if inspect.iscoroutine(result):
+                        result = await result
                     set_span_ok(span)
                     return result
                 except Exception as exc:
@@ -410,7 +422,9 @@ class Motia:
                 try:
                     trigger_info = TriggerInfo(type="cron", index=index)
                     context = _flow_context(trigger_info)
-                    result = await handler(None, context)
+                    result = handler(None, context)
+                    if inspect.iscoroutine(result):
+                        result = await result
                     set_span_ok(span)
                     return result
                 except Exception as exc:
@@ -445,7 +459,9 @@ class Motia:
                 try:
                     trigger_info = TriggerInfo(type="state", index=index)
                     context = _flow_context(trigger_info, req)
-                    result = await handler(req, context)
+                    result = handler(req, context)
+                    if inspect.iscoroutine(result):
+                        result = await result
                     set_span_ok(span)
                     return result
                 except Exception as exc:
@@ -477,7 +493,9 @@ class Motia:
                 try:
                     trigger_info = TriggerInfo(type="stream", index=index)
                     context = _flow_context(trigger_info, req)
-                    result = await handler(req, context)
+                    result = handler(req, context)
+                    if inspect.iscoroutine(result):
+                        result = await result
                     set_span_ok(span)
                     return result
                 except Exception as exc:
@@ -536,7 +554,7 @@ class Motia:
 
         get_instance().register_function(condition_path, condition_handler)
 
-    async def initialize(self) -> None:
+    def initialize(self) -> None:
         """Initialize the runtime and register bridge functions."""
 
         if self._authenticate:
@@ -564,7 +582,10 @@ class Motia:
                     trigger_info = TriggerInfo(type="queue")
                     context = _flow_context(trigger_info)
                     subscription = StreamSubscription(group_id=group_id, id=client_id)
-                    return await config.on_join(subscription, context, auth_context)
+                    result = config.on_join(subscription, context, auth_context)
+                    if inspect.iscoroutine(result):
+                        result = await result
+                    return result
 
             get_instance().register_function(function_id, join_handler)
             get_instance().register_trigger("stream:join", function_id, {})
@@ -584,7 +605,9 @@ class Motia:
                     trigger_info = TriggerInfo(type="queue")
                     context = _flow_context(trigger_info)
                     subscription = StreamSubscription(group_id=group_id, id=client_id)
-                    await config.on_leave(subscription, context, auth_context)
+                    result = config.on_leave(subscription, context, auth_context)
+                    if inspect.iscoroutine(result):
+                        await result
 
             get_instance().register_function(function_id, leave_handler)
             get_instance().register_trigger("stream:leave", function_id, {})
@@ -604,7 +627,9 @@ class Motia:
 
         trigger_info = TriggerInfo(type="queue")
         context = _flow_context(trigger_info, input_data)
-        result = await self._authenticate(input_data, context)
+        result = self._authenticate(input_data, context)
+        if inspect.iscoroutine(result):
+            result = await result
 
         if isinstance(result, bool):
             return {"authorized": result}
