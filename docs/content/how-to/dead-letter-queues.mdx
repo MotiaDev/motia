@@ -22,9 +22,9 @@ function is triggered by a queue trigger, the queue worker retries it based on `
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="payment-processor.ts"
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'payments::charge' },

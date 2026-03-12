@@ -26,9 +26,9 @@ const NodeIcon = () => (
 
 // Code snippets
 const pythonCode = `import torch
-from iii import init
+from iii import III
 
-iii = init("ws://localhost:49134")
+iii = III("ws://localhost:49134")
 
 async def predict(input: dict) -> dict:
     tensor = torch.tensor(input["data"])
@@ -37,7 +37,7 @@ async def predict(input: dict) -> dict:
 
 iii.register_function("ml.predict", predict)`;
 
-const rustCode = `use iii_sdk::{init, InitOptions, Value, IIIError};
+const rustCode = `use iii_sdk::{III, InitOptions, Value, IIIError, TriggerRequest};
 use serde_json::json;
 
 async fn transform(input: Value) -> Result<Value, IIIError> {
@@ -48,26 +48,26 @@ async fn transform(input: Value) -> Result<Value, IIIError> {
 
 #[tokio::main]
 async fn main() -> Result<(), IIIError> {
-    let iii = init("ws://localhost:49134", InitOptions::default())?;
+    let iii = III::new("ws://localhost:49134");
 
     iii.register_function("data.transform", transform);
 
     Ok(())
 }`;
 
-const nodeCode = `import { init } from "iii-sdk";
+const nodeCode = `import { registerWorker } from "iii-sdk";
 
-const iii = init("ws://localhost:49134");
+const iii = registerWorker("ws://localhost:49134");
 
-const transformed = await iii.trigger(
-  "data.transform",
-  [1.0, 2.0, 3.0]
-);
+const transformed = await iii.trigger({
+  function_id: "data.transform",
+  payload: [1.0, 2.0, 3.0]
+});
 
-const prediction = await iii.trigger(
-  "ml.predict",
-  { data: transformed }
-);`;
+const prediction = await iii.trigger({
+  function_id: "ml.predict",
+  payload: { data: transformed }
+});`;
 
 export function HelloWorldSection({
   isDarkMode = true,

@@ -37,9 +37,9 @@ The `state` trigger fires whenever the watched `scope`/`key` pair changes. The h
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="state-watcher.ts"
-import { init, Logger } from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::on-status-change' }, async (event) => {
   const logger = new Logger()
@@ -124,11 +124,11 @@ await iii.registerTrigger({
 })
 
 // Then run iii.trigger() from another function or worker to trigger the state change
-await iii.trigger('state::set', {
+await iii.trigger({ function_id: 'state::set', payload: {
   scope: 'orders',
   key: 'status',
   value: { orderId: 'order-123', status: 'shipped' },
-})
+}})
 ```
 </Tab>
 <Tab value="Python">
@@ -140,15 +140,17 @@ await iii.register_trigger(
 )
 
 # Then run iii.trigger() from another function or worker to trigger the state change
-await iii.trigger('state::set', {
+await iii.trigger({'function_id': 'state::set', 'payload': {
     'scope': 'orders',
     'key': 'status',
     'value': {'orderId': 'order-123', 'status': 'shipped'},
-})
+}})
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="state_trigger.rs"
+use iii_sdk::TriggerRequest;
+
 iii.register_trigger(
     "state",
     "orders::on-status-change",
@@ -156,11 +158,11 @@ iii.register_trigger(
 ).await?;
 
 // Then run iii.trigger() from another function or worker to trigger the state change
-iii.trigger("state::set", json!({
+iii.trigger(TriggerRequest::new("state::set", json!({
     "scope": "orders",
     "key": "status",
     "value": { "orderId": "order-123", "status": "shipped" },
-})).await?;
+}))).await?;
 ```
 </Tab>
 </Tabs>
