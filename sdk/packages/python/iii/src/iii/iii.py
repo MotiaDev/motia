@@ -848,7 +848,7 @@ class III:
                     for cb in self._functions_available_callbacks:
                         cb(functions)
 
-                self.register_function(function_id, handler)
+                self.register_function({"id": function_id}, handler)
 
             self._functions_available_trigger = self.register_trigger("engine::functions-available", function_id, {})
 
@@ -922,12 +922,12 @@ class III:
             result = await stream.update(input_data)
             return result.model_dump() if result else None
 
-        self.register_function(f"stream::get({stream_name})", get_handler)
-        self.register_function(f"stream::set({stream_name})", set_handler)
-        self.register_function(f"stream::delete({stream_name})", delete_handler)
-        self.register_function(f"stream::list({stream_name})", list_handler)
-        self.register_function(f"stream::list_groups({stream_name})", list_groups_handler)
-        self.register_function(f"stream::update({stream_name})", update_handler)
+        self.register_function({"id": f"stream::get({stream_name})"}, get_handler)
+        self.register_function({"id": f"stream::set({stream_name})"}, set_handler)
+        self.register_function({"id": f"stream::delete({stream_name})"}, delete_handler)
+        self.register_function({"id": f"stream::list({stream_name})"}, list_handler)
+        self.register_function({"id": f"stream::list_groups({stream_name})"}, list_groups_handler)
+        self.register_function({"id": f"stream::update({stream_name})"}, update_handler)
 
 
 class TriggerAction:
