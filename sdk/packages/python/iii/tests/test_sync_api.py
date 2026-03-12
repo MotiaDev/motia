@@ -90,3 +90,52 @@ def test_background_thread_stops_on_shutdown(monkeypatch: pytest.MonkeyPatch) ->
     client.shutdown()
 
     assert not thread.is_alive()
+
+
+def test_trigger_is_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+    """trigger() should be synchronous and return the result directly."""
+    ws = _patch_ws(monkeypatch)
+    client = III("ws://fake", InitOptions())
+    client._register_worker_metadata = lambda: None
+    client.connect()
+
+    def echo_handler(data: Any) -> Any:
+        return {"echo": data}
+
+    client.register_function({"id": "test.echo"}, echo_handler)
+    time.sleep(0.05)
+
+    from iii import TriggerAction
+
+    result = client.trigger({
+        "function_id": "test.echo",
+        "payload": {"hello": "world"},
+        "action": TriggerAction.Void(),
+    })
+    assert result is None
+
+    client.shutdown()
+
+
+def test_trigger_void_while_disconnected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """trigger() with void action should queue the message when disconnected."""
+    ws = _patch_ws(monkeypatch)
+    client = III("ws://fake", InitOptions())
+    client._register_worker_metadata = lambda: None
+
+    from iii import TriggerAction
+
+    result = client.trigger({
+        "function_id": "test.fn",
+        "payload": {"x": 1},
+        "action": TriggerAction.Void(),
+    })
+    assert result is None
+
+    client.connect()
+    time.sleep(0.05)
+
+    invoke = [m for m in ws.sent if m.get("type") == "invokefunction" and m.get("function_id") == "test.fn"]
+    assert len(invoke) == 1
+
+    client.shutdown()

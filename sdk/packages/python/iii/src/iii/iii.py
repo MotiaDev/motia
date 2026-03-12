@@ -702,8 +702,34 @@ class III:
         self._services[id] = msg
         self._send_if_connected(msg)
 
-    async def trigger(self, request: "dict[str, Any] | TriggerRequest") -> Any:
-        """Invoke a function using a request object.
+    def trigger(self, request: "dict[str, Any] | TriggerRequest") -> Any:
+        """Invoke a function (synchronous)."""
+        req = request if isinstance(request, dict) else request.model_dump()
+        action = req.get("action")
+
+        if isinstance(action, dict):
+            if action.get("type") == "enqueue":
+                action = TriggerActionEnqueue(queue=action["queue"])
+            elif action.get("type") == "void":
+                action = TriggerActionVoid()
+
+        if isinstance(action, TriggerActionVoid):
+            function_id = req["function_id"]
+            payload = req.get("payload")
+            msg = InvokeFunctionMessage(
+                function_id=function_id,
+                data=payload,
+                traceparent=self._inject_traceparent(),
+                baggage=self._inject_baggage(),
+                action=action,
+            )
+            self._schedule_on_loop(self._send(msg))
+            return None
+
+        return self._run_on_loop(self._async_trigger(request))
+
+    async def _async_trigger(self, request: "dict[str, Any] | TriggerRequest") -> Any:
+        """Invoke a function (async implementation for non-void actions).
 
         Args:
             request: A TriggerRequest or dict with function_id, payload, and optional action/timeout.
@@ -714,32 +740,13 @@ class III:
         action = req.get("action")
         timeout = req.get("timeout", 30.0) or 30.0
 
-        if action is not None:
-            # Normalize raw dict actions
-            if isinstance(action, dict):
-                if action.get("type") == "enqueue":
-                    action = TriggerActionEnqueue(queue=action["queue"])
-                elif action.get("type") == "void":
-                    action = TriggerActionVoid()
-
-            # Void is fire-and-forget — no invocation_id, no response
-            if isinstance(action, TriggerActionVoid):
-                msg = InvokeFunctionMessage(
-                    function_id=function_id,
-                    data=payload,
-                    traceparent=self._inject_traceparent(),
-                    baggage=self._inject_baggage(),
-                    action=action,
-                )
-                try:
-                    asyncio.get_running_loop().create_task(self._send(msg))
-                except RuntimeError:
-                    self._enqueue(msg)
-                return None
+        if isinstance(action, dict):
+            if action.get("type") == "enqueue":
+                action = TriggerActionEnqueue(queue=action["queue"])
 
         # Enqueue and default: send invocation_id, await response
         invocation_id = str(uuid.uuid4())
-        future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
+        future: asyncio.Future[Any] = self._loop.create_future()
 
         self._pending[invocation_id] = future
 
