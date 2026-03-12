@@ -12,6 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from .iii_types import (
     FunctionInfo,
     HttpInvocationConfig,
+    RegisterFunctionFormat,
+    RegisterFunctionInput,
     RegisterFunctionMessage,
     RegisterTriggerMessage,
     RegisterTriggerTypeMessage,
@@ -78,7 +80,6 @@ class RemoteServiceFunctionData(BaseModel):
 # Type aliases for registration inputs
 RegisterTriggerInput = RegisterTriggerMessage
 RegisterServiceInput = str
-RegisterFunctionInput = RegisterFunctionMessage
 RegisterTriggerTypeInput = RegisterTriggerTypeMessage
 
 
@@ -102,10 +103,8 @@ class IIIClient(Protocol):
 
     def register_function(
         self,
-        path: str,
+        func: RegisterFunctionInput | dict[str, Any],
         handler_or_invocation: RemoteFunctionHandler | HttpInvocationConfig,
-        description: str | None = None,
-        metadata: dict[str, Any] | None = None,
     ) -> Any: ...
 
     async def trigger(self, function_id: str, data: Any, timeout: float = 30.0) -> Any: ...

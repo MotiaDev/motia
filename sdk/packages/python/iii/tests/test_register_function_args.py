@@ -203,3 +203,15 @@ async def test_register_function_dict_with_http_invocation(monkeypatch: pytest.M
     assert reg_msgs[0]["request_format"]["name"] == "input"
 
     await client.shutdown()
+
+
+def test_register_function_input_importable_from_top_level() -> None:
+    """RegisterFunctionInput and RegisterFunctionFormat should be importable from iii."""
+    from iii import RegisterFunctionFormat, RegisterFunctionInput
+
+    fmt = RegisterFunctionFormat(name="test", type="string")
+    assert fmt.name == "test"
+
+    inp = RegisterFunctionInput(id="test.fn", request_format=fmt)
+    assert inp.id == "test.fn"
+    assert inp.request_format is not None
