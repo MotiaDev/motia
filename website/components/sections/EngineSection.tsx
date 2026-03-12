@@ -81,13 +81,13 @@ const concepts = [
       typescript: `iii.registerFunction(
   { id: 'users::create' },
   async (input) => {
-    const logger = new Logger()
+    const { logger } = getContext()
     logger.info('Creating user', { email: input.email })
     return { id: '123', email: input.email }
   }
 )`,
       python: `async def create_user(input):
-    logger = Logger()
+    logger = get_context().logger
     logger.info("Creating user", {
         "email": input["email"]
     })
@@ -124,7 +124,7 @@ iii.register_function("users::create", create_user)`,
       "Same pattern for every event source",
     ],
     code: {
-      typescript: `await iii.trigger('users::create', { name: 'Alice' })
+      typescript: `await iii.trigger({ function_id: 'users::create', payload: { name: 'Alice' } })
 
 iii.registerTrigger({
   type: 'http',
@@ -134,14 +134,14 @@ iii.registerTrigger({
     http_method: 'POST'
   }
 })`,
-      python: `await iii.trigger("users::create", {"name": "Alice"})
+      python: `await iii.trigger({"function_id": "users::create", "payload": {"name": "Alice"}})
 
 iii.register_trigger(
     "http",
     "users::create",
     {"api_path": "users", "http_method": "POST"}
 )`,
-      rust: `iii.trigger("users::create", json!({"name": "Alice"})).await?;
+      rust: `iii.trigger(TriggerRequest::new("users::create", json!({"name": "Alice"}))).await?;
 
 iii.register_trigger(Trigger {
     trigger_type: "http".into(),

@@ -37,23 +37,18 @@ async def predict(input: dict) -> dict:
 
 iii.register_function("ml::predict", predict)`;
 
-const rustCode = `use iii_sdk::{register_worker, InitOptions};
-use iii_sdk::{Value, IIIError};
+const rustCode = `use iii_sdk::{register_worker, InitOptions, Value, IIIError};
 use serde_json::json;
 
 async fn transform(input: Value) -> Result<Value, IIIError> {
     let nums: Vec<f64> = serde_json::from_value(input)?;
-    let doubled: Vec<f64> =
-        nums.iter().map(|x| x * 2.0).collect();
+    let doubled: Vec<f64> = nums.iter().map(|x| x * 2.0).collect();
     Ok(json!(doubled))
 }
 
 #[tokio::main]
 async fn main() -> Result<(), IIIError> {
-    let iii = register_worker(
-        "ws://localhost:49134",
-        InitOptions::default()
-    )?;
+    let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
 
     iii.register_function("data::transform", transform);
 
@@ -64,15 +59,15 @@ const nodeCode = `import { registerWorker } from "iii-sdk";
 
 const iii = registerWorker("ws://localhost:49134");
 
-const transformed = await iii.trigger(
-  "data::transform",
-  [1.0, 2.0, 3.0]
-);
+const transformed = await iii.trigger({
+  function_id: "data::transform",
+  payload: [1.0, 2.0, 3.0]
+});
 
-const prediction = await iii.trigger(
-  "ml::predict",
-  { data: transformed }
-);`;
+const prediction = await iii.trigger({
+  function_id: "ml::predict",
+  payload: { data: transformed }
+});`;
 
 export function HelloWorldSection({
   isDarkMode = true,
