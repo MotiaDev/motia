@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -19,7 +20,7 @@ TEST_FILE = TEST_ASSETS_DIR / "handbook.pdf"
 async def test_get_endpoint(engine_http_url, iii_client: III):
     """Register a GET endpoint and verify the JSON response."""
 
-    async def handler(input_data):
+    def handler(input_data):
         return {"status_code": 200, "body": {"message": "Hello from GET"}}
 
     fn_ref = iii_client.register_function({"id": "test.api.get.py"}, handler)
@@ -32,7 +33,7 @@ async def test_get_endpoint(engine_http_url, iii_client: III):
         },
     )
 
-    await asyncio.sleep(0.3)
+    time.sleep(0.3)
 
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{engine_http_url}/test/py/hello") as resp:
@@ -48,7 +49,7 @@ async def test_get_endpoint(engine_http_url, iii_client: III):
 async def test_post_endpoint_with_body(engine_http_url, iii_client: III):
     """Register a POST endpoint and verify the request body is received."""
 
-    async def handler(input_data):
+    def handler(input_data):
         body = input_data.get("body", {})
         return {
             "status_code": 201,
@@ -65,7 +66,7 @@ async def test_post_endpoint_with_body(engine_http_url, iii_client: III):
         },
     )
 
-    await asyncio.sleep(0.3)
+    time.sleep(0.3)
 
     async with aiohttp.ClientSession() as session:
         async with session.post(
@@ -85,7 +86,7 @@ async def test_post_endpoint_with_body(engine_http_url, iii_client: III):
 async def test_path_parameters(engine_http_url, iii_client: III):
     """Verify path parameters are extracted correctly."""
 
-    async def handler(input_data):
+    def handler(input_data):
         return {
             "status_code": 200,
             "body": {"id": input_data.get("path_params", {}).get("id")},
@@ -101,7 +102,7 @@ async def test_path_parameters(engine_http_url, iii_client: III):
         },
     )
 
-    await asyncio.sleep(0.3)
+    time.sleep(0.3)
 
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{engine_http_url}/test/py/items/abc123") as resp:
@@ -117,7 +118,7 @@ async def test_path_parameters(engine_http_url, iii_client: III):
 async def test_query_parameters(engine_http_url, iii_client: III):
     """Verify query parameters are passed through."""
 
-    async def handler(input_data):
+    def handler(input_data):
         qp = input_data.get("query_params", {})
         q = qp.get("q")
         limit = qp.get("limit")
@@ -140,7 +141,7 @@ async def test_query_parameters(engine_http_url, iii_client: III):
         },
     )
 
-    await asyncio.sleep(0.3)
+    time.sleep(0.3)
 
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{engine_http_url}/test/py/search?q=hello&limit=10") as resp:
@@ -157,7 +158,7 @@ async def test_query_parameters(engine_http_url, iii_client: III):
 async def test_custom_status_code(engine_http_url, iii_client: III):
     """Verify a custom HTTP status code is returned."""
 
-    async def handler(input_data):
+    def handler(input_data):
         return {"status_code": 404, "body": {"error": "Not found"}}
 
     fn_ref = iii_client.register_function({"id": "test.api.notfound.py"}, handler)
@@ -170,7 +171,7 @@ async def test_custom_status_code(engine_http_url, iii_client: III):
         },
     )
 
-    await asyncio.sleep(0.3)
+    time.sleep(0.3)
 
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{engine_http_url}/test/py/missing") as resp:
@@ -207,7 +208,7 @@ async def test_download_pdf_streaming(engine_http_url, iii_client: III):
         },
     )
 
-    await asyncio.sleep(0.3)
+    time.sleep(0.3)
 
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{engine_http_url}/test/py/download/pdf") as resp:
@@ -256,7 +257,7 @@ async def test_upload_pdf_streaming(engine_http_url, iii_client: III):
         },
     )
 
-    await asyncio.sleep(0.3)
+    time.sleep(0.3)
 
     async with aiohttp.ClientSession() as session:
         async with session.post(
@@ -317,7 +318,7 @@ async def test_sse_streaming(engine_http_url, iii_client: III):
         },
     )
 
-    await asyncio.sleep(0.3)
+    time.sleep(0.3)
 
     async with aiohttp.ClientSession() as session:
         async with session.get(f"{engine_http_url}/test/py/sse") as resp:
@@ -390,7 +391,7 @@ async def test_urlencoded_form_data(engine_http_url, iii_client: III):
         },
     )
 
-    await asyncio.sleep(0.3)
+    time.sleep(0.3)
 
     form_body = urlencode({"name": "John Doe", "email": "john@example.com", "age": "30"})
 
@@ -427,7 +428,7 @@ async def test_multipart_form_data(engine_http_url, iii_client: III):
         for part in content_type.split(";"):
             part = part.strip()
             if part.startswith("boundary="):
-                boundary_match = part[len("boundary=") :]
+                boundary_match = part[len("boundary="):]
 
         body_text = raw.decode("utf-8", errors="replace")
         has_title = "Test Document" in body_text
@@ -458,7 +459,7 @@ async def test_multipart_form_data(engine_http_url, iii_client: III):
         },
     )
 
-    await asyncio.sleep(0.3)
+    time.sleep(0.3)
 
     form_data = aiohttp.FormData()
     form_data.add_field("title", "Test Document")
