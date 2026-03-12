@@ -22,7 +22,10 @@ from .iii_types import (
     HttpInvocationConfig,
     InvocationResultMessage,
     InvokeFunctionMessage,
+    LogConfig,
+    LogSeverityLevel,
     MessageType,
+    OtelLogEvent,
     RegisterFunctionInput,
     RegisterFunctionMessage,
     RegisterServiceInput,
@@ -66,18 +69,21 @@ ConnectionStateCallback = Callable[["IIIConnectionState"], None]
 
 @dataclass
 class ReconnectionConfig:
-    """Configuration for WebSocket reconnection behavior."""
+    """Configuration for WebSocket reconnection behavior.
+
+    Attributes:
+        initial_delay_ms: Starting delay in milliseconds. Default ``1000``.
+        max_delay_ms: Maximum delay cap in milliseconds. Default ``30000``.
+        backoff_multiplier: Exponential backoff multiplier. Default ``2.0``.
+        jitter_factor: Random jitter factor (0--1). Default ``0.3``.
+        max_retries: Maximum retry attempts. ``-1`` for infinite. Default ``-1``.
+    """
 
     initial_delay_ms: int = 1000
-    """Starting delay in milliseconds."""
     max_delay_ms: int = 30000
-    """Maximum delay cap in milliseconds."""
     backoff_multiplier: float = 2.0
-    """Exponential backoff multiplier."""
     jitter_factor: float = 0.3
-    """Random jitter factor 0-1."""
     max_retries: int = -1
-    """Maximum retry attempts, -1 for infinite."""
 
 
 DEFAULT_RECONNECTION_CONFIG = ReconnectionConfig()
@@ -105,7 +111,17 @@ class TelemetryOptions:
 
 @dataclass
 class InitOptions:
-    """Options for configuring the III SDK."""
+    """Options for configuring the III SDK.
+
+    Attributes:
+        worker_name: Display name for this worker. Defaults to ``hostname:pid``.
+        enable_metrics_reporting: Enable worker metrics via OpenTelemetry. Default ``True``.
+        invocation_timeout_ms: Default timeout for ``trigger()`` in milliseconds. Default ``30000``.
+        reconnection_config: WebSocket reconnection behavior.
+        otel: OpenTelemetry configuration. Enabled by default.
+            Set ``{'enabled': False}`` or env ``OTEL_ENABLED=false`` to disable.
+        telemetry: Internal telemetry metadata.
+    """
 
     worker_name: str | None = None
     enable_metrics_reporting: bool = True
@@ -116,7 +132,20 @@ class InitOptions:
 
 
 class III:
-    """WebSocket client for communication with the III Engine."""
+    """WebSocket client for communication with the III Engine.
+
+    Unlike the Node.js SDK which uses ``registerWorker()``, the Python SDK
+    exposes the ``III`` class directly. Call ``connect()`` to establish the
+    WebSocket connection, or use ``register_worker()`` for automatic connection.
+
+    Args:
+        address: WebSocket URL of the III engine (e.g. ``ws://localhost:49134``).
+        options: Optional configuration. See ``InitOptions``.
+
+    Examples:
+        >>> iii = III('ws://localhost:49134', InitOptions(worker_name='my-worker'))
+        >>> await iii.connect()
+    """
 
     def __init__(self, address: str, options: InitOptions | None = None) -> None:
         self._address = address
@@ -139,6 +168,9 @@ class III:
         self._connection_state: IIIConnectionState = "disconnected"
         self._state_callbacks: set[ConnectionStateCallback] = set()
         self._worker_id: str | None = None
+        self._log_callbacks: dict[Callable[[OtelLogEvent], None], LogConfig] = {}
+        self._log_trigger: Trigger | None = None
+        self._log_function_id: str | None = None
 
         # Background event loop thread
         self._loop = asyncio.new_event_loop()
@@ -613,6 +645,12 @@ class III:
     def register_trigger_type(
         self, trigger_type: RegisterTriggerTypeInput | dict[str, Any], handler: TriggerHandler[Any]
     ) -> None:
+        """Register a custom trigger type with the engine.
+
+        Args:
+            trigger_type: Trigger type input with ``id`` and ``description``, or a dict.
+            handler: Handler implementing ``register_trigger`` and ``unregister_trigger``.
+        """
         if isinstance(trigger_type, dict):
             trigger_type = RegisterTriggerTypeInput(**trigger_type)
         msg = RegisterTriggerTypeMessage(id=trigger_type.id, description=trigger_type.description)
@@ -620,12 +658,29 @@ class III:
         self._send_if_connected(msg)
 
     def unregister_trigger_type(self, trigger_type: RegisterTriggerTypeInput | dict[str, Any]) -> None:
+        """Unregister a previously registered trigger type.
+
+        Args:
+            trigger_type: The trigger type input to unregister, or a dict with ``id``.
+        """
         if isinstance(trigger_type, dict):
             trigger_type = RegisterTriggerTypeInput(**trigger_type)
         self._trigger_types.pop(trigger_type.id, None)
         self._send_if_connected(UnregisterTriggerTypeMessage(id=trigger_type.id))
 
     def register_trigger(self, trigger: RegisterTriggerInput | dict[str, Any]) -> Trigger:
+        """Bind a trigger configuration to a registered function.
+
+        Args:
+            trigger: Trigger input with ``type``, ``function_id``, and ``config``, or a dict.
+
+        Returns:
+            A Trigger handle with an ``unregister()`` method.
+
+        Examples:
+            >>> trigger = iii.register_trigger({'type': 'http', 'function_id': 'greet', 'config': {'api_path': '/greet'}})
+            >>> trigger.unregister()
+        """
         if isinstance(trigger, dict):
             trigger = RegisterTriggerInput(**trigger)
         trigger_id = str(uuid.uuid4())
@@ -649,6 +704,27 @@ class III:
         func: RegisterFunctionInput | dict[str, Any],
         handler_or_invocation: RemoteFunctionHandler | HttpInvocationConfig,
     ) -> FunctionRef:
+        """Register a function with the engine.
+
+        Pass a handler for local execution, or an ``HttpInvocationConfig``
+        for HTTP-invoked functions (Lambda, Cloudflare Workers, etc.).
+
+        Args:
+            func: Function input with ``id``, ``description``, etc., or a dict.
+            handler_or_invocation: Async handler callable or HTTP invocation config.
+
+        Returns:
+            A FunctionRef with ``id`` and ``unregister()`` method.
+
+        Raises:
+            ValueError: If ``id`` is empty or already registered.
+            TypeError: If ``handler_or_invocation`` is not callable or HttpInvocationConfig.
+
+        Examples:
+            >>> async def greet(data):
+            ...     return {'message': f"Hello, {data['name']}!"}
+            >>> fn = iii.register_function({'id': 'greet', 'description': 'Greets a user'}, greet)
+        """
         if isinstance(func, dict):
             func = RegisterFunctionInput(**func)
 
@@ -715,7 +791,28 @@ class III:
         self._send_if_connected(msg)
 
     def trigger(self, request: "dict[str, Any] | TriggerRequest") -> Any:
-        """Invoke a function (synchronous)."""
+        """Invoke a remote function (synchronous wrapper).
+
+        The routing behavior and return type depend on the ``action`` field:
+
+        - No action: synchronous -- waits for the function to return.
+        - ``TriggerAction.Enqueue(...)``: async via named queue -- returns ``EnqueueResult``.
+        - ``TriggerAction.Void()``: fire-and-forget -- returns ``None``.
+
+        Args:
+            request: A ``TriggerRequest`` or dict with ``function_id``, ``payload``,
+                and optional ``action`` / ``timeout_ms``.
+
+        Returns:
+            The result of the function invocation, or ``None`` for void calls.
+
+        Raises:
+            TimeoutError: If the invocation times out.
+
+        Examples:
+            >>> result = iii.trigger({'function_id': 'greet', 'payload': {'name': 'World'}})
+            >>> iii.trigger({'function_id': 'notify', 'payload': {}, 'action': TriggerAction.Void()})
+        """
         req = request if isinstance(request, dict) else request.model_dump()
         action = req.get("action")
 
@@ -744,7 +841,18 @@ class III:
         """Invoke a function (async implementation for non-void actions).
 
         Args:
-            request: A TriggerRequest or dict with function_id, payload, and optional action/timeout_ms.
+            request: A ``TriggerRequest`` or dict with ``function_id``, ``payload``,
+                and optional ``action`` / ``timeout_ms``.
+
+        Returns:
+            The result of the function invocation, or ``None`` for void calls.
+
+        Raises:
+            TimeoutError: If the invocation times out.
+
+        Examples:
+            >>> result = await iii.trigger({'function_id': 'greet', 'payload': {'name': 'World'}})
+            >>> await iii.trigger({'function_id': 'notify', 'payload': {}, 'action': TriggerAction.Void()})
         """
         import warnings
 
@@ -934,30 +1042,20 @@ class III:
 
         return unsubscribe
 
-    def on(self, event: str, callback: Callable[..., None]) -> Callable[[], None]:
-        """Subscribe to an event.
-
-        Not supported in the Python SDK. Use on_connection_state_change() or
-        on_functions_available() instead.
-
-        Raises:
-            NotImplementedError: Always raised. Use specific event methods instead.
-        """
-        raise NotImplementedError(
-            "on() is not supported in the Python SDK. "
-            "Use on_connection_state_change() or on_functions_available() instead."
-        )
+    @staticmethod
+    def _severity_text_to_number(level: LogSeverityLevel) -> int:
+        _MAP: dict[str, int] = {
+            "trace": 1, "debug": 5, "info": 9,
+            "warn": 13, "error": 17, "fatal": 21, "all": 0,
+        }
+        return _MAP.get(level, 0)
 
     def create_stream(self, stream_name: str, stream: IStream[Any]) -> None:
-        """Register stream functions for a given stream.
+        """Register a custom stream implementation, overriding the engine default.
 
-        This registers the following functions for the stream:
-        - {stream_name}::get
-        - {stream_name}::set
-        - {stream_name}::delete
-        - {stream_name}::list
-        - {stream_name}::list_groups
-        - {stream_name}::update
+        Registers 5 of the 6 ``IStream`` methods (``get``, ``set``, ``delete``,
+        ``list``, ``list_groups``). The ``update`` method is **not** registered
+        -- atomic updates are handled by the engine's built-in stream update logic.
 
         Args:
             stream_name: The name of the stream.
@@ -1012,12 +1110,24 @@ class III:
 
 
 class TriggerAction:
-    """Factory for creating trigger actions."""
+    """Factory for creating trigger actions used with ``trigger()``.
+
+    Examples:
+        >>> from iii import TriggerAction
+        >>> await iii.trigger({'function_id': 'process', 'payload': {}, 'action': TriggerAction.Enqueue('jobs')})
+        >>> await iii.trigger({'function_id': 'notify', 'payload': {}, 'action': TriggerAction.Void()})
+    """
 
     @staticmethod
     def Enqueue(queue: str) -> TriggerActionEnqueue:
+        """Route the invocation through a named queue for async processing.
+
+        Args:
+            queue: Name of the target queue.
+        """
         return TriggerActionEnqueue(queue=queue)
 
     @staticmethod
     def Void() -> TriggerActionVoid:
+        """Fire-and-forget routing. No response is returned."""
         return TriggerActionVoid()

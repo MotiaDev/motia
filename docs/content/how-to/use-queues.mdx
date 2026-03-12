@@ -56,7 +56,7 @@ From any function, enqueue a job by calling `trigger()` with the `Enqueue` actio
 ```typescript title="enqueue-order.ts"
 import { registerWorker, Logger, TriggerAction } from 'iii-sdk'
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::create' }, async (input) => {
   const logger = new Logger()
@@ -80,7 +80,7 @@ import uuid
 import os
 from iii import III, Logger, TriggerAction
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 def create_order(input):
     logger = Logger()
@@ -104,7 +104,7 @@ iii.register_function("orders::create", create_order)
 use iii_sdk::{Logger, TriggerAction, TriggerRequest, III};
 use serde_json::json;
 
-let iii = III::new(&std::env::var("III_BRIDGE_URL")
+let iii = III::new(&std::env::var("III_URL")
     .unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
 
 let iii_clone = iii.clone();
@@ -147,7 +147,7 @@ The function that processes queued work is a regular function. It receives the d
 ```typescript title="process-order.ts"
 import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'orders::process-order' }, async (order) => {
   const logger = new Logger()
@@ -162,7 +162,7 @@ iii.registerFunction({ id: 'orders::process-order' }, async (order) => {
 import os
 from iii import III, Logger
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 def process_order(order):
     logger = Logger()
@@ -178,7 +178,7 @@ iii.register_function("orders::process-order", process_order)
 use iii_sdk::{Logger, III};
 use serde_json::json;
 
-let iii = III::new(&std::env::var("III_BRIDGE_URL")
+let iii = III::new(&std::env::var("III_URL")
     .unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
 
 iii.register_function("orders::process-order", |order| async move {
@@ -405,7 +405,7 @@ println!("Order created: {}", result["orderId"]);
 ```typescript
 import { registerWorker, TriggerAction } from 'iii-sdk'
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 // Direct call (request/response)
 const result = await iii.trigger({
@@ -432,7 +432,7 @@ iii.trigger({
 ```python
 from iii import III, TriggerAction
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 # Direct call (request/response)
 result = iii.trigger({

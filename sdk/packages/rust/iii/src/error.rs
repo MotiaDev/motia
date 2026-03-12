@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+/// Errors returned by the III SDK.
 #[derive(Debug, Error, Clone)]
 pub enum IIIError {
     #[error("iii is not connected")]

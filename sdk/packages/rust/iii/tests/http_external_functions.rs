@@ -1,6 +1,6 @@
 //! Integration tests for HTTP external function invocation.
 //!
-//! Requires a running III engine. Set III_BRIDGE_URL or use ws://localhost:49134 default.
+//! Requires a running III engine. Set III_URL or use ws://localhost:49134 default.
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -12,7 +12,7 @@ use tokio::net::TcpListener;
 use iii_sdk::{HttpInvocationConfig, HttpMethod, III};
 
 fn engine_ws_url() -> String {
-    std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
+    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
 }
 
 async fn settle() {

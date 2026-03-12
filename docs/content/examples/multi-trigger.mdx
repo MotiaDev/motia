@@ -22,7 +22,7 @@ graph LR
 ```typescript
 import {Logger} from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = init(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'orders.handle', description: 'Handles orders from API, queue, or cron' },

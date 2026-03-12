@@ -14,6 +14,11 @@ pub enum HttpMethod {
     Delete,
 }
 
+/// Authentication configuration for HTTP-invoked functions.
+///
+/// - `Hmac` -- HMAC signature verification using a shared secret.
+/// - `Bearer` -- Bearer token authentication.
+/// - `ApiKey` -- API key sent via a custom header.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum HttpAuthConfig {
@@ -30,6 +35,8 @@ pub enum HttpAuthConfig {
     },
 }
 
+/// Configuration for registering an HTTP-invoked function (Lambda, Cloudflare
+/// Workers, etc.) instead of a local handler.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpInvocationConfig {
     pub url: String,
@@ -47,14 +54,22 @@ fn default_http_method() -> HttpMethod {
     HttpMethod::Post
 }
 
+/// Routing action for [`TriggerRequest`]. Determines how the engine handles
+/// the invocation.
+///
+/// - `Enqueue` -- Routes through a named queue for async processing.
+/// - `Void` -- Fire-and-forget, no response.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum TriggerAction {
+    /// Routes the invocation through a named queue.
     Enqueue { queue: String },
+    /// Fire-and-forget routing.
     Void,
 }
 
 impl TriggerAction {
+    /// Create an enqueue action for the given queue name.
     pub fn enqueue(queue: &str) -> Self {
         TriggerAction::Enqueue {
             queue: queue.to_string(),
@@ -76,7 +91,7 @@ pub struct EnqueueResult {
 /// `trigger({ function_id, payload, action?, timeout_ms? })`
 ///
 /// Build with the constructor or the builder-style methods:
-/// ```rust,no_run
+/// ```rust
 /// # use iii_sdk::protocol::{TriggerRequest, TriggerAction};
 /// # use serde_json::json;
 /// // Simple call

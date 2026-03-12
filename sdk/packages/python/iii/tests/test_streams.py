@@ -8,7 +8,7 @@ import pytest
 import pytest_asyncio
 
 from iii import III, IStream
-from iii.stream import StreamDeleteInput, StreamGetInput, StreamListGroupsInput, StreamListInput, StreamSetInput, StreamSetResult, StreamUpdateInput
+from iii.stream import StreamDeleteInput, StreamDeleteResult, StreamGetInput, StreamListGroupsInput, StreamListInput, StreamSetInput, StreamSetResult, StreamUpdateInput, StreamUpdateResult
 
 STREAM_NAME = "test-stream-py"
 GROUP_ID = "test-group"
@@ -168,8 +168,9 @@ async def test_stream_custom_operations(iii_client: III):
             state[key] = input.data
             return StreamSetResult(old_value=old_value, new_value=input.data)
 
-        async def delete(self, input: StreamDeleteInput) -> None:
-            state.pop(f"{input.group_id}::{input.item_id}", None)
+        async def delete(self, input: StreamDeleteInput) -> StreamDeleteResult:
+            old = state.pop(f"{input.group_id}::{input.item_id}", None)
+            return StreamDeleteResult(old_value=old)
 
         async def list(self, input: StreamListInput) -> list:
             prefix = f"{input.group_id}::"
@@ -178,7 +179,7 @@ async def test_stream_custom_operations(iii_client: III):
         async def list_groups(self, input: StreamListGroupsInput) -> list[str]:
             return list(state.keys())
 
-        async def update(self, input: StreamUpdateInput) -> None:
+        async def update(self, input: StreamUpdateInput) -> StreamUpdateResult | None:
             raise NotImplementedError
 
     iii_client.create_stream(stream_name, InMemoryStream())

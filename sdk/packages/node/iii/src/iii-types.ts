@@ -54,16 +54,32 @@ export type RegisterServiceMessage = {
   parent_service_id?: string
 }
 
+/**
+ * Authentication configuration for HTTP-invoked functions.
+ *
+ * - `hmac` -- HMAC signature verification using a shared secret.
+ * - `bearer` -- Bearer token authentication.
+ * - `api_key` -- API key sent via a custom header.
+ */
 export type HttpAuthConfig =
   | { type: 'hmac'; secret_key: string }
   | { type: 'bearer'; token_key: string }
   | { type: 'api_key'; header: string; value_key: string }
 
+/**
+ * Configuration for registering an HTTP-invoked function (Lambda, Cloudflare
+ * Workers, etc.) instead of a local handler.
+ */
 export type HttpInvocationConfig = {
+  /** URL to invoke. */
   url: string
+  /** HTTP method. Defaults to `POST`. */
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  /** Timeout in milliseconds. */
   timeout_ms?: number
+  /** Custom headers to send with the request. */
   headers?: Record<string, string>
+  /** Authentication configuration. */
   auth?: HttpAuthConfig
 }
 
@@ -116,16 +132,38 @@ export type RegisterFunctionMessage = {
   invocation?: HttpInvocationConfig
 }
 
+/**
+ * Routing action for {@link TriggerRequest}. Determines how the engine
+ * handles the invocation.
+ *
+ * - `enqueue` -- Routes through a named queue for async processing.
+ * - `void` -- Fire-and-forget, no response.
+ */
 export type TriggerAction =
   | { type: 'enqueue'; queue: string }
   | { type: 'void' }
 
-export type EnqueueResult = { messageReceiptId: string }
+/**
+ * Result returned when a function is invoked with `TriggerAction.Enqueue`.
+ */
+export type EnqueueResult = {
+  /** Unique receipt ID for the enqueued message. */
+  messageReceiptId: string
+}
 
+/**
+ * Request object passed to {@link ISdk.trigger}.
+ *
+ * @typeParam TInput - Type of the payload.
+ */
 export type TriggerRequest<TInput = unknown> = {
+  /** ID of the function to invoke. */
   function_id: string
+  /** Payload to pass to the function. */
   payload: TInput
+  /** Routing action. Omit for synchronous request/response. */
   action?: TriggerAction
+  /** Override the default invocation timeout in milliseconds. */
   timeoutMs?: number
 }
 
@@ -179,11 +217,19 @@ export type InvocationResultMessage = {
   baggage?: string
 }
 
+/**
+ * Metadata about a registered function, returned by `ISdk.listFunctions`.
+ */
 export type FunctionInfo = {
+  /** Unique function identifier. */
   function_id: string
+  /** Human-readable description. */
   description?: string
+  /** Schema describing expected request format. */
   request_format?: RegisterFunctionFormat
+  /** Schema describing expected response format. */
   response_format?: RegisterFunctionFormat
+  /** Arbitrary metadata attached to the function. */
   metadata?: Record<string, unknown>
 }
 
@@ -194,19 +240,34 @@ export type TriggerInfo = {
   config: unknown
 }
 
+/** Worker connection status. */
 export type WorkerStatus = 'connected' | 'available' | 'busy' | 'disconnected'
 
+/**
+ * Metadata about a connected worker, returned by `ISdk.listWorkers`.
+ */
 export type WorkerInfo = {
+  /** Unique worker identifier assigned by the engine. */
   id: string
+  /** Display name of the worker. */
   name?: string
+  /** Runtime environment (e.g. `node`, `python`, `rust`). */
   runtime?: string
+  /** SDK version. */
   version?: string
+  /** Operating system info. */
   os?: string
+  /** IP address of the worker. */
   ip_address?: string
+  /** Current connection status. */
   status: WorkerStatus
+  /** Timestamp (ms since epoch) when the worker connected. */
   connected_at_ms: number
+  /** Number of functions registered by this worker. */
   function_count: number
+  /** List of function IDs registered by this worker. */
   functions: string[]
+  /** Number of currently active invocations. */
   active_invocations: number
 }
 
@@ -220,9 +281,16 @@ export type UnregisterFunctionMessage = {
   id: string
 }
 
+/**
+ * Serializable reference to one end of a streaming channel. Can be included
+ * in invocation payloads to pass channel endpoints between workers.
+ */
 export type StreamChannelRef = {
+  /** Unique channel identifier. */
   channel_id: string
+  /** Access key for authentication. */
   access_key: string
+  /** Whether this ref is for reading or writing. */
   direction: 'read' | 'write'
 }
 

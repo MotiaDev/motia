@@ -23,7 +23,7 @@ This will be addressed shortly so that a single initialization step is all that 
 ```typescript title="math-add.ts"
 import { registerWorker, Logger } from 'iii-sdk';
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134');
 
 iii.registerFunction(
   { id: 'math::add', description: 'Add two numbers and store result' },
@@ -46,7 +46,7 @@ from iii import III, Logger
 import os
 import uuid
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 def add(data):
   logger = Logger()
@@ -70,7 +70,7 @@ use uuid::Uuid;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-  let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+  let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
   let iii = III::new(&url);
   iii.connect().await?;
 
@@ -117,7 +117,7 @@ Pass an `HttpInvocationConfig` as the second argument to `registerFunction` inst
 ```typescript title="http-invoked.ts"
 import { registerWorker } from 'iii-sdk';
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134');
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134');
 
 iii.registerFunction(
   {
@@ -550,7 +550,7 @@ use std::collections::HashMap;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-  let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+  let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
   let iii = III::new(&url);
   iii.connect().await?;
 

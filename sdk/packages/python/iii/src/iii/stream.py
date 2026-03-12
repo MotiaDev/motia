@@ -103,6 +103,12 @@ class StreamUpdateResult(BaseModel, Generic[TData]):
 
 
 class DeleteResult(BaseModel):
+    """Result of stream delete operation (deprecated alias)."""
+
+    old_value: Any | None = None
+
+
+class StreamDeleteResult(BaseModel):
     """Result of stream delete operation."""
 
     old_value: Any | None = None
@@ -164,7 +170,7 @@ class IStream(ABC, Generic[TData]):
         ...
 
     @abstractmethod
-    async def delete(self, input: StreamDeleteInput) -> DeleteResult:
+    async def delete(self, input: StreamDeleteInput) -> StreamDeleteResult:
         """Delete an item from the stream."""
         ...
 
@@ -180,5 +186,5 @@ class IStream(ABC, Generic[TData]):
 
     @abstractmethod
     async def update(self, input: StreamUpdateInput) -> StreamUpdateResult[TData] | None:
-        """Update an item in the stream."""
+        """Apply atomic update operations to a stream item."""
         ...

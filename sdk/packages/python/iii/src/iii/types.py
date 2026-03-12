@@ -114,6 +114,8 @@ class IIIClient(Protocol):
 
     def on_functions_available(self, callback: FunctionsAvailableCallback) -> Callable[[], None]: ...
 
+    def on_log(self, callback: Callable[..., None], config: Any = None) -> Callable[[], None]: ...
+
 
 class ApiRequest(BaseModel, Generic[TInput]):
     """Represents an API request."""

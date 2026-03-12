@@ -9,7 +9,7 @@ import uuid
 
 import websockets
 
-DEFAULT_BRIDGE_URL = os.environ.get("III_BRIDGE_URL", "ws://127.0.0.1:49134")
+DEFAULT_BRIDGE_URL = os.environ.get("III_URL", "ws://127.0.0.1:49134")
 
 
 def parse_args() -> argparse.Namespace:
