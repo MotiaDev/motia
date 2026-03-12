@@ -86,7 +86,7 @@ pub async fn init_otel(config: OtelConfig) {
 
     let ws_url = config
         .engine_ws_url
-        .or_else(|| std::env::var("III_BRIDGE_URL").ok())
+        .or_else(|| std::env::var("III_URL").ok())
         .unwrap_or_else(|| "ws://localhost:49134".to_string());
 
     let reconnection_config = config.reconnection_config.unwrap_or_default();

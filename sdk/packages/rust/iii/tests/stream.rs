@@ -1,6 +1,6 @@
 //! Integration tests for stream operations.
 //!
-//! Requires a running III engine. Set III_BRIDGE_URL or use ws://localhost:49134 default.
+//! Requires a running III engine. Set III_URL or use ws://localhost:49134 default.
 
 use std::time::Duration;
 
@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use iii_sdk::{III, TriggerRequest};
 
 fn engine_ws_url() -> String {
-    std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
+    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
 }
 
 async fn settle() {

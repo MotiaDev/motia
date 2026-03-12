@@ -21,7 +21,7 @@ function is invoked via a named queue, the queue worker retries it based on the 
 ```typescript title="payment-processor.ts"
 import { registerWorker } from 'iii-sdk'
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'payments::charge' },
@@ -38,7 +38,7 @@ iii.registerFunction(
 import os
 from iii import III, HttpInvocationConfig
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 iii.register_function(
     "payments::charge",
@@ -55,7 +55,7 @@ iii.register_function(
 use iii_sdk::{III, HttpInvocationConfig, HttpMethod};
 use std::collections::HashMap;
 
-let iii = III::new(&std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
+let iii = III::new(&std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
 
 iii.register_function("payments::charge", HttpInvocationConfig {
     url: "https://api.payments.example.com/charge".to_string(),

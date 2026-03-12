@@ -22,7 +22,7 @@ Both Functions are declared in the same way. They only differ in how they are us
 ```typescript title="conditions-functions.ts"
 import { registerWorker } from 'iii-sdk'
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 // condition
 iii.registerFunction(

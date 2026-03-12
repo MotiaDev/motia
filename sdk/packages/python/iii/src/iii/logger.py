@@ -25,8 +25,15 @@ def is_initialized() -> bool:
 
 
 class Logger:
-    """Logger that emits OTel LogRecords when OTel is active, otherwise
-    falls back to Python logging."""
+    """Structured logger that emits OTel LogRecords when OTel is active,
+    otherwise falls back to Python ``logging``.
+
+    Examples:
+        >>> from iii import Logger
+        >>> logger = Logger()
+        >>> logger.info('Processing started')
+        >>> logger.error('Something failed', {'order_id': '123'})
+    """
 
     def __init__(self, function_name: str | None = None) -> None:
         self._function_name = function_name or ""

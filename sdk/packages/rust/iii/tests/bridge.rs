@@ -1,6 +1,6 @@
 //! Integration tests for bridge operations.
 //!
-//! Requires a running III engine. Set III_BRIDGE_URL or use ws://localhost:49134 default.
+//! Requires a running III engine. Set III_URL or use ws://localhost:49134 default.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 use iii_sdk::{III, TriggerAction, TriggerRequest};
 
 fn engine_ws_url() -> String {
-    std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
+    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
 }
 
 async fn settle() {

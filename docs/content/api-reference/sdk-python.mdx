@@ -3,375 +3,453 @@ title: "Python SDK"
 description: "API reference for the iii SDK for Python."
 ---
 
+{/* AUTO-GENERATED FILE. Do not edit manually. Run the generate-api-docs pipeline. */}
+
 ## Installation
 
 ```bash
 pip install iii-sdk
 ```
 
-The package is imported as `iii`:
-
-```python
-from iii import III, InitOptions, ApiRequest, ApiResponse
-```
-
 ## Initialization
 
-The Python SDK requires an explicit `connect()` call to establish the WebSocket connection.
-
-```python
-import asyncio
-from iii import III
-
-iii = III("ws://localhost:49134")
-
-async def sum_function(data):
-    a = data.get("a", 0)
-    b = data.get("b", 0)
-    return {"sum": a + b}
-
-iii.register_function("math::sum", sum_function, description="Add two numbers")
-
-async def main():
-    await iii.connect()
-    result = await iii.trigger({"function_id": "math::sum", "payload": {"a": 2, "b": 3}})
-    print(result)  # {"sum": 5}
-
-asyncio.run(main())
-```
-
-You can also pass `InitOptions` to customize the worker name:
+The Python SDK exposes the `III` class. Use `register_worker()` for automatic connection, or create an `III` instance and call `connect()` manually.
 
 ```python
 from iii import III, InitOptions
 
-iii = III(
-    address="ws://localhost:49134",
-    options=InitOptions(worker_name="my-worker"),
-)
+iii = III('ws://localhost:49134', InitOptions(worker_name='my-worker'))
+await iii.connect()
 ```
 
-<ResponseField name="III" type="class" required>
-  The main SDK client.
+### register_worker
 
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Constructor" description="">
-      <ResponseField name="address" type="str" required>
-        WebSocket URL of the iii Engine.
-      </ResponseField>
-      <ResponseField name="options" type="InitOptions | None">
-        <Expandable title="InitOptions">
-          <ResponseField name="worker_name" type="str | None">
-            Display name for this worker. Defaults to `hostname:pid`.
-          </ResponseField>
-          <ResponseField name="invocation_timeout_ms" type="int">
-            Default timeout for `trigger()` in milliseconds. Default `30000`.
-          </ResponseField>
-          <ResponseField name="enable_metrics_reporting" type="bool">
-            Enable worker metrics via OpenTelemetry. Default `True`.
-          </ResponseField>
-          <ResponseField name="reconnection_config" type="ReconnectionConfig | None">
-            WebSocket reconnection behavior.
-          </ResponseField>
-          <ResponseField name="otel" type="OtelConfig | dict | None">
-            OpenTelemetry configuration.
-          </ResponseField>
-        </Expandable>
-      </ResponseField>
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
+Create an III client and auto-start its connection task.
+
+The WebSocket connection is established automatically. Must be called
+inside an async context with an active event loop.
+
+**Signature**
+
+```python
+register_worker(address: str, options: InitOptions | None = None)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `address` | `str` | Yes | WebSocket URL of the III engine (e.g. ``ws://localhost:49134``). |
+| `options` | [`InitOptions`](#initoptions) \| None | No | Optional configuration for worker name, timeouts, reconnection, and OTel. |
+
+#### Example
+
+```python
+    >>> import asyncio
+    >>> from iii import register_worker
+    >>> async def main():
+    ...     iii = register_worker('ws://localhost:49134', InitOptions(worker_name='my-worker'))
+    >>> asyncio.run(main())
+```
 
 ## Methods
 
 ### connect
 
-<ResponseField name="connect" type="async () => None" required>
-  Establishes the WebSocket connection and re-registers all previously registered functions, triggers, and services. Handles automatic reconnection on disconnect.
-</ResponseField>
+Connect to the WebSocket server.
 
-### shutdown
-
-<ResponseField name="shutdown" type="async () => None" required>
-  Disconnects from the engine and cancels background tasks.
-</ResponseField>
-
-### register_function
-
-<ResponseField name="register_function" type="(path: str, handler: Callable, description: str | None = None) => None" required>
-  Registers a function with the engine.
-
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="path" type="str" required>
-        Unique function identifier.
-      </ResponseField>
-      <ResponseField name="handler" type="Callable[[Any], Awaitable[Any]]" required>
-        Async function that processes the invocation payload.
-      </ResponseField>
-      <ResponseField name="description" type="str | None">
-        Human-readable description.
-      </ResponseField>
-    </Accordion>
-    <Accordion iconName="Code" title="Example" description="">
-      ```python
-      async def greet(data):
-          return {"message": f"Hello, {data['name']}!"}
-
-      iii.register_function("greet", greet, description="Greets a user")
-      ```
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
-
-### register_trigger
-
-<ResponseField name="register_trigger" type="(type: str, function_id: str, config: Any) => Trigger" required>
-  Binds a trigger configuration to a registered function.
-
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="type" type="str" required>
-        Trigger type (e.g. `http`, `queue`, `cron`).
-      </ResponseField>
-      <ResponseField name="function_id" type="str" required>
-        ID of the function to invoke.
-      </ResponseField>
-      <ResponseField name="config" type="Any" required>
-        Trigger-specific configuration.
-      </ResponseField>
-    </Accordion>
-    <Accordion iconName="ArrowUpRight" title="Returns" description="">
-      <ResponseField name="Trigger" type="Trigger">
-        Object with an `unregister()` method.
-      </ResponseField>
-    </Accordion>
-    <Accordion iconName="Code" title="Example" description="">
-      ```python
-      iii.register_trigger(
-          type="http",
-          function_id="greet",
-          config={"api_path": "/greet", "http_method": "GET"},
-      )
-      ```
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
-
-### trigger
-
-<ResponseField name="trigger" type="async (request: dict) => Any | EnqueueResult | None" required>
-  Invokes a remote function. The routing behavior and return value depend on the `action` key of the request dict.
-
-  | `action` | Behavior | Return value |
-  |----------|----------|--------------|
-  | _(none)_ | Synchronous — waits for the function to return | function result |
-  | `TriggerAction.Enqueue(...)` | Async via named queue — engine acknowledges enqueue | `EnqueueResult` |
-  | `TriggerAction.Void()` | Fire-and-forget — no response | `None` |
-
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="request" type="dict" required>
-        <Expandable title="request keys">
-          <ResponseField name="function_id" type="str" required>
-            ID of the function to invoke.
-          </ResponseField>
-          <ResponseField name="payload" type="Any" required>
-            Payload to pass to the function.
-          </ResponseField>
-          <ResponseField name="action" type="TriggerAction">
-            Routing action. Omit for synchronous request/response. Use `TriggerAction.Enqueue(queue="name")` for async queue delivery or `TriggerAction.Void()` for fire-and-forget.
-          </ResponseField>
-          <ResponseField name="timeout_ms" type="int">
-            Timeout in milliseconds for synchronous calls. Default `30000`.
-          </ResponseField>
-        </Expandable>
-      </ResponseField>
-    </Accordion>
-    <Accordion iconName="Code" title="Example" description="">
-      ```python
-      from iii import TriggerAction
-
-      # Synchronous — wait for function result
-      result = await iii.trigger({"function_id": "get-order", "payload": {"id": "123"}})
-
-      # Enqueue to named queue — returns EnqueueResult
-      receipt = await iii.trigger({
-          "function_id": "payments::charge",
-          "payload": {"orderId": "123", "amount": 49.99},
-          "action": TriggerAction.Enqueue(queue="payment"),
-      })
-
-      # Fire-and-forget
-      await iii.trigger({
-          "function_id": "notifications::send",
-          "payload": {"userId": "123"},
-          "action": TriggerAction.Void(),
-      })
-      ```
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
-
-### TriggerAction
-
-A class with factory methods that construct routing actions for `trigger()`. Import from `iii`.
-
-<ResponseField name="TriggerAction.Enqueue" type="classmethod (queue: str) => TriggerAction" required>
-  Routes the invocation through a named queue. The engine enqueues the job, acknowledges the caller with an `EnqueueResult`, and processes it asynchronously. Raises an error if the queue name is not found in config or if FIFO validation fails.
-</ResponseField>
-
-<ResponseField name="TriggerAction.Void" type="classmethod () => TriggerAction" required>
-  Fire-and-forget routing. The engine forwards the invocation without waiting for a response or queuing the job. No acknowledgement is returned.
-</ResponseField>
-
-### Fire-and-forget (trigger + TriggerAction.Void)
-
-Use `trigger()` with `action: TriggerAction.Void()` for fire-and-forget invocations. No response is expected.
+**Signature**
 
 ```python
-from iii import TriggerAction
-
-iii.trigger({
-    "function_id": "notifications::send",
-    "payload": {"to": "user@example.com", "subject": "Hello"},
-    "action": TriggerAction.Void(),
-})
+connect()
 ```
+
+### create_channel
+
+Create a streaming channel pair for worker-to-worker data transfer.
+
+Returns a Channel with writer, reader, and their serializable refs
+that can be passed as fields in the invocation data to other functions.
+
+**Signature**
+
+```python
+create_channel(buffer_size: int | None = None)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `buffer_size` | `int \| None` | No | Optional buffer size for the channel (default: 64). |
 
 ### create_stream
 
-<ResponseField name="create_stream" type="(stream_name: str, stream: IStream) => None" required>
-  Registers a custom stream implementation. This registers `{stream_name}::get`, `::set`, `::delete`, `::list`, `::list_groups`, and `::update` functions.
+Register stream functions for a given stream.
 
-  <AccordionGroup>
-    <Accordion iconName="Code" title="Example" description="">
-      ```python
-      from iii.stream import IStream, StreamGetInput, StreamSetInput
+This registers the following functions for the stream:
+- \{stream_name\}::get
+- \{stream_name\}::set
+- \{stream_name\}::delete
+- \{stream_name\}::list
+- \{stream_name\}::list_groups
+- \{stream_name\}::update
 
-      class MyStream(IStream):
-          async def get(self, input: StreamGetInput):
-              ...
-          async def set(self, input: StreamSetInput):
-              ...
-          # ... implement delete, list, list_groups, update
+**Signature**
 
-      iii.create_stream("todos", MyStream())
-      ```
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
+```python
+create_stream(stream_name: str, stream: IStream[Any])
+```
 
-### on_functions_available
+#### Parameters
 
-<ResponseField name="on_functions_available" type="(callback: Callable[[list[FunctionInfo]], None]) => Callable[[], None]" required>
-  Subscribes to function availability events. Returns an unsubscribe function.
-</ResponseField>
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `stream_name` | `str` | Yes | The name of the stream. |
+| `stream` | [`IStream`](#istream)[Any] | Yes | The stream implementation. |
+
+### get_connection_state
+
+Get the current connection state.
+
+**Signature**
+
+```python
+get_connection_state()
+```
 
 ### list_functions
 
-<ResponseField name="list_functions" type="async () => list[FunctionInfo]" required>
-  Lists all functions registered with the engine.
-</ResponseField>
+List all registered functions from the engine.
+
+**Signature**
+
+```python
+list_functions()
+```
 
 ### list_workers
 
-<ResponseField name="list_workers" type="async () => list[WorkerInfo]" required>
-  Lists all connected workers.
-</ResponseField>
+List all connected workers from the engine.
+
+**Signature**
+
+```python
+list_workers()
+```
+
+### on
+
+Subscribe to an event.
+
+Not supported in the Python SDK. Use on_connection_state_change() or
+on_functions_available() instead.
+
+Raises:
+    NotImplementedError: Always raised. Use specific event methods instead.
+
+**Signature**
+
+```python
+on(event: str, callback: Callable[..., None])
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `event` | `str` | Yes | - |
+| `callback` | `Callable[..., None]` | Yes | - |
+
+### on_connection_state_change
+
+Register a callback to be notified of connection state changes.
+
+The callback is immediately invoked with the current state.
+
+Returns:
+    A function to unregister the callback.
+
+**Signature**
+
+```python
+on_connection_state_change(callback: ConnectionStateCallback)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `callback` | `ConnectionStateCallback` | Yes | - |
+
+### on_functions_available
+
+Subscribe to function availability events.
+
+**Signature**
+
+```python
+on_functions_available(callback: Callable[None])
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `callback` | `Callable[None]` | Yes | Function to call when functions become available. Receives list of FunctionInfo. |
+
+### register_function
+
+Register a function with the engine.
+
+Pass a handler for local execution, or an ``HttpInvocationConfig``
+for HTTP-invoked functions (Lambda, Cloudflare Workers, etc.).
+
+**Signature**
+
+```python
+register_function(path: str, handler_or_invocation: RemoteFunctionHandler | HttpInvocationConfig, description: str | None = None, metadata: dict[str, Any] | None = None)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `path` | `str` | Yes | Unique function identifier. |
+| `handler_or_invocation` | RemoteFunctionHandler \| [`HttpInvocationConfig`](#httpinvocationconfig) | Yes | Async handler callable or HTTP invocation config. |
+| `description` | `str \| None` | No | Human-readable description. |
+| `metadata` | `dict[str, Any] \| None` | No | Arbitrary metadata to attach to the function. |
+
+#### Example
+
+```python
+    >>> async def greet(data):
+    ...     return {'message': f"Hello, {data['name']}!"}
+    >>> fn = iii.register_function('greet', greet, description='Greets a user')
+```
+
+### register_service
+
+
+
+**Signature**
+
+```python
+register_service(id: str, description: str | None = None, parent_id: str | None = None)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `str` | Yes | - |
+| `description` | `str \| None` | No | - |
+| `parent_id` | `str \| None` | No | - |
+
+### register_trigger
+
+Bind a trigger configuration to a registered function.
+
+**Signature**
+
+```python
+register_trigger(type: str, function_id: str, config: Any)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `type` | `str` | Yes | Trigger type (e.g. ``http``, ``queue``, ``cron``). |
+| `function_id` | `str` | Yes | ID of the function to invoke. |
+| `config` | `Any` | Yes | Trigger-specific configuration. |
+
+#### Example
+
+```python
+    >>> trigger = iii.register_trigger('http', 'greet', {'api_path': '/greet', 'http_method': 'GET'})
+    >>> trigger.unregister()
+```
 
 ### register_trigger_type
 
-<ResponseField name="register_trigger_type" type="(id: str, description: str, handler: TriggerHandler) => None" required>
-  Registers a custom trigger type.
+Register a custom trigger type with the engine.
 
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="id" type="str" required>
-        Unique trigger type identifier.
-      </ResponseField>
-      <ResponseField name="description" type="str" required>
-        Human-readable description.
-      </ResponseField>
-      <ResponseField name="handler" type="TriggerHandler" required>
-        Must implement `register_trigger(config: TriggerConfig)` and `unregister_trigger(config: TriggerConfig)` async methods.
-      </ResponseField>
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
+**Signature**
+
+```python
+register_trigger_type(id: str, description: str, handler: TriggerHandler[Any])
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `str` | Yes | Unique trigger type identifier. |
+| `description` | `str` | Yes | Human-readable description. |
+| `handler` | [`TriggerHandler`](#triggerhandler)[Any] | Yes | Handler implementing ``register_trigger`` and ``unregister_trigger``. |
+
+### shutdown
+
+Disconnect from the WebSocket server.
+
+**Signature**
+
+```python
+shutdown()
+```
+
+### trigger
+
+Invoke a remote function.
+
+The routing behavior and return type depend on the ``action`` field:
+
+- No action: synchronous -- waits for the function to return.
+- ``TriggerAction.Enqueue(...)``: async via named queue -- returns ``EnqueueResult``.
+- ``TriggerAction.Void()``: fire-and-forget -- returns ``None``.
+
+**Signature**
+
+```python
+trigger(request: dict[str, Any] | TriggerRequest)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `request` | dict[str, Any] \| [`TriggerRequest`](#triggerrequest) | Yes | A ``TriggerRequest`` or dict with ``function_id``, ``payload``, and optional ``action`` / ``timeout_ms``. |
+
+#### Example
+
+```python
+    >>> result = await iii.trigger({'function_id': 'greet', 'payload': {'name': 'World'}})
+    >>> await iii.trigger({'function_id': 'notify', 'payload': {}, 'action': TriggerAction.Void()})
+```
 
 ### unregister_trigger_type
 
-<ResponseField name="unregister_trigger_type" type="(id: str) => None" required>
-  Unregisters a trigger type.
-</ResponseField>
+Unregister a previously registered trigger type.
+
+**Signature**
+
+```python
+unregister_trigger_type(id: str)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `str` | Yes | The trigger type ID to unregister. |
 
 ## Types
 
-```python
-from iii import ApiRequest, ApiResponse
+[`InitOptions`](#initoptions) · [`ReconnectionConfig`](#reconnectionconfig) · [`TelemetryOptions`](#telemetryoptions) · [`HttpInvocationConfig`](#httpinvocationconfig) · [`TriggerActionEnqueue`](#triggeractionenqueue) · [`TriggerActionVoid`](#triggeractionvoid) · [`TriggerRequest`](#triggerrequest) · [`IStream`](#istream) · [`OtelConfig`](#otelconfig) · [`TriggerHandler`](#triggerhandler)
 
-class ApiRequest(BaseModel, Generic[TInput]):
-    path_params: dict[str, str]          # alias: pathParams
-    query_params: dict[str, str | list[str]]  # alias: queryParams
-    body: Any | None = None
-    headers: dict[str, str | list[str]]
-    method: str = "GET"
+### InitOptions
 
-class ApiResponse(BaseModel, Generic[TOutput]):
-    status_code: int    # alias: statusCode
-    body: Any
-    headers: dict[str, str] = {}
-```
+Options for configuring the III SDK.
 
-<Callout title="Pydantic aliases" type="info">
-  `ApiRequest` and `ApiResponse` use Pydantic `populate_by_name=True`, so both `status_code` and `statusCode` work when constructing instances.
-</Callout>
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enable_metrics_reporting` | `bool` | No | - |
+| `invocation_timeout_ms` | `int` | No | - |
+| `otel` | [`OtelConfig`](#otelconfig) \| dict[str, Any] \| None | No | - |
+| `reconnection_config` | [`ReconnectionConfig`](#reconnectionconfig) \| None | No | - |
+| `telemetry` | [`TelemetryOptions`](#telemetryoptions) \| None | No | - |
+| `worker_name` | `str \| None` | No | - |
 
-### Stream Types
+### ReconnectionConfig
 
-```python
-from iii.stream import (
-    IStream,
-    StreamGetInput,
-    StreamSetInput,
-    StreamSetResult,
-    StreamDeleteInput,
-    StreamListInput,
-    StreamListGroupsInput,
-    StreamUpdateInput,
-    UpdateOp,
-    UpdateSet,
-    UpdateIncrement,
-    UpdateDecrement,
-    UpdateRemove,
-    UpdateMerge,
-)
-```
+Configuration for WebSocket reconnection behavior.
 
-### Trigger Types
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `backoff_multiplier` | `float` | No | - |
+| `initial_delay_ms` | `int` | No | - |
+| `jitter_factor` | `float` | No | - |
+| `max_delay_ms` | `int` | No | - |
+| `max_retries` | `int` | No | - |
 
-```python
-from iii import TriggerAction, EnqueueResult
+### TelemetryOptions
 
-# EnqueueResult shape
-# enqueue_result.message_receipt_id: str
-```
+Telemetry metadata to be reported to the engine.
 
-### Other Exports
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `amplitude_api_key` | `str \| None` | No | - |
+| `framework` | `str \| None` | No | - |
+| `language` | `str \| None` | No | - |
+| `project_name` | `str \| None` | No | - |
 
-```python
-from iii import (
-    FunctionInfo,
-    WorkerInfo,
-    WorkerStatus,
-    FunctionsAvailableCallback,
-    RemoteFunctionHandler,
-    Logger,
-    Context,
-    configure_logging,
-)
-```
+### HttpInvocationConfig
+
+Config for HTTP external function invocation.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `auth` | `HttpAuthConfig \| None` | No | - |
+| `headers` | `dict[str, str] \| None` | No | - |
+| `method` | `Literal['GET', 'POST', 'PUT', 'PATCH', 'DELETE']` | No | - |
+| `timeout_ms` | `int \| None` | No | - |
+| `url` | `str` | Yes | - |
+
+### TriggerActionEnqueue
+
+Routes the invocation through a named queue for async processing.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `queue` | `str` | Yes | - |
+| `type` | `Literal['enqueue']` | No | - |
+
+### TriggerActionVoid
+
+Fire-and-forget routing. No response is returned.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `type` | `Literal['void']` | No | - |
+
+### TriggerRequest
+
+Request object for ``trigger()``.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `action` | [`TriggerActionEnqueue`](#triggeractionenqueue) \| [`TriggerActionVoid`](#triggeractionvoid) \| None | No | - |
+| `function_id` | `str` | Yes | - |
+| `payload` | `Any` | No | - |
+| `timeout_ms` | `int \| None` | No | - |
+
+### IStream
+
+Abstract interface for stream operations.
+
+### OtelConfig
+
+Configuration for OpenTelemetry initialization.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `bool \| None` | No | Enable OTel. Defaults to True. Set OTEL_ENABLED=false/0/no/off to disable. |
+| `engine_ws_url` | `str \| None` | No | III Engine WebSocket URL. Defaults to env III_URL or 'ws://localhost:49134'. |
+| `fetch_instrumentation_enabled` | `bool` | No | Auto-instrument urllib HTTP calls via URLLibInstrumentor. Defaults to True. |
+| `logs_batch_size` | `int \| None` | No | Maximum number of log records exported per batch. Defaults to 1 when not set. |
+| `logs_enabled` | `bool \| None` | No | Enable OTel log export via EngineLogExporter. Defaults to True when OTel is enabled. |
+| `logs_flush_interval_ms` | `int \| None` | No | Log processor flush delay in milliseconds. Defaults to 100ms when not set. |
+| `metrics_enabled` | `bool` | No | Enable OTel metrics export via EngineMetricsExporter. Defaults to True. |
+| `metrics_export_interval_ms` | `int` | No | Metrics export interval in milliseconds. Defaults to 60000 (60 seconds). |
+| `service_instance_id` | `str \| None` | No | Service instance ID. Defaults to a random UUID. |
+| `service_name` | `str \| None` | No | Service name. Defaults to env OTEL_SERVICE_NAME or 'iii-python-sdk'. |
+| `service_namespace` | `str \| None` | No | Service namespace attribute. |
+| `service_version` | `str \| None` | No | Service version. Defaults to env SERVICE_VERSION or 'unknown'. |
+
+### TriggerHandler
+
+Abstract base class for trigger handlers.
 
 ## Context
 
@@ -379,7 +457,7 @@ from iii import (
 from iii import Logger
 
 logger = Logger()
-logger.info("Processing started")
+logger.info('Processing started')
 ```
 
-The `Logger()` function returns the current `Context` (with `logger`) from within a function handler. The logger automatically sends log events to the engine.
+The `Logger` class emits OTel LogRecords when OTel is active, otherwise falls back to Python `logging`.

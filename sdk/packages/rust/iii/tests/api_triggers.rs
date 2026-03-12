@@ -1,6 +1,6 @@
 //! Integration tests for HTTP API trigger endpoints.
 //!
-//! Requires a running III engine. Set III_BRIDGE_URL and III_HTTP_URL, or use localhost:49134 defaults.
+//! Requires a running III engine. Set III_URL and III_HTTP_URL, or use localhost:49134 defaults.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 use iii_sdk::{III, IIIError};
 
 fn engine_ws_url() -> String {
-    std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
+    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
 }
 
 fn engine_http_url() -> String {
