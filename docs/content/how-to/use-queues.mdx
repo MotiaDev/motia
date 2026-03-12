@@ -107,9 +107,9 @@ use serde_json::json;
 let iii = III::new(&std::env::var("III_BRIDGE_URL")
     .unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
 
-let iii_clone = iii.clone();
+let iii_for_create = iii.clone();
 iii.register_function("orders::create", move |input| {
-    let iii = iii_clone.clone();
+    let iii = iii_for_create.clone();
     async move {
         let logger = Logger();
         let order_id = uuid::Uuid::new_v4().to_string();
@@ -229,17 +229,21 @@ async def process_order(order):
 use iii_sdk::{TriggerAction, TriggerRequest};
 use serde_json::json;
 
-iii.register_function("orders::process-order", |order| async move {
-    iii.trigger(
-        TriggerRequest::new("notifications::send", json!({
-            "orderId": order["id"],
-            "type": "payment-confirmed",
-        }))
-        .action(TriggerAction::enqueue("default")),
-    )
-    .await?;
+let iii_for_process_order = iii.clone();
+iii.register_function("orders::process-order", move |order| {
+    let iii = iii_for_process_order.clone();
+    async move {
+        iii.trigger(
+            TriggerRequest::new("notifications::send", json!({
+                "orderId": order["id"],
+                "type": "payment-confirmed",
+            }))
+            .action(TriggerAction::enqueue("default")),
+        )
+        .await?;
 
-    Ok(json!({ "processed": true }))
+        Ok(json!({ "processed": true }))
+    }
 });
 ```
 </Tab>
@@ -305,7 +309,7 @@ iii.trigger(
 
 ### 5. Use Void for fire-and-forget calls
 
-When you want to trigger a function without waiting for a response and without going through a queue, use the `Void` action. This replaces the old `triggerVoid` method.
+When you want to trigger a function without waiting for a response and without going through a queue, use the `Void` action. This replaces the old `triggerVoid` method. In Node/TypeScript, `await` is optional for Void but recommended for surfacing errors.
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
@@ -360,7 +364,7 @@ const { orderId } = await iii.trigger({
   function_id: 'orders::create',
   payload: { items: ['item-1', 'item-2'], total: 99.99 },
 })
-logger.info('Order created', { orderId })
+console.log('Order created', orderId)
 ```
 </Tab>
 <Tab value="Python">
@@ -397,6 +401,8 @@ println!("Order created: {}", result["orderId"]);
 | _(none)_ | Direct call — waits for response | `trigger({ function_id: 'fn', payload: data })` |
 | `Enqueue` | Async via named queue — returns `{ messageReceiptId: string }` or `enqueue_error` | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Enqueue({ queue: 'name' }) })` |
 | `Void` | Fire-and-forget, no queue | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Void() })` |
+
+Python and Rust expose equivalent APIs with their language-specific syntax.
 
 ### SDK quick reference
 
@@ -472,6 +478,7 @@ iii.trigger(
 .await?;
 
 // Void (fire-and-forget, no queue)
+// When calling from a handler closure, clone iii into the closure first.
 iii.trigger(
     TriggerRequest::new("send-notification", data).action(TriggerAction::void()),
 )
@@ -483,7 +490,7 @@ iii.trigger(
 ## Migrating from the old topic-based API
 
 <Callout title="Topic-based queues" type="info">
-  The topic-based API (`triggerVoid('enqueue', { topic, data })` and `registerTrigger({ type: 'queue', ... })`) remains valid. Named Queues + Trigger Actions offer config-driven retries, concurrency, and FIFO ordering.
+  The topic-based API (`trigger({ function_id: 'enqueue', payload: { topic, data }, action: TriggerAction.Void() })` and `registerTrigger({ type: 'queue', ... })`) remains valid. Named Queues + Trigger Actions offer config-driven retries, concurrency, and FIFO ordering.
 </Callout>
 
 ### Enqueue: before and after
