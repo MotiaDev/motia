@@ -18,7 +18,7 @@ def use_api(
         result = await handler(req, logger)
         return result.model_dump(by_alias=True)
 
-    iii.register_function(function_id, wrapped)
+    iii.register_function({"id": function_id}, wrapped)
     iii.register_trigger(
         type="http",
         function_id=function_id,
