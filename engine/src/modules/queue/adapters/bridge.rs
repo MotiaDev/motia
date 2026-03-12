@@ -12,6 +12,8 @@ use serde_json::Value;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+use tracing::Instrument;
+
 use crate::{
     condition::check_condition,
     engine::{Engine, EngineTrait},
@@ -19,6 +21,7 @@ use crate::{
         QueueAdapter, SubscriberQueueConfig,
         registry::{QueueAdapterFuture, QueueAdapterRegistration},
     },
+    telemetry::SpanExt,
 };
 
 struct SubscriptionInfo {
@@ -81,12 +84,34 @@ impl BridgeAdapter {
         })
     }
 
-    fn queue_enqueue_function_id() -> &'static str {
-        "enqueue"
-    }
+    const ENQUEUE_FUNCTION_ID: &'static str = "enqueue";
 
-    fn build_enqueue_payload(topic: &str, data: Value) -> Value {
-        serde_json::json!({ "topic": topic, "data": data })
+    /// Builds the JSON payload for enqueuing a message via the bridge.
+    ///
+    /// # Reserved fields
+    ///
+    /// This function embeds trace context using the following reserved field names:
+    /// - `__traceparent` — W3C Trace Context `traceparent` header for distributed tracing
+    /// - `__baggage` — W3C Baggage header for cross-service context propagation
+    ///
+    /// The double-underscore (`__`) prefix is a convention indicating internal bridge
+    /// metadata. **User payloads must not use `__traceparent` or `__baggage` as field
+    /// names**, as they will be overwritten during enqueue and stripped on the receiving
+    /// side during trace context extraction.
+    fn build_enqueue_payload(
+        topic: &str,
+        data: Value,
+        traceparent: Option<&str>,
+        baggage: Option<&str>,
+    ) -> Value {
+        let mut payload = serde_json::json!({ "topic": topic, "data": data });
+        if let Some(tp) = traceparent {
+            payload["__traceparent"] = Value::String(tp.to_string());
+        }
+        if let Some(bg) = baggage {
+            payload["__baggage"] = Value::String(bg.to_string());
+        }
+        payload
     }
 }
 
@@ -95,26 +120,27 @@ impl QueueAdapter for BridgeAdapter {
     /// Enqueues a message to the bridge for distribution to other engines.
     /// Failures are logged but do not block the caller.
     ///
-    /// Note: trace context (`_traceparent`, `_baggage`) is intentionally not
-    /// propagated — the bridge protocol does not support W3C trace headers.
+    /// Trace context is embedded in the payload as `__traceparent` and `__baggage`
+    /// fields so it can be extracted on the receiving side.
     async fn enqueue(
         &self,
         topic: &str,
         data: Value,
-        _traceparent: Option<String>,
-        _baggage: Option<String>,
+        traceparent: Option<String>,
+        baggage: Option<String>,
     ) {
         tracing::debug!(
             topic = %topic,
-            has_traceparent = _traceparent.is_some(),
-            has_baggage = _baggage.is_some(),
-            "enqueue via bridge: trace context not forwarded (bridge protocol limitation)"
+            has_traceparent = traceparent.is_some(),
+            has_baggage = baggage.is_some(),
+            "enqueue via bridge with trace context"
         );
-        let input = Self::build_enqueue_payload(topic, data);
+        let input =
+            Self::build_enqueue_payload(topic, data, traceparent.as_deref(), baggage.as_deref());
         if let Err(e) = self
             .bridge
             .trigger(
-                iii_sdk::TriggerRequest::new(Self::queue_enqueue_function_id(), input)
+                iii_sdk::TriggerRequest::new(Self::ENQUEUE_FUNCTION_ID, input)
                     .action(iii_sdk::TriggerAction::void()),
             )
             .await
@@ -148,62 +174,90 @@ impl QueueAdapter for BridgeAdapter {
         }
 
         let handler_path = format!("queue::bridge::on_message::{}", Uuid::new_v4());
-        let handler_path_for_trigger = handler_path.clone();
         let engine = Arc::clone(&self.engine);
-        let function_id_for_subscription = function_id.to_string();
-        let function_id_for_handler = function_id_for_subscription.clone();
-        let condition_function_id_for_handler = condition_function_id.clone();
+        let function_id_owned = function_id.to_string();
+        let condition_function_id_owned = condition_function_id.clone();
+        let topic_owned = topic.to_string();
         self.bridge
             .register_function(handler_path.clone(), move |data: Value| {
                 let engine = Arc::clone(&engine);
-                let function_id = function_id_for_handler.clone();
-                let condition_function_id = condition_function_id_for_handler.clone();
+                let function_id = function_id_owned.clone();
+                let condition_function_id = condition_function_id_owned.clone();
+                let topic_name = topic_owned.clone();
                 async move {
-                    if let Some(condition_path) = condition_function_id {
-                        tracing::debug!(
-                            condition_function_id = %condition_path,
-                            "Checking trigger conditions"
-                        );
-                        match check_condition(engine.as_ref(), &condition_path, data.clone()).await
-                        {
-                            Ok(true) => {}
-                            Ok(false) => {
-                                tracing::debug!(
-                                    condition_path = %condition_path,
-                                    "Condition check failed, skipping handler"
-                                );
-                                return Ok(Value::Null);
+                    // Extract trace context embedded by the sender
+                    let traceparent = data["__traceparent"].as_str().map(|s| s.to_string());
+                    let baggage = data["__baggage"].as_str().map(|s| s.to_string());
+
+                    let span = tracing::info_span!(
+                        "queue_job",
+                        otel.name = %format!("queue {}", topic_name),
+                        queue = %topic_name,
+                        "messaging.system" = "bridge-queue",
+                        "messaging.destination.name" = %topic_name,
+                        "messaging.operation.type" = "process",
+                        otel.status_code = tracing::field::Empty,
+                    )
+                    .with_parent_headers(traceparent.as_deref(), baggage.as_deref());
+
+                    async move {
+                        if let Some(condition_path) = condition_function_id {
+                            tracing::debug!(
+                                condition_function_id = %condition_path,
+                                "Checking trigger conditions"
+                            );
+                            match check_condition(engine.as_ref(), &condition_path, data.clone())
+                                .await
+                            {
+                                Ok(true) => {}
+                                Ok(false) => {
+                                    tracing::debug!(
+                                        condition_path = %condition_path,
+                                        "Condition check failed, skipping handler"
+                                    );
+                                    tracing::Span::current().record("otel.status_code", "OK");
+                                    return Ok(Value::Null);
+                                }
+                                Err(err) => {
+                                    tracing::error!(
+                                        condition_function_id = %condition_path,
+                                        error = ?err,
+                                        "Error invoking condition function"
+                                    );
+                                    tracing::Span::current().record("otel.status_code", "ERROR");
+                                    return Err(IIIError::Remote {
+                                        code: err.code,
+                                        message: err.message,
+                                        stacktrace: err.stacktrace,
+                                    });
+                                }
+                            }
+                        }
+
+                        // Invoke the actual handler
+                        match engine.call(&function_id, data).await {
+                            Ok(result) => {
+                                tracing::Span::current().record("otel.status_code", "OK");
+                                Ok::<Value, IIIError>(result.unwrap_or(Value::Null))
                             }
                             Err(err) => {
-                                tracing::error!(
-                                    condition_function_id = %condition_path,
-                                    error = ?err,
-                                    "Error invoking condition function"
-                                );
-                                return Err(IIIError::Remote {
+                                tracing::Span::current().record("otel.status_code", "ERROR");
+                                Err(IIIError::Remote {
                                     code: err.code,
                                     message: err.message,
                                     stacktrace: err.stacktrace,
-                                });
+                                })
                             }
                         }
                     }
-
-                    // Invoke the actual handler
-                    match engine.call(&function_id, data).await {
-                        Ok(result) => Ok::<Value, IIIError>(result.unwrap_or(Value::Null)),
-                        Err(err) => Err(IIIError::Remote {
-                            code: err.code,
-                            message: err.message,
-                            stacktrace: err.stacktrace,
-                        }),
-                    }
+                    .instrument(span)
+                    .await
                 }
             });
 
         let trigger = match self.bridge.register_trigger(
             "queue",
-            handler_path_for_trigger.clone(),
+            handler_path.clone(),
             serde_json::json!({ "topic": topic }),
         ) {
             Ok(t) => t,
@@ -212,8 +266,8 @@ impl QueueAdapter for BridgeAdapter {
                     error = %e,
                     topic = %topic,
                     id = %id,
-                    function_id = %function_id_for_subscription,
-                    handler_path = %handler_path_for_trigger,
+                    function_id = %function_id,
+                    handler_path = %handler_path,
                     "Failed to register queue trigger via bridge, subscription not created"
                 );
                 // Note: If register_trigger fails after register_function succeeds,
@@ -294,7 +348,7 @@ mod tests {
 
     #[test]
     fn test_enqueue_uses_enqueue_function_id() {
-        assert_eq!(BridgeAdapter::queue_enqueue_function_id(), "enqueue");
+        assert_eq!(BridgeAdapter::ENQUEUE_FUNCTION_ID, "enqueue");
     }
 
     #[test]
@@ -302,31 +356,42 @@ mod tests {
         let payload = BridgeAdapter::build_enqueue_payload(
             "topic.orders.created",
             serde_json::json!({ "order_id": "o-1" }),
+            None,
+            None,
         );
 
         assert_eq!(payload["topic"], "topic.orders.created");
         assert_eq!(payload["data"]["order_id"], "o-1");
+        assert!(payload.get("__traceparent").is_none());
+        assert!(payload.get("__baggage").is_none());
+    }
+
+    #[test]
+    fn test_enqueue_builds_enqueue_payload_with_trace_context() {
+        let payload = BridgeAdapter::build_enqueue_payload(
+            "topic.orders.created",
+            serde_json::json!({ "order_id": "o-1" }),
+            Some("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"),
+            Some("key=value"),
+        );
+
+        assert_eq!(payload["topic"], "topic.orders.created");
+        assert_eq!(payload["data"]["order_id"], "o-1");
+        assert_eq!(
+            payload["__traceparent"],
+            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+        );
+        assert_eq!(payload["__baggage"], "key=value");
     }
 
     #[tokio::test]
     async fn test_subscribe_handles_bridge_error_gracefully() {
-        // This test verifies subscribe doesn't panic on bridge errors
-        // We can't easily test actual bridge failure without mocking,
-        // so we test the error path exists
         let engine = Arc::new(Engine::new());
-
-        // Use a URL that will fail to connect
-        // Note: This test may be flaky - consider mocking bridge in future
         let result = BridgeAdapter::new(engine.clone(), "ws://invalid-host:9999".to_string()).await;
 
-        // Connection should fail, but that's expected
-        if result.is_err() {
-            // This is fine - we're testing error handling
-            return;
-        }
-
-        // If connection succeeds (unlikely), test subscribe doesn't panic
-        let adapter = result.unwrap();
+        // Connection failure is the expected path; if it somehow succeeds,
+        // verify subscribe doesn't panic either.
+        let Ok(adapter) = result else { return };
         adapter
             .subscribe("test_topic", "test_id", "functions.test", None, None)
             .await;

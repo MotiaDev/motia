@@ -6,14 +6,17 @@ import {
   Eye,
   EyeOff,
   GitBranch,
+  Pause,
+  Play,
   RefreshCw,
   Timer,
   XCircle,
   Zap,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchTraces, fetchTraceTree } from '@/api'
+import { fetchTraceTree } from '@/api'
 import { FlameGraph } from '@/components/traces/FlameGraph'
+import { FlowView } from '@/components/traces/FlowView'
 import { ServiceBreakdown } from '@/components/traces/ServiceBreakdown'
 import { SpanPanel } from '@/components/traces/SpanPanel'
 import { TraceFilters } from '@/components/traces/TraceFilters'
@@ -21,12 +24,13 @@ import { TraceHeader } from '@/components/traces/TraceHeader'
 import { TraceMap } from '@/components/traces/TraceMap'
 import { ViewSwitcher, type ViewType } from '@/components/traces/ViewSwitcher'
 import { WaterfallChart } from '@/components/traces/WaterfallChart'
-import { Button } from '@/components/ui/card'
+import { Badge, Button } from '@/components/ui/card'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { Pagination } from '@/components/ui/pagination'
+import { useResizablePanels } from '@/hooks/useResizablePanels'
+import { type TraceGroup, useTraceData } from '@/hooks/useTraceData'
 import { useTraceFilters } from '@/hooks/useTraceFilters'
 import {
-  toMs,
   treeToWaterfallData,
   type VisualizationSpan,
   type WaterfallData,
@@ -37,24 +41,11 @@ export const Route = createFileRoute('/traces')({
   component: TracesPage,
 })
 
-interface TraceGroup {
-  traceId: string
-  rootOperation: string
-  status: 'ok' | 'error' | 'pending'
-  startTime: number
-  endTime?: number
-  duration?: number
-  spanCount: number
-  services: string[]
-}
-
 function formatTime(timestamp: number): string {
-  // Convert from milliseconds to JavaScript Date
-  // If timestamp looks like nanoseconds (very large number > year 2100 in ms), convert it
+  // If timestamp is in nanoseconds (beyond year 2100 in ms), convert to ms
   const timestampMs = timestamp > 4102444800000 ? timestamp / 1_000_000 : timestamp
   const date = new Date(timestampMs)
 
-  // Check if date is valid
   if (Number.isNaN(date.getTime())) {
     return 'Invalid Date'
   }
@@ -67,26 +58,35 @@ function formatTime(timestamp: number): string {
   })
 }
 
-const DEFAULT_TRACE_LIMIT = 10_000
-const TRACE_PANEL_DEFAULT = 520
-const SPAN_PANEL_DEFAULT = 400
-const PANEL_MIN_WIDTH = 280
-const PANEL_MAX_WIDTH = 900
-const clampPanelWidth = (w: number) => Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_MAX_WIDTH, w))
+function StatusIcon({ status }: { status: TraceGroup['status'] }) {
+  switch (status) {
+    case 'ok':
+      return <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+    case 'error':
+      return <XCircle className="w-3.5 h-3.5 text-error" />
+    default:
+      return <Activity className="w-3.5 h-3.5 text-yellow animate-pulse" />
+  }
+}
 
 function TracesPage() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => setDebouncedSearch(value), 300)
+  }, [])
   const [showSystem, setShowSystem] = useState(false)
-  const [traceGroups, setTraceGroups] = useState<TraceGroup[]>([])
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null)
-  const [hasOtelConfigured, setHasOtelConfigured] = useState(false)
 
   const [activeView, setActiveView] = useState<ViewType>('waterfall')
   const [selectedSpan, setSelectedSpan] = useState<VisualizationSpan | null>(null)
   const [waterfallData, setWaterfallData] = useState<WaterfallData | null>(null)
   const [isLoadingSpans, setIsLoadingSpans] = useState(false)
   const [spansError, setSpansError] = useState<string | null>(null)
+  const [isPaused, setIsPaused] = useState(false)
 
   const {
     filters: filterState,
@@ -100,52 +100,23 @@ function TracesPage() {
 
   const activeFilterCount = getActiveFilterCount()
 
-  const loadTraces = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const params = getFilterOnlyParams()
-      const data = await fetchTraces({
-        ...params,
-        offset: 0,
-        limit: DEFAULT_TRACE_LIMIT,
-        include_internal: showSystem,
-      })
+  const filterParams = getFilterOnlyParams()
 
-      if (data.spans && data.spans.length > 0) {
-        // engine.traces.list now returns only root spans, so each span is a trace row
-        const traces: TraceGroup[] = data.spans.map((span) => {
-          const startTime = toMs(span.start_time_unix_nano)
-          const endTime = toMs(span.end_time_unix_nano)
-          const duration = endTime - startTime
-
-          return {
-            traceId: span.trace_id,
-            rootOperation: span.name,
-            status: span.status.toLowerCase() === 'error' ? 'error' : 'ok',
-            startTime,
-            endTime,
-            duration,
-            spanCount: 1,
-            services: [span.service_name || 'unknown'],
-          }
-        })
-
-        traces.sort((a, b) => b.startTime - a.startTime)
-
-        setTraceGroups(traces)
-        setHasOtelConfigured(true)
-      } else {
-        setTraceGroups([])
-        setHasOtelConfigured(false)
-      }
-    } catch (error) {
-      console.error('Failed to load traces:', error)
-      setTraceGroups([])
-      setHasOtelConfigured(false)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [getFilterOnlyParams, showSystem])
+  const {
+    traceGroups,
+    newTraceIds,
+    setNewTraceIds,
+    hasOtelConfigured,
+    isQueryLoading,
+    refetch,
+    isHoveredRef,
+    flushPendingTraces,
+  } = useTraceData({
+    filterParams,
+    showSystem,
+    debouncedSearch,
+    isPaused,
+  })
 
   const loadTraceSpans = useCallback(async (traceId: string) => {
     setIsLoadingSpans(true)
@@ -160,7 +131,6 @@ function TracesPage() {
 
         if (wfData) {
           setWaterfallData(wfData)
-          setSpansError(null)
         } else {
           console.warn('[Traces] treeToWaterfallData returned null')
           setSpansError('Failed to process span data')
@@ -177,10 +147,6 @@ function TracesPage() {
     }
   }, [])
 
-  useEffect(() => {
-    loadTraces()
-  }, [loadTraces])
-
   const selectTrace = useCallback(
     (traceId: string | null) => {
       setSelectedTraceId(traceId)
@@ -190,6 +156,7 @@ function TracesPage() {
         setSpansError(null)
         setIsLoadingSpans(false)
       } else {
+        setIsPaused(true)
         loadTraceSpans(traceId)
       }
     },
@@ -199,17 +166,21 @@ function TracesPage() {
   const selectedTrace = traceGroups.find((g) => g.traceId === selectedTraceId)
 
   const filteredTraces = useMemo(() => {
+    // When debouncedSearch is active, server already filtered by name across all spans
+    // Only apply client-side filter for the interim before debounce fires
+    const pendingClientSearch = searchQuery && searchQuery !== debouncedSearch
     return traceGroups.filter((group) => {
-      // Search filter
-      if (searchQuery) {
+      if (pendingClientSearch) {
         const query = searchQuery.toLowerCase()
         const matchesId = group.traceId.toLowerCase().includes(query)
         const matchesOp = group.rootOperation.toLowerCase().includes(query)
-        if (!matchesId && !matchesOp) return false
+        const matchesFn = group.functionId?.toLowerCase().includes(query) ?? false
+        const matchesTopic = group.topic?.toLowerCase().includes(query) ?? false
+        if (!matchesId && !matchesOp && !matchesFn && !matchesTopic) return false
       }
       return true
     })
-  }, [traceGroups, searchQuery])
+  }, [traceGroups, searchQuery, debouncedSearch])
 
   const totalPages = Math.max(1, Math.ceil(filteredTraces.length / filterState.pageSize))
 
@@ -238,83 +209,12 @@ function TracesPage() {
 
   // --- Resizable panels ---
   const containerRef = useRef<HTMLDivElement>(null)
-  const [panelWidths, setPanelWidths] = useState({
-    trace: TRACE_PANEL_DEFAULT,
-    span: SPAN_PANEL_DEFAULT,
-  })
-  const [isResizing, setIsResizing] = useState(false)
-  const panelWidthsRef = useRef({ trace: TRACE_PANEL_DEFAULT, span: SPAN_PANEL_DEFAULT })
-  panelWidthsRef.current = panelWidths
-  const isResizingRef = useRef<'trace' | 'span' | null>(null)
-  const resizeStartRef = useRef({ x: 0, width: 0, otherWidth: 0 })
-  const prevSelectedSpanRef = useRef<string | null>(null)
-  const preSplitTraceWidthRef = useRef(TRACE_PANEL_DEFAULT)
 
-  // Auto-split panels when span detail opens, restore when it closes
-  useEffect(() => {
-    const spanId = selectedSpan?.span_id ?? null
-    const hadSpan = prevSelectedSpanRef.current !== null
-    const hasSpan = spanId !== null
-
-    if (hasSpan && !hadSpan) {
-      preSplitTraceWidthRef.current = panelWidthsRef.current.trace
-      const containerWidth = containerRef.current?.offsetWidth ?? 1200
-      const halfWidth = Math.max(PANEL_MIN_WIDTH, Math.floor((containerWidth - 3) / 2))
-      setPanelWidths({ trace: halfWidth, span: halfWidth })
-    } else if (!hasSpan && hadSpan) {
-      setPanelWidths((p) => ({ ...p, trace: preSplitTraceWidthRef.current }))
-    }
-
-    prevSelectedSpanRef.current = spanId
-  }, [selectedSpan])
-
-  const startResize = useCallback((e: React.MouseEvent, panel: 'trace' | 'span') => {
-    e.preventDefault()
-    isResizingRef.current = panel
-    setIsResizing(true)
-    resizeStartRef.current = {
-      x: e.clientX,
-      width: panel === 'trace' ? panelWidthsRef.current.trace : panelWidthsRef.current.span,
-      otherWidth: panel === 'trace' ? panelWidthsRef.current.span : panelWidthsRef.current.trace,
-    }
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-  }, [])
-
-  useEffect(() => {
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isResizingRef.current) return
-      const dx = resizeStartRef.current.x - e.clientX
-
-      if (isResizingRef.current === 'trace') {
-        setPanelWidths((p) => ({ ...p, trace: clampPanelWidth(resizeStartRef.current.width + dx) }))
-      } else {
-        // Coupled resize: maintain total width between both panels
-        const totalWidth = resizeStartRef.current.width + resizeStartRef.current.otherWidth
-        const maxForPanel = totalWidth - PANEL_MIN_WIDTH
-        const newSpanWidth = Math.max(
-          PANEL_MIN_WIDTH,
-          Math.min(maxForPanel, resizeStartRef.current.width + dx),
-        )
-        const newTraceWidth = totalWidth - newSpanWidth
-        setPanelWidths({ trace: newTraceWidth, span: newSpanWidth })
-      }
-    }
-    const onMouseUp = () => {
-      if (isResizingRef.current) {
-        isResizingRef.current = null
-        setIsResizing(false)
-        document.body.style.cursor = ''
-        document.body.style.userSelect = ''
-      }
-    }
-    document.addEventListener('mousemove', onMouseMove)
-    document.addEventListener('mouseup', onMouseUp)
-    return () => {
-      document.removeEventListener('mousemove', onMouseMove)
-      document.removeEventListener('mouseup', onMouseUp)
-    }
-  }, [])
+  const { panelWidths, isResizing, startResize, resetTracePanel, resetSpanPanel } =
+    useResizablePanels({
+      selectedSpanId: selectedSpan?.span_id ?? null,
+      containerRef,
+    })
 
   return (
     <div className="flex flex-col h-full bg-background text-foreground">
@@ -324,6 +224,12 @@ function TracesPage() {
             <GitBranch className="w-4 h-4 text-cyan-400" />
             Traces
           </h1>
+          {isPaused && (
+            <Badge variant="warning" className="gap-1 text-[10px] md:text-xs">
+              <Pause className="w-2.5 h-2.5 md:w-3 md:h-3" />
+              <span className="hidden sm:inline">Paused</span>
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 md:gap-2">
@@ -343,13 +249,26 @@ function TracesPage() {
             </span>
           </Button>
           <Button
+            variant={isPaused ? 'accent' : 'ghost'}
+            size="sm"
+            onClick={() => setIsPaused(!isPaused)}
+            className="h-6 md:h-7 text-[10px] md:text-xs px-2"
+          >
+            {isPaused ? (
+              <Play className="w-3 h-3 md:mr-1.5" />
+            ) : (
+              <Pause className="w-3 h-3 md:mr-1.5" />
+            )}
+            <span className="hidden md:inline">{isPaused ? 'Resume' : 'Pause'}</span>
+          </Button>
+          <Button
             variant="ghost"
             size="sm"
-            onClick={loadTraces}
-            disabled={isLoading}
+            onClick={() => refetch()}
+            disabled={isQueryLoading}
             className="h-7 text-xs text-muted hover:text-foreground"
           >
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isQueryLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -363,9 +282,9 @@ function TracesPage() {
             onClear={resetFilters}
             validationWarnings={validationWarnings}
             onClearWarnings={clearValidationWarnings}
-            isLoading={isLoading}
+            isLoading={isQueryLoading}
             searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+            onSearchChange={handleSearchChange}
             stats={hasOtelConfigured ? stats : undefined}
           />
         </ErrorBoundary>
@@ -375,8 +294,18 @@ function TracesPage() {
         <div
           className={`flex flex-col flex-1 overflow-hidden ${selectedSpan && waterfallData ? 'hidden' : ''}`}
         >
-          <div className="flex-1 overflow-y-auto">
-            {isLoading && traceGroups.length === 0 ? (
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: hover detection for pause/resume of live updates */}
+          <div
+            className="flex-1 overflow-y-auto"
+            onMouseEnter={() => {
+              isHoveredRef.current = true
+            }}
+            onMouseLeave={() => {
+              isHoveredRef.current = false
+              flushPendingTraces()
+            }}
+          >
+            {isQueryLoading && traceGroups.length === 0 ? (
               <div className="flex items-center justify-center h-32">
                 <RefreshCw className="w-5 h-5 text-muted animate-spin" />
               </div>
@@ -397,7 +326,7 @@ function TracesPage() {
                       type="button"
                       onClick={() => {
                         resetFilters()
-                        setSearchQuery('')
+                        handleSearchChange('')
                       }}
                       className="mt-2.5 text-[11px] text-yellow hover:underline"
                     >
@@ -409,26 +338,37 @@ function TracesPage() {
             ) : (
               pagedTraces.map((group) => {
                 const isSelected = selectedTraceId === group.traceId
+                const isNew = newTraceIds.has(group.traceId)
 
                 return (
                   <button
                     key={group.traceId}
                     type="button"
                     onClick={() => selectTrace(isSelected ? null : group.traceId)}
+                    onAnimationEnd={() => {
+                      if (isNew)
+                        setNewTraceIds((prev) => {
+                          const next = new Set(prev)
+                          next.delete(group.traceId)
+                          return next
+                        })
+                    }}
                     className={`w-full p-3 border-b border-border text-left transition-colors
                       ${isSelected ? 'bg-primary/10 border-l-2 border-l-primary' : 'hover:bg-dark-gray/50'}
+                      ${isNew ? 'animate-trace-flash' : ''}
                     `}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      {group.status === 'ok' ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-success" />
-                      ) : group.status === 'error' ? (
-                        <XCircle className="w-3.5 h-3.5 text-error" />
-                      ) : (
-                        <Activity className="w-3.5 h-3.5 text-yellow animate-pulse" />
-                      )}
+                      <StatusIcon status={group.status} />
                       <span className="font-medium text-sm truncate flex-1">
-                        {group.rootOperation}
+                        {group.topic ? (
+                          <>
+                            <span className="text-muted text-xs font-normal mr-1">enqueue:</span>
+                            {group.topic}
+                          </>
+                        ) : (
+                          (group.functionId ?? group.rootOperation)
+                        )}
                       </span>
                     </div>
 
@@ -471,11 +411,11 @@ function TracesPage() {
               <button
                 type="button"
                 onMouseDown={(e) => startResize(e, 'trace')}
-                onDoubleClick={() => setPanelWidths((p) => ({ ...p, trace: TRACE_PANEL_DEFAULT }))}
+                onDoubleClick={resetTracePanel}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    setPanelWidths((p) => ({ ...p, trace: TRACE_PANEL_DEFAULT }))
+                    resetTracePanel()
                   }
                 }}
                 className="w-[3px] flex-shrink-0 cursor-col-resize relative bg-border hover:bg-primary/50 active:bg-primary transition-colors"
@@ -523,9 +463,8 @@ function TracesPage() {
                   <TraceHeader
                     data={waterfallData}
                     traceId={selectedTrace.traceId}
-                    onClose={() => {
-                      selectTrace(null)
-                    }}
+                    onClose={() => selectTrace(null)}
+                    onSpanClick={setSelectedSpan}
                   />
 
                   <div className="border-b border-[#1D1D1D] px-4 py-2.5">
@@ -552,11 +491,21 @@ function TracesPage() {
                     {activeView === 'map' && (
                       <TraceMap data={waterfallData} onSpanClick={setSelectedSpan} />
                     )}
+
+                    {activeView === 'flow' && (
+                      <FlowView
+                        data={waterfallData}
+                        onSpanClick={setSelectedSpan}
+                        selectedSpanId={selectedSpan?.span_id}
+                      />
+                    )}
                   </div>
 
-                  <div className="border-t border-[#1D1D1D] flex-shrink-0">
-                    <ServiceBreakdown data={waterfallData} />
-                  </div>
+                  {activeView !== 'flow' && (
+                    <div className="border-t border-[#1D1D1D] flex-shrink-0">
+                      <ServiceBreakdown data={waterfallData} />
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -568,11 +517,11 @@ function TracesPage() {
             <button
               type="button"
               onMouseDown={(e) => startResize(e, 'span')}
-              onDoubleClick={() => setPanelWidths((p) => ({ ...p, span: SPAN_PANEL_DEFAULT }))}
+              onDoubleClick={resetSpanPanel}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault()
-                  setPanelWidths((p) => ({ ...p, span: SPAN_PANEL_DEFAULT }))
+                  resetSpanPanel()
                 }
               }}
               className="w-[3px] flex-shrink-0 cursor-col-resize relative bg-border hover:bg-primary/50 active:bg-primary transition-colors"
@@ -589,6 +538,7 @@ function TracesPage() {
                 traceData={waterfallData}
                 onClose={() => setSelectedSpan(null)}
                 onNavigateToSpan={setSelectedSpan}
+                onNavigateToTrace={selectTrace}
               />
             </div>
           </>
