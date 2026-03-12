@@ -233,6 +233,20 @@ export type FunctionInfo = {
   metadata?: Record<string, unknown>
 }
 
+/**
+ * Information about a registered trigger.
+ */
+export type TriggerInfo = {
+  /** Unique trigger identifier. */
+  id: string
+  /** Type of the trigger (e.g. `http`, `cron`, `queue`). */
+  trigger_type: string
+  /** ID of the function this trigger is bound to. */
+  function_id: string
+  /** Trigger-specific configuration. */
+  config?: unknown
+}
+
 /** Worker connection status. */
 export type WorkerStatus = 'connected' | 'available' | 'busy' | 'disconnected'
 

@@ -8,6 +8,7 @@ Registers observable gauges with the OTel meter for:
 
 Uses a batch observable callback for efficient single-collection-per-cycle.
 """
+
 from __future__ import annotations
 
 from typing import Any, Optional

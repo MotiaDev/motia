@@ -66,7 +66,7 @@ async def main():
 </Tab>
 <Tab value="Rust">
 ```rust title="math_add.rs"
-use iii_sdk::{Logger, TriggerRequest, III, TriggerRequest};
+use iii_sdk::{Logger, TriggerRequest, III};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -701,9 +701,9 @@ trigger.unregister();
 </Tab>
 </Tabs>
 
-## registerWorker, Function, and Trigger Registration is Synchronous
+## SDK Initialization and Registration is Synchronous
 
-The `registerWorker()` call returns immediately rather than returning a Promise. This is intentional.
+The `registerWorker()` (Node) or `III()` / `register_worker()` (Python/Rust) call returns immediately rather than returning a Promise. This is intentional.
 Connection establishment happens asynchronously in the background.
 
 This design avoids requiring developers to wrap initialization in an async function or await the SDK before

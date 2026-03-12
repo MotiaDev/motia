@@ -275,6 +275,17 @@ class OtelLogEvent(BaseModel):
     instrumentation_scope_name: str | None = None
     instrumentation_scope_version: str | None = None
 
+
+LogSeverityLevel = Literal["trace", "debug", "info", "warn", "error", "fatal", "all"]
+"""Severity level for log filtering."""
+
+
+class LogConfig(BaseModel):
+    """Configuration for log subscription filtering."""
+
+    min_severity: LogSeverityLevel = "info"
+
+
 IIIMessage = (
     RegisterFunctionMessage
     | UnregisterFunctionMessage

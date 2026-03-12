@@ -3,6 +3,7 @@
 Collects CPU, memory (RSS, VMS), and process uptime metrics.
 Uses stdlib `os` and `resource` modules -- no psutil dependency required.
 """
+
 from __future__ import annotations
 
 import os

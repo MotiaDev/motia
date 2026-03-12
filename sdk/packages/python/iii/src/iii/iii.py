@@ -173,6 +173,7 @@ class III:
         self._running = True
         try:
             from .telemetry import attach_event_loop, init_otel
+
             loop = asyncio.get_running_loop()
             otel_cfg: OtelConfig | None = None
             if self._options.otel:
@@ -214,6 +215,7 @@ class III:
 
         try:
             from .telemetry import shutdown_otel_async
+
             await shutdown_otel_async()
         except ImportError:
             pass
@@ -241,7 +243,7 @@ class III:
                 log.error(f"Max reconnection retries ({config.max_retries}) reached, giving up")
                 return
 
-            exponential_delay = config.initial_delay_ms * (config.backoff_multiplier ** self._reconnect_attempt)
+            exponential_delay = config.initial_delay_ms * (config.backoff_multiplier**self._reconnect_attempt)
             capped_delay = min(exponential_delay, config.max_delay_ms)
             jitter = capped_delay * config.jitter_factor * (2 * random.random() - 1)
             delay_ms = max(0, capped_delay + jitter)
@@ -383,6 +385,7 @@ class III:
         try:
             from opentelemetry import context as otel_context
             from opentelemetry import propagate
+
             carrier: dict[str, str] = {}
             propagate.inject(carrier, context=otel_context.get_current())
             return carrier.get("traceparent")
@@ -394,6 +397,7 @@ class III:
         try:
             from opentelemetry import context as otel_context
             from opentelemetry import propagate
+
             carrier: dict[str, str] = {}
             propagate.inject(carrier, context=otel_context.get_current())
             return carrier.get("baggage")
@@ -450,11 +454,7 @@ class III:
         """Recursively resolve StreamChannelRef objects into ChannelReader/ChannelWriter instances."""
         if is_channel_ref(data):
             ref = StreamChannelRef(**data)
-            return (
-                ChannelReader(self._address, ref)
-                if ref.direction == "read"
-                else ChannelWriter(self._address, ref)
-            )
+            return ChannelReader(self._address, ref) if ref.direction == "read" else ChannelWriter(self._address, ref)
         if isinstance(data, dict):
             return {k: self._resolve_channels(v) for k, v in data.items()}
         if isinstance(data, list):
@@ -708,9 +708,7 @@ class III:
         else:
             if not callable(handler_or_invocation):
                 actual_type = type(handler_or_invocation).__name__
-                raise TypeError(
-                    f"handler_or_invocation must be callable or HttpInvocationConfig, got {actual_type}"
-                )
+                raise TypeError(f"handler_or_invocation must be callable or HttpInvocationConfig, got {actual_type}")
             handler = handler_or_invocation
             msg = RegisterFunctionMessage(id=path, description=description, metadata=metadata)
             self._send_if_connected(msg)
@@ -844,10 +842,12 @@ class III:
 
     async def list_triggers(self, include_internal: bool = False) -> list[TriggerInfo]:
         """List all registered triggers from the engine."""
-        result = await self.trigger({
-            "function_id": "engine::triggers::list",
-            "payload": {"include_internal": include_internal},
-        })
+        result = await self.trigger(
+            {
+                "function_id": "engine::triggers::list",
+                "payload": {"include_internal": include_internal},
+            }
+        )
         triggers_data = result.get("triggers", [])
         return [TriggerInfo(**t) for t in triggers_data]
 
@@ -860,10 +860,12 @@ class III:
         Args:
             buffer_size: Optional buffer size for the channel (default: 64).
         """
-        result = await self.trigger({
-            "function_id": "engine::channels::create",
-            "payload": {"buffer_size": buffer_size},
-        })
+        result = await self.trigger(
+            {
+                "function_id": "engine::channels::create",
+                "payload": {"buffer_size": buffer_size},
+            }
+        )
         writer_ref = StreamChannelRef(**result["writer"])
         reader_ref = StreamChannelRef(**result["reader"])
         return Channel(
@@ -884,9 +886,7 @@ class III:
 
         telemetry_opts = self._options.telemetry
         language = (
-            (telemetry_opts.language if telemetry_opts else None)
-            or os.environ.get("LANG", "").split(".")[0]
-            or None
+            (telemetry_opts.language if telemetry_opts else None) or os.environ.get("LANG", "").split(".")[0] or None
         )
 
         telemetry: dict[str, Any] = {
@@ -958,8 +958,13 @@ class III:
     @staticmethod
     def _severity_text_to_number(level: LogSeverityLevel) -> int:
         _MAP: dict[str, int] = {
-            "trace": 1, "debug": 5, "info": 9,
-            "warn": 13, "error": 17, "fatal": 21, "all": 0,
+            "trace": 1,
+            "debug": 5,
+            "info": 9,
+            "warn": 13,
+            "error": 17,
+            "fatal": 21,
+            "all": 0,
         }
         return _MAP.get(level, 0)
 
@@ -974,30 +979,36 @@ class III:
             stream_name: The name of the stream.
             stream: The stream implementation.
         """
+
         async def get_handler(data: Any) -> Any:
             from .stream import StreamGetInput
+
             input_data = StreamGetInput(**data) if isinstance(data, dict) else data
             return await stream.get(input_data)
 
         async def set_handler(data: Any) -> Any:
             from .stream import StreamSetInput
+
             input_data = StreamSetInput(**data) if isinstance(data, dict) else data
             result = await stream.set(input_data)
             return result.model_dump() if result else None
 
         async def delete_handler(data: Any) -> Any:
             from .stream import StreamDeleteInput
+
             input_data = StreamDeleteInput(**data) if isinstance(data, dict) else data
             result = await stream.delete(input_data)
             return result.model_dump() if result else None
 
         async def list_handler(data: Any) -> list[Any]:
             from .stream import StreamListInput
+
             input_data = StreamListInput(**data) if isinstance(data, dict) else data
             return await stream.list(input_data)
 
         async def list_groups_handler(data: Any) -> list[str]:
             from .stream import StreamListGroupsInput
+
             input_data = StreamListGroupsInput(**data) if isinstance(data, dict) else data
             return await stream.list_groups(input_data)
 

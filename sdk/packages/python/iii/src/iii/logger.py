@@ -1,4 +1,5 @@
 """Logger implementation for the III SDK."""
+
 from __future__ import annotations
 
 import logging
@@ -8,9 +9,9 @@ from typing import Any
 log = logging.getLogger("iii.logger")
 
 _SEVERITY_MAP = {
-    "info": ("INFO", 9),    # SeverityNumber.INFO
-    "warn": ("WARN", 13),   # SeverityNumber.WARN
-    "error": ("ERROR", 17), # SeverityNumber.ERROR
+    "info": ("INFO", 9),  # SeverityNumber.INFO
+    "warn": ("WARN", 13),  # SeverityNumber.WARN
+    "error": ("ERROR", 17),  # SeverityNumber.ERROR
     "debug": ("DEBUG", 5),  # SeverityNumber.DEBUG
 }
 
@@ -19,6 +20,7 @@ def is_initialized() -> bool:
     """Return True if OTel has been initialized (importable without circular dep)."""
     try:
         from .telemetry import is_initialized as _is_init
+
         return _is_init()
     except ImportError:
         return False
