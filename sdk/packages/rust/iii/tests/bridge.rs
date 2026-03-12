@@ -24,8 +24,7 @@ async fn connect_successfully() {
     iii.connect().await.expect("connect");
     settle().await;
 
-    let functions = iii.list_functions().await.expect("list_functions");
-    assert!(functions.is_array() || functions.is_null() || matches!(functions, Value::Array(_)));
+    let _functions = iii.list_functions().await.expect("list_functions");
 
     iii.shutdown_async().await;
 }
@@ -127,10 +126,8 @@ async fn list_registered_functions() {
 
     let functions = iii.list_functions().await.expect("list_functions");
     let ids: Vec<&str> = functions
-        .as_array()
-        .unwrap()
         .iter()
-        .filter_map(|f| f["function_id"].as_str())
+        .map(|f| f.function_id.as_str())
         .collect();
 
     assert!(ids.contains(&"test.bridge.rs.list.func1"));
