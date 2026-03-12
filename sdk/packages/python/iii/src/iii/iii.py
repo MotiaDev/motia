@@ -322,11 +322,7 @@ class III:
     def _send_if_connected(self, msg: Any) -> None:
         if not (self._ws and self._ws.state.name == "OPEN"):
             return
-        try:
-            task = asyncio.get_running_loop().create_task(self._send(msg))
-            task.add_done_callback(self._log_task_exception)
-        except RuntimeError:
-            pass
+        self._schedule_on_loop(self._send(msg))
 
     @staticmethod
     def _log_task_exception(task: asyncio.Task[Any]) -> None:
@@ -677,8 +673,12 @@ class III:
             )
             self._send_if_connected(msg)
 
-            async def wrapped(input_data: Any) -> Any:
-                return await handler(input_data)
+            if asyncio.iscoroutinefunction(handler):
+                async def wrapped(input_data: Any) -> Any:
+                    return await handler(input_data)
+            else:
+                async def wrapped(input_data: Any) -> Any:
+                    return await self._loop.run_in_executor(None, handler, input_data)
 
             self._functions[func.id] = RemoteFunctionData(message=msg, handler=wrapped)
 
@@ -771,28 +771,37 @@ class III:
             self._pending.pop(invocation_id, None)
             raise TimeoutError(f"Invocation of '{function_id}' timed out after {timeout}s")
 
-    async def list_functions(self) -> list[FunctionInfo]:
+    def list_functions(self) -> list[FunctionInfo]:
         """List all registered functions from the engine."""
-        result = await self.trigger({"function_id": "engine::functions::list", "payload": {}})
+        return self._run_on_loop(self._async_list_functions())
+
+    async def _async_list_functions(self) -> list[FunctionInfo]:
+        result = await self._async_trigger({"function_id": "engine::functions::list", "payload": {}})
         functions_data = result.get("functions", [])
         return [FunctionInfo(**f) for f in functions_data]
 
-    async def list_workers(self) -> list[WorkerInfo]:
+    def list_workers(self) -> list[WorkerInfo]:
         """List all connected workers from the engine."""
-        result = await self.trigger({"function_id": "engine::workers::list", "payload": {}})
+        return self._run_on_loop(self._async_list_workers())
+
+    async def _async_list_workers(self) -> list[WorkerInfo]:
+        result = await self._async_trigger({"function_id": "engine::workers::list", "payload": {}})
         workers_data = result.get("workers", [])
         return [WorkerInfo(**w) for w in workers_data]
 
-    async def list_triggers(self, include_internal: bool = False) -> list[TriggerInfo]:
+    def list_triggers(self, include_internal: bool = False) -> list[TriggerInfo]:
         """List all registered triggers from the engine."""
-        result = await self.trigger({
+        return self._run_on_loop(self._async_list_triggers(include_internal))
+
+    async def _async_list_triggers(self, include_internal: bool = False) -> list[TriggerInfo]:
+        result = await self._async_trigger({
             "function_id": "engine::triggers::list",
             "payload": {"include_internal": include_internal},
         })
         triggers_data = result.get("triggers", [])
         return [TriggerInfo(**t) for t in triggers_data]
 
-    async def create_channel(self, buffer_size: int | None = None) -> Channel:
+    def create_channel(self, buffer_size: int | None = None) -> Channel:
         """Create a streaming channel pair for worker-to-worker data transfer.
 
         Returns a Channel with writer, reader, and their serializable refs
@@ -801,7 +810,10 @@ class III:
         Args:
             buffer_size: Optional buffer size for the channel (default: 64).
         """
-        result = await self.trigger({
+        return self._run_on_loop(self._async_create_channel(buffer_size))
+
+    async def _async_create_channel(self, buffer_size: int | None = None) -> Channel:
+        result = await self._async_trigger({
             "function_id": "engine::channels::create",
             "payload": {"buffer_size": buffer_size},
         })

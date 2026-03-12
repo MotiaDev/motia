@@ -139,3 +139,55 @@ def test_trigger_void_while_disconnected(monkeypatch: pytest.MonkeyPatch) -> Non
     assert len(invoke) == 1
 
     client.shutdown()
+
+
+def test_register_function_accepts_sync_handler(monkeypatch: pytest.MonkeyPatch) -> None:
+    """register_function should accept plain sync functions."""
+    ws = _patch_ws(monkeypatch)
+    client = III("ws://fake", InitOptions())
+    client._register_worker_metadata = lambda: None
+    client.connect()
+
+    def greet(data: Any) -> Any:
+        return {"message": f"Hello, {data['name']}!"}
+
+    ref = client.register_function({"id": "test.greet"}, greet)
+    assert ref.id == "test.greet"
+    time.sleep(0.05)
+
+    reg_msgs = [m for m in ws.sent if m.get("type") == "registerfunction" and m.get("id") == "test.greet"]
+    assert len(reg_msgs) == 1
+
+    client.shutdown()
+
+
+def test_register_function_accepts_async_handler(monkeypatch: pytest.MonkeyPatch) -> None:
+    """register_function should still accept async functions."""
+    ws = _patch_ws(monkeypatch)
+    client = III("ws://fake", InitOptions())
+    client._register_worker_metadata = lambda: None
+    client.connect()
+
+    async def greet(data: Any) -> Any:
+        return {"message": f"Hello, {data['name']}!"}
+
+    ref = client.register_function({"id": "test.greet.async"}, greet)
+    assert ref.id == "test.greet.async"
+
+    client.shutdown()
+
+
+def test_public_methods_are_sync(monkeypatch: pytest.MonkeyPatch) -> None:
+    """list_functions, list_workers, list_triggers, create_channel should be sync."""
+    _patch_ws(monkeypatch)
+    client = III("ws://fake", InitOptions())
+    client._register_worker_metadata = lambda: None
+    client.connect()
+
+    import inspect
+    assert not inspect.iscoroutinefunction(client.list_functions)
+    assert not inspect.iscoroutinefunction(client.list_workers)
+    assert not inspect.iscoroutinefunction(client.list_triggers)
+    assert not inspect.iscoroutinefunction(client.create_channel)
+
+    client.shutdown()
