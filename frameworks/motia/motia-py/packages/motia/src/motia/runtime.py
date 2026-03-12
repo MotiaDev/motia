@@ -364,7 +364,7 @@ class Motia:
             self._register_condition(trigger, condition_path, "http", index)
             trigger_config[CONDITION_PATH_KEY] = condition_path
 
-        get_instance().register_trigger("http", function_id, trigger_config)
+        get_instance().register_trigger({"type": "http", "function_id": function_id, "config": trigger_config})
 
     def _register_queue_trigger(
         self,
@@ -406,7 +406,7 @@ class Motia:
             self._register_condition(trigger, condition_path, "queue", index)
             trigger_config[CONDITION_PATH_KEY] = condition_path
 
-        get_instance().register_trigger("queue", function_id, trigger_config)
+        get_instance().register_trigger({"type": "queue", "function_id": function_id, "config": trigger_config})
 
     def _register_cron_trigger(
         self,
@@ -443,7 +443,7 @@ class Motia:
             self._register_condition(trigger, condition_path, "cron", index)
             trigger_config[CONDITION_PATH_KEY] = condition_path
 
-        get_instance().register_trigger("cron", function_id, trigger_config)
+        get_instance().register_trigger({"type": "cron", "function_id": function_id, "config": trigger_config})
 
     def _register_state_trigger(
         self,
@@ -477,7 +477,7 @@ class Motia:
             self._register_condition(trigger, condition_path, "state", index)
             trigger_config["condition_function_id"] = condition_path
 
-        get_instance().register_trigger("state", function_id, trigger_config)
+        get_instance().register_trigger({"type": "state", "function_id": function_id, "config": trigger_config})
 
     def _register_stream_trigger(
         self,
@@ -518,7 +518,7 @@ class Motia:
             self._register_condition(trigger, condition_path, "stream", index)
             trigger_config["condition_function_id"] = condition_path
 
-        get_instance().register_trigger("stream", function_id, trigger_config)
+        get_instance().register_trigger({"type": "stream", "function_id": function_id, "config": trigger_config})
 
     def _register_condition(
         self,
@@ -588,7 +588,7 @@ class Motia:
                     return result
 
             get_instance().register_function({"id": function_id}, join_handler)
-            get_instance().register_trigger("stream:join", function_id, {})
+            get_instance().register_trigger({"type": "stream:join", "function_id": function_id, "config": {}})
             log.debug("Registered stream join handler")
 
         if has_leave:
@@ -610,7 +610,7 @@ class Motia:
                         await result
 
             get_instance().register_function({"id": function_id}, leave_handler)
-            get_instance().register_trigger("stream:leave", function_id, {})
+            get_instance().register_trigger({"type": "stream:leave", "function_id": function_id, "config": {}})
             log.debug("Registered stream leave handler")
 
     async def _handle_authenticate(self, data: dict[str, Any]) -> dict[str, Any]:

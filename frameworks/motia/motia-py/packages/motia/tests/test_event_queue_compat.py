@@ -37,8 +37,9 @@ def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock) -> Non
         motia.add_step(config, "steps/test_step.py", handler)
 
     call_args = mock_bridge.register_trigger.call_args
-    assert call_args[0][0] == "queue"
-    assert call_args[0][2]["topic"] == "orders.created"
+    trigger_input = call_args[0][0]
+    assert trigger_input["type"] == "queue"
+    assert trigger_input["config"]["topic"] == "orders.created"
 
 
 def test_standalone_enqueue_calls_bridge(mock_bridge: MagicMock) -> None:
@@ -152,7 +153,7 @@ def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock) -> None:
         motia.add_step(config, "steps/test_step.py", handler)
 
     call_args = mock_bridge.register_trigger.call_args
-    trigger_config = call_args[0][2]
+    trigger_config = call_args[0][0]["config"]
     assert trigger_config["queue_config"]["maxRetries"] == 5
     assert trigger_config["queue_config"]["type"] == "fifo"
 
@@ -175,5 +176,5 @@ def test_queue_trigger_omits_queue_config_when_not_provided(mock_bridge: MagicMo
         motia.add_step(config, "steps/test_step.py", handler)
 
     call_args = mock_bridge.register_trigger.call_args
-    trigger_config = call_args[0][2]
+    trigger_config = call_args[0][0]["config"]
     assert "queue_config" not in trigger_config
