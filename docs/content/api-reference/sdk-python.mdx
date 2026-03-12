@@ -109,19 +109,24 @@ iii = III(
 
 ### register_trigger
 
-<ResponseField name="register_trigger" type="(type: str, function_id: str, config: Any) => Trigger" required>
+<ResponseField name="register_trigger" type="(trigger: RegisterTriggerInput | dict) => Trigger" required>
   Binds a trigger configuration to a registered function.
 
   <AccordionGroup>
     <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="type" type="str" required>
-        Trigger type (e.g. `http`, `queue`, `cron`).
-      </ResponseField>
-      <ResponseField name="function_id" type="str" required>
-        ID of the function to invoke.
-      </ResponseField>
-      <ResponseField name="config" type="Any" required>
-        Trigger-specific configuration.
+      <ResponseField name="trigger" type="RegisterTriggerInput | dict" required>
+        A dict (or `RegisterTriggerInput`) with the following keys:
+        <Expandable title="RegisterTriggerInput">
+          <ResponseField name="type" type="str" required>
+            Trigger type (e.g. `http`, `queue`, `cron`).
+          </ResponseField>
+          <ResponseField name="function_id" type="str" required>
+            ID of the function to invoke.
+          </ResponseField>
+          <ResponseField name="config" type="Any" required>
+            Trigger-specific configuration.
+          </ResponseField>
+        </Expandable>
       </ResponseField>
     </Accordion>
     <Accordion iconName="ArrowUpRight" title="Returns" description="">
@@ -131,11 +136,11 @@ iii = III(
     </Accordion>
     <Accordion iconName="Code" title="Example" description="">
       ```python
-      iii.register_trigger(
-          type="http",
-          function_id="greet",
-          config={"api_path": "/greet", "http_method": "GET"},
-      )
+      iii.register_trigger({
+          "type": "http",
+          "function_id": "greet",
+          "config": {"api_path": "/greet", "http_method": "GET"},
+      })
       ```
     </Accordion>
   </AccordionGroup>

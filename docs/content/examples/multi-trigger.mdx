@@ -172,12 +172,12 @@ def orders_handle(data, ctx) -> dict | None:
 
 iii.register_function("orders.handle", lambda data: orders_handle(data, Logger()))
 
-iii.register_trigger(type="http", function_id="orders.handle",
-                     config={"api_path": "orders/manual", "http_method": "POST"})
-iii.register_trigger(type="queue", function_id="orders.handle",
-                     config={"topic": "order.created"})
-iii.register_trigger(type="cron", function_id="orders.handle",
-                     config={"expression": "* * * * *"})
+iii.register_trigger({"type": "http", "function_id": "orders.handle",
+                      "config": {"api_path": "orders/manual", "http_method": "POST"}})
+iii.register_trigger({"type": "queue", "function_id": "orders.handle",
+                      "config": {"topic": "order.created"}})
+iii.register_trigger({"type": "cron", "function_id": "orders.handle",
+                      "config": {"expression": "* * * * *"}})
 ```
 
   </Tab>
@@ -271,8 +271,8 @@ iii.registerTrigger({ type: 'http', function_id: 'my.fn', config: { api_path: 'e
   <Tab value="Python">
 
 ```python
-iii.register_trigger(type="queue", function_id="my.fn", config={"topic": "events"})
-iii.register_trigger(type="http", function_id="my.fn", config={"api_path": "events", "http_method": "POST"})
+iii.register_trigger({"type": "queue", "function_id": "my.fn", "config": {"topic": "events"}})
+iii.register_trigger({"type": "http", "function_id": "my.fn", "config": {"api_path": "events", "http_method": "POST"}})
 ```
 
   </Tab>

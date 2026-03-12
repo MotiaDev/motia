@@ -28,11 +28,11 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-iii.register_trigger(
-    type='http',
-    function_id=fn.id,
-    config={'api_path': '/users', 'http_method': 'POST'},
-)
+iii.register_trigger({
+    'type': 'http',
+    'function_id': fn.id,
+    'config': {'api_path': '/users', 'http_method': 'POST'},
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -294,9 +294,13 @@ async def handler(req: HttpRequest, response: HttpResponse):
     await response.writer.close_async()
 
 fn_ref = iii_client.register_function("api.download.pdf", handler)
-iii_client.register_trigger("http", "api.download.pdf", {
-    "api_path": "download/report",
-    "http_method": "GET",
+iii_client.register_trigger({
+    "type": "http",
+    "function_id": "api.download.pdf",
+    "config": {
+        "api_path": "download/report",
+        "http_method": "GET",
+    },
 })
 ```
 </Tab>
@@ -428,9 +432,13 @@ async def handler(req: HttpRequest, response: HttpResponse):
     await response.writer.close_async()
 
 fn_ref = iii_client.register_function("api.events", handler)
-iii_client.register_trigger("http", "api.events", {
-    "api_path": "events",
-    "http_method": "GET",
+iii_client.register_trigger({
+    "type": "http",
+    "function_id": "api.events",
+    "config": {
+        "api_path": "events",
+        "http_method": "GET",
+    },
 })
 ```
 </Tab>
@@ -779,11 +787,11 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-iii.register_trigger(
-    type='http',
-    function_id=fn.id,
-    config={'api_path': '/users', 'http_method': 'POST'},
-)
+iii.register_trigger({
+    'type': 'http',
+    'function_id': fn.id,
+    'config': {'api_path': '/users', 'http_method': 'POST'},
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -853,23 +861,23 @@ def notify(data):
 
 fn = iii.register_function('users.notify', notify)
 
-iii.register_trigger(
-    type='http',
-    function_id=fn.id,
-    config={'api_path': '/notify', 'http_method': 'POST'},
-)
+iii.register_trigger({
+    'type': 'http',
+    'function_id': fn.id,
+    'config': {'api_path': '/notify', 'http_method': 'POST'},
+})
 
-iii.register_trigger(
-    type='queue',
-    function_id=fn.id,
-    config={'topic': 'user.created'},
-)
+iii.register_trigger({
+    'type': 'queue',
+    'function_id': fn.id,
+    'config': {'topic': 'user.created'},
+})
 
-iii.register_trigger(
-    type='cron',
-    function_id=fn.id,
-    config={'expression': '0 9 * * *'},
-)
+iii.register_trigger({
+    'type': 'cron',
+    'function_id': fn.id,
+    'config': {'expression': '0 9 * * *'},
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -947,15 +955,15 @@ def verified_only(req):
 
 fn = iii.register_function('api::verifiedOnly', verified_only)
 
-iii.register_trigger(
-    type='http',
-    function_id=fn.id,
-    config={
+iii.register_trigger({
+    'type': 'http',
+    'function_id': fn.id,
+    'config': {
         'api_path': '/verified',
         'http_method': 'POST',
         'condition_function_id': condition_fn.id,
     },
-)
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -1016,14 +1024,14 @@ def process_high_value(order):
 
 fn = iii.register_function('orders::processHighValue', process_high_value)
 
-iii.register_trigger(
-    type='queue',
-    function_id=fn.id,
-    config={
+iii.register_trigger({
+    'type': 'queue',
+    'function_id': fn.id,
+    'config': {
         'topic': 'order.placed',
         'condition_function_id': condition_fn.id,
     },
-)
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -1084,14 +1092,14 @@ def on_profile_update(event):
 
 fn = iii.register_function('state::onProfileUpdate', on_profile_update)
 
-iii.register_trigger(
-    type='state',
-    function_id=fn.id,
-    config={
+iii.register_trigger({
+    'type': 'state',
+    'function_id': fn.id,
+    'config': {
         'scope': 'users',
         'condition_function_id': condition_fn.id,
     },
-)
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -1184,14 +1192,14 @@ def github_webhook(req):
 
 fn = iii.register_function('webhooks.github', github_webhook)
 
-iii.register_trigger(
-    type='http',
-    function_id=fn.id,
-    config={
+iii.register_trigger({
+    'type': 'http',
+    'function_id': fn.id,
+    'config': {
         'api_path': '/webhooks/github',
         'http_method': 'POST',
     },
-)
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -1254,22 +1262,22 @@ def process_order(order):
 
 process_fn = iii.register_function('orders.process', process_order)
 
-iii.register_trigger(
-    type='queue',
-    function_id=process_fn.id,
-    config={'topic': 'order.placed'},
-)
+iii.register_trigger({
+    'type': 'queue',
+    'function_id': process_fn.id,
+    'config': {'topic': 'order.placed'},
+})
 
 def send_confirmation(order):
     send_email(order['email'], 'Order confirmed')
 
 confirm_fn = iii.register_function('orders.sendConfirmation', send_confirmation)
 
-iii.register_trigger(
-    type='queue',
-    function_id=confirm_fn.id,
-    config={'topic': 'order.processed'},
-)
+iii.register_trigger({
+    'type': 'queue',
+    'function_id': confirm_fn.id,
+    'config': {'topic': 'order.processed'},
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -1326,13 +1334,13 @@ def cleanup():
 
 fn = iii.register_function('maintenance.cleanup', cleanup)
 
-iii.register_trigger(
-    type='cron',
-    function_id=fn.id,
-    config={
+iii.register_trigger({
+    'type': 'cron',
+    'function_id': fn.id,
+    'config': {
         'expression': '0 3 * * *',
     },
-)
+})
 ```
 </Tab>
 <Tab value="Rust">

@@ -119,15 +119,15 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="state_trigger_with_condition.py"
-iii.register_trigger(
-    type="state",
-    function_id="orders::process-high-value",
-    config={
+iii.register_trigger({
+    "type": "state",
+    "function_id": "orders::process-high-value",
+    "config": {
         "scope": "orders",
         "key": "status",
         "condition_function_id": "conditions::is-high-value",
     },
-)
+})
 ```
 </Tab>
 <Tab value="Rust">

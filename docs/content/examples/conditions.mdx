@@ -79,15 +79,15 @@ def orders_premium_wrapper(data):
 iii.register_function("conditions::is_premium", is_premium)
 iii.register_function("orders::premium", orders_premium_wrapper)
 
-iii.register_trigger(
-    type="http",
-    function_id="orders::premium",
-    config={
+iii.register_trigger({
+    "type": "http",
+    "function_id": "orders::premium",
+    "config": {
         "api_path": "orders/premium",
         "http_method": "POST",
         "condition_function_id": "conditions::is_premium",
     },
-)
+})
 ```
 
   </Tab>
@@ -191,11 +191,11 @@ def orders_high_value(data: dict, ctx) -> None:
 iii.register_function("conditions::is_high_value", is_high_value)
 iii.register_function("orders::high_value", lambda data: orders_high_value(data, Logger()))
 
-iii.register_trigger(
-    type="queue",
-    function_id="orders::high_value",
-    config={"topic": "order.created", "condition_function_id": "conditions::is_high_value"},
-)
+iii.register_trigger({
+    "type": "queue",
+    "function_id": "orders::high_value",
+    "config": {"topic": "order.created", "condition_function_id": "conditions::is_high_value"},
+})
 ```
 
   </Tab>
@@ -274,11 +274,11 @@ def orders_on_update(event: dict, ctx) -> None:
 iii.register_function("conditions::is_update", is_update)
 iii.register_function("orders::on_update", lambda data: orders_on_update(data, Logger()))
 
-iii.register_trigger(
-    type="state",
-    function_id="orders::on_update",
-    config={"scope": "orders", "condition_function_id": "conditions::is_update"},
-)
+iii.register_trigger({
+    "type": "state",
+    "function_id": "orders::on_update",
+    "config": {"scope": "orders", "condition_function_id": "conditions::is_update"},
+})
 ```
 
   </Tab>

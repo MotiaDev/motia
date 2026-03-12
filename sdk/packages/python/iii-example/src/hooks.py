@@ -20,14 +20,16 @@ def use_api(
 
     iii.register_function({"id": function_id}, wrapped)
     iii.register_trigger(
-        type="http",
-        function_id=function_id,
-        config={
-            "api_path": api_path,
-            "http_method": http_method,
-            "description": config.get("description"),
-            "metadata": config.get("metadata"),
-        },
+        {
+            "type": "http",
+            "function_id": function_id,
+            "config": {
+                "api_path": api_path,
+                "http_method": http_method,
+                "description": config.get("description"),
+                "metadata": config.get("metadata"),
+            },
+        }
     )
 
 

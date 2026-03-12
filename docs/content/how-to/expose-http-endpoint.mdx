@@ -134,11 +134,11 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="http_trigger.py"
-iii.register_trigger(
-    type="http",
-    function_id="users::create",
-    config={"api_path": "/users", "http_method": "POST"},
-)
+iii.register_trigger({
+    "type": "http",
+    "function_id": "users::create",
+    "config": {"api_path": "/users", "http_method": "POST"},
+})
 ```
 </Tab>
 <Tab value="Rust">

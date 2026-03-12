@@ -188,14 +188,14 @@ def hello(data):
 
 iii.register_function('greet::hello', hello)
 
-iii.register_trigger(
-    type='http',
-    function_id='greet::hello',
-    config={
+iii.register_trigger({
+    'type': 'http',
+    'function_id': 'greet::hello',
+    'config': {
         'api_path': '/greet/:name',
         'http_method': 'GET',
-    }
-)
+    },
+})
 
 iii.connect()
 ```

@@ -97,10 +97,10 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="payment_trigger.py"
-iii.register_trigger(
-    type="queue",
-    function_id="payments::charge",
-    config={
+iii.register_trigger({
+    "type": "queue",
+    "function_id": "payments::charge",
+    "config": {
         "topic": "order.created",
         "queue_config": {
             "maxRetries": 5,
@@ -108,7 +108,7 @@ iii.register_trigger(
             "backoffDelayMs": 2000,
         },
     },
-)
+})
 ```
 </Tab>
 <Tab value="Rust">

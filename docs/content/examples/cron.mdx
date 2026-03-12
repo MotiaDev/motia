@@ -64,11 +64,11 @@ def periodic_job(_data, ctx) -> None:
     })
 
 iii.register_function("cron.periodic_job", lambda data: periodic_job(data, Logger()))
-iii.register_trigger(
-    type="cron",
-    function_id="cron.periodic_job",
-    config={"expression": "* * * * *"},  # every minute
-)
+iii.register_trigger({
+    "type": "cron",
+    "function_id": "cron.periodic_job",
+    "config": {"expression": "* * * * *"},  # every minute
+})
 ```
 
   </Tab>
@@ -139,7 +139,7 @@ def handle_tick(data: dict, ctx) -> None:
     })
 
 iii.register_function("job.handle_tick", lambda data: handle_tick(data, Logger()))
-iii.register_trigger(type="queue", function_id="job.handle_tick", config={"topic": "job.tick"})
+iii.register_trigger({"type": "queue", "function_id": "job.handle_tick", "config": {"topic": "job.tick"}})
 ```
 
   </Tab>
@@ -244,7 +244,7 @@ def orders_sweep(_data, ctx) -> None:
     logger.info("Sweep complete", {"checked": len(orders), "swept": swept})
 
 iii.register_function("cron.orders_sweep", lambda data: orders_sweep(data, Logger()))
-iii.register_trigger(type="cron", function_id="cron.orders_sweep", config={"expression": "*/5 * * * *"})
+iii.register_trigger({"type": "cron", "function_id": "cron.orders_sweep", "config": {"expression": "*/5 * * * *"}})
 ```
 
   </Tab>

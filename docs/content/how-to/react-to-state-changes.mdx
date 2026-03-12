@@ -126,11 +126,11 @@ await iii.trigger({ function_id: 'state::set', payload: {
 </Tab>
 <Tab value="Python">
 ```python title="state_trigger.py"
-iii.register_trigger(
-    type="state",
-    function_id="orders::on-status-change",
-    config={"scope": "orders", "key": "status"},
-)
+iii.register_trigger({
+    "type": "state",
+    "function_id": "orders::on-status-change",
+    "config": {"scope": "orders", "key": "status"},
+})
 
 # Then run iii.trigger() from another function or worker to trigger the state change
 iii.trigger({'function_id': 'state::set', 'payload': {

@@ -25,12 +25,14 @@ async def test_get_endpoint(engine_http_url, iii_client: III):
 
     fn_ref = iii_client.register_function({"id": "test.api.get.py"}, handler)
     trigger = iii_client.register_trigger(
-        "http",
-        "test.api.get.py",
         {
-            "api_path": "test/py/hello",
-            "http_method": "GET",
-        },
+            "type": "http",
+            "function_id": "test.api.get.py",
+            "config": {
+                "api_path": "test/py/hello",
+                "http_method": "GET",
+            },
+        }
     )
 
     time.sleep(0.3)
@@ -58,12 +60,14 @@ async def test_post_endpoint_with_body(engine_http_url, iii_client: III):
 
     fn_ref = iii_client.register_function({"id": "test.api.post.py"}, handler)
     trigger = iii_client.register_trigger(
-        "http",
-        "test.api.post.py",
         {
-            "api_path": "test/py/items",
-            "http_method": "POST",
-        },
+            "type": "http",
+            "function_id": "test.api.post.py",
+            "config": {
+                "api_path": "test/py/items",
+                "http_method": "POST",
+            },
+        }
     )
 
     time.sleep(0.3)
@@ -94,12 +98,14 @@ async def test_path_parameters(engine_http_url, iii_client: III):
 
     fn_ref = iii_client.register_function({"id": "test.api.getbyid.py"}, handler)
     trigger = iii_client.register_trigger(
-        "http",
-        "test.api.getbyid.py",
         {
-            "api_path": "test/py/items/:id",
-            "http_method": "GET",
-        },
+            "type": "http",
+            "function_id": "test.api.getbyid.py",
+            "config": {
+                "api_path": "test/py/items/:id",
+                "http_method": "GET",
+            },
+        }
     )
 
     time.sleep(0.3)
@@ -133,12 +139,14 @@ async def test_query_parameters(engine_http_url, iii_client: III):
 
     fn_ref = iii_client.register_function({"id": "test.api.search.py"}, handler)
     trigger = iii_client.register_trigger(
-        "http",
-        "test.api.search.py",
         {
-            "api_path": "test/py/search",
-            "http_method": "GET",
-        },
+            "type": "http",
+            "function_id": "test.api.search.py",
+            "config": {
+                "api_path": "test/py/search",
+                "http_method": "GET",
+            },
+        }
     )
 
     time.sleep(0.3)
@@ -163,12 +171,14 @@ async def test_custom_status_code(engine_http_url, iii_client: III):
 
     fn_ref = iii_client.register_function({"id": "test.api.notfound.py"}, handler)
     trigger = iii_client.register_trigger(
-        "http",
-        "test.api.notfound.py",
         {
-            "api_path": "test/py/missing",
-            "http_method": "GET",
-        },
+            "type": "http",
+            "function_id": "test.api.notfound.py",
+            "config": {
+                "api_path": "test/py/missing",
+                "http_method": "GET",
+            },
+        }
     )
 
     time.sleep(0.3)
@@ -200,12 +210,14 @@ async def test_download_pdf_streaming(engine_http_url, iii_client: III):
 
     fn_ref = iii_client.register_function({"id": "test.api.download.pdf.py"}, handler)
     trigger = iii_client.register_trigger(
-        "http",
-        "test.api.download.pdf.py",
         {
-            "api_path": "test/py/download/pdf",
-            "http_method": "GET",
-        },
+            "type": "http",
+            "function_id": "test.api.download.pdf.py",
+            "config": {
+                "api_path": "test/py/download/pdf",
+                "http_method": "GET",
+            },
+        }
     )
 
     time.sleep(0.3)
@@ -249,12 +261,14 @@ async def test_upload_pdf_streaming(engine_http_url, iii_client: III):
 
     fn_ref = iii_client.register_function({"id": "test.api.upload.pdf.py"}, handler)
     trigger = iii_client.register_trigger(
-        "http",
-        "test.api.upload.pdf.py",
         {
-            "api_path": "test/py/upload/pdf",
-            "http_method": "POST",
-        },
+            "type": "http",
+            "function_id": "test.api.upload.pdf.py",
+            "config": {
+                "api_path": "test/py/upload/pdf",
+                "http_method": "POST",
+            },
+        }
     )
 
     time.sleep(0.3)
@@ -310,12 +324,14 @@ async def test_sse_streaming(engine_http_url, iii_client: III):
 
     fn_ref = iii_client.register_function({"id": "test.api.sse.py"}, handler)
     trigger = iii_client.register_trigger(
-        "http",
-        "test.api.sse.py",
         {
-            "api_path": "test/py/sse",
-            "http_method": "GET",
-        },
+            "type": "http",
+            "function_id": "test.api.sse.py",
+            "config": {
+                "api_path": "test/py/sse",
+                "http_method": "GET",
+            },
+        }
     )
 
     time.sleep(0.3)
@@ -383,12 +399,14 @@ async def test_urlencoded_form_data(engine_http_url, iii_client: III):
 
     fn_ref = iii_client.register_function({"id": "test.api.form.urlencoded.py"}, handler)
     trigger = iii_client.register_trigger(
-        "http",
-        "test.api.form.urlencoded.py",
         {
-            "api_path": "test/py/form/urlencoded",
-            "http_method": "POST",
-        },
+            "type": "http",
+            "function_id": "test.api.form.urlencoded.py",
+            "config": {
+                "api_path": "test/py/form/urlencoded",
+                "http_method": "POST",
+            },
+        }
     )
 
     time.sleep(0.3)
@@ -428,7 +446,7 @@ async def test_multipart_form_data(engine_http_url, iii_client: III):
         for part in content_type.split(";"):
             part = part.strip()
             if part.startswith("boundary="):
-                boundary_match = part[len("boundary="):]
+                boundary_match = part[len("boundary=") :]
 
         body_text = raw.decode("utf-8", errors="replace")
         has_title = "Test Document" in body_text
@@ -451,12 +469,14 @@ async def test_multipart_form_data(engine_http_url, iii_client: III):
 
     fn_ref = iii_client.register_function({"id": "test.api.form.multipart.py"}, handler)
     trigger = iii_client.register_trigger(
-        "http",
-        "test.api.form.multipart.py",
         {
-            "api_path": "test/py/form/multipart",
-            "http_method": "POST",
-        },
+            "type": "http",
+            "function_id": "test.api.form.multipart.py",
+            "config": {
+                "api_path": "test/py/form/multipart",
+                "http_method": "POST",
+            },
+        }
     )
 
     time.sleep(0.3)

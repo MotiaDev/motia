@@ -428,7 +428,7 @@ def on_join(input):
     return {}
 
 iii.register_function('onJoin', on_join)
-iii.register_trigger(type='stream:join', function_id='onJoin', config={})
+iii.register_trigger({'type': 'stream:join', 'function_id': 'onJoin', 'config': {}})
 ```
 </Tab>
 <Tab value="Rust">
@@ -635,7 +635,7 @@ def on_join(input):
     return {}
 
 iii.register_function('onJoin', on_join)
-iii.register_trigger(type='stream:join', function_id='onJoin', config={})
+iii.register_trigger({'type': 'stream:join', 'function_id': 'onJoin', 'config': {}})
 ```
 </Tab>
 <Tab value="Rust">
@@ -689,11 +689,11 @@ def on_join(input):
     return {}
 
 iii.register_function('onJoin', on_join)
-iii.register_trigger(
-    type='stream:join',
-    function_id='onJoin',
-    config={'condition_function_id': 'conditions::requireContext'},
-)
+iii.register_trigger({
+    'type': 'stream:join',
+    'function_id': 'onJoin',
+    'config': {'condition_function_id': 'conditions::requireContext'},
+})
 ```
 </Tab>
 <Tab value="Rust">

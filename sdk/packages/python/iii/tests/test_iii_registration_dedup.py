@@ -78,7 +78,7 @@ def test_preconnect_registration_sent_once(monkeypatch: pytest.MonkeyPatch) -> N
         return data
 
     client.register_function({"id": "demo.fn"}, handler)
-    client.register_trigger("cron", "demo.fn", {"cron": "* * * * * *"})
+    client.register_trigger({"type": "cron", "function_id": "demo.fn", "config": {"cron": "* * * * * *"}})
 
     assert client._queue == []
 
@@ -115,7 +115,7 @@ def test_reconnect_replays_durable_state_once_per_connection(
         return data
 
     client.register_function({"id": "demo.fn"}, handler)
-    client.register_trigger("cron", "demo.fn", {"cron": "* * * * * *"})
+    client.register_trigger({"type": "cron", "function_id": "demo.fn", "config": {"cron": "* * * * * *"}})
 
     client.connect()
     time.sleep(0.01)

@@ -19,7 +19,7 @@ def test_enqueue_delivers_message_to_subscribed_handler(bridge):
         received.append(data)
 
     bridge.register_function({"id": function_id}, handler)
-    bridge.register_trigger("queue", function_id, {"topic": topic})
+    bridge.register_trigger({"type": "queue", "function_id": function_id, "config": {"topic": topic}})
 
     flush_bridge_queue(bridge)
     time.sleep(0.5)
@@ -41,7 +41,7 @@ def test_handler_receives_exact_data_payload_from_enqueue(bridge):
         received.append(data)
 
     bridge.register_function({"id": function_id}, handler)
-    bridge.register_trigger("queue", function_id, {"topic": topic})
+    bridge.register_trigger({"type": "queue", "function_id": function_id, "config": {"topic": topic}})
 
     flush_bridge_queue(bridge)
     time.sleep(0.5)
@@ -63,16 +63,14 @@ def test_subscription_with_queue_config_receives_messages(bridge):
 
     bridge.register_function({"id": function_id}, handler)
     bridge.register_trigger(
-        "queue",
-        function_id,
-        {
+        {"type": "queue", "function_id": function_id, "config": {
             "topic": topic,
             "queue_config": {
                 "maxRetries": 5,
                 "type": "standard",
                 "concurrency": 2,
             },
-        },
+        }}
     )
 
     flush_bridge_queue(bridge)
@@ -100,8 +98,8 @@ def test_multiple_subscribers_on_same_topic_messages_delivered_to_one(bridge):
 
     bridge.register_function({"id": function_id1}, handler1)
     bridge.register_function({"id": function_id2}, handler2)
-    bridge.register_trigger("queue", function_id1, {"topic": topic})
-    bridge.register_trigger("queue", function_id2, {"topic": topic})
+    bridge.register_trigger({"type": "queue", "function_id": function_id1, "config": {"topic": topic}})
+    bridge.register_trigger({"type": "queue", "function_id": function_id2, "config": {"topic": topic}})
 
     flush_bridge_queue(bridge)
     time.sleep(0.5)
@@ -133,12 +131,10 @@ def test_condition_function_filters_messages(bridge):
     bridge.register_function({"id": function_id}, handler)
     bridge.register_function({"id": condition_path}, condition)
     bridge.register_trigger(
-        "queue",
-        function_id,
-        {
+        {"type": "queue", "function_id": function_id, "config": {
             "topic": topic,
             "condition_function_id": condition_path,
-        },
+        }}
     )
 
     flush_bridge_queue(bridge)

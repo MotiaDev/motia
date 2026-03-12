@@ -29,12 +29,14 @@ async def test_api_trigger_get_endpoint(bridge, api_url):
 
     bridge.register_function({"id": "test.api.get"}, get_handler)
     bridge.register_trigger(
-        "http",
-        "test.api.get",
         {
-            "api_path": "test/hello",
-            "http_method": "GET",
-        },
+            "type": "http",
+            "function_id": "test.api.get",
+            "config": {
+                "api_path": "test/hello",
+                "http_method": "GET",
+            },
+        }
     )
 
     flush_bridge_queue(bridge)
@@ -60,12 +62,14 @@ async def test_api_trigger_post_with_body(bridge, api_url):
 
     bridge.register_function({"id": "test.api.post"}, post_handler)
     bridge.register_trigger(
-        "http",
-        "test.api.post",
         {
-            "api_path": "test/items",
-            "http_method": "POST",
-        },
+            "type": "http",
+            "function_id": "test.api.post",
+            "config": {
+                "api_path": "test/items",
+                "http_method": "POST",
+            },
+        }
     )
 
     flush_bridge_queue(bridge)
@@ -96,12 +100,14 @@ async def test_api_trigger_path_params(bridge, api_url):
 
     bridge.register_function({"id": "test.api.getById"}, get_by_id_handler)
     bridge.register_trigger(
-        "http",
-        "test.api.getById",
         {
-            "api_path": "test/items/:id",
-            "http_method": "GET",
-        },
+            "type": "http",
+            "function_id": "test.api.getById",
+            "config": {
+                "api_path": "test/items/:id",
+                "http_method": "GET",
+            },
+        }
     )
 
     flush_bridge_queue(bridge)
@@ -127,12 +133,14 @@ async def test_api_trigger_query_params(bridge, api_url):
 
     bridge.register_function({"id": "test.api.search"}, search_handler)
     bridge.register_trigger(
-        "http",
-        "test.api.search",
         {
-            "api_path": "test/search",
-            "http_method": "GET",
-        },
+            "type": "http",
+            "function_id": "test.api.search",
+            "config": {
+                "api_path": "test/search",
+                "http_method": "GET",
+            },
+        }
     )
 
     flush_bridge_queue(bridge)
@@ -159,12 +167,14 @@ async def test_api_trigger_custom_status_code(bridge, api_url):
 
     bridge.register_function({"id": "test.api.notfound"}, not_found_handler)
     bridge.register_trigger(
-        "http",
-        "test.api.notfound",
         {
-            "api_path": "test/missing",
-            "http_method": "GET",
-        },
+            "type": "http",
+            "function_id": "test.api.notfound",
+            "config": {
+                "api_path": "test/missing",
+                "http_method": "GET",
+            },
+        }
     )
 
     flush_bridge_queue(bridge)
@@ -193,9 +203,11 @@ async def test_streaming_response_via_channels(bridge, api_url):
 
     bridge.register_function({"id": function_id}, stream_handler)
     bridge.register_trigger(
-        "http",
-        function_id,
-        {"api_path": "test/stream/response", "http_method": "GET"},
+        {
+            "type": "http",
+            "function_id": function_id,
+            "config": {"api_path": "test/stream/response", "http_method": "GET"},
+        }
     )
 
     flush_bridge_queue(bridge)
@@ -236,9 +248,11 @@ async def test_streaming_request_body_via_channels(bridge, api_url):
 
     bridge.register_function({"id": function_id}, upload_handler)
     bridge.register_trigger(
-        "http",
-        function_id,
-        {"api_path": "test/stream/upload", "http_method": "POST"},
+        {
+            "type": "http",
+            "function_id": function_id,
+            "config": {"api_path": "test/stream/upload", "http_method": "POST"},
+        }
     )
 
     flush_bridge_queue(bridge)
@@ -304,9 +318,11 @@ async def test_multipart_form_data_via_channels(bridge, api_url):
 
     bridge.register_function({"id": function_id}, multipart_handler)
     bridge.register_trigger(
-        "http",
-        function_id,
-        {"api_path": "test/form/multipart", "http_method": "POST"},
+        {
+            "type": "http",
+            "function_id": function_id,
+            "config": {"api_path": "test/form/multipart", "http_method": "POST"},
+        }
     )
 
     flush_bridge_queue(bridge)
@@ -314,12 +330,8 @@ async def test_multipart_form_data_via_channels(bridge, api_url):
 
     boundary = "----TestBoundary12345"
     body_parts = [
-        f"--{boundary}\r\n"
-        'Content-Disposition: form-data; name="title"\r\n\r\n'
-        "Test Document\r\n",
-        f"--{boundary}\r\n"
-        'Content-Disposition: form-data; name="description"\r\n\r\n'
-        "A test upload\r\n",
+        f"--{boundary}\r\n" 'Content-Disposition: form-data; name="title"\r\n\r\n' "Test Document\r\n",
+        f"--{boundary}\r\n" 'Content-Disposition: form-data; name="description"\r\n\r\n' "A test upload\r\n",
         f"--{boundary}\r\n"
         'Content-Disposition: form-data; name="file"; filename="test.txt"\r\n'
         "Content-Type: text/plain\r\n\r\n"
@@ -374,10 +386,12 @@ async def test_data_channels_worker_to_worker(bridge, api_url):
         await channel.writer.write(payload)
         await channel.writer.close_async()
 
-        result = await bridge._async_trigger({
-            "function_id": processor_id,
-            "payload": {"label": "test-batch", "reader": channel.reader_ref.__dict__},
-        })
+        result = await bridge._async_trigger(
+            {
+                "function_id": processor_id,
+                "payload": {"label": "test-batch", "reader": channel.reader_ref.__dict__},
+            }
+        )
         return result
 
     bridge.register_function({"id": processor_id}, processor_handler)

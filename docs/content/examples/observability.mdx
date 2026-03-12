@@ -120,10 +120,10 @@ def create_order(req: ApiRequest, ctx) -> ApiResponse:
 iii.register_function("orders.create", lambda data: create_order(
     ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
-iii.register_trigger(
-    type="http", function_id="orders.create",
-    config={"api_path": "orders", "http_method": "POST"},
-)
+iii.register_trigger({
+    "type": "http", "function_id": "orders.create",
+    "config": {"api_path": "orders", "http_method": "POST"},
+})
 ```
 
   </Tab>
@@ -253,7 +253,7 @@ def process_order(data: dict, ctx) -> None:
     logger.info("Order processed", {"orderId": order_id, "traceId": current_trace_id()})
 
 iii.register_function("order.process", lambda data: process_order(data, Logger()))
-iii.register_trigger(type="queue", function_id="order.process", config={"topic": "order.process"})
+iii.register_trigger({"type": "queue", "function_id": "order.process", "config": {"topic": "order.process"}})
 ```
 
   </Tab>
@@ -334,7 +334,7 @@ def notify_order(data: dict, ctx) -> None:
     logger.info("Order notification sent", {"orderId": order_id, "traceId": current_trace_id()})
 
 iii.register_function("order.notify", lambda data: notify_order(data, Logger()))
-iii.register_trigger(type="queue", function_id="order.notify", config={"topic": "order.notify"})
+iii.register_trigger({"type": "queue", "function_id": "order.notify", "config": {"topic": "order.notify"}})
 ```
 
   </Tab>

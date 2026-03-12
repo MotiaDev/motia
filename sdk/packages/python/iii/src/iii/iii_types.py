@@ -85,6 +85,14 @@ class TriggerRegistrationResultMessage(BaseModel):
     message_type: MessageType = Field(default=MessageType.TRIGGER_REGISTRATION_RESULT, alias="type")
 
 
+class RegisterTriggerInput(BaseModel):
+    """Input for registering a trigger (matches Node SDK's RegisterTriggerInput)."""
+
+    type: str
+    function_id: str
+    config: Any = None
+
+
 class RegisterTriggerMessage(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 

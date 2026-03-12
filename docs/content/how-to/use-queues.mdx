@@ -517,11 +517,11 @@ iii.trigger("enqueue", {
 })
 
 # Old: register a queue trigger to consume
-iii.register_trigger(
-    type="queue",
-    function_id="orders::process-payment",
-    config={"topic": "order.created"},
-)
+iii.register_trigger({
+    "type": "queue",
+    "function_id": "orders::process-payment",
+    "config": {"topic": "order.created"},
+})
 ```
 
 ```python title="After (Named Queues)"

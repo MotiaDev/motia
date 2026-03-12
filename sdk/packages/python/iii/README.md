@@ -24,11 +24,11 @@ def greet(data):
 
 iii.register_function({"id": "greet"}, greet)
 
-iii.register_trigger(
-    type="http",
-    function_id="greet",
-    config={"api_path": "/greet", "http_method": "POST"}
-)
+iii.register_trigger({
+    "type": "http",
+    "function_id": "greet",
+    "config": {"api_path": "/greet", "http_method": "POST"},
+})
 
 iii.connect()
 
@@ -43,7 +43,7 @@ print(result)  # {"message": "Hello, world!"}
 | Initialize               | `III(url, options?)`                              | Create an SDK instance                                 |
 | Connect                  | `iii.connect()`                                   | Connect to the engine                                  |
 | Register function        | `iii.register_function({"id": id}, handler)`      | Register a function that can be invoked by name        |
-| Register trigger         | `iii.register_trigger(type, function_id, config)` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
+| Register trigger         | `iii.register_trigger({"type": ..., "function_id": ..., "config": ...})` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
 | Invoke (await result)    | `iii.trigger({"function_id": id, "payload": data})` | Invoke a function and wait for the result           |
 | Invoke (fire-and-forget) | `iii.trigger({"function_id": id, ..., "action": TriggerAction.Void()})` | Fire-and-forget |
 | Shutdown                 | `iii.shutdown()`                                  | Disconnect and stop background thread                  |
@@ -60,11 +60,11 @@ iii.register_function({"id": "orders.create"}, create_order)
 ### Registering Triggers
 
 ```python
-iii.register_trigger(
-    type="http",
-    function_id="orders.create",
-    config={"api_path": "/orders", "http_method": "POST"}
-)
+iii.register_trigger({
+    "type": "http",
+    "function_id": "orders.create",
+    "config": {"api_path": "/orders", "http_method": "POST"},
+})
 ```
 
 ### Invoking Functions

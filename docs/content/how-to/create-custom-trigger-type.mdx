@@ -202,11 +202,11 @@ def handle_push(payload):
 
 iii.register_function('github::push', handle_push)
 
-iii.register_trigger(
-    type="webhook",
-    function_id="github::push",
-    config={"path": "/hooks/github"},
-)
+iii.register_trigger({
+    "type": "webhook",
+    "function_id": "github::push",
+    "config": {"path": "/hooks/github"},
+})
 ```
 </Tab>
 <Tab value="Rust">

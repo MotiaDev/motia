@@ -88,10 +88,10 @@ def update_user_status(req: ApiRequest, ctx) -> ApiResponse:
 iii.register_function("users.update_status", lambda data: update_user_status(
     ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
-iii.register_trigger(
-    type="http", function_id="users.update_status",
-    config={"api_path": "users/:id/status", "http_method": "POST"},
-)
+iii.register_trigger({
+    "type": "http", "function_id": "users.update_status",
+    "config": {"api_path": "users/:id/status", "http_method": "POST"},
+})
 ```
 
   </Tab>
@@ -191,10 +191,10 @@ def get_user_status(req: ApiRequest, ctx) -> ApiResponse:
 iii.register_function("users.get_status", lambda data: get_user_status(
     ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
-iii.register_trigger(
-    type="http", function_id="users.get_status",
-    config={"api_path": "users/:id/status", "http_method": "GET"},
-)
+iii.register_trigger({
+    "type": "http", "function_id": "users.get_status",
+    "config": {"api_path": "users/:id/status", "http_method": "GET"},
+})
 ```
 
   </Tab>
@@ -293,7 +293,7 @@ def orders_audit(_data, ctx) -> None:
             })
 
 iii.register_function("cron.orders_audit", lambda data: orders_audit(data, Logger()))
-iii.register_trigger(type="cron", function_id="cron.orders_audit", config={"expression": "*/5 * * * *"})
+iii.register_trigger({"type": "cron", "function_id": "cron.orders_audit", "config": {"expression": "*/5 * * * *"}})
 ```
 
   </Tab>

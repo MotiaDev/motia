@@ -336,11 +336,11 @@ def multiply(req):
 
 iii.register_function('math::multiply', multiply)
 
-iii.register_trigger(
-  type="http",
-  function_id="math::multiply",
-  config={"api_path": "/math/multiply", "http_method": "POST"},
-)
+iii.register_trigger({
+  "type": "http",
+  "function_id": "math::multiply",
+  "config": {"api_path": "/math/multiply", "http_method": "POST"},
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -404,11 +404,11 @@ def aggregation(_):
 
 iii.register_function('math::aggregation', aggregation)
 
-iii.register_trigger(
-  type="cron",
-  function_id="math::aggregation",
-  config={"expression": "0 */30 * * * *"},  # every 30 minutes
-)
+iii.register_trigger({
+  "type": "cron",
+  "function_id": "math::aggregation",
+  "config": {"expression": "0 */30 * * * *"},  # every 30 minutes
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -473,11 +473,11 @@ iii.register_function(
     HttpInvocationConfig(url=os.environ['WEBHOOK_URL'], method='POST', timeout_ms=5000),
 )
 
-iii.register_trigger(
-    type="state",
-    function_id="orders::webhook",
-    config={"scope": "orders", "key": "status"},
-)
+iii.register_trigger({
+    "type": "state",
+    "function_id": "orders::webhook",
+    "config": {"scope": "orders", "key": "status"},
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -605,9 +605,13 @@ def create_order(data):
 
 fn_ref = iii.register_function("orders.create", create_order)
 
-trigger = iii.register_trigger("orders.create", "http", {
-    "method": "POST",
-    "path": "/orders",
+trigger = iii.register_trigger({
+    "type": "http",
+    "function_id": "orders.create",
+    "config": {
+        "method": "POST",
+        "path": "/orders",
+    },
 })
 
 # Later, when no longer needed:

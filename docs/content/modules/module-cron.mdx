@@ -137,7 +137,7 @@ def cleanup_old_data(event):
     return {}
 
 iii.register_function('jobs::cleanupOldData', cleanup_old_data)
-iii.register_trigger(type='cron', function_id='jobs::cleanupOldData', config={'expression': '0 0 2 * * *'})
+iii.register_trigger({'type': 'cron', 'function_id': 'jobs::cleanupOldData', 'config': {'expression': '0 0 2 * * *'}})
 ```
 </Tab>
 <Tab value="Rust">

@@ -254,11 +254,11 @@ const trigger = iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-trigger = iii.register_trigger(
-    type='http',
-    function_id='users::create',
-    config={'method': 'POST', 'path': '/users'},
-)
+trigger = iii.register_trigger({
+    'type': 'http',
+    'function_id': 'users::create',
+    'config': {'method': 'POST', 'path': '/users'},
+})
 ```
 </Tab>
 <Tab value="Rust">

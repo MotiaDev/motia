@@ -111,11 +111,11 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="cron_trigger.py"
-iii.register_trigger(
-    type="cron",
-    function_id="cleanup::expired-sessions",
-    config={"expression": "* * * * * * *"},  # runs every second
-)
+iii.register_trigger({
+    "type": "cron",
+    "function_id": "cleanup::expired-sessions",
+    "config": {"expression": "* * * * * * *"},  # runs every second
+})
 ```
 </Tab>
 <Tab value="Rust">

@@ -297,7 +297,7 @@ async def test_delivers_queue_events_to_external_http_function() -> None:
         )
         time.sleep(0.5)
 
-        trigger = client.register_trigger("queue", function_id, {"topic": topic})
+        trigger = client.register_trigger({"type": "queue", "function_id": function_id, "config": {"topic": topic}})
         time.sleep(0.5)
 
         client.trigger({"function_id": "enqueue", "payload": {"topic": topic, "data": payload}})
@@ -392,7 +392,7 @@ async def test_delivers_events_with_custom_headers() -> None:
         )
         time.sleep(0.5)
 
-        trigger = client.register_trigger("queue", function_id, {"topic": topic})
+        trigger = client.register_trigger({"type": "queue", "function_id": function_id, "config": {"topic": topic}})
         time.sleep(0.5)
 
         client.trigger({"function_id": "enqueue", "payload": {"topic": topic, "data": payload}})
@@ -452,8 +452,8 @@ async def test_delivers_events_to_multiple_external_functions() -> None:
         )
         time.sleep(0.5)
 
-        trigger_a = client.register_trigger("queue", fn_id_a, {"topic": topic_a})
-        trigger_b = client.register_trigger("queue", fn_id_b, {"topic": topic_b})
+        trigger_a = client.register_trigger({"type": "queue", "function_id": fn_id_a, "config": {"topic": topic_a}})
+        trigger_b = client.register_trigger({"type": "queue", "function_id": fn_id_b, "config": {"topic": topic_b}})
         time.sleep(0.5)
 
         client.trigger({"function_id": "enqueue", "payload": {"topic": topic_a, "data": payload_a}})
@@ -503,7 +503,7 @@ async def test_stops_delivering_after_unregister() -> None:
         )
         time.sleep(0.5)
 
-        trigger = client.register_trigger("queue", function_id, {"topic": topic})
+        trigger = client.register_trigger({"type": "queue", "function_id": function_id, "config": {"topic": topic}})
         time.sleep(0.5)
 
         # First enqueue -- should be delivered.
@@ -551,7 +551,7 @@ async def test_delivers_with_put_method() -> None:
         )
         time.sleep(0.5)
 
-        trigger = client.register_trigger("queue", function_id, {"topic": topic})
+        trigger = client.register_trigger({"type": "queue", "function_id": function_id, "config": {"topic": topic}})
         time.sleep(0.5)
 
         client.trigger({"function_id": "enqueue", "payload": {"topic": topic, "data": payload}})

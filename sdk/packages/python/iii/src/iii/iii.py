@@ -26,6 +26,7 @@ from .iii_types import (
     RegisterFunctionInput,
     RegisterFunctionMessage,
     RegisterServiceMessage,
+    RegisterTriggerInput,
     RegisterTriggerMessage,
     RegisterTriggerTypeMessage,
     StreamChannelRef,
@@ -616,13 +617,15 @@ class III:
         self._trigger_types.pop(id, None)
         self._send_if_connected(UnregisterTriggerTypeMessage(id=id))
 
-    def register_trigger(self, type: str, function_id: str, config: Any) -> Trigger:
+    def register_trigger(self, trigger: RegisterTriggerInput | dict[str, Any]) -> Trigger:
+        if isinstance(trigger, dict):
+            trigger = RegisterTriggerInput(**trigger)
         trigger_id = str(uuid.uuid4())
         msg = RegisterTriggerMessage(
             id=trigger_id,
-            trigger_type=type,
-            function_id=function_id,
-            config=config,
+            trigger_type=trigger.type,
+            function_id=trigger.function_id,
+            config=trigger.config,
         )
         self._triggers[trigger_id] = msg
         self._send_if_connected(msg)
@@ -898,7 +901,9 @@ class III:
 
                 self.register_function({"id": function_id}, handler)
 
-            self._functions_available_trigger = self.register_trigger("engine::functions-available", function_id, {})
+            self._functions_available_trigger = self.register_trigger(
+                {"type": "engine::functions-available", "function_id": function_id, "config": {}}
+            )
 
         def unsubscribe() -> None:
             self._functions_available_callbacks.discard(callback)
