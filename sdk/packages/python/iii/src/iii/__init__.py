@@ -1,6 +1,5 @@
 """III SDK for Python."""
 
-import asyncio
 import logging
 
 from .channels import ChannelReader, ChannelWriter, ReadableStream, WritableStream
@@ -122,16 +121,7 @@ def register_worker(address: str, options: InitOptions | None = None) -> III:
         >>> asyncio.run(main())
     """
     client = III(address, options)
-
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError as exc:
-        raise RuntimeError(
-            "iii.register_worker() requires an active asyncio event loop. "
-            "Call it inside async code or use `client = III(...); await client.connect()`"
-        ) from exc
-
-    loop.create_task(client.connect())
+    client.connect()
     return client
 
 

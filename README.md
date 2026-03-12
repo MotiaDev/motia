@@ -84,11 +84,11 @@ async def main():
 
     iii.register_function("math.add", add)
 
-    iii.register_trigger(
-        type="http",
-        function_id="math.add",
-        config={"api_path": "add", "http_method": "POST"}
-    )
+    iii.register_trigger({
+        "type": "http",
+        "function_id": "math.add",
+        "config": {"api_path": "add", "http_method": "POST"}
+    })
 
     result = await iii.trigger({"function_id": "math.add", "payload": {"a": 1, "b": 2}})
     logger.info("result", result)  # {"sum": 3}

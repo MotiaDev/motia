@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 from types import SimpleNamespace
 from typing import Any
 
@@ -61,8 +62,7 @@ class FakeWebSocket:
         raise StopAsyncIteration
 
 
-@pytest.mark.asyncio
-async def test_preconnect_registration_sent_once(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_preconnect_registration_sent_once(monkeypatch: pytest.MonkeyPatch) -> None:
     ws = FakeWebSocket()
     connect_calls = 0
 
@@ -81,14 +81,14 @@ async def test_preconnect_registration_sent_once(monkeypatch: pytest.MonkeyPatch
     async def handler(data: Any) -> Any:
         return data
 
-    client.register_function("demo.fn", handler)
-    client.register_trigger("cron", "demo.fn", {"cron": "* * * * * *"})
+    client.register_function({"id": "demo.fn"}, handler)
+    client.register_trigger({"type": "cron", "function_id": "demo.fn", "config": {"cron": "* * * * * *"}})
 
     assert client._queue == []
 
-    await client.connect()
-    await asyncio.sleep(0.01)
-    await client.shutdown()
+    client.connect()
+    time.sleep(0.01)
+    client.shutdown()
 
     reg_fn = [m for m in ws.sent if m.get("type") == "registerfunction" and m.get("id") == "demo.fn"]
     reg_trigger = [m for m in ws.sent if m.get("type") == "registertrigger" and m.get("function_id") == "demo.fn"]
@@ -98,8 +98,7 @@ async def test_preconnect_registration_sent_once(monkeypatch: pytest.MonkeyPatch
     assert len(reg_trigger) == 1, ws.sent
 
 
-@pytest.mark.asyncio
-async def test_reconnect_replays_durable_state_once_per_connection(
+def test_reconnect_replays_durable_state_once_per_connection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sockets: list[FakeWebSocket] = []
@@ -119,20 +118,20 @@ async def test_reconnect_replays_durable_state_once_per_connection(
     async def handler(data: Any) -> Any:
         return data
 
-    client.register_function("demo.fn", handler)
-    client.register_trigger("cron", "demo.fn", {"cron": "* * * * * *"})
+    client.register_function({"id": "demo.fn"}, handler)
+    client.register_trigger({"type": "cron", "function_id": "demo.fn", "config": {"cron": "* * * * * *"}})
 
-    await client.connect()
-    await asyncio.sleep(0.01)
+    client.connect()
+    time.sleep(0.01)
 
     first_ws = client._ws
     assert first_ws is not None
-    await first_ws.close()
+    asyncio.run_coroutine_threadsafe(first_ws.close(), client._loop).result()
     client._ws = None
 
-    await client._do_connect()
-    await asyncio.sleep(0.01)
-    await client.shutdown()
+    client._run_on_loop(client._do_connect())
+    time.sleep(0.01)
+    client.shutdown()
 
     total_fn = sum(
         1 for ws in sockets for m in ws.sent if m.get("type") == "registerfunction" and m.get("id") == "demo.fn"
@@ -145,8 +144,7 @@ async def test_reconnect_replays_durable_state_once_per_connection(
     assert total_trigger == 2
 
 
-@pytest.mark.asyncio
-async def test_call_void_queued_while_disconnected_flushes_after_connect(
+def test_call_void_queued_while_disconnected_flushes_after_connect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     ws = FakeWebSocket()
@@ -161,12 +159,12 @@ async def test_call_void_queued_while_disconnected_flushes_after_connect(
     client = III("ws://fake")
     client._register_worker_metadata = lambda: None
 
-    await client.trigger({"function_id": "demo.fire", "payload": {"x": 1}, "action": TriggerAction.Void()})
-    await asyncio.sleep(0)
+    client.trigger({"function_id": "demo.fire", "payload": {"x": 1}, "action": TriggerAction.Void()})
+    time.sleep(0)
 
-    await client.connect()
-    await asyncio.sleep(0.01)
-    await client.shutdown()
+    client.connect()
+    time.sleep(0.01)
+    client.shutdown()
 
     invoke = [m for m in ws.sent if m.get("type") == "invokefunction" and m.get("function_id") == "demo.fire"]
     assert len(invoke) == 1

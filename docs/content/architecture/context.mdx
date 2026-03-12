@@ -43,11 +43,11 @@ from iii import III
 
 iii = III('ws://localhost:49134')
 
-async def create_order(data):
+def create_order(data):
     logger = Logger()
 
     logger.info('Creating order', {'items': len(data['items'])})
-    result = await process_order(data)
+    result = process_order(data)
     logger.info('Order created', {'orderId': result['id']})
 
     return result

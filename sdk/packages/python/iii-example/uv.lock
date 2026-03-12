@@ -30,7 +30,7 @@ requires-dist = [
 
 [[package]]
 name = "iii-sdk"
-version = "0.8.0"
+version = "0.8.3"
 source = { editable = "../iii" }
 dependencies = [
     { name = "pydantic" },
@@ -49,6 +49,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.2" },
     { name = "websockets", specifier = ">=12.0" },
 ]

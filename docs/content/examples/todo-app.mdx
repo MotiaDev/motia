@@ -87,7 +87,6 @@ from iii import (
 )
 from .iii import iii
 
-
 class TodoStream(IStream[dict[str, Any]]):
     def __init__(self) -> None:
         self._todos: list[dict[str, Any]] = []
@@ -124,7 +123,6 @@ class TodoStream(IStream[dict[str, Any]]):
 
     async def update(self, input: StreamUpdateInput) -> StreamSetResult[dict[str, Any]] | None:
         return None
-
 
 iii.create_stream("todo", TodoStream())
 ```
@@ -204,8 +202,7 @@ from datetime import datetime, timezone
 from iii import ApiRequest, ApiResponse, TriggerAction
 from .iii import iii
 
-
-async def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
+def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
     description = req.body.get("description") if req.body else None
     due_date = req.body.get("dueDate") if req.body else None
 
@@ -217,7 +214,7 @@ async def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
 
     logger.info("Creating todo", {"todoId": todo_id})
 
-    todo = await iii.trigger({
+    todo = iii.trigger({
         "function_id": "stream::set",
         "payload": {
             "stream_name": "todo",
@@ -236,14 +233,13 @@ async def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
     logger.info("Todo created", {"todoId": todo_id})
     return ApiResponse(statusCode=201, body=todo, headers={"Content-Type": "application/json"})
 
-
 iii.register_function("api.post.todo", lambda data: _create_todo(
     ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
-iii.register_trigger(
-    type="http", function_id="api.post.todo",
-    config={"api_path": "todo", "http_method": "POST", "description": "Create a new todo"},
-)
+iii.register_trigger({
+    "type": "http", "function_id": "api.post.todo",
+    "config": {"api_path": "todo", "http_method": "POST", "description": "Create a new todo"},
+})
 ```
 
   </Tab>
@@ -347,10 +343,10 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-async def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
+def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
     todo_id = req.path_params.get("id") if req.path_params else None
 
-    existing = await iii.trigger({
+    existing = iii.trigger({
         "function_id": "stream::get",
         "payload": {"stream_name": "todo", "group_id": "inbox", "item_id": todo_id},
     }) if todo_id else None
@@ -361,7 +357,7 @@ async def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
     logger.info("Updating todo", {"todoId": todo_id})
 
     merged = {**existing, **(req.body or {})}
-    updated = await iii.trigger({
+    updated = iii.trigger({
         "function_id": "stream::set",
         "payload": {"stream_name": "todo", "group_id": "inbox", "item_id": todo_id, "data": merged},
     })
@@ -369,14 +365,13 @@ async def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
     logger.info("Todo updated", {"todoId": todo_id})
     return ApiResponse(statusCode=200, body=updated, headers={"Content-Type": "application/json"})
 
-
 iii.register_function("api.put.todo", lambda data: _update_todo(
     ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
-iii.register_trigger(
-    type="http", function_id="api.put.todo",
-    config={"api_path": "todo/:id", "http_method": "PUT", "description": "Update a todo"},
-)
+iii.register_trigger({
+    "type": "http", "function_id": "api.put.todo",
+    "config": {"api_path": "todo/:id", "http_method": "PUT", "description": "Update a todo"},
+})
 ```
 
   </Tab>
@@ -461,7 +456,7 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-async def _delete_todo(req: ApiRequest, ctx) -> ApiResponse:
+def _delete_todo(req: ApiRequest, ctx) -> ApiResponse:
     todo_id = req.body.get("todoId") if req.body else None
 
     if not todo_id:
@@ -469,7 +464,7 @@ async def _delete_todo(req: ApiRequest, ctx) -> ApiResponse:
 
     logger.info("Deleting todo", {"todoId": todo_id})
 
-    iii.trigger_void({
+    iii.trigger({
         "function_id": "stream::delete",
         "payload": {"stream_name": "todo", "group_id": "inbox", "item_id": todo_id},
         "action": TriggerAction.Void(),
@@ -478,14 +473,13 @@ async def _delete_todo(req: ApiRequest, ctx) -> ApiResponse:
     logger.info("Todo deleted", {"todoId": todo_id})
     return ApiResponse(statusCode=200, body={"success": True}, headers={"Content-Type": "application/json"})
 
-
 iii.register_function("api.delete.todo", lambda data: _delete_todo(
     ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
-iii.register_trigger(
-    type="http", function_id="api.delete.todo",
-    config={"api_path": "todo", "http_method": "DELETE", "description": "Delete a todo"},
-)
+iii.register_trigger({
+    "type": "http", "function_id": "api.delete.todo",
+    "config": {"api_path": "todo", "http_method": "DELETE", "description": "Delete a todo"},
+})
 ```
 
   </Tab>
