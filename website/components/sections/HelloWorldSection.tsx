@@ -32,13 +32,9 @@ iii = register_worker(
     "ws://localhost:49134"
 )
 
-async def predict(
-    input: dict,
-) -> dict:
-    tensor = torch.tensor(
-        input["data"]
-    )
-    result = model(tensor)
+async def predict(input):
+    t = torch.tensor(input["data"])
+    result = model(t)
     return {
         "predictions": result.tolist()
     }
@@ -47,10 +43,7 @@ iii.register_function(
     "ml::predict", predict
 )`;
 
-const rustCode = `use iii_sdk::{
-    register_worker, InitOptions,
-    Value, IIIError,
-};
+const rustCode = `use iii_sdk::*;
 use serde_json::json;
 
 async fn transform(
@@ -58,11 +51,10 @@ async fn transform(
 ) -> Result<Value, IIIError> {
     let nums: Vec<f64> =
         serde_json::from_value(input)?;
-    let doubled: Vec<f64> =
-        nums.iter()
-            .map(|x| x * 2.0)
-            .collect();
-    Ok(json!(doubled))
+    let result: Vec<f64> = nums
+        .iter().map(|x| x * 2.0)
+        .collect();
+    Ok(json!(result))
 }
 
 #[tokio::main]
@@ -71,30 +63,26 @@ async fn main() -> Result<(), IIIError> {
         "ws://localhost:49134",
         InitOptions::default(),
     )?;
-
     iii.register_function(
-        "data::transform",
-        transform,
+        "data::transform", transform,
     );
-
     Ok(())
 }`;
 
-const nodeCode = `import { registerWorker }
-  from "iii-sdk"
+const nodeCode = `import { registerWorker } from "iii-sdk"
 
 const iii = registerWorker(
   "ws://localhost:49134"
 )
 
-const transformed = await iii.trigger({
+const nums = await iii.trigger({
   function_id: "data::transform",
   payload: [1.0, 2.0, 3.0],
 })
 
-const prediction = await iii.trigger({
+const pred = await iii.trigger({
   function_id: "ml::predict",
-  payload: { data: transformed },
+  payload: { data: nums },
 })`;
 
 export function HelloWorldSection({
