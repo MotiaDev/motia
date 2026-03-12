@@ -22,7 +22,6 @@ from .iii_types import (
     InvocationResultMessage,
     InvokeFunctionMessage,
     MessageType,
-    RegisterFunctionFormat,
     RegisterFunctionInput,
     RegisterFunctionMessage,
     RegisterServiceMessage,

@@ -12,7 +12,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from .iii_types import (
     FunctionInfo,
     HttpInvocationConfig,
-    RegisterFunctionFormat,
     RegisterFunctionInput,
     RegisterFunctionMessage,
     RegisterTriggerMessage,
