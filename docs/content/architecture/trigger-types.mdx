@@ -394,7 +394,7 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-import asyncio
+import time
 import json
 from iii import http
 from iii.types import HttpRequest, HttpResponse
@@ -423,7 +423,7 @@ async def handler(req: HttpRequest, response: HttpResponse):
         frame += "\n"
 
         await response.writer.write(frame.encode("utf-8"))
-        await asyncio.sleep(0.05)
+        time.sleep(0.05)
 
     await response.writer.close_async()
 
@@ -745,7 +745,7 @@ const fn = iii.registerFunction({ id: 'users.create' }, async (data) => {
 </Tab>
 <Tab value="Python">
 ```python
-async def create_user(data):
+def create_user(data):
     return {'id': '123', **data}
 
 fn = iii.register_function('users.create', create_user)
@@ -848,8 +848,8 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def notify(data):
-    await send_notification(data)
+def notify(data):
+    send_notification(data)
 
 fn = iii.register_function('users.notify', notify)
 
@@ -937,12 +937,12 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def require_verified(req):
+def require_verified(req):
     return req.get('headers', {}).get('x-verified') == 'true'
 
 condition_fn = iii.register_function('conditions::requireVerified', require_verified)
 
-async def verified_only(req):
+def verified_only(req):
     return {'status_code': 200, 'body': {'message': 'Verified request'}}
 
 fn = iii.register_function('api::verifiedOnly', verified_only)
@@ -1005,13 +1005,13 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def high_value(data):
+def high_value(data):
     return (data.get('amount', 0)) > 1000
 
 condition_fn = iii.register_function('conditions::highValue', high_value)
 
-async def process_high_value(order):
-    await process_high_value_order(order)
+def process_high_value(order):
+    process_high_value_order(order)
     return {}
 
 fn = iii.register_function('orders::processHighValue', process_high_value)
@@ -1073,12 +1073,12 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def profile_changed(event):
+def profile_changed(event):
     return event.get('event_type') == 'updated' and event.get('key') == 'profile'
 
 condition_fn = iii.register_function('conditions::profileChanged', profile_changed)
 
-async def on_profile_update(event):
+def on_profile_update(event):
     print('Profile updated:', event.get('new_value'))
     return {}
 
@@ -1174,11 +1174,11 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def github_webhook(req):
+def github_webhook(req):
     event = req.get('headers', {}).get('x-github-event')
     payload = req.get('body')
 
-    await process_github_webhook(event, payload)
+    process_github_webhook(event, payload)
 
     return {'status_code': 200, 'body': {'received': True}}
 
@@ -1245,9 +1245,9 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def process_order(order):
-    await save_order(order)
-    iii.trigger_void('enqueue', {
+def process_order(order):
+    save_order(order)
+    iii.trigger('enqueue', {
         'topic': 'order.processed',
         'data': order,
     })
@@ -1260,8 +1260,8 @@ iii.register_trigger(
     config={'topic': 'order.placed'},
 )
 
-async def send_confirmation(order):
-    await send_email(order['email'], 'Order confirmed')
+def send_confirmation(order):
+    send_email(order['email'], 'Order confirmed')
 
 confirm_fn = iii.register_function('orders.sendConfirmation', send_confirmation)
 
@@ -1320,8 +1320,8 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def cleanup():
-    deleted = await delete_old_records()
+def cleanup():
+    deleted = delete_old_records()
     logger.info(f'Deleted {deleted} old records')
 
 fn = iii.register_function('maintenance.cleanup', cleanup)

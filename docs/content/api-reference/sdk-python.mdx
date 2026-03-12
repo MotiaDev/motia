@@ -20,24 +20,19 @@ from iii import III, InitOptions, ApiRequest, ApiResponse
 The Python SDK requires an explicit `connect()` call to establish the WebSocket connection.
 
 ```python
-import asyncio
 from iii import III
 
 iii = III("ws://localhost:49134")
 
-async def sum_function(data):
+def sum_function(data):
     a = data.get("a", 0)
     b = data.get("b", 0)
     return {"sum": a + b}
 
 iii.register_function("math.sum", sum_function, description="Add two numbers")
-
-async def main():
-    await iii.connect()
-    result = await iii.trigger("math.sum", {"a": 2, "b": 3})
-    print(result)  # {"sum": 5}
-
-asyncio.run(main())
+iii.connect()
+result = iii.trigger("math.sum", {"a": 2, "b": 3})
+print(result)  # {"sum": 5}
 ```
 
 You can also pass `InitOptions` to customize the worker name:
@@ -103,7 +98,7 @@ iii = III(
     </Accordion>
     <Accordion iconName="Code" title="Example" description="">
       ```python
-      async def greet(data):
+      def greet(data):
           return {"message": f"Hello, {data['name']}!"}
 
       iii.register_function("greet", greet, description="Greets a user")
@@ -165,7 +160,7 @@ iii = III(
     </Accordion>
     <Accordion iconName="Code" title="Example" description="">
       ```python
-      result = await iii.trigger("enqueue", {
+      result = iii.trigger("enqueue", {
           "topic": "user.created",
           "data": {"user_id": "123"},
       })

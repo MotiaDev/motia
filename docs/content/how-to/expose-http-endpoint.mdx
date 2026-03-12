@@ -61,16 +61,16 @@ iii.registerFunction({ id: 'users::create' }, async (req) => {
 </Tab>
 <Tab value="Python">
 ```python title="http_endpoint.py"
-import asyncio
 import signal
 import uuid
 import os
 from iii import III
 from iii import Logger
+import threading
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
-async def create_user(req):
+def create_user(req):
     logger = Logger()
     name = req['body']['name']
     email = req['body']['email']
@@ -80,17 +80,10 @@ async def create_user(req):
     return {'status_code': 201, 'body': user}
 
 iii.register_function('users::create', create_user)
-
-async def main():
-    await iii.connect()
-    print("HTTP endpoint ready on POST /users")
-    stop = asyncio.Event()
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop.set)
-    await stop.wait()
-
-asyncio.run(main())
+iii.connect()
+print("HTTP endpoint ready on POST /users")
+stop = threading.Event()
+stop.wait()
 ```
 </Tab>
 <Tab value="Rust">

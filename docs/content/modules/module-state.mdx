@@ -294,7 +294,7 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def on_user_updated(event):
+def on_user_updated(event):
     print('State changed:', event['event_type'], event['key'])
     print('Previous:', event.get('old_value'))
     print('Current:', event.get('new_value'))
@@ -348,22 +348,22 @@ const scopes = await iii.trigger('state::list_groups', {})
 </Tab>
 <Tab value="Python">
 ```python
-iii.trigger_void('state::set', {
+iii.trigger('state::set', {
     'scope': 'users',
     'key': 'user-123',
     'value': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'dark'}},
 })
 
-profile = await iii.trigger('state::get', {'scope': 'users', 'key': 'user-123'})
+profile = iii.trigger('state::get', {'scope': 'users', 'key': 'user-123'})
 
-iii.trigger_void('state::set', {
+iii.trigger('state::set', {
     'scope': 'users',
     'key': 'user-123',
     'value': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'light'}},
 })
 
-all_users = await iii.trigger('state::list', {'scope': 'users'})
-scopes = await iii.trigger('state::list_groups', {})
+all_users = iii.trigger('state::list', {'scope': 'users'})
+scopes = iii.trigger('state::list_groups', {})
 ```
 </Tab>
 <Tab value="Rust">
@@ -423,7 +423,7 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def email_changed(event):
+def email_changed(event):
     if event.get('event_type') != 'state:updated':
         return False
     old = event.get('old_value', {})
@@ -432,8 +432,8 @@ async def email_changed(event):
 
 iii.register_function('conditions::emailChanged', email_changed)
 
-async def on_email_change(event):
-    await send_verification_email(event['new_value']['email'])
+def on_email_change(event):
+    send_verification_email(event['new_value']['email'])
     return {}
 
 iii.register_function('state::onEmailChange', on_email_change)

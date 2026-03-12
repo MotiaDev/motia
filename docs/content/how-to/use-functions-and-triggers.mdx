@@ -44,25 +44,22 @@ await iii.trigger({ function_id: 'math::add', payload: { a: 2, b: 3 } });
 <Tab value="Python">
 ```python title="math_add.py"
 from iii import III, Logger
-import asyncio
 import os
 import uuid
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
-async def add(data):
+def add(data):
   logger = Logger()
   result = data['a'] + data['b']
   id = str(uuid.uuid4())
-  await iii.trigger({'function_id': 'state::set', 'payload': {'scope': 'math', 'key': id, 'value': result}})
+  iii.trigger({'function_id': 'state::set', 'payload': {'scope': 'math', 'key': id, 'value': result}})
   logger.info('Math add completed', {'id': id, 'result': result})
   return {'id': id, 'result': result}
-
-async def main():
-  iii.register_function('math::add', add)
-  await iii.connect()
-  # Triggerable from any other function or worker
-  await iii.trigger({'function_id': 'math::add', 'payload': {'a': 2, 'b': 3}})
+iii.register_function('math::add', add)
+iii.connect()
+# Triggerable from any other function or worker
+iii.trigger({'function_id': 'math::add', 'payload': {'a': 2, 'b': 3}})
 ```
 </Tab>
 <Tab value="Rust">
@@ -162,7 +159,7 @@ iii.register_function(
   description='POST notification to Service Provider webhook',
 )
 
-await iii.trigger({'function_id': 'notifications::send', 'payload': {'channel': '#alerts', 'text': 'Deploy succeeded'}})
+iii.trigger({'function_id': 'notifications::send', 'payload': {'channel': '#alerts', 'text': 'Deploy succeeded'}})
 ```
 </Tab>
 <Tab value="Rust">
@@ -237,8 +234,8 @@ iii.registerFunction({ id: 'math::calculate' }, async (input) => {
 </Tab>
 <Tab value="Python">
 ```python title="trigger.py"
-async def calculate(data):
-  result = await iii.trigger({'function_id': 'math::add', 'payload': {'a': data['a'], 'b': data['b']}})
+def calculate(data):
+  result = iii.trigger({'function_id': 'math::add', 'payload': {'a': data['a'], 'b': data['b']}})
   print(result)  # {'result': 5}
   return result
 
@@ -272,8 +269,8 @@ iii.registerFunction({ id: 'math::calculate-async' }, async (input) => {
 ```python title="trigger_void.py"
 from iii import TriggerAction
 
-async def calculate_async(data):
-  await iii.trigger({'function_id': 'math::add', 'payload': {'a': data['a'], 'b': data['b']}, 'action': TriggerAction.Void()})
+def calculate_async(data):
+  iii.trigger({'function_id': 'math::add', 'payload': {'a': data['a'], 'b': data['b']}, 'action': TriggerAction.Void()})
 
 iii.register_function('math::calculate-async', calculate_async)
 ```
@@ -326,7 +323,7 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="http_trigger.py"
-async def multiply(req):
+def multiply(req):
   logger = Logger()
   a, b = req['body']['a'], req['body']['b']
   result = a * b
@@ -396,9 +393,9 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="cron_trigger.py"
-async def aggregation(_):
+def aggregation(_):
   logger = Logger()
-  results = await iii.trigger({'function_id': 'state::list', 'payload': {'scope': 'math'}})
+  results = iii.trigger({'function_id': 'state::list', 'payload': {'scope': 'math'}})
   values = [r for r in results if isinstance(r, (int, float))]
   total = sum(values)
   agg = {'count': len(values), 'sum': total, 'average': total / len(values) if values else 0}
@@ -553,9 +550,9 @@ iii.registerFunction({ id: 'math::double' }, async (input) => {
 </Tab>
 <Tab value="Python">
 ```python title="cross_language.py"
-async def double(data):
+def double(data):
   # Trigger a function that might be implemented in Node, Rust, or any other language
-  result = await iii.trigger({'function_id': 'math::add', 'payload': {'a': data['value'], 'b': data['value']}})
+  result = iii.trigger({'function_id': 'math::add', 'payload': {'a': data['value'], 'b': data['value']}})
   print(result)  # {'result': 10} if value was 5
   return result
 
@@ -603,7 +600,7 @@ trigger.unregister()
 </Tab>
 <Tab value="Python">
 ```python title="unregister.py"
-async def create_order(data):
+def create_order(data):
     return {"status_code": 201, "body": {"id": "123", "item": data["body"]["item"]}}
 
 fn_ref = iii.register_function("orders.create", create_order)

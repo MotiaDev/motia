@@ -136,10 +136,10 @@ iii.registerFunction({ id: 'orders::process' }, async (data) => {
 ```python
 from iii.telemetry import with_span
 
-async def process_order(data):
+def process_order(data):
     async with with_span("validate-order") as span:
         span.set_attribute("order.id", data["orderId"])
-        valid = await validate_order(data)
+        valid = validate_order(data)
         span.set_attribute("order.valid", valid)
         return {"status_code": 200, "body": {"valid": valid}}
 ```
@@ -230,7 +230,6 @@ iii.onLog((log) => {
   <Tab value="Python">
 
 ```python
-import asyncio
 from iii import III, InitOptions
 
 iii = III(address="ws://localhost:49134")
@@ -240,7 +239,7 @@ def handle_log(log):
 
 iii.on_log(handle_log, level="warn")
 
-asyncio.run(iii.connect())
+iii.connect()
 ```
 
   </Tab>

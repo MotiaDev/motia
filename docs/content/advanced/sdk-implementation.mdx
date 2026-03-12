@@ -137,7 +137,7 @@ pip install iii-sdk
 ### Basic Usage
 
 ```python
-import asyncio
+import time
 from iii import III, InitOptions, ApiRequest, ApiResponse
 
 iii = III(
@@ -145,7 +145,7 @@ iii = III(
     options=InitOptions(worker_name="my-worker"),
 )
 
-async def create_user(data):
+def create_user(data):
     logger = Logger()
     logger.info("Creating user")
     user = {"id": "123", **data}
@@ -158,13 +158,9 @@ iii.register_trigger(
     function_id="users::create",
     config={"api_path": "/users", "http_method": "POST"},
 )
-
-async def main():
-    await iii.connect()
-    while True:
-        await asyncio.sleep(60)
-
-asyncio.run(main())
+iii.connect()
+while True:
+    time.sleep(60)
 ```
 
 ### Key Components
@@ -177,7 +173,7 @@ asyncio.run(main())
     from iii import III, InitOptions
 
     iii = III(address="ws://127.0.0.1:49134", options=InitOptions(worker_name="worker-1"))
-    await iii.connect()
+    iii.connect()
     ```
 
   </Accordion>
@@ -415,7 +411,7 @@ iii.registerFunction({ id: 'handler' }, async (data: ApiRequest) => {
 ```python
 from iii import ApiRequest, ApiResponse
 
-async def handler(data) -> ApiResponse:
+def handler(data) -> ApiResponse:
     req = ApiRequest(**data)
     return ApiResponse(status_code=200, body={"ok": True})
 ```
@@ -441,9 +437,9 @@ iii.register_function("handler", |input| async move {
     Always handle errors gracefully and return appropriate HTTP status codes.
 
     ```python
-    async def handler(data):
+    def handler(data):
         try:
-            result = await process_data(data)
+            result = process_data(data)
             return ApiResponse(status_code=200, body=result)
         except ValueError as e:
             logger = Logger()
@@ -470,11 +466,12 @@ process.on('SIGINT', async () => {
       <Tab value="Python">
 
 ```python
+import threading
 try:
-    await iii.connect()
-    await asyncio.Event().wait()
+    iii.connect()
+    threading.Event().wait()
 finally:
-    await iii.shutdown()
+    iii.shutdown()
 ```
 
       </Tab>

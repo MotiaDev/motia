@@ -32,7 +32,6 @@ const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 ```python
 # worker.py
-import asyncio
 from iii import III, InitOptions, ApiRequest, ApiResponse
 
 iii = III(
@@ -115,14 +114,13 @@ import random
 import string
 from datetime import datetime, timezone
 
-
-async def hello_api(req: ApiRequest, ctx) -> ApiResponse:
+def hello_api(req: ApiRequest, ctx) -> ApiResponse:
     app_name = "III App"
     request_id = "".join(random.choices(string.ascii_lowercase + string.digits, k=7))
 
     logger.info("Hello API called", {"appName": app_name, "requestId": request_id})
 
-    iii.trigger_void("enqueue", {
+    iii.trigger("enqueue", {
         "topic": "greet.process",
         "data": {
             "requestId": request_id,
@@ -140,7 +138,6 @@ async def hello_api(req: ApiRequest, ctx) -> ApiResponse:
             "appName": app_name,
         },
     )
-
 
 iii.register_function("hello.api", lambda data: hello_api(
     ApiRequest(**data) if isinstance(data, dict) else data,
@@ -248,8 +245,7 @@ iii.registerTrigger({
 ```python
 from datetime import datetime, timezone
 
-
-async def greet_process(data: dict, ctx) -> None:
+def greet_process(data: dict, ctx) -> None:
     request_id = data.get("requestId", "unknown")
     app_name = data.get("appName", "III App")
     greeting_prefix = data.get("greetingPrefix", "Hello")
@@ -259,7 +255,7 @@ async def greet_process(data: dict, ctx) -> None:
 
     greeting = f"{greeting_prefix} {app_name}!"
 
-    iii.trigger_void("state::set", {
+    iii.trigger("state::set", {
         "scope": "greetings",
         "key": request_id,
         "data": {
@@ -270,7 +266,6 @@ async def greet_process(data: dict, ctx) -> None:
     })
 
     logger.info("Greeting processed", {"requestId": request_id, "greeting": greeting})
-
 
 iii.register_function("greet.process", lambda data: greet_process(data, Logger()))
 iii.register_trigger(
@@ -339,12 +334,11 @@ await new Promise(() => {})
   <Tab value="Python">
 
 ```python
-async def main() -> None:
-    await iii.connect()
+import time
+def main() -> None:
+    iii.connect()
     while True:
-        await asyncio.sleep(60)
-
-asyncio.run(main())
+        time.sleep(60)
 ```
 
   </Tab>

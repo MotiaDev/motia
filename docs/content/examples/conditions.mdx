@@ -64,20 +64,17 @@ from iii import III, InitOptions, ApiRequest, ApiResponse
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-worker"))
 
-
-async def is_premium(data) -> bool:
+def is_premium(data) -> bool:
     req = ApiRequest(**data) if isinstance(data, dict) else data
     return (req.body or {}).get("amount", 0) > 1000
 
-
-async def orders_premium(data, ctx) -> ApiResponse:
+def orders_premium(data, ctx) -> ApiResponse:
     req = ApiRequest(**data) if isinstance(data, dict) else data
     logger.info("Processing premium order", {"amount": (req.body or {}).get("amount")})
     return ApiResponse(statusCode=200, body={"message": "Premium order processed"})
 
-
-async def orders_premium_wrapper(data):
-    return await orders_premium(data, Logger())
+def orders_premium_wrapper(data):
+    return orders_premium(data, Logger())
 
 iii.register_function("conditions::is_premium", is_premium)
 iii.register_function("orders::premium", orders_premium_wrapper)
@@ -171,14 +168,12 @@ iii.registerTrigger({
 ```python
 from datetime import datetime, timezone
 
-
-async def is_high_value(data) -> bool:
+def is_high_value(data) -> bool:
     if isinstance(data, dict):
         return data.get("amount", 0) > 1000
     return False
 
-
-async def orders_high_value(data: dict, ctx) -> None:
+def orders_high_value(data: dict, ctx) -> None:
     logger.info("Processing high-value order", {"amount": data.get("amount")})
 
     # Silent skip
@@ -188,11 +183,10 @@ async def orders_high_value(data: dict, ctx) -> None:
 
     logger.info("Processing high-value order", {"amount": amount})
 
-    iii.trigger_void("enqueue", {
+    iii.trigger("enqueue", {
         "topic": "order.processed",
         "data": {**data, "processedAt": datetime.now(timezone.utc).isoformat()},
     })
-
 
 iii.register_function("conditions::is_high_value", is_high_value)
 iii.register_function("orders::high_value", lambda data: orders_high_value(data, Logger()))
@@ -269,15 +263,13 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-async def is_update(event) -> bool:
+def is_update(event) -> bool:
     if isinstance(event, dict):
         return event.get("event_type") == "updated"
     return False
 
-
-async def orders_on_update(event: dict, ctx) -> None:
+def orders_on_update(event: dict, ctx) -> None:
     logger.info("Order updated", {"scope": event.get("scope"), "key": event.get("key")})
-
 
 iii.register_function("conditions::is_update", is_update)
 iii.register_function("orders::on_update", lambda data: orders_on_update(data, Logger()))

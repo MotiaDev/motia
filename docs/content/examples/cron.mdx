@@ -47,24 +47,21 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-import asyncio
 from datetime import datetime, timezone
 from iii import III, InitOptions
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="cron-worker"))
 
-
-async def periodic_job(_data, ctx) -> None:
+def periodic_job(_data, ctx) -> None:
     logger.info("Periodic job fired")
 
-    iii.trigger_void("enqueue", {
+    iii.trigger("enqueue", {
         "topic": "job.tick",
         "data": {
             "firedAt": datetime.now(timezone.utc).isoformat(),
             "message": "Periodic job executed",
         },
     })
-
 
 iii.register_function("cron.periodic_job", lambda data: periodic_job(data, Logger()))
 iii.register_trigger(
@@ -135,12 +132,11 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-async def handle_tick(data: dict, ctx) -> None:
+def handle_tick(data: dict, ctx) -> None:
     logger.info("Periodic job processed", {
         "firedAt": data.get("firedAt"),
         "message": data.get("message"),
     })
-
 
 iii.register_function("job.handle_tick", lambda data: handle_tick(data, Logger()))
 iii.register_trigger(type="queue", function_id="job.handle_tick", config={"topic": "job.tick"})
@@ -219,9 +215,8 @@ iii.registerTrigger({
 ```python
 from datetime import datetime, timezone
 
-
-async def orders_sweep(_data, ctx) -> None:
-    orders = await iii.trigger("state::list", {"scope": "orders"}) or []
+def orders_sweep(_data, ctx) -> None:
+    orders = iii.trigger("state::list", {"scope": "orders"}) or []
     swept = 0
 
     for order in orders:
@@ -236,7 +231,7 @@ async def orders_sweep(_data, ctx) -> None:
         if not complete and datetime.now(timezone.utc) > ship_date:
             logger.warn("Order overdue", {"orderId": order.get("id")})
 
-            iii.trigger_void("enqueue", {
+            iii.trigger("enqueue", {
                 "topic": "notification",
                 "data": {
                     "orderId": order.get("id"),
@@ -247,7 +242,6 @@ async def orders_sweep(_data, ctx) -> None:
             swept += 1
 
     logger.info("Sweep complete", {"checked": len(orders), "swept": swept})
-
 
 iii.register_function("cron.orders_sweep", lambda data: orders_sweep(data, Logger()))
 iii.register_trigger(type="cron", function_id="cron.orders_sweep", config={"expression": "*/5 * * * *"})

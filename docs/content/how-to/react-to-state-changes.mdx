@@ -51,14 +51,14 @@ iii.registerFunction({ id: 'orders::on-status-change' }, async (event) => {
 </Tab>
 <Tab value="Python">
 ```python title="state_watcher.py"
-import asyncio
 import os
 import signal
 from iii import III, Logger
+import threading
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
-async def on_status_change(event):
+def on_status_change(event):
     logger = Logger()
     logger.info('Order status changed', {'key': event['key'], 'new_value': event['new_value']})
     print(f"Order status changed: key={event['key']}, new_value={event['new_value']}")
@@ -66,17 +66,10 @@ async def on_status_change(event):
     return {'handled': True}
 
 iii.register_function('orders::on-status-change', on_status_change)
-
-async def main():
-    await iii.connect()
-    print("Watching orders/status for changes")
-    stop = asyncio.Event()
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop.set)
-    await stop.wait()
-
-asyncio.run(main())
+iii.connect()
+print("Watching orders/status for changes")
+stop = threading.Event()
+stop.wait()
 ```
 </Tab>
 <Tab value="Rust">
@@ -133,14 +126,14 @@ await iii.trigger({ function_id: 'state::set', payload: {
 </Tab>
 <Tab value="Python">
 ```python title="state_trigger.py"
-await iii.register_trigger(
+iii.register_trigger(
     type="state",
     function_id="orders::on-status-change",
     config={"scope": "orders", "key": "status"},
 )
 
 # Then run iii.trigger() from another function or worker to trigger the state change
-await iii.trigger({'function_id': 'state::set', 'payload': {
+iii.trigger({'function_id': 'state::set', 'payload': {
     'scope': 'orders',
     'key': 'status',
     'value': {'orderId': 'order-123', 'status': 'shipped'},

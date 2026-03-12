@@ -179,30 +179,25 @@ iii.registerTrigger({
 ### Python
 
 ```python
-import asyncio
 from iii import III
+iii = III('ws://localhost:49134')
 
-async def main():
-    iii = III('ws://localhost:49134')
+def hello(data):
+    name = data.get('name', 'World')
+    return {'message': f'Hello, {name}!'}
 
-    async def hello(data):
-        name = data.get('name', 'World')
-        return {'message': f'Hello, {name}!'}
+iii.register_function('greet::hello', hello)
 
-    iii.register_function('greet::hello', hello)
+iii.register_trigger(
+    type='http',
+    function_id='greet::hello',
+    config={
+        'api_path': '/greet/:name',
+        'http_method': 'GET',
+    }
+)
 
-    iii.register_trigger(
-        type='http',
-        function_id='greet::hello',
-        config={
-            'api_path': '/greet/:name',
-            'http_method': 'GET',
-        }
-    )
-
-    await iii.connect()
-
-asyncio.run(main())
+iii.connect()
 ```
 
 ## Best Practices

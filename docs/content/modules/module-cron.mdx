@@ -132,7 +132,7 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def cleanup_old_data(event):
+def cleanup_old_data(event):
     print('Running cleanup scheduled at:', event['scheduled_time'])
     return {}
 

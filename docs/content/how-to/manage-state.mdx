@@ -61,21 +61,21 @@ logger.info('Created user', { userId })
 </Tab>
 <Tab value="Python">
 ```python title="state_writer.py"
-import asyncio
 import os
 import signal
 import uuid
 from iii import III
 from iii import Logger
+import threading
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
-async def create_user(input):
+def create_user(input):
     logger = Logger()
     user_id = str(uuid.uuid4())
     user = {'id': user_id, 'name': input['name'], 'email': input['email']}
 
-    await iii.trigger({'function_id': 'state::set', 'payload': {
+    iii.trigger({'function_id': 'state::set', 'payload': {
         'scope': 'users',
         'key': user_id,
         'value': user,
@@ -85,19 +85,12 @@ async def create_user(input):
     return {'userId': user_id}
 
 iii.register_function('users::create', create_user)
-
-async def main():
-    await iii.connect()
-    stop = asyncio.Event()
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop.set)
-    await stop.wait()
-
-asyncio.run(main())
+iii.connect()
+stop = threading.Event()
+stop.wait()
 
 # Then call from another function or worker
-result = await iii.trigger({'function_id': 'users::create', 'payload': {'name': 'Alice', 'email': 'alice@example.com'}})
+result = iii.trigger({'function_id': 'users::create', 'payload': {'name': 'Alice', 'email': 'alice@example.com'}})
 print('Created user:', result['userId'])
 ```
 </Tab>
@@ -168,10 +161,10 @@ logger.info('Retrieved user', user)
 </Tab>
 <Tab value="Python">
 ```python title="state_reader.py"
-async def get_user(input):
+def get_user(input):
     logger = Logger()
 
-    user = await iii.trigger({'function_id': 'state::get', 'payload': {
+    user = iii.trigger({'function_id': 'state::get', 'payload': {
         'scope': 'users',
         'key': input['userId'],
     }})
@@ -182,7 +175,7 @@ async def get_user(input):
 iii.register_function('users::get', get_user)
 
 # Then call from another function or worker
-user = await iii.trigger({'function_id': 'users::get', 'payload': {'userId': 'some-user-id'}})
+user = iii.trigger({'function_id': 'users::get', 'payload': {'userId': 'some-user-id'}})
 print('Retrieved user:', user)
 ```
 </Tab>
@@ -244,10 +237,10 @@ logger.info('Login recorded')
 ```python title="state_update.py"
 from datetime import datetime, timezone
 
-async def record_login(input):
+def record_login(input):
     logger = Logger()
 
-    await iii.trigger({'function_id': 'state::update', 'payload': {
+    iii.trigger({'function_id': 'state::update', 'payload': {
         'scope': 'users',
         'key': input['userId'],
         'ops': [
@@ -262,7 +255,7 @@ async def record_login(input):
 iii.register_function('users::record-login', record_login)
 
 # Then call from another function or worker
-await iii.trigger({'function_id': 'users::record-login', 'payload': {'userId': 'some-user-id'}})
+iii.trigger({'function_id': 'users::record-login', 'payload': {'userId': 'some-user-id'}})
 print('Login recorded')
 ```
 </Tab>
