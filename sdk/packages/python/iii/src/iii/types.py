@@ -16,7 +16,6 @@ from .iii_types import (
     RegisterFunctionMessage,
     RegisterServiceInput,
     RegisterTriggerInput,
-    RegisterTriggerMessage,
     RegisterTriggerTypeInput,
     RegisterTriggerTypeMessage,
     StreamChannelRef,
