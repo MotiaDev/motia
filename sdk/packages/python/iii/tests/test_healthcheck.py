@@ -37,11 +37,11 @@ async def test_register_healthcheck_function_and_trigger(engine_http_url: str, i
     status_before, _ = await get_health(engine_http_url)
     assert status_before == 404
 
-    trigger = iii_client.register_trigger(
-        "http",
-        fn.id,
-        {"api_path": "health", "http_method": "GET", "description": "Healthcheck endpoint"},
-    )
+    trigger = iii_client.register_trigger({
+        "type": "http",
+        "function_id": fn.id,
+        "config": {"api_path": "health", "http_method": "GET", "description": "Healthcheck endpoint"},
+    })
 
     await asyncio.sleep(0.3)
 

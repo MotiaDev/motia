@@ -1,6 +1,7 @@
 """Integration tests for stream operations."""
 
 import asyncio
+import builtins
 import time
 from typing import Any
 
@@ -8,6 +9,7 @@ import pytest
 
 from iii import III, IStream
 from iii.stream import (
+    DeleteResult,
     StreamDeleteInput,
     StreamGetInput,
     StreamListGroupsInput,
@@ -175,15 +177,16 @@ async def test_stream_custom_operations(iii_client: III):
             state[key] = input.data
             return StreamSetResult(old_value=old_value, new_value=input.data)
 
-        async def delete(self, input: StreamDeleteInput) -> None:
-            state.pop(f"{input.group_id}::{input.item_id}", None)
+        async def delete(self, input: StreamDeleteInput) -> DeleteResult:
+            old = state.pop(f"{input.group_id}::{input.item_id}", None)
+            return DeleteResult(old_value=old)
 
         async def list(self, input: StreamListInput) -> list:
             prefix = f"{input.group_id}::"
             return [v for k, v in state.items() if k.startswith(prefix)]
 
-        async def list_groups(self, input: StreamListGroupsInput) -> list[str]:
-            return list(state.keys())
+        async def list_groups(self, input: StreamListGroupsInput) -> "list[str]":
+            return builtins.list(state.keys())
 
         async def update(self, input: StreamUpdateInput) -> None:
             raise NotImplementedError

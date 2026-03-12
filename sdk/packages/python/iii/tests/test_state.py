@@ -158,7 +158,7 @@ async def test_reactive_state(iii_client: III):
         return {}
 
     fn = iii_client.register_function({"id": "test.state.py.updated"}, state_updated_handler)
-    trigger = iii_client.register_trigger("state", fn.id, {"scope": SCOPE, "key": KEY})
+    trigger = iii_client.register_trigger({"type": "state", "function_id": fn.id, "config": {"scope": SCOPE, "key": KEY}})
 
     try:
         iii_client.trigger({
