@@ -170,7 +170,7 @@ async def _make_connected_client(sent: list[dict[str, Any]] | None = None) -> II
 
 async def _make_integration_client() -> III:
     """Create a real III client connected to the engine; skips if unavailable."""
-    ws_url = os.environ.get("III_BRIDGE_URL", "ws://localhost:49199")
+    ws_url = os.environ.get("III_URL", "ws://localhost:49199")
     client = III(ws_url, InitOptions(reconnection_config=None))
     client._register_worker_metadata = lambda: None
     await client.connect()

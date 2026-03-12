@@ -203,7 +203,7 @@ async def _post_example(req: ApiRequest, logger) -> ApiResponse:
 
 
 async def _async_main() -> None:
-    engine_ws_url = os.environ.get("III_BRIDGE_URL", "ws://localhost:49134")
+    engine_ws_url = os.environ.get("III_URL", "ws://localhost:49134")
     iii = register_worker(
         address=engine_ws_url,
         options=InitOptions(

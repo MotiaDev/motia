@@ -27,7 +27,7 @@ The condition function receives the full API request. If it returns `false`, the
 ```typescript
 import {Logger} from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = init(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'conditions::is_premium' },

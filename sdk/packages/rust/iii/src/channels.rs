@@ -201,7 +201,7 @@ impl ChannelReader {
         }
     }
 
-    /// Read the entire stream into a single Vec<u8>.
+    /// Read the entire stream into a single `Vec<u8>`.
     pub async fn read_all(&self) -> Result<Vec<u8>, IIIError> {
         let mut buffer = Vec::new();
         while let Some(chunk) = self.next_binary().await? {

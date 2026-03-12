@@ -34,7 +34,7 @@ export type Todo = {
   completedAt: string | null
 }
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = init(process.env.III_URL ?? 'ws://localhost:49134')
 
 let todos: Todo[] = []
 

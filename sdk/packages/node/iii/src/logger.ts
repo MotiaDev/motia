@@ -5,6 +5,7 @@ import {
   getLogger as getOtelLogger,
 } from './telemetry-system'
 
+/** @internal */
 export type LoggerParams = {
   message: string
   trace_id?: string
@@ -15,6 +16,19 @@ export type LoggerParams = {
   function_name?: string
 }
 
+/**
+ * Structured logger that emits logs via OpenTelemetry. Falls back to
+ * `console.*` when OTel is not initialized.
+ *
+ * @example
+ * ```typescript
+ * import { Logger } from 'iii-sdk'
+ *
+ * const logger = new Logger()
+ * logger.info('Processing started')
+ * logger.error('Something failed', { orderId: '123' })
+ * ```
+ */
 export class Logger {
   private _otelLogger: ReturnType<typeof getOtelLogger> | null = null
 
@@ -77,18 +91,22 @@ export class Logger {
     }
   }
 
+  /** Log an info-level message. */
   info(message: string, data?: unknown): void {
     this.emit(message, SeverityNumber.INFO, data)
   }
 
+  /** Log a warning-level message. */
   warn(message: string, data?: unknown): void {
     this.emit(message, SeverityNumber.WARN, data)
   }
 
+  /** Log an error-level message. */
   error(message: string, data?: unknown): void {
     this.emit(message, SeverityNumber.ERROR, data)
   }
 
+  /** Log a debug-level message. */
   debug(message: string, data?: unknown): void {
     this.emit(message, SeverityNumber.DEBUG, data)
   }
