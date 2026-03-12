@@ -73,21 +73,21 @@ const concepts = [
       "A Function receives input and optionally returns output. It can live anywhere — locally, on cloud, on serverless, or as a third-party HTTP endpoint. All Functions are treated the same within iii.",
     highlights: [
       "Write in TypeScript, Python, or Rust — mix freely",
-      "Addressable by path (users.create, orders.process)",
+      "Addressable by path (users::create, orders::process)",
       "Hot-swap handlers without restarting consumers",
       "Auto-cleanup when workers disconnect",
     ],
     code: {
       typescript: `iii.registerFunction(
-  { id: 'users.create' },
+  { id: 'users::create' },
   async (input) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     logger.info('Creating user', { email: input.email })
     return { id: '123', email: input.email }
   }
 )`,
       python: `async def create_user(input):
-    logger = get_context().logger
+    logger = Logger()
     logger.info("Creating user", {
         "email": input["email"]
     })
@@ -96,9 +96,9 @@ const concepts = [
         "email": input["email"]
     }
 
-iii.register_function("users.create", create_user)`,
+iii.register_function("users::create", create_user)`,
       rust: `iii.register_function(
-    "users.create",
+    "users::create",
     |input| async move {
         let email = input["email"].as_str()
             .unwrap_or("");
@@ -124,28 +124,28 @@ iii.register_function("users.create", create_user)`,
       "Same pattern for every event source",
     ],
     code: {
-      typescript: `await iii.trigger('users.create', { name: 'Alice' })
+      typescript: `await iii.trigger('users::create', { name: 'Alice' })
 
 iii.registerTrigger({
   type: 'http',
-  function_id: 'users.create',
+  function_id: 'users::create',
   config: {
     api_path: 'users',
     http_method: 'POST'
   }
 })`,
-      python: `await iii.trigger("users.create", {"name": "Alice"})
+      python: `await iii.trigger("users::create", {"name": "Alice"})
 
 iii.register_trigger(
     "http",
-    "users.create",
+    "users::create",
     {"api_path": "users", "http_method": "POST"}
 )`,
-      rust: `iii.trigger("users.create", json!({"name": "Alice"})).await?;
+      rust: `iii.trigger("users::create", json!({"name": "Alice"})).await?;
 
 iii.register_trigger(Trigger {
     trigger_type: "http".into(),
-    function_id: "users.create".into(),
+    function_id: "users::create".into(),
     config: json!({
         "api_path": "users",
         "http_method": "POST"

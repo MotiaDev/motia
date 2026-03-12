@@ -56,12 +56,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Invoke (await)           | `iii.trigger(TriggerRequest::new(id, data)).await?` | Invoke a function and wait for the result              |
 | Invoke (fire-and-forget) | `iii.trigger_void(id, data)?`                | Invoke a function without waiting (fire-and-forget)    |
 
-`register_worker()` spawns a background task that handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation.
+`register_worker()` spawns a background task that handles WebSocket communication and automatic reconnection. OpenTelemetry instrumentation is available when the `otel` feature is enabled.
 
 ### Registering Functions
 
 ```rust
-iii.register_function("orders.create", |input| async move {
+iii.register_function("orders::create", |input| async move {
     let item = input["body"]["item"].as_str().unwrap_or("");
     Ok(json!({ "status_code": 201, "body": { "id": "123", "item": item } }))
 });
@@ -70,7 +70,7 @@ iii.register_function("orders.create", |input| async move {
 ### Registering Triggers
 
 ```rust
-iii.register_trigger("http", "orders.create", json!({
+iii.register_trigger("http", "orders::create", json!({
     "api_path": "/orders",
     "http_method": "POST"
 }))?;
@@ -83,10 +83,10 @@ use iii_sdk::TriggerRequest;
 use serde_json::json;
 
 let result = iii
-    .trigger(TriggerRequest::new("orders.create", json!({ "body": { "item": "widget" } })))
+    .trigger(TriggerRequest::new("orders::create", json!({ "body": { "item": "widget" } })))
     .await?;
 
-iii.trigger_void("analytics.track", json!({ "event": "page_view" }))?;
+iii.trigger_void("analytics::track", json!({ "event": "page_view" }))?;
 ```
 
 ### Streams

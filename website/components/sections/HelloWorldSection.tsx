@@ -35,7 +35,7 @@ async def predict(input: dict) -> dict:
     result = model(tensor)
     return {"predictions": result.tolist()}
 
-iii.register_function("ml.predict", predict)`;
+iii.register_function("ml::predict", predict)`;
 
 const rustCode = `use iii_sdk::{register_worker, InitOptions, Value, IIIError};
 use serde_json::json;
@@ -50,7 +50,7 @@ async fn transform(input: Value) -> Result<Value, IIIError> {
 async fn main() -> Result<(), IIIError> {
     let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
 
-    iii.register_function("data.transform", transform);
+    iii.register_function("data::transform", transform);
 
     Ok(())
 }`;
@@ -60,12 +60,12 @@ const nodeCode = `import { registerWorker } from "iii-sdk";
 const iii = registerWorker("ws://localhost:49134");
 
 const transformed = await iii.trigger(
-  "data.transform",
+  "data::transform",
   [1.0, 2.0, 3.0]
 );
 
 const prediction = await iii.trigger(
-  "ml.predict",
+  "ml::predict",
   { data: transformed }
 );`;
 

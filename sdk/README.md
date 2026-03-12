@@ -102,7 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Invoke (await)           | `await iii.trigger({ function_id, payload })`        | `await iii.trigger({"function_id": id, "payload": data})` | `iii.trigger(TriggerRequest::new(id, data)).await?` | Invoke a function and wait for the result              |
 | Invoke (fire-and-forget) | `iii.triggerVoid(id, data)`                          | `iii.trigger_void(id, data)`                | `iii.trigger_void(id, data)?`                | Invoke a function without waiting                      |
 
-`registerWorker()` / `register_worker()` creates an SDK instance and auto-connects to the engine. It handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation. All three SDKs expose the same API surface — register functions and triggers, then invoke them.
+`registerWorker()` / `register_worker()` creates an SDK instance and auto-connects to the engine. It handles WebSocket communication and automatic reconnection. OpenTelemetry instrumentation is available in all three SDKs (requires the `otel` feature in Rust). All three SDKs expose the same API surface — register functions and triggers, then invoke them.
 
 For language-specific details (modules, streams, OpenTelemetry), see the per-SDK READMEs linked in the table above.
 

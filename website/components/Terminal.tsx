@@ -220,7 +220,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("4. Connect a worker (Node.js):", "warning");
         addLog("   npm install iii-sdk", "info");
         addLog('   const iii = registerWorker("ws://127.0.0.1:49134")', "success");
-        addLog('   iii.registerFunction({ id: "my.fn" }, handler)', "success");
+        addLog('   iii.registerFunction({ id: "my::fn" }, handler)', "success");
         addLog("", "info");
         addLog("Read the docs at iii.dev/docs", "warning");
         break;
@@ -299,7 +299,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog('const iii = registerWorker("ws://127.0.0.1:49134");', "success");
         addLog("", "info");
         addLog("iii.registerFunction({", "success");
-        addLog('  id: "math.add"', "success");
+        addLog('  id: "math::add"', "success");
         addLog("}, async (input) => {", "success");
         addLog("  return { sum: input.a + input.b };", "success");
         addLog("});", "success");
@@ -320,7 +320,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("Register a function:", "warning");
         addLog("", "info");
         addLog("iii.registerFunction({", "success");
-        addLog('  id: "api.echo"', "success");
+        addLog('  id: "api::echo"', "success");
         addLog("}, async (req) => {", "success");
         addLog("  return {", "success");
         addLog("    status_code: 200,", "success");
@@ -343,7 +343,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("", "info");
         addLog("iii.registerTrigger({", "success");
         addLog('  type: "http",', "success");
-        addLog('  function_id: "api.echo",', "success");
+        addLog('  function_id: "api::echo",', "success");
         addLog("  config: {", "success");
         addLog('    api_path: "echo",', "success");
         addLog('    http_method: "POST"', "success");
@@ -578,7 +578,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog('const iii = registerWorker("ws://localhost:49134");', "success");
         addLog("", "info");
         addLog("iii.registerFunction({", "success");
-        addLog('  id: "myService.greet",', "success");
+        addLog('  id: "myService::greet",', "success");
         addLog("}, async (input) => {", "success");
         addLog("  return { message: `Hello, ${input.name}!` };", "success");
         addLog("});", "success");
@@ -987,7 +987,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("  Real-time state with WebSocket sync", "info");
         addLog("  stream::list, stream::update, stream::list_groups", "info");
         addLog("", "info");
-        addLog("queue.enqueue", "success");
+        addLog("queue::enqueue", "success");
         addLog("  Enqueue background job (Redis-backed)", "info");
         addLog("", "info");
         addLog("publish", "success");
