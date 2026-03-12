@@ -99,6 +99,67 @@ iii.registerTrigger({
     linesIII: 33,
   },
 
+  jobs: {
+    description:
+      "Background jobs without Bull, Celery, or Sidekiq. Functions are the jobs.",
+    traditional: {
+      title: "Bull + Celery + Sidekiq",
+      tools: ["Bull", "BullMQ", "Celery", "Sidekiq", "Agenda", "Dramatiq"],
+      language: "typescript",
+      code: `import Bull from 'bull'
+import Redis from 'ioredis'
+
+const redis = new Redis(process.env.REDIS_URL)
+const emailQueue = new Bull('emails', { redis })
+const reportQueue = new Bull('reports', { redis })
+
+emailQueue.process('welcome', async (job) => {
+  const { userId, email } = job.data
+  await sendWelcomeEmail(email)
+  return { sent: true }
+})
+
+emailQueue.on('failed', (job, err) => {
+  if (job.attemptsMade < 3) {
+    job.retry()
+  } else {
+    await deadLetterQueue.add(job.data)
+  }
+})
+
+await emailQueue.add('welcome', { userId, email }, {
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 1000 },
+  removeOnComplete: true,
+})`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `import { registerWorker, TriggerAction, Logger } from "iii-sdk"
+
+const iii = registerWorker('ws://localhost:49134')
+
+iii.registerFunction(
+  { id: 'jobs::sendWelcomeEmail' },
+  async (input) => {
+    const logger = new Logger()
+    logger.info('Sending email', { userId: input.userId })
+    await sendWelcomeEmail(input.email)
+    return { sent: true }
+  }
+)
+
+await iii.trigger({
+  function_id: 'jobs::sendWelcomeEmail',
+  payload: { userId, email },
+  action: TriggerAction.Enqueue({ queue: 'emails' }),
+})`,
+    },
+    linesTraditional: 26,
+    linesIII: 18,
+  },
+
   events: {
     description:
       "Pub/Sub without RabbitMQ or Kafka. Events flow through the protocol.",
@@ -1328,6 +1389,87 @@ iii.registerTrigger({
     },
     linesTraditional: 41,
     linesIII: 52,
+  },
+
+  reactive: {
+    description:
+      "Reactive backends without WebSocket servers or Redis wiring. Publish once, all subscribers update.",
+    traditional: {
+      title: "WebSocket + Redis + Postgres",
+      tools: ["ws", "Socket.io", "Redis Pub/Sub", "Ably", "Supabase Realtime"],
+      language: "typescript",
+      code: `import { WebSocketServer } from 'ws'
+import Redis from 'ioredis'
+
+const wss = new WebSocketServer({ port: 8080 })
+const pub = new Redis(process.env.REDIS_URL)
+const sub = new Redis(process.env.REDIS_URL)
+
+const channelSubs = new Map<string, Set<WebSocket>>()
+
+sub.subscribe('messages')
+sub.on('message', (_, payload) => {
+  const { channelId, data } = JSON.parse(payload)
+  channelSubs.get(channelId)?.forEach(ws => {
+    if (ws.readyState === 1) ws.send(JSON.stringify(data))
+  })
+})
+
+wss.on('connection', (ws, req) => {
+  const channelId = new URL(req.url!, 'ws://x').searchParams.get('channel')!
+  if (!channelSubs.has(channelId)) channelSubs.set(channelId, new Set())
+  channelSubs.get(channelId)!.add(ws)
+
+  ws.on('close', () => channelSubs.get(channelId)?.delete(ws))
+})
+
+app.post('/messages', async (req, res) => {
+  const { channelId, content } = req.body
+  await pub.publish('messages', JSON.stringify({ channelId, data: content }))
+  res.json({ ok: true })
+})`,
+    },
+    iii: {
+      title: "iii Engine",
+      language: "typescript",
+      code: `import { registerWorker, TriggerAction, Logger } from "iii-sdk"
+
+const iii = registerWorker('ws://localhost:49134')
+
+iii.registerFunction(
+  { id: 'chat::send' },
+  async ({ channelId, content }) => {
+    const logger = new Logger()
+    await db.messages.create({ channelId, content })
+
+    iii.trigger({
+      function_id: 'publish',
+      payload: { topic: \`channel.\${channelId}\`, data: { content } },
+      action: TriggerAction.Void(),
+    })
+
+    logger.info('Message sent', { channelId })
+    return { ok: true }
+  }
+)
+
+iii.registerFunction(
+  { id: 'chat::onMessage' },
+  async (data) => {
+    const logger = new Logger()
+    logger.info('New message received', data)
+    return {}
+  }
+)
+
+iii.registerTrigger({
+  type: 'subscribe',
+  function_id: 'chat::onMessage',
+  config: { topic: 'channel.*' },
+})`,
+    },
+    linesTraditional: 30,
+    linesIII: 32,
   },
 
   remote: {
