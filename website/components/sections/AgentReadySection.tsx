@@ -800,6 +800,12 @@ export function AgentReadySection({
   const [activeLang, setActiveLang] = useState<Lang>("typescript");
   const [isHovered, setIsHovered] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [interactionPaused, setInteractionPaused] = useState(false);
+  const [animKey, setAnimKey] = useState(0);
+  const isPaused = isHovered || interactionPaused;
+
+  const ROTATION_INTERVAL = 5000;
+  const PAUSE_DURATION = 15000;
 
   const textPrimary = isDarkMode ? "text-iii-light" : "text-iii-black";
   const textSecondary = isDarkMode ? "text-iii-light/70" : "text-iii-black/70";
@@ -810,13 +816,34 @@ export function AgentReadySection({
   const cardBg = isDarkMode ? "bg-iii-dark/30" : "bg-white/50";
   const cardBorder = isDarkMode ? "border-iii-light/15" : "border-iii-black/15";
 
+  const handleTabClick = useCallback((i: number) => {
+    setActiveTab(i);
+    setInteractionPaused(true);
+    setAnimKey((k) => k + 1);
+  }, []);
+
+  const handleTabFocus = useCallback(() => {
+    setInteractionPaused(true);
+    setAnimKey((k) => k + 1);
+  }, []);
+
   useEffect(() => {
-    if (isHovered) return;
+    if (!interactionPaused) return;
+    const timer = setTimeout(() => {
+      setInteractionPaused(false);
+      setAnimKey((k) => k + 1);
+    }, PAUSE_DURATION);
+    return () => clearTimeout(timer);
+  }, [interactionPaused]);
+
+  useEffect(() => {
+    if (isPaused) return;
     const interval = setInterval(() => {
       setActiveTab((prev) => (prev + 1) % capabilities.length);
-    }, 5000);
+      setAnimKey((k) => k + 1);
+    }, ROTATION_INTERVAL);
     return () => clearInterval(interval);
-  }, [isHovered]);
+  }, [isPaused]);
 
   const copyToClipboard = useCallback(() => {
     navigator.clipboard
@@ -837,6 +864,10 @@ export function AgentReadySection({
         @keyframes agent-scroll {
           0% { transform: translateX(0); }
           100% { transform: translateX(-25%); }
+        }
+        @keyframes tab-progress {
+          0% { width: 0%; }
+          100% { width: 100%; }
         }
       `}</style>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -915,14 +946,18 @@ export function AgentReadySection({
         <div
           className={`rounded-lg border overflow-hidden ${cardBg} ${cardBorder}`}
           onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
+          onMouseLeave={() => {
+            setIsHovered(false);
+            setAnimKey((k) => k + 1);
+          }}
         >
           <div className="flex md:hidden flex-wrap gap-2 p-3">
             {capabilities.map((cap, i) => (
               <button
                 key={cap.name}
-                onClick={() => setActiveTab(i)}
-                className={`px-3 py-1.5 rounded-full text-[10px] whitespace-nowrap border transition-all ${
+                onClick={() => handleTabClick(i)}
+                onFocus={handleTabFocus}
+                className={`relative px-3 py-1.5 rounded-full text-[10px] whitespace-nowrap border transition-all overflow-hidden ${
                   activeTab === i
                     ? isDarkMode
                       ? "bg-iii-info/15 border-iii-info/40 text-iii-info"
@@ -932,7 +967,17 @@ export function AgentReadySection({
                       : "border-iii-black/10 text-iii-black/50 hover:border-iii-black/25"
                 }`}
               >
-                {cap.name}
+                <span className="relative z-10">{cap.name}</span>
+                {activeTab === i && (
+                  <span
+                    key={animKey}
+                    className={`absolute bottom-0 left-0 h-[2px] ${isDarkMode ? "bg-iii-info/60" : "bg-[#0891b2]/50"}`}
+                    style={{
+                      animation: `tab-progress ${ROTATION_INTERVAL}ms linear forwards`,
+                      animationPlayState: isPaused ? "paused" : "running",
+                    }}
+                  />
+                )}
               </button>
             ))}
           </div>
@@ -944,8 +989,9 @@ export function AgentReadySection({
               {capabilities.map((cap, i) => (
                 <button
                   key={cap.name}
-                  onClick={() => setActiveTab(i)}
-                  className={`flex items-center justify-between text-left px-6 py-5 transition-all duration-200 border-b ${cardBorder} ${
+                  onClick={() => handleTabClick(i)}
+                  onFocus={handleTabFocus}
+                  className={`relative flex items-center justify-between text-left px-6 py-5 transition-all duration-200 border-b ${cardBorder} ${
                     activeTab === i
                       ? isDarkMode
                         ? "bg-iii-light/10"
@@ -975,6 +1021,16 @@ export function AgentReadySection({
                   >
                     <path d="m9 18 6-6-6-6" />
                   </svg>
+                  {activeTab === i && (
+                    <span
+                      key={animKey}
+                      className={`absolute bottom-0 left-0 h-[2px] ${isDarkMode ? "bg-iii-info/60" : "bg-[#0891b2]/50"}`}
+                      style={{
+                        animation: `tab-progress ${ROTATION_INTERVAL}ms linear forwards`,
+                        animationPlayState: isPaused ? "paused" : "running",
+                      }}
+                    />
+                  )}
                 </button>
               ))}
             </div>
