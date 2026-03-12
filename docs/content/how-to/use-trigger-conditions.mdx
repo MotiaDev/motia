@@ -47,13 +47,13 @@ from iii import III
 iii = III("ws://localhost:49134")
 
 # condition
-async def is_high_value(event):
+def is_high_value(event):
     if not isinstance(event, dict):
         return False
     return (event.get("new_value") or {}).get("amount", 0) >= 1000
 
 # handler
-async def process_high_value(event):
+def process_high_value(event):
     amount = 0
     if isinstance(event, dict):
         amount = (event.get("new_value") or {}).get("amount", 0)
@@ -119,15 +119,15 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="state_trigger_with_condition.py"
-iii.register_trigger(
-    type="state",
-    function_id="orders::process-high-value",
-    config={
+iii.register_trigger({
+    "type": "state",
+    "function_id": "orders::process-high-value",
+    "config": {
         "scope": "orders",
         "key": "status",
         "condition_function_id": "conditions::is-high-value",
     },
-)
+})
 ```
 </Tab>
 <Tab value="Rust">

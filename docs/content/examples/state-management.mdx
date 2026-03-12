@@ -66,8 +66,7 @@ from iii import III, InitOptions, ApiRequest, ApiResponse
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="state-worker"))
 
-
-async def update_user_status(req: ApiRequest, ctx) -> ApiResponse:
+def update_user_status(req: ApiRequest, ctx) -> ApiResponse:
     user_id = req.path_params.get("id") if req.path_params else None
 
     if not user_id:
@@ -76,7 +75,7 @@ async def update_user_status(req: ApiRequest, ctx) -> ApiResponse:
     new_status = (req.body or {}).get("status", "active")
 
     # Write to state — addressed by scope + key
-    iii.trigger_void("state::set", {
+    iii.trigger("state::set", {
         "scope": "users",
         "key": user_id,
         "value": {"status": new_status, "updatedAt": datetime.now(timezone.utc).isoformat()},
@@ -86,14 +85,13 @@ async def update_user_status(req: ApiRequest, ctx) -> ApiResponse:
 
     return ApiResponse(statusCode=200, body={"userId": user_id, "status": new_status})
 
-
 iii.register_function("users.update_status", lambda data: update_user_status(
     ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
-iii.register_trigger(
-    type="http", function_id="users.update_status",
-    config={"api_path": "users/:id/status", "http_method": "POST"},
-)
+iii.register_trigger({
+    "type": "http", "function_id": "users.update_status",
+    "config": {"api_path": "users/:id/status", "http_method": "POST"},
+})
 ```
 
   </Tab>
@@ -179,10 +177,10 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-async def get_user_status(req: ApiRequest, ctx) -> ApiResponse:
+def get_user_status(req: ApiRequest, ctx) -> ApiResponse:
     user_id = req.path_params.get("id") if req.path_params else None
 
-    user = await iii.trigger("state::get", {"scope": "users", "key": user_id}) if user_id else None
+    user = iii.trigger("state::get", {"scope": "users", "key": user_id}) if user_id else None
 
     if not user:
         return ApiResponse(statusCode=404, body={"error": "User not found"})
@@ -190,14 +188,13 @@ async def get_user_status(req: ApiRequest, ctx) -> ApiResponse:
     logger.info("Got user status", {"userId": user_id, "status": user.get("status")})
     return ApiResponse(statusCode=200, body=user)
 
-
 iii.register_function("users.get_status", lambda data: get_user_status(
     ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
-iii.register_trigger(
-    type="http", function_id="users.get_status",
-    config={"api_path": "users/:id/status", "http_method": "GET"},
-)
+iii.register_trigger({
+    "type": "http", "function_id": "users.get_status",
+    "config": {"api_path": "users/:id/status", "http_method": "GET"},
+})
 ```
 
   </Tab>
@@ -275,9 +272,8 @@ iii.registerTrigger({
 ```python
 from datetime import datetime, timezone
 
-
-async def orders_audit(_data, ctx) -> None:
-    orders = await iii.trigger("state::list", {"scope": "orders"}) or []
+def orders_audit(_data, ctx) -> None:
+    orders = iii.trigger("state::list", {"scope": "orders"}) or []
 
     for order in orders:
         ship_date_str = order.get("shipDate") or order.get("ship_date", "2099-01-01T00:00:00Z")
@@ -291,14 +287,13 @@ async def orders_audit(_data, ctx) -> None:
         if not complete and datetime.now(timezone.utc) > ship_date:
             logger.warn("Order overdue", {"orderId": order.get("id")})
 
-            iii.trigger_void("enqueue", {
+            iii.trigger("enqueue", {
                 "topic": "notification",
                 "data": {"orderId": order.get("id"), "templateId": "order-audit-warning"},
             })
 
-
 iii.register_function("cron.orders_audit", lambda data: orders_audit(data, Logger()))
-iii.register_trigger(type="cron", function_id="cron.orders_audit", config={"expression": "*/5 * * * *"})
+iii.register_trigger({"type": "cron", "function_id": "cron.orders_audit", "config": {"expression": "*/5 * * * *"}})
 ```
 
   </Tab>

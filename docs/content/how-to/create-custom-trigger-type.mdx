@@ -39,7 +39,7 @@ const webhookHandler: TriggerHandler<WebhookConfig> = {
   registerTrigger: async ({ function_id, config }) => {
     routes.set(config.path, function_id)
     app.post(config.path, async (req, res) => {
-      const result = await iii.trigger({ function_id, payload: req.body })
+      const result = await iii.trigger({ function_id: function_id, payload: req.body })
       res.json(result)
     })
   },
@@ -67,12 +67,9 @@ class WebhookHandler(TriggerHandler):
         function_id = trigger.function_id
         routes[path] = function_id
 
-        async def handle(request: web.Request) -> web.Response:
-            body = await request.json()
-            result = await iii_client.trigger({
-                'function_id': function_id,
-                'payload': body,
-            })
+        def handle(request: web.Request) -> web.Response:
+            body = request.json()
+            result = iii_client.trigger({'function_id': function_id, 'payload': body})
             return web.json_response(result)
 
         aiohttp_app.router.add_post(path, handle)
@@ -128,20 +125,16 @@ app.listen(4000)
 </Tab>
 <Tab value="Python">
 ```python title="webhook_trigger_type.py"
-import asyncio
+import threading
+iii_client.register_trigger_type({"id": "webhook", "description": "External webhook trigger"}, WebhookHandler())
+iii_client.connect()
 
-async def main():
-    iii_client.register_trigger_type('webhook', 'External webhook trigger', WebhookHandler())
-    await iii_client.connect()
+runner = web.AppRunner(aiohttp_app)
+runner.setup()
+site = web.TCPSite(runner, 'localhost', 4000)
+site.start()
 
-    runner = web.AppRunner(aiohttp_app)
-    await runner.setup()
-    site = web.TCPSite(runner, 'localhost', 4000)
-    await site.start()
-
-    await asyncio.Event().wait()
-
-asyncio.run(main())
+threading.Event().wait()
 ```
 </Tab>
 <Tab value="Rust">
@@ -202,18 +195,18 @@ import os
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
-async def handle_push(payload):
+def handle_push(payload):
     logger = Logger()
     logger.info('Push event received', {'repo': payload.get('repository', {}).get('full_name')})
     return {'ok': True}
 
 iii.register_function('github::push', handle_push)
 
-iii.register_trigger(
-    type="webhook",
-    function_id="github::push",
-    config={"path": "/hooks/github"},
-)
+iii.register_trigger({
+    "type": "webhook",
+    "function_id": "github::push",
+    "config": {"path": "/hooks/github"},
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -259,7 +252,7 @@ iii.unregisterTriggerType({ id: 'webhook', description: 'External webhook trigge
 </Tab>
 <Tab value="Python">
 ```python title="teardown.py"
-iii_client.unregister_trigger_type('webhook')
+iii_client.unregister_trigger_type({"id": "webhook", "description": "External webhook trigger"})
 ```
 </Tab>
 <Tab value="Rust">

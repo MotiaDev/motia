@@ -1,37 +1,27 @@
-import asyncio
-
-import pytest
-
 from iii import III, InitOptions, register_worker
 
 
-@pytest.fixture
-def anyio_backend() -> str:
-    return "asyncio"
+def test_register_worker_returns_connected_client(monkeypatch) -> None:
+    connected = False
 
-
-@pytest.mark.anyio
-async def test_init_schedules_connect(monkeypatch: pytest.MonkeyPatch) -> None:
-    called = asyncio.Event()
-
-    async def fake_connect(self: III) -> None:
-        called.set()
+    def fake_connect(self: III) -> None:
+        nonlocal connected
+        connected = True
 
     monkeypatch.setattr(III, "connect", fake_connect)
 
     client = register_worker("ws://fake")
     assert isinstance(client, III)
-
-    await asyncio.wait_for(called.wait(), timeout=0.2)
-
-
-def test_init_requires_running_loop() -> None:
-    with pytest.raises(RuntimeError, match="active asyncio event loop"):
-        register_worker("ws://fake")
+    assert connected
 
 
-@pytest.mark.anyio
-async def test_connect_consumes_otel_from_init_options(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_register_worker_is_sync() -> None:
+    import inspect
+
+    assert not inspect.iscoroutinefunction(register_worker)
+
+
+def test_connect_consumes_otel_from_init_options(monkeypatch) -> None:
     import iii.telemetry as telemetry
 
     captured = {"config": None}
@@ -54,9 +44,8 @@ async def test_connect_consumes_otel_from_init_options(monkeypatch: pytest.Monke
         InitOptions(otel={"enabled": True, "service_name": "iii-python-init-test"}),
     )
 
-    # let scheduled connect task run
-    await asyncio.sleep(0)
-
     assert isinstance(client, III)
     assert captured["config"] is not None
     assert getattr(captured["config"], "service_name", None) == "iii-python-init-test"
+
+    client.shutdown()

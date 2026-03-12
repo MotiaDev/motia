@@ -338,7 +338,7 @@ iii.registerFunction({ id: 'onAuth' }, (input) => ({
 </Tab>
 <Tab value="Python">
 ```python
-async def on_auth(input):
+def on_auth(input):
     return {'context': {'name': 'John Doe'}}
 
 iii.register_function('onAuth', on_auth)
@@ -423,12 +423,12 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def on_join(input):
+def on_join(input):
     print('Joined stream', input)
     return {}
 
 iii.register_function('onJoin', on_join)
-iii.register_trigger(type='stream:join', function_id='onJoin', config={})
+iii.register_trigger({'type': 'stream:join', 'function_id': 'onJoin', 'config': {}})
 ```
 </Tab>
 <Tab value="Rust">
@@ -450,126 +450,96 @@ Streams organize data by `stream_name`, `group_id`, and `item_id`. Use for live 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-import { TriggerAction } from 'iii-sdk'
-
 const iii = init('ws://localhost:49134')
 
-iii.trigger({
-  function_id: 'stream::set',
-  payload: {
-    stream_name: 'presence',
-    group_id: 'room-1',
-    item_id: 'user-123',
-    data: { name: 'Alice', online: true, lastSeen: new Date().toISOString() },
-  },
-  action: TriggerAction.Void(),
+iii.triggerVoid('stream::set', {
+  stream_name: 'presence',
+  group_id: 'room-1',
+  item_id: 'user-123',
+  data: { name: 'Alice', online: true, lastSeen: new Date().toISOString() },
 })
 
-const user = await iii.trigger({
-  function_id: 'stream::get',
-  payload: {
-    stream_name: 'presence',
-    group_id: 'room-1',
-    item_id: 'user-123',
-  },
+const user = await iii.trigger('stream::get', {
+  stream_name: 'presence',
+  group_id: 'room-1',
+  item_id: 'user-123',
 })
 
-const roomMembers = await iii.trigger({
-  function_id: 'stream::list',
-  payload: {
-    stream_name: 'presence',
-    group_id: 'room-1',
-  },
+const roomMembers = await iii.trigger('stream::list', {
+  stream_name: 'presence',
+  group_id: 'room-1',
 })
 
-iii.trigger({
-  function_id: 'stream::delete',
-  payload: {
-    stream_name: 'presence',
-    group_id: 'room-1',
-    item_id: 'user-123',
-  },
-  action: TriggerAction.Void(),
+iii.triggerVoid('stream::delete', {
+  stream_name: 'presence',
+  group_id: 'room-1',
+  item_id: 'user-123',
 })
 ```
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III, TriggerAction
+from iii import III
 
 iii = III('ws://localhost:49134')
-await iii.connect()
+iii.connect()
 
-await iii.trigger({
-    'function_id': 'stream::set',
-    'payload': {
-        'stream_name': 'presence',
-        'group_id': 'room-1',
-        'item_id': 'user-123',
-        'data': {'name': 'Alice', 'online': True, 'lastSeen': '2026-01-01T00:00:00Z'},
-    },
-    'action': TriggerAction.Void(),
+iii.trigger('stream::set', {
+    'stream_name': 'presence',
+    'group_id': 'room-1',
+    'item_id': 'user-123',
+    'data': {'name': 'Alice', 'online': True, 'lastSeen': '2026-01-01T00:00:00Z'},
 })
 
-user = await iii.trigger({
-    'function_id': 'stream::get',
-    'payload': {
-        'stream_name': 'presence',
-        'group_id': 'room-1',
-        'item_id': 'user-123',
-    },
+user = iii.trigger('stream::get', {
+    'stream_name': 'presence',
+    'group_id': 'room-1',
+    'item_id': 'user-123',
 })
 
-room_members = await iii.trigger({
-    'function_id': 'stream::list',
-    'payload': {
-        'stream_name': 'presence',
-        'group_id': 'room-1',
-    },
+room_members = iii.trigger('stream::list', {
+    'stream_name': 'presence',
+    'group_id': 'room-1',
 })
 
-await iii.trigger({
-    'function_id': 'stream::delete',
-    'payload': {
-        'stream_name': 'presence',
-        'group_id': 'room-1',
-        'item_id': 'user-123',
-    },
-    'action': TriggerAction.Void(),
+iii.trigger('stream::delete', {
+    'stream_name': 'presence',
+    'group_id': 'room-1',
+    'item_id': 'user-123',
 })
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{III, TriggerRequest, TriggerAction};
+use iii_sdk::III;
 use serde_json::json;
 
 let iii = III::new("ws://localhost:49134");
 iii.connect().await?;
 
-iii.trigger(TriggerRequest::new("stream::set", json!({
+iii.trigger_void("stream::set", json!({
     "stream_name": "presence",
     "group_id": "room-1",
     "item_id": "user-123",
     "data": { "name": "Alice", "online": true }
-})).action(TriggerAction::void())).await?;
+}));
 
-let user = iii.trigger(TriggerRequest::new("stream::get", json!({
+let user = iii.trigger("stream::get", json!({
     "stream_name": "presence",
     "group_id": "room-1",
     "item_id": "user-123"
-}))).await?;
+})).await?;
 
-let room_members = iii.trigger(TriggerRequest::new("stream::list", json!({
+let room_members = iii.trigger("stream::list", json!({
     "stream_name": "presence",
     "group_id": "room-1"
-}))).await?;
+})).await?;
 
-iii.trigger(TriggerRequest::new("stream::delete", json!({
+iii.trigger_void("stream::delete", json!({
     "stream_name": "presence",
     "group_id": "room-1",
     "item_id": "user-123"
-})).action(TriggerAction::void())).await?;
+}));
 ```
 </Tab>
 </Tabs>
@@ -608,7 +578,7 @@ iii.registerFunction({ id: 'stream::auth' }, (input) => {
 </Tab>
 <Tab value="Python">
 ```python
-async def stream_auth(input):
+def stream_auth(input):
     auth = input.get('headers', {}).get('authorization', '')
     token = auth.replace('Bearer ', '', 1) if auth.startswith('Bearer ') else None
     if token:
@@ -658,14 +628,14 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def on_join(input):
+def on_join(input):
     context = input.get('context', {})
     if context.get('userId'):
         print(f"User {context['userId']} joined {input['stream_name']}/{input['group_id']}/{input.get('id', '')}")
     return {}
 
 iii.register_function('onJoin', on_join)
-iii.register_trigger(type='stream:join', function_id='onJoin', config={})
+iii.register_trigger({'type': 'stream:join', 'function_id': 'onJoin', 'config': {}})
 ```
 </Tab>
 <Tab value="Rust">
@@ -709,21 +679,21 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-async def require_context(input):
+def require_context(input):
     return input.get('context', {}).get('userId') is not None
 
 iii.register_function('conditions::requireContext', require_context)
 
-async def on_join(input):
+def on_join(input):
     print('User joined:', input.get('context', {}).get('userId'), input['stream_name'])
     return {}
 
 iii.register_function('onJoin', on_join)
-iii.register_trigger(
-    type='stream:join',
-    function_id='onJoin',
-    config={'condition_function_id': 'conditions::requireContext'},
-)
+iii.register_trigger({
+    'type': 'stream:join',
+    'function_id': 'onJoin',
+    'config': {'condition_function_id': 'conditions::requireContext'},
+})
 ```
 </Tab>
 <Tab value="Rust">
