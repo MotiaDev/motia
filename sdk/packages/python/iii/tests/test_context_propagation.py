@@ -34,8 +34,7 @@ def otel_setup():
         pass
 
 
-@pytest.mark.asyncio
-async def test_handle_invoke_restores_trace_context_from_traceparent():
+def test_handle_invoke_restores_trace_context_from_traceparent():
     """Handler should run inside the parent OTel context extracted from traceparent."""
     from opentelemetry import trace
 
@@ -56,20 +55,21 @@ async def test_handle_invoke_restores_trace_context_from_traceparent():
 
     # Use a non-None invocation_id with mocked _send so _invoke_with_otel_context is awaited
     with patch.object(client, "_send", new_callable=AsyncMock):
-        await client._handle_invoke(
+        client._run_on_loop(client._handle_invoke(
             invocation_id="test-invocation-id",
             path="test::fn",
             data={},
             traceparent=fake_traceparent,
-        )
+        ))
 
     expected_trace_id = 0x4bf92f3577b34da6a3ce929d0e0e4736
     assert captured_trace_id, "handler did not capture an active span"
     assert captured_trace_id[0] == expected_trace_id
 
+    client.shutdown()
 
-@pytest.mark.asyncio
-async def test_handle_invoke_without_traceparent_runs_normally():
+
+def test_handle_invoke_without_traceparent_runs_normally():
     """Handler should run fine when no traceparent is provided."""
     called: list[bool] = []
 
@@ -81,11 +81,13 @@ async def test_handle_invoke_without_traceparent_runs_normally():
     client.register_function({"id": "test::fn"}, handler)
 
     with patch.object(client, "_send", new_callable=AsyncMock):
-        await client._handle_invoke(
+        client._run_on_loop(client._handle_invoke(
             invocation_id="test-invocation-id",
             path="test::fn",
             data={},
             traceparent=None,
-        )
+        ))
 
     assert called
+
+    client.shutdown()

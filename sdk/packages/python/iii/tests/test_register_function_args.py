@@ -1,7 +1,7 @@
 """Tests for the two-arg register_function() pattern with RegisterFunctionInput."""
 
-import asyncio
 import json
+import time
 from types import SimpleNamespace
 from typing import Any
 
@@ -74,11 +74,11 @@ def _patch_ws(monkeypatch: pytest.MonkeyPatch) -> FakeWebSocket:
     return ws
 
 
-async def _make_client() -> III:
+def _make_client() -> III:
     client = III("ws://fake", InitOptions())
     client._register_worker_metadata = lambda: None
-    await client.connect()
-    await asyncio.sleep(0.01)
+    client.connect()
+    time.sleep(0.01)
     return client
 
 
@@ -86,11 +86,10 @@ async def _make_client() -> III:
 # Two-arg register_function tests
 # ---------------------------------------------------------------------------
 
-@pytest.mark.asyncio
-async def test_register_function_dict_with_request_format(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_register_function_dict_with_request_format(monkeypatch: pytest.MonkeyPatch) -> None:
     """register_function accepts a dict as first arg, with request_format."""
     ws = _patch_ws(monkeypatch)
-    client = await _make_client()
+    client = _make_client()
 
     req_fmt = RegisterFunctionFormat(
         name="input",
@@ -105,7 +104,7 @@ async def test_register_function_dict_with_request_format(monkeypatch: pytest.Mo
         return data
 
     client.register_function({"id": "demo.with_args", "request_format": req_fmt}, handler)
-    await asyncio.sleep(0.02)
+    time.sleep(0.02)
 
     reg_msgs = [m for m in ws.sent if m.get("type") == "registerfunction" and m.get("id") == "demo.with_args"]
     assert len(reg_msgs) == 1
@@ -118,14 +117,13 @@ async def test_register_function_dict_with_request_format(monkeypatch: pytest.Mo
     assert sent_req_fmt["body"][0]["name"] == "name"
     assert sent_req_fmt["body"][0]["required"] is True
 
-    await client.shutdown()
+    client.shutdown()
 
 
-@pytest.mark.asyncio
-async def test_register_function_model_with_both_formats(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_register_function_model_with_both_formats(monkeypatch: pytest.MonkeyPatch) -> None:
     """register_function accepts a RegisterFunctionInput model."""
     ws = _patch_ws(monkeypatch)
-    client = await _make_client()
+    client = _make_client()
 
     req_fmt = RegisterFunctionFormat(name="input", type="object", body=[
         RegisterFunctionFormat(name="query", type="string", required=True),
@@ -145,7 +143,7 @@ async def test_register_function_model_with_both_formats(monkeypatch: pytest.Mon
         metadata={"version": "1"},
     )
     client.register_function(func_input, handler)
-    await asyncio.sleep(0.02)
+    time.sleep(0.02)
 
     reg_msgs = [m for m in ws.sent if m.get("type") == "registerfunction" and m.get("id") == "demo.both_formats"]
     assert len(reg_msgs) == 1
@@ -155,34 +153,32 @@ async def test_register_function_model_with_both_formats(monkeypatch: pytest.Mon
     assert reg_msgs[0]["response_format"]["body"][0]["type"] == "array"
     assert reg_msgs[0]["metadata"] == {"version": "1"}
 
-    await client.shutdown()
+    client.shutdown()
 
 
-@pytest.mark.asyncio
-async def test_register_function_dict_minimal(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_register_function_dict_minimal(monkeypatch: pytest.MonkeyPatch) -> None:
     """register_function with just {id} and handler — no formats sent."""
     ws = _patch_ws(monkeypatch)
-    client = await _make_client()
+    client = _make_client()
 
     async def handler(data: Any) -> Any:
         return data
 
     client.register_function({"id": "demo.minimal"}, handler)
-    await asyncio.sleep(0.02)
+    time.sleep(0.02)
 
     reg_msgs = [m for m in ws.sent if m.get("type") == "registerfunction" and m.get("id") == "demo.minimal"]
     assert len(reg_msgs) == 1
     assert "request_format" not in reg_msgs[0]
     assert "response_format" not in reg_msgs[0]
 
-    await client.shutdown()
+    client.shutdown()
 
 
-@pytest.mark.asyncio
-async def test_register_function_dict_with_http_invocation(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_register_function_dict_with_http_invocation(monkeypatch: pytest.MonkeyPatch) -> None:
     """register_function with dict + HttpInvocationConfig."""
     ws = _patch_ws(monkeypatch)
-    client = await _make_client()
+    client = _make_client()
 
     from iii import HttpInvocationConfig
 
@@ -194,7 +190,7 @@ async def test_register_function_dict_with_http_invocation(monkeypatch: pytest.M
         {"id": "external::with_format", "request_format": req_fmt},
         HttpInvocationConfig(url="https://example.com/fn", method="POST"),
     )
-    await asyncio.sleep(0.02)
+    time.sleep(0.02)
 
     reg_msgs = [m for m in ws.sent if m.get("type") == "registerfunction" and m.get("id") == "external::with_format"]
     assert len(reg_msgs) == 1
@@ -202,7 +198,7 @@ async def test_register_function_dict_with_http_invocation(monkeypatch: pytest.M
     assert reg_msgs[0].get("request_format") is not None
     assert reg_msgs[0]["request_format"]["name"] == "input"
 
-    await client.shutdown()
+    client.shutdown()
 
 
 def test_register_function_input_importable_from_top_level() -> None:
