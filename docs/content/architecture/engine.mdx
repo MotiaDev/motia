@@ -39,7 +39,7 @@ graph TB
 |----------------|-------------|
 | **Function registry** | Tracks all `registerFunction` calls across connected Workers |
 | **Worker registry** | Tracks connected Workers, their status, and metadata |
-| **Trigger dispatch** | Receives `trigger()` / `triggerVoid()` and routes to the correct Worker |
+| **Trigger dispatch** | Receives `trigger()` (sync or fire-and-forget via `TriggerAction.Void()`) and routes to the correct Worker |
 | **Module orchestration** | Loads and initializes Modules from `iii-config.yaml` |
 | **Worker cleanup** | When a Worker disconnects, automatically removes all its registered functions and triggers |
 
@@ -89,11 +89,11 @@ The Engine exposes built-in functions for querying the current system state:
 ```typescript
 // All registered functions across all workers
 const functions = await iii.listFunctions()
-// or: await iii.trigger('engine::functions::list', {})
+// or: await iii.trigger({ function_id: 'engine::functions::list', payload: {} })
 
 // All connected workers and their status
 const workers = await iii.listWorkers()
-// or: await iii.trigger('engine::workers::list', {})
+// or: await iii.trigger({ function_id: 'engine::workers::list', payload: {} })
 ```
 
 ## Worker Disconnect Cleanup
