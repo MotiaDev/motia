@@ -49,7 +49,7 @@ The `default` queue is used when no queue name is specified. You can add as many
 
 ### 2. Enqueue work via trigger action
 
-From any function, enqueue a job by calling `trigger()` with the `Enqueue` action and the target queue name. The enqueue operation is asynchronous — the caller does not wait for the job to be processed — but the SDK does await an acknowledgement from the engine confirming the job was accepted. The returned result contains `{ messageReceiptId: string }` on success, or an `enqueue_error` if the queue was not found or FIFO validation failed.
+From any function, enqueue a job by calling `trigger()` with the `Enqueue` action and the target queue name. The enqueue operation is asynchronous — the caller does not wait for the job to be processed — but the SDK does await an acknowledgement from the engine confirming the job was accepted. The returned result contains `{ enqueued: true }` on success, or an `enqueue_error` if the queue was not found or FIFO validation failed.
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
@@ -63,7 +63,7 @@ iii.registerFunction({ id: 'orders::create' }, async (input) => {
   const order = { id: crypto.randomUUID(), ...input }
 
   // Enqueue to the 'payment' queue — process-order receives `order` as its input
-  await iii.trigger({
+  iii.trigger({
     function_id: 'orders::process-order',
     payload: order,
     action: TriggerAction.Enqueue({ queue: 'payment' }),
@@ -82,12 +82,12 @@ from iii import III, Logger, TriggerAction
 
 iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
-async def create_order(input):
+def create_order(input):
     logger = Logger()
     order = {"id": str(uuid.uuid4()), **input}
 
     # Enqueue to the 'payment' queue
-    await iii.trigger({
+    iii.trigger({
         "function_id": "orders::process-order",
         "payload": order,
         "action": TriggerAction.Enqueue(queue="payment"),
@@ -164,7 +164,7 @@ from iii import III, Logger
 
 iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
-async def process_order(order):
+def process_order(order):
     logger = Logger()
     logger.info('Processing payment', {'orderId': order['id']})
     # ...payment logic...
@@ -200,7 +200,7 @@ A worker can also enqueue further work, creating processing pipelines:
 iii.registerFunction({ id: 'orders::process-order' }, async (order) => {
   // ...charge the customer...
 
-  await iii.trigger({
+  iii.trigger({
     function_id: 'notifications::send',
     payload: { orderId: order.id, type: 'payment-confirmed' },
     action: TriggerAction.Enqueue({ queue: 'default' }),
@@ -212,10 +212,10 @@ iii.registerFunction({ id: 'orders::process-order' }, async (order) => {
 </Tab>
 <Tab value="Python">
 ```python
-async def process_order(order):
+def process_order(order):
     # ...charge the customer...
 
-    await iii.trigger({
+    iii.trigger({
         "function_id": "notifications::send",
         "payload": {"orderId": order["id"], "type": "payment-confirmed"},
         "action": TriggerAction.Enqueue(queue="default"),
@@ -274,7 +274,7 @@ iii.trigger({
 <Tab value="Python">
 ```python
 # The 'transaction_id' field in the data is used for FIFO ordering
-await iii.trigger({
+iii.trigger({
     "function_id": "payments::process",
     "payload": {
         "transaction_id": "txn-abc-123",
@@ -325,7 +325,7 @@ iii.trigger({
 from iii import TriggerAction
 
 # Fire-and-forget — no queue, no response
-await iii.trigger({
+iii.trigger({
     "function_id": "notifications::send-email",
     "payload": {"to": "user@example.com", "subject": "Hello"},
     "action": TriggerAction.Void(),
@@ -365,7 +365,7 @@ logger.info('Order created', { orderId })
 </Tab>
 <Tab value="Python">
 ```python
-result = await iii.trigger({
+result = iii.trigger({
     "function_id": "orders::create",
     "payload": {"items": ["item-1", "item-2"], "total": 99.99},
 })
@@ -395,7 +395,7 @@ println!("Order created: {}", result["orderId"]);
 | Action | Behavior | SDK Usage |
 |--------|----------|-----------|
 | _(none)_ | Direct call — waits for response | `trigger({ function_id: 'fn', payload: data })` |
-| `Enqueue` | Async via named queue — returns `{ messageReceiptId: string }` or `enqueue_error` | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Enqueue({ queue: 'name' }) })` |
+| `Enqueue` | Async via named queue — returns `{ enqueued: true }` or `enqueue_error` | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Enqueue({ queue: 'name' }) })` |
 | `Void` | Fire-and-forget, no queue | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Void() })` |
 
 ### SDK quick reference
@@ -408,10 +408,7 @@ import { registerWorker, TriggerAction } from 'iii-sdk'
 const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 // Direct call (request/response)
-const result = await iii.trigger({
-  function_id: 'get-order',
-  payload: { id: '123' },
-})
+const result = await iii.trigger({ function_id: 'get-order', payload: { id: '123' } })
 
 // Enqueue to named queue (async, returns acknowledgement)
 await iii.trigger({
@@ -435,20 +432,17 @@ from iii import III, TriggerAction
 iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 # Direct call (request/response)
-result = await iii.trigger({
-    "function_id": "get-order",
-    "payload": {"id": "123"},
-})
+result = iii.trigger({"function_id": "get-order", "payload": {"id": "123"}})
 
 # Enqueue to named queue (async, returns acknowledgement)
-await iii.trigger({
+iii.trigger({
     "function_id": "process-order",
     "payload": order_data,
     "action": TriggerAction.Enqueue(queue="payment"),
 })
 
 # Void (fire-and-forget, no queue)
-await iii.trigger({
+iii.trigger({
     "function_id": "send-notification",
     "payload": data,
     "action": TriggerAction.Void(),
@@ -461,9 +455,7 @@ use iii_sdk::{III, TriggerAction, TriggerRequest};
 use serde_json::json;
 
 // Direct call (request/response)
-let result = iii
-    .trigger(TriggerRequest::new("get-order", json!({ "id": "123" })))
-    .await?;
+let result = iii.trigger(TriggerRequest::new("get-order", json!({ "id": "123" }))).await?;
 
 // Enqueue to named queue (async, returns acknowledgement)
 iii.trigger(
@@ -482,8 +474,8 @@ iii.trigger(
 
 ## Migrating from the old topic-based API
 
-<Callout title="Topic-based queues" type="info">
-  The topic-based API (`triggerVoid('enqueue', { topic, data })` and `registerTrigger({ type: 'queue', ... })`) remains valid. Named Queues + Trigger Actions offer config-driven retries, concurrency, and FIFO ordering.
+<Callout title="Deprecation notice" type="warn">
+  The old topic-based API (`triggerVoid('enqueue', { topic, data })` and `registerTrigger({ type: 'queue', ... })`) still works but is deprecated. Migrate to Named Queues + Trigger Actions at your earliest convenience.
 </Callout>
 
 ### Enqueue: before and after
@@ -519,22 +511,22 @@ iii.trigger({
 <Tab value="Python">
 ```python title="Before (deprecated)"
 # Old: enqueue via trigger_void with topic
-iii.trigger_void("enqueue", {
+iii.trigger("enqueue", {
     "topic": "order.created",
     "data": order,
 })
 
 # Old: register a queue trigger to consume
-iii.register_trigger(
-    type="queue",
-    function_id="orders::process-payment",
-    config={"topic": "order.created"},
-)
+iii.register_trigger({
+    "type": "queue",
+    "function_id": "orders::process-payment",
+    "config": {"topic": "order.created"},
+})
 ```
 
 ```python title="After (Named Queues)"
 # New: enqueue directly to the target function via a named queue
-await iii.trigger({
+iii.trigger({
     "function_id": "orders::process-payment",
     "payload": order,
     "action": TriggerAction.Enqueue(queue="payment"),
@@ -589,11 +581,11 @@ iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python title="Before (deprecated)"
-iii.trigger_void('send-notification', data)
+iii.trigger('send-notification', data)
 ```
 
 ```python title="After"
-await iii.trigger({
+iii.trigger({
     "function_id": "send-notification",
     "payload": data,
     "action": TriggerAction.Void(),

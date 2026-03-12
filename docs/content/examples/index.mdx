@@ -42,7 +42,7 @@ All three SDKs share the same concepts with language-idiomatic initialization:
 | Init | `init(url)` | `III(address=url)` | `III::new(url)` |
 | Connect | Auto on `init()` | `await iii.connect()` | `iii.connect().await?` |
 | Register function | `iii.registerFunction({ id }, handler)` | `iii.register_function(function_id, handler)` | `iii.register_function(id, \|input\| ...)` |
-| Register trigger | `iii.registerTrigger({ type, function_id, config })` | `iii.register_trigger(type, function_id, config)` | `iii.register_trigger(type, function_id, config)?` |
+| Register trigger | `iii.registerTrigger({ type, function_id, config })` | `iii.register_trigger({"type": ..., "function_id": ..., "config": ...})` | `iii.register_trigger(type, function_id, config)?` |
 | Context | `new Logger()` | `Logger()` | `iii_sdk::Logger()` |
 | Trigger (sync) | `await iii.trigger({ function_id, payload })` | `await iii.trigger({'function_id': id, 'payload': data})` | `iii.trigger(TriggerRequest::new(id, data)).await?` |
 | Trigger (fire-and-forget) | `iii.trigger({ function_id, payload, action: TriggerAction.Void() })` | `iii.trigger({'function_id': id, 'payload': data, 'action': TriggerAction.Void()})` | `iii.trigger(TriggerRequest::new(id, data).action(TriggerAction::void())).await?` |

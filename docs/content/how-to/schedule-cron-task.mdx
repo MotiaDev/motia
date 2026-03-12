@@ -47,15 +47,15 @@ iii.registerFunction({ id: 'cleanup::expired-sessions' }, async () => {
 </Tab>
 <Tab value="Python">
 ```python title="cron_task.py"
-import asyncio
 import os
 import signal
 from iii import III
 from iii import Logger
+import threading
 
 iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
-async def cleanup_sessions(_):
+def cleanup_sessions(_):
     logger = Logger()
     # ...cleanup logic here...
     logger.info('Cleanup ran')
@@ -63,17 +63,10 @@ async def cleanup_sessions(_):
     return {'deleted': 0}
 
 iii.register_function('cleanup::expired-sessions', cleanup_sessions)
-
-async def main():
-    await iii.connect()
-    print('Cron task registered')
-    stop = asyncio.Event()
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop.set)
-    await stop.wait()
-
-asyncio.run(main())
+iii.connect()
+print('Cron task registered')
+stop = threading.Event()
+stop.wait()
 ```
 </Tab>
 <Tab value="Rust">
@@ -118,11 +111,11 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="cron_trigger.py"
-iii.register_trigger(
-    type="cron",
-    function_id="cleanup::expired-sessions",
-    config={"expression": "* * * * * * *"},  # runs every second
-)
+iii.register_trigger({
+    "type": "cron",
+    "function_id": "cleanup::expired-sessions",
+    "config": {"expression": "* * * * * * *"},  # runs every second
+})
 ```
 </Tab>
 <Tab value="Rust">

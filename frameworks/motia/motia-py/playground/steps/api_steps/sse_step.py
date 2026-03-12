@@ -20,7 +20,7 @@ config = {
 }
 
 
-async def handler(args: MotiaHttpArgs[Any]) -> None:
+def handler(args: MotiaHttpArgs[Any]) -> None:
     """Read URL-encoded body, then stream random items back as SSE."""
     request = args.request
     response = args.response
@@ -29,8 +29,8 @@ async def handler(args: MotiaHttpArgs[Any]) -> None:
     safe_headers = {k: v for k, v in request.headers.items() if k.lower() in safe_header_keys}
     logger.info("Data received", {"headers": safe_headers})
 
-    await response.status(200)
-    await response.headers({
+    response.status(200)
+    response.headers({
         "content-type": "text/event-stream",
         "cache-control": "no-cache",
         "connection": "keep-alive",

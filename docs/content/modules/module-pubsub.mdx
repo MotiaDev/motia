@@ -95,8 +95,6 @@ The handler receives the raw value passed as `data` to the `publish` call. No en
 <Tabs items={["TypeScript", "Python", "Rust"]}>
 <Tab value="TypeScript">
 ```typescript
-import { TriggerAction } from 'iii-sdk'
-
 const fn = iii.registerFunction(
   { id: 'notifications::onOrderShipped' },
   async (data) => {
@@ -111,42 +109,29 @@ iii.registerTrigger({
   config: { topic: 'orders.shipped' },
 })
 
-iii.trigger({
-  function_id: 'publish',
-  payload: {
-    topic: 'orders.shipped',
-    data: { orderId: 'abc-123', address: '123 Main St' },
-  },
-  action: TriggerAction.Void(),
+iii.triggerVoid('publish', {
+  topic: 'orders.shipped',
+  data: { orderId: 'abc-123', address: '123 Main St' },
 })
 ```
 </Tab>
 <Tab value="Python">
 ```python
-from iii import TriggerAction
-
-async def on_order_shipped(data):
+def on_order_shipped(data):
     print('Order shipped:', data)
     return {}
 
 iii.register_function('notifications::onOrderShipped', on_order_shipped)
-iii.register_trigger(type='subscribe', function_id='notifications::onOrderShipped', config={'topic': 'orders.shipped'})
+iii.register_trigger({'type': 'subscribe', 'function_id': 'notifications::onOrderShipped', 'config': {'topic': 'orders.shipped'}})
 
-await iii.trigger({
-    'function_id': 'publish',
-    'payload': {
-        'topic': 'orders.shipped',
-        'data': {'orderId': 'abc-123', 'address': '123 Main St'},
-    },
-    'action': TriggerAction.Void(),
+iii.trigger('publish', {
+    'topic': 'orders.shipped',
+    'data': {'orderId': 'abc-123', 'address': '123 Main St'},
 })
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{TriggerRequest, TriggerAction};
-use serde_json::json;
-
 iii.register_function("notifications::onOrderShipped", |data| async move {
     println!("Order shipped: {:?}", data);
     Ok(json!({}))
@@ -156,10 +141,10 @@ iii.register_trigger("subscribe", "notifications::onOrderShipped", json!({
     "topic": "orders.shipped"
 }))?;
 
-iii.trigger(TriggerRequest::new("publish", json!({
+iii.trigger("publish", json!({
     "topic": "orders.shipped",
     "data": { "orderId": "abc-123", "address": "123 Main St" }
-})).action(TriggerAction::void())).await?;
+})).await?;
 ```
 </Tab>
 </Tabs>
@@ -199,45 +184,36 @@ iii.registerTrigger({
   config: { topic: 'orders.shipped' },
 })
 
-await iii.trigger({
-  function_id: 'publish',
-  payload: {
-    topic: 'orders.shipped',
-    data: { orderId: 'abc-123', userId: 'user-456' },
-  },
+await iii.trigger('publish', {
+  topic: 'orders.shipped',
+  data: { orderId: 'abc-123', userId: 'user-456' },
 })
 ```
 </Tab>
 <Tab value="Python">
 ```python
-async def send_email_alert(data):
-    await send_email(data['userId'], f"Order {data['orderId']} shipped")
+def send_email_alert(data):
+    send_email(data['userId'], f"Order {data['orderId']} shipped")
     return {}
 
-async def send_push_alert(data):
-    await send_push_notification(data['userId'], f"Order {data['orderId']} shipped")
+def send_push_alert(data):
+    send_push_notification(data['userId'], f"Order {data['orderId']} shipped")
     return {}
 
 iii.register_function('notifications::sendEmailAlert', send_email_alert)
 iii.register_function('notifications::sendPushAlert', send_push_alert)
 
-iii.register_trigger(type='subscribe', function_id='notifications::sendEmailAlert', config={'topic': 'orders.shipped'})
-iii.register_trigger(type='subscribe', function_id='notifications::sendPushAlert', config={'topic': 'orders.shipped'})
+iii.register_trigger({'type': 'subscribe', 'function_id': 'notifications::sendEmailAlert', 'config': {'topic': 'orders.shipped'}})
+iii.register_trigger({'type': 'subscribe', 'function_id': 'notifications::sendPushAlert', 'config': {'topic': 'orders.shipped'}})
 
-await iii.trigger({
-    'function_id': 'publish',
-    'payload': {
-        'topic': 'orders.shipped',
-        'data': {'orderId': 'abc-123', 'userId': 'user-456'},
-    },
+iii.trigger('publish', {
+    'topic': 'orders.shipped',
+    'data': {'orderId': 'abc-123', 'userId': 'user-456'},
 })
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::TriggerRequest;
-use serde_json::json;
-
 iii.register_function("notifications::sendEmailAlert", |data| async move {
     let order_id = data["orderId"].as_str().unwrap_or("");
     let user_id = data["userId"].as_str().unwrap_or("");
@@ -259,10 +235,10 @@ iii.register_trigger("subscribe", "notifications::sendPushAlert", json!({
     "topic": "orders.shipped"
 }))?;
 
-iii.trigger(TriggerRequest::new("publish", json!({
+iii.trigger("publish", json!({
     "topic": "orders.shipped",
     "data": { "orderId": "abc-123", "userId": "user-456" }
-}))).await?;
+})).await?;
 ```
 </Tab>
 </Tabs>

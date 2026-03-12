@@ -81,14 +81,12 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-import asyncio
 from datetime import datetime, timezone
 from iii import III, InitOptions, ApiRequest, ApiResponse, TriggerAction
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-service"))
 
-
-async def create_order(req: ApiRequest, ctx) -> ApiResponse:
+def create_order(req: ApiRequest, ctx) -> ApiResponse:
     body = req.body or {}
     customer_id = body.get("customerId")
     amount = body.get("amount")
@@ -105,7 +103,7 @@ async def create_order(req: ApiRequest, ctx) -> ApiResponse:
         "traceId": current_trace_id(),  # same traceId will appear in downstream logs
     })
 
-    iii.trigger_void({
+    iii.trigger({
         "function_id": "state::set",
         "payload": {
             "scope": "orders",
@@ -121,7 +119,7 @@ async def create_order(req: ApiRequest, ctx) -> ApiResponse:
         "action": TriggerAction.Void(),
     })
 
-    iii.trigger_void({
+    iii.trigger({
         "function_id": "enqueue",
         "payload": {"topic": "order.process", "data": {"orderId": order_id, "amount": amount, "customerId": customer_id}},
         "action": TriggerAction.Void(),
@@ -129,14 +127,13 @@ async def create_order(req: ApiRequest, ctx) -> ApiResponse:
 
     return ApiResponse(statusCode=201, body={"orderId": order_id, "status": "processing"})
 
-
 iii.register_function("orders.create", lambda data: create_order(
     ApiRequest(**data) if isinstance(data, dict) else data, Logger()
 ))
-iii.register_trigger(
-    type="http", function_id="orders.create",
-    config={"api_path": "orders", "http_method": "POST"},
-)
+iii.register_trigger({
+    "type": "http", "function_id": "orders.create",
+    "config": {"api_path": "orders", "http_method": "POST"},
+})
 ```
 
   </Tab>
@@ -243,7 +240,7 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-async def process_order(data: dict, ctx) -> None:
+def process_order(data: dict, ctx) -> None:
     order_id = data.get("orderId")
     amount = data.get("amount")
     customer_id = data.get("customerId")
@@ -254,7 +251,7 @@ async def process_order(data: dict, ctx) -> None:
         "traceId": current_trace_id(),
     })
 
-    iii.trigger_void({
+    iii.trigger({
         "function_id": "state::set",
         "payload": {
             "scope": "orders",
@@ -267,7 +264,7 @@ async def process_order(data: dict, ctx) -> None:
         "action": TriggerAction.Void(),
     })
 
-    iii.trigger_void({
+    iii.trigger({
         "function_id": "enqueue",
         "payload": {"topic": "order.notify", "data": {"orderId": order_id, "customerId": customer_id, "amount": amount, "status": "processed"}},
         "action": TriggerAction.Void(),
@@ -275,9 +272,8 @@ async def process_order(data: dict, ctx) -> None:
 
     logger.info("Order processed", {"orderId": order_id, "traceId": current_trace_id()})
 
-
 iii.register_function("order.process", lambda data: process_order(data, Logger()))
-iii.register_trigger(type="queue", function_id="order.process", config={"topic": "order.process"})
+iii.register_trigger({"type": "queue", "function_id": "order.process", "config": {"topic": "order.process"}})
 ```
 
   </Tab>
@@ -344,7 +340,7 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-async def notify_order(data: dict, ctx) -> None:
+def notify_order(data: dict, ctx) -> None:
     order_id = data.get("orderId")
     customer_id = data.get("customerId")
 
@@ -357,9 +353,8 @@ async def notify_order(data: dict, ctx) -> None:
     # integrate with your notification service here
     logger.info("Order notification sent", {"orderId": order_id, "traceId": current_trace_id()})
 
-
 iii.register_function("order.notify", lambda data: notify_order(data, Logger()))
-iii.register_trigger(type="queue", function_id="order.notify", config={"topic": "order.notify"})
+iii.register_trigger({"type": "queue", "function_id": "order.notify", "config": {"topic": "order.notify"}})
 ```
 
   </Tab>
