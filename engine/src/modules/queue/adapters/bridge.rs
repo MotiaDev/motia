@@ -137,8 +137,11 @@ impl QueueAdapter for BridgeAdapter {
         );
         let input =
             Self::build_enqueue_payload(topic, data, traceparent.as_deref(), baggage.as_deref());
-        if let Err(e) = self.bridge.trigger(
-                iii_sdk::TriggerRequest::new(Self::ENQUEUE_FUNCTION_ID, input).action(iii_sdk::TriggerAction::void()),
+        if let Err(e) = self
+            .bridge
+            .trigger(
+                iii_sdk::TriggerRequest::new(Self::ENQUEUE_FUNCTION_ID, input)
+                    .action(iii_sdk::TriggerAction::void()),
             )
             .await
         {
