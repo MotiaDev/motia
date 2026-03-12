@@ -260,14 +260,14 @@ class III:
     async def _on_connected(self) -> None:
         self._reconnect_attempt = 0
         self._set_connection_state("connected")
-        # Re-register all
-        for trigger_type_data in self._trigger_types.values():
+        # Re-register all (snapshot to avoid mutation from caller thread)
+        for trigger_type_data in list(self._trigger_types.values()):
             await self._send(trigger_type_data.message)
-        for svc in self._services.values():
+        for svc in list(self._services.values()):
             await self._send(svc)
-        for function_data in self._functions.values():
+        for function_data in list(self._functions.values()):
             await self._send(function_data.message)
-        for trigger in self._triggers.values():
+        for trigger in list(self._triggers.values()):
             await self._send(trigger)
 
         # Flush queue (swap to avoid O(n^2) pop(0))
@@ -577,7 +577,7 @@ class III:
     def _set_connection_state(self, state: IIIConnectionState) -> None:
         if self._connection_state != state:
             self._connection_state = state
-            for callback in self._state_callbacks:
+            for callback in list(self._state_callbacks):
                 try:
                     callback(state)
                 except Exception:
@@ -904,7 +904,7 @@ class III:
                 async def handler(data: dict[str, Any]) -> None:
                     functions_data = data.get("functions", [])
                     functions = [FunctionInfo(**f) for f in functions_data]
-                    for cb in self._functions_available_callbacks:
+                    for cb in list(self._functions_available_callbacks):
                         cb(functions)
 
                 self.register_function({"id": function_id}, handler)

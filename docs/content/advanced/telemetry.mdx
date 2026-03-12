@@ -137,7 +137,7 @@ iii.registerFunction({ id: 'orders::process' }, async (data) => {
 from iii.telemetry import with_span
 
 def process_order(data):
-    async with with_span("validate-order") as span:
+    with with_span("validate-order") as span:
         span.set_attribute("order.id", data["orderId"])
         valid = validate_order(data)
         span.set_attribute("order.valid", valid)

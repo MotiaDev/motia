@@ -30,7 +30,6 @@ def sum_function(data):
     return {"sum": a + b}
 
 iii.register_function("math.sum", sum_function, description="Add two numbers")
-iii.connect()
 result = iii.trigger("math.sum", {"a": 2, "b": 3})
 print(result)  # {"sum": 5}
 ```
