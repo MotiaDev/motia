@@ -1,7 +1,8 @@
 # motia/tests/test_pubsub.py
 """Integration tests for PubSub operations."""
 
-import asyncio
+import threading
+import time
 import uuid
 
 import pytest
@@ -11,14 +12,13 @@ from tests.conftest import flush_bridge_queue
 pytestmark = pytest.mark.integration
 
 
-@pytest.mark.asyncio
-async def test_pubsub_subscribe_and_publish(bridge):
+def test_pubsub_subscribe_and_publish(bridge):
     """Test subscribing to a topic and receiving published messages."""
     topic = f"test.topic.{uuid.uuid4().hex[:8]}"
     received_messages = []
-    message_received = asyncio.Event()
+    message_received = threading.Event()
 
-    async def subscriber_handler(data):
+    def subscriber_handler(data):
         received_messages.append(data)
         message_received.set()
         return {}
@@ -35,11 +35,11 @@ async def test_pubsub_subscribe_and_publish(bridge):
         },
     )
 
-    await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.3)
+    flush_bridge_queue(bridge)
+    time.sleep(0.3)
 
     # Publish a message
-    await bridge.trigger({
+    bridge.trigger({
         "function_id": "publish",
         "payload": {
             "topic": topic,
@@ -48,29 +48,29 @@ async def test_pubsub_subscribe_and_publish(bridge):
     })
 
     # Wait for message
-    await asyncio.wait_for(message_received.wait(), timeout=5.0)
+    if not message_received.wait(timeout=5.0):
+        raise TimeoutError("Did not receive message within 5s")
 
     assert len(received_messages) == 1
     # Data may have _caller_worker_id injected
     assert received_messages[0].get("message") == "Hello PubSub!"
 
 
-@pytest.mark.asyncio
-async def test_pubsub_different_topics(bridge):
+def test_pubsub_different_topics(bridge):
     """Test that subscribers only receive messages from their topic."""
     topic_a = f"topic.a.{uuid.uuid4().hex[:8]}"
     topic_b = f"topic.b.{uuid.uuid4().hex[:8]}"
 
     received_a = []
     received_b = []
-    message_a_received = asyncio.Event()
+    message_a_received = threading.Event()
 
-    async def subscriber_a(data):
+    def subscriber_a(data):
         received_a.append(data)
         message_a_received.set()
         return {}
 
-    async def subscriber_b(data):
+    def subscriber_b(data):
         received_b.append(data)
         return {}
 
@@ -80,11 +80,11 @@ async def test_pubsub_different_topics(bridge):
     bridge.register_trigger("subscribe", f"test.pubsub.topic_a.{topic_a}", {"topic": topic_a})
     bridge.register_trigger("subscribe", f"test.pubsub.topic_b.{topic_b}", {"topic": topic_b})
 
-    await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.3)
+    flush_bridge_queue(bridge)
+    time.sleep(0.3)
 
     # Publish to topic A only
-    await bridge.trigger({
+    bridge.trigger({
         "function_id": "publish",
         "payload": {
             "topic": topic_a,
@@ -92,10 +92,11 @@ async def test_pubsub_different_topics(bridge):
         },
     })
 
-    await asyncio.wait_for(message_a_received.wait(), timeout=5.0)
+    if not message_a_received.wait(timeout=5.0):
+        raise TimeoutError("Did not receive message within 5s")
 
     # Give time for any erroneous messages to arrive
-    await asyncio.sleep(0.2)
+    time.sleep(0.2)
 
     assert len(received_a) == 1
     assert len(received_b) == 0

@@ -1,7 +1,6 @@
 # motia/tests/test_api_triggers.py
 """Integration tests for API triggers (HTTP endpoints)."""
 
-import asyncio
 import json
 import time
 
@@ -22,7 +21,7 @@ pytestmark = pytest.mark.integration
 async def test_api_trigger_get_endpoint(bridge, api_url):
     """Test registering a GET endpoint via API trigger."""
 
-    async def get_handler(data):
+    def get_handler(data):
         return {
             "status_code": 200,
             "body": {"message": "Hello from GET"},
@@ -38,8 +37,8 @@ async def test_api_trigger_get_endpoint(bridge, api_url):
         },
     )
 
-    await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.3)
+    flush_bridge_queue(bridge)
+    time.sleep(0.3)
 
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{api_url}/test/hello")
@@ -52,7 +51,7 @@ async def test_api_trigger_get_endpoint(bridge, api_url):
 async def test_api_trigger_post_with_body(bridge, api_url):
     """Test POST endpoint with request body."""
 
-    async def post_handler(data):
+    def post_handler(data):
         body = data.get("body", {})
         return {
             "status_code": 201,
@@ -69,8 +68,8 @@ async def test_api_trigger_post_with_body(bridge, api_url):
         },
     )
 
-    await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.3)
+    flush_bridge_queue(bridge)
+    time.sleep(0.3)
 
     async with httpx.AsyncClient() as client:
         response = await client.post(
@@ -88,7 +87,7 @@ async def test_api_trigger_post_with_body(bridge, api_url):
 async def test_api_trigger_path_params(bridge, api_url):
     """Test endpoint with path parameters."""
 
-    async def get_by_id_handler(data):
+    def get_by_id_handler(data):
         path_params = data.get("path_params", {})
         return {
             "status_code": 200,
@@ -105,8 +104,8 @@ async def test_api_trigger_path_params(bridge, api_url):
         },
     )
 
-    await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.3)
+    flush_bridge_queue(bridge)
+    time.sleep(0.3)
 
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{api_url}/test/items/abc123")
@@ -119,7 +118,7 @@ async def test_api_trigger_path_params(bridge, api_url):
 async def test_api_trigger_query_params(bridge, api_url):
     """Test endpoint with query parameters."""
 
-    async def search_handler(data):
+    def search_handler(data):
         query_params = data.get("query_params", {})
         return {
             "status_code": 200,
@@ -136,8 +135,8 @@ async def test_api_trigger_query_params(bridge, api_url):
         },
     )
 
-    await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.3)
+    flush_bridge_queue(bridge)
+    time.sleep(0.3)
 
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{api_url}/test/search?q=hello&limit=10")
@@ -152,7 +151,7 @@ async def test_api_trigger_query_params(bridge, api_url):
 async def test_api_trigger_custom_status_code(bridge, api_url):
     """Test returning custom status codes."""
 
-    async def not_found_handler(data):
+    def not_found_handler(data):
         return {
             "status_code": 404,
             "body": {"error": "Not found"},
@@ -168,8 +167,8 @@ async def test_api_trigger_custom_status_code(bridge, api_url):
         },
     )
 
-    await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.3)
+    flush_bridge_queue(bridge)
+    time.sleep(0.3)
 
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{api_url}/test/missing")
@@ -199,8 +198,8 @@ async def test_streaming_response_via_channels(bridge, api_url):
         {"api_path": "test/stream/response", "http_method": "GET"},
     )
 
-    await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.3)
+    flush_bridge_queue(bridge)
+    time.sleep(0.3)
 
     async with httpx.AsyncClient() as client:
         response = await client.get(f"{api_url}/test/stream/response")
@@ -242,8 +241,8 @@ async def test_streaming_request_body_via_channels(bridge, api_url):
         {"api_path": "test/stream/upload", "http_method": "POST"},
     )
 
-    await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.3)
+    flush_bridge_queue(bridge)
+    time.sleep(0.3)
 
     payload = json.dumps({"data": "streamed content", "items": [1, 2, 3]})
     async with httpx.AsyncClient() as client:
@@ -310,8 +309,8 @@ async def test_multipart_form_data_via_channels(bridge, api_url):
         {"api_path": "test/form/multipart", "http_method": "POST"},
     )
 
-    await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.3)
+    flush_bridge_queue(bridge)
+    time.sleep(0.3)
 
     boundary = "----TestBoundary12345"
     body_parts = [
@@ -384,11 +383,11 @@ async def test_data_channels_worker_to_worker(bridge, api_url):
     bridge.register_function(processor_id, processor_handler)
     bridge.register_function(sender_id, sender_handler)
 
-    await flush_bridge_queue(bridge)
-    await asyncio.sleep(0.3)
+    flush_bridge_queue(bridge)
+    time.sleep(0.3)
 
     records = [{"value": 10}, {"value": 20}, {"value": 30}]
-    result = await bridge.trigger({"function_id": sender_id, "payload": {"records": records}})
+    result = bridge.trigger({"function_id": sender_id, "payload": {"records": records}})
 
     assert result["label"] == "test-batch"
     assert result["count"] == 3

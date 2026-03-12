@@ -11,11 +11,11 @@ from motia.types import ApiRequest, ApiResponse, FlowContext, QueueConfig, StepC
 
 @pytest.fixture
 def mock_bridge() -> MagicMock:
-    """Create a bridge mock with async call support."""
+    """Create a bridge mock with call support."""
     bridge = MagicMock()
     bridge.register_function = MagicMock()
     bridge.register_trigger = MagicMock()
-    bridge.call = AsyncMock()
+    bridge.call = MagicMock()
     return bridge
 
 
@@ -26,7 +26,7 @@ def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock) -> Non
         triggers=[queue("orders.created")],
     )
 
-    async def handler(input_data: object, ctx: FlowContext[object]) -> None:
+    def handler(input_data: object, ctx: FlowContext[object]) -> None:
         _ = (input_data, ctx)
 
     with (
@@ -41,9 +41,8 @@ def test_queue_trigger_registers_as_queue_trigger(mock_bridge: MagicMock) -> Non
     assert call_args[0][2]["topic"] == "orders.created"
 
 
-@pytest.mark.asyncio
-async def test_standalone_enqueue_calls_bridge(mock_bridge: MagicMock) -> None:
-    """Standalone enqueue() should call get_instance().call('enqueue', event)."""
+def test_standalone_enqueue_calls_bridge(mock_bridge: MagicMock) -> None:
+    """Standalone enqueue() should call get_instance().trigger('enqueue', event)."""
     import sys
 
     _enqueue_mod = sys.modules["motia.enqueue"]
@@ -51,11 +50,10 @@ async def test_standalone_enqueue_calls_bridge(mock_bridge: MagicMock) -> None:
     with patch.object(_enqueue_mod, "get_instance", return_value=mock_bridge):
         from motia.enqueue import enqueue
 
-        await enqueue({"topic": "orders.processed", "data": {"order_id": "123"}})
+        enqueue({"topic": "orders.processed", "data": {"order_id": "123"}})
 
-    mock_bridge.call.assert_awaited_once_with(
-        "enqueue",
-        {"topic": "orders.processed", "data": {"order_id": "123"}},
+    mock_bridge.trigger.assert_called_once_with(
+        {"function_id": "enqueue", "payload": {"topic": "orders.processed", "data": {"order_id": "123"}}},
     )
 
 
@@ -143,7 +141,7 @@ def test_queue_trigger_passes_queue_config(mock_bridge: MagicMock) -> None:
         ],
     )
 
-    async def handler(input_data: object, ctx: FlowContext[object]) -> None:
+    def handler(input_data: object, ctx: FlowContext[object]) -> None:
         _ = (input_data, ctx)
 
     with (
@@ -166,7 +164,7 @@ def test_queue_trigger_omits_queue_config_when_not_provided(mock_bridge: MagicMo
         triggers=[queue("orders")],
     )
 
-    async def handler(input_data: object, ctx: FlowContext[object]) -> None:
+    def handler(input_data: object, ctx: FlowContext[object]) -> None:
         _ = (input_data, ctx)
 
     with (
