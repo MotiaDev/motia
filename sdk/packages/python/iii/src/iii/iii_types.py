@@ -148,6 +148,7 @@ class RegisterFunctionInput(BaseModel):
     request_format: RegisterFunctionFormat | None = None
     response_format: RegisterFunctionFormat | None = None
     metadata: dict[str, Any] | None = None
+    invocation: HttpInvocationConfig | None = None
 
 
 class RegisterFunctionMessage(BaseModel):

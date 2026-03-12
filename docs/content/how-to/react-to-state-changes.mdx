@@ -65,7 +65,7 @@ def on_status_change(event):
     # ...react to the change here...
     return {'handled': True}
 
-iii.register_function('orders::on-status-change', on_status_change)
+iii.register_function({'id': 'orders::on-status-change'}, on_status_change)
 iii.connect()
 print("Watching orders/status for changes")
 stop = threading.Event()

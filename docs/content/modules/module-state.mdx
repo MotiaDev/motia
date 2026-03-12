@@ -348,22 +348,39 @@ const scopes = await iii.trigger('state::list_groups', {})
 </Tab>
 <Tab value="Python">
 ```python
-iii.trigger('state::set', {
-    'scope': 'users',
-    'key': 'user-123',
-    'value': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'dark'}},
+iii.trigger({
+    'function_id': 'state::set',
+    'payload': {
+        'scope': 'users',
+        'key': 'user-123',
+        'value': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'dark'}},
+    },
+    'action': {'type': 'void'},
 })
 
-profile = iii.trigger('state::get', {'scope': 'users', 'key': 'user-123'})
-
-iii.trigger('state::set', {
-    'scope': 'users',
-    'key': 'user-123',
-    'value': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'light'}},
+profile = iii.trigger({
+    'function_id': 'state::get',
+    'payload': {'scope': 'users', 'key': 'user-123'},
 })
 
-all_users = iii.trigger('state::list', {'scope': 'users'})
-scopes = iii.trigger('state::list_groups', {})
+iii.trigger({
+    'function_id': 'state::set',
+    'payload': {
+        'scope': 'users',
+        'key': 'user-123',
+        'value': {'name': 'Alice', 'email': 'alice@example.com', 'preferences': {'theme': 'light'}},
+    },
+    'action': {'type': 'void'},
+})
+
+all_users = iii.trigger({
+    'function_id': 'state::list',
+    'payload': {'scope': 'users'},
+})
+scopes = iii.trigger({
+    'function_id': 'state::list_groups',
+    'payload': {},
+})
 ```
 </Tab>
 <Tab value="Rust">

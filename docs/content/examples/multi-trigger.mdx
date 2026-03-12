@@ -113,11 +113,12 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-from iii import III, InitOptions, ApiRequest, ApiResponse
+from iii import III, InitOptions, Logger, ApiRequest, ApiResponse
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-worker"))
+logger = Logger()
 
-def orders_handle(data, ctx) -> dict | None:
+def orders_handle(data) -> dict | None:
     # HTTP trigger — data has 'path_params', 'body', etc.
     if isinstance(data, dict) and "path_params" in data:
         req = ApiRequest(**data)
@@ -125,14 +126,22 @@ def orders_handle(data, ctx) -> dict | None:
 
         logger.info("Processing manual order via API", {"amount": req.body.get("amount")})
 
-        iii.trigger("state::set", {
-            "scope": "orders",
-            "key": order_id,
-            "data": {**req.body, "id": order_id, "source": "api"},
+        iii.trigger({
+            "function_id": "state::set",
+            "payload": {
+                "scope": "orders",
+                "key": order_id,
+                "data": {**req.body, "id": order_id, "source": "api"},
+            },
+            "action": {"type": "void"},
         })
-        iii.trigger("enqueue", {
-            "topic": "order.processed",
-            "data": {"orderId": order_id, "source": "api"},
+        iii.trigger({
+            "function_id": "enqueue",
+            "payload": {
+                "topic": "order.processed",
+                "data": {"orderId": order_id, "source": "api"},
+            },
+            "action": {"type": "void"},
         })
 
         return ApiResponse(
@@ -146,31 +155,46 @@ def orders_handle(data, ctx) -> dict | None:
 
         logger.info("Processing order from queue", {"amount": amount})
 
-        iii.trigger("state::set", {
-            "scope": "orders",
-            "key": order_id,
-            "data": {**data, "id": order_id, "source": "queue"},
+        iii.trigger({
+            "function_id": "state::set",
+            "payload": {
+                "scope": "orders",
+                "key": order_id,
+                "data": {**data, "id": order_id, "source": "queue"},
+            },
+            "action": {"type": "void"},
         })
-        iii.trigger("enqueue", {
-            "topic": "order.processed",
-            "data": {"orderId": order_id, "source": "queue"},
+        iii.trigger({
+            "function_id": "enqueue",
+            "payload": {
+                "topic": "order.processed",
+                "data": {"orderId": order_id, "source": "queue"},
+            },
+            "action": {"type": "void"},
         })
         return None
 
     # Cron trigger — data is None or empty
     logger.info("Processing scheduled order batch")
 
-    pending = iii.trigger("state::list", {"scope": "pending-orders"}) or []
+    pending = iii.trigger({
+        "function_id": "state::list",
+        "payload": {"scope": "pending-orders"},
+    }) or []
     for order in pending:
-        iii.trigger("enqueue", {
-            "topic": "order.processed",
-            "data": {"orderId": order["id"], "source": "cron"},
+        iii.trigger({
+            "function_id": "enqueue",
+            "payload": {
+                "topic": "order.processed",
+                "data": {"orderId": order["id"], "source": "cron"},
+            },
+            "action": {"type": "void"},
         })
 
     logger.info("Batch complete", {"count": len(pending)})
     return None
 
-iii.register_function("orders.handle", lambda data: orders_handle(data, Logger()))
+iii.register_function({"id": "orders.handle"}, orders_handle)
 
 iii.register_trigger({"type": "http", "function_id": "orders.handle",
                       "config": {"api_path": "orders/manual", "http_method": "POST"}})

@@ -188,7 +188,7 @@ const ref = iii.registerFunction(
 def create_user(data):
     return {'id': str(uuid.uuid4()), 'name': data['name']}
 
-ref = iii.register_function('users::create', create_user)
+ref = iii.register_function({'id': 'users::create'}, create_user)
 ```
 </Tab>
 <Tab value="Rust">
