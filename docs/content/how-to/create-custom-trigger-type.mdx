@@ -39,7 +39,7 @@ const webhookHandler: TriggerHandler<WebhookConfig> = {
   registerTrigger: async ({ function_id, config }) => {
     routes.set(config.path, function_id)
     app.post(config.path, async (req, res) => {
-      const result = await iii.trigger({ function_id: function_id, payload: req.body })
+      const result = await iii.trigger({ function_id, payload: req.body })
       res.json(result)
     })
   },
@@ -69,7 +69,10 @@ class WebhookHandler(TriggerHandler):
 
         def handle(request: web.Request) -> web.Response:
             body = request.json()
-            result = iii_client.trigger({'function_id': function_id, 'payload': body})
+            result = iii_client.trigger({
+                'function_id': function_id,
+                'payload': body,
+            })
             return web.json_response(result)
 
         aiohttp_app.router.add_post(path, handle)

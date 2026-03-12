@@ -312,10 +312,11 @@ iii.register_function("users::record-login", move |input| {
 });
 
 // Then call from another function or worker
-iii.trigger(TriggerRequest::new(
-    "users::record-login",
-    json!({ "userId": "some-user-id" }),
-))
+let _ = iii
+    .trigger(TriggerRequest::new(
+        "users::record-login",
+        json!({ "userId": "some-user-id" }),
+    ))
     .await?;
 println!("Login recorded");
 ```

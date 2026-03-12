@@ -117,11 +117,14 @@ await iii.registerTrigger({
 })
 
 // Then run iii.trigger() from another function or worker to trigger the state change
-await iii.trigger({ function_id: 'state::set', payload: {
-  scope: 'orders',
-  key: 'status',
-  value: { orderId: 'order-123', status: 'shipped' },
-}})
+await iii.trigger({
+  function_id: 'state::set',
+  payload: {
+    scope: 'orders',
+    key: 'status',
+    value: { orderId: 'order-123', status: 'shipped' },
+  },
+})
 ```
 </Tab>
 <Tab value="Python">
@@ -133,16 +136,20 @@ iii.register_trigger({
 })
 
 # Then run iii.trigger() from another function or worker to trigger the state change
-iii.trigger({'function_id': 'state::set', 'payload': {
-    'scope': 'orders',
-    'key': 'status',
-    'value': {'orderId': 'order-123', 'status': 'shipped'},
-}})
+iii.trigger({
+    'function_id': 'state::set',
+    'payload': {
+        'scope': 'orders',
+        'key': 'status',
+        'value': {'orderId': 'order-123', 'status': 'shipped'},
+    },
+})
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="state_trigger.rs"
 use iii_sdk::TriggerRequest;
+use serde_json::json;
 
 iii.register_trigger(
     "state",

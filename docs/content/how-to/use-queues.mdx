@@ -63,7 +63,7 @@ iii.registerFunction({ id: 'orders::create' }, async (input) => {
   const order = { id: crypto.randomUUID(), ...input }
 
   // Enqueue to the 'payment' queue — process-order receives `order` as its input
-  iii.trigger({
+  await iii.trigger({
     function_id: 'orders::process-order',
     payload: order,
     action: TriggerAction.Enqueue({ queue: 'payment' }),
@@ -200,7 +200,7 @@ A worker can also enqueue further work, creating processing pipelines:
 iii.registerFunction({ id: 'orders::process-order' }, async (order) => {
   // ...charge the customer...
 
-  iii.trigger({
+  await iii.trigger({
     function_id: 'notifications::send',
     payload: { orderId: order.id, type: 'payment-confirmed' },
     action: TriggerAction.Enqueue({ queue: 'default' }),
@@ -408,7 +408,10 @@ import { registerWorker, TriggerAction } from 'iii-sdk'
 const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Direct call (request/response)
-const result = await iii.trigger({ function_id: 'get-order', payload: { id: '123' } })
+const result = await iii.trigger({
+  function_id: 'get-order',
+  payload: { id: '123' },
+})
 
 // Enqueue to named queue (async, returns acknowledgement)
 await iii.trigger({
@@ -432,7 +435,10 @@ from iii import III, TriggerAction
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 # Direct call (request/response)
-result = iii.trigger({"function_id": "get-order", "payload": {"id": "123"}})
+result = iii.trigger({
+    "function_id": "get-order",
+    "payload": {"id": "123"},
+})
 
 # Enqueue to named queue (async, returns acknowledgement)
 iii.trigger({
@@ -455,7 +461,9 @@ use iii_sdk::{III, TriggerAction, TriggerRequest};
 use serde_json::json;
 
 // Direct call (request/response)
-let result = iii.trigger(TriggerRequest::new("get-order", json!({ "id": "123" }))).await?;
+let result = iii
+    .trigger(TriggerRequest::new("get-order", json!({ "id": "123" })))
+    .await?;
 
 // Enqueue to named queue (async, returns acknowledgement)
 iii.trigger(

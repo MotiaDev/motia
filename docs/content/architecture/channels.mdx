@@ -14,7 +14,7 @@ A channel has two ends:
 - A **writer** that exposes a `Writable` stream for sending data.
 - A **reader** that exposes a `Readable` stream for receiving data.
 
-Each end also has a **ref** — a small, serializable object (`StreamChannelRef`) that can be passed as a field inside `iii.call()` data. When the receiving function deserializes the ref, the SDK automatically connects it to the engine and materializes the corresponding `ChannelWriter` or `ChannelReader`.
+Each end also has a **ref** — a small, serializable object (`StreamChannelRef`) that can be passed as a field inside `iii.trigger()` data. When the receiving function deserializes the ref, the SDK automatically connects it to the engine and materializes the corresponding `ChannelWriter` or `ChannelReader`.
 
 ## How Channels Work
 
@@ -27,7 +27,7 @@ sequenceDiagram
     FnA->>Engine: iii.createChannel()
     Engine-->>FnA: Channel with writer, reader, writerRef, readerRef
 
-    FnA->>Engine: iii.call("fnB", { reader: readerRef })
+    FnA->>Engine: iii.trigger({ function_id: "fnB", payload: { reader: readerRef } })
     Engine->>FnB: Invoke with deserialized ChannelReader
 
     FnA->>Engine: writer.stream.write(data)
@@ -70,7 +70,7 @@ The returned object contains both local stream objects and their serializable co
 | Writer ref (serializable) | `channel.writerRef` | `channel.writer_ref` | `channel.writer_ref` |
 | Reader ref (serializable) | `channel.readerRef` | `channel.reader_ref` | `channel.reader_ref` |
 
-Pass a ref as a field in `iii.call()` data to hand the other end of the channel to another function. The SDK on the receiving side automatically materializes the ref into a `ChannelWriter` or `ChannelReader`.
+Pass a ref as a field in `iii.trigger()` data to hand the other end of the channel to another function. The SDK on the receiving side automatically materializes the ref into a `ChannelWriter` or `ChannelReader`.
 
 The `StreamChannelRef` is a plain object that survives JSON serialization:
 
@@ -146,9 +146,9 @@ const sender = iii.registerFunction(
       })
     })
 
-    const result = await iii.call('data.processor', {
-      label: 'metrics-batch',
-      reader: channel.readerRef,
+    const result = await iii.trigger({
+      function_id: 'data.processor',
+      payload: { label: 'metrics-batch', reader: channel.readerRef },
     })
 
     await writePromise
@@ -191,9 +191,9 @@ def sender_handler(input_data):
     channel.writer.write(payload)
     channel.writer.close_async()
 
-    result = iii_client.trigger("data.processor", {
-        "label": "metrics-batch",
-        "reader": channel.reader_ref.model_dump(),
+    result = iii_client.trigger({
+        "function_id": "data.processor",
+        "payload": {"label": "metrics-batch", "reader": channel.reader_ref.model_dump()},
     })
 
     return result
@@ -204,7 +204,7 @@ iii_client.register_function("data.sender", sender_handler)
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{III, IIIError, ChannelReader, extract_channel_refs, ChannelDirection};
+use iii_sdk::{III, IIIError, ChannelReader, extract_channel_refs, ChannelDirection, TriggerRequest};
 use serde_json::{json, Value};
 
 let iii_for_processor = iii.clone();
@@ -260,10 +260,10 @@ iii.register_function("data.sender", move |input: Value| {
         channel.writer.close().await
             .map_err(|e| IIIError::Handler(e.to_string()))?;
 
-        let result = iii.call("data.processor", json!({
+        let result = iii.trigger(TriggerRequest::new("data.processor", json!({
             "label": "metrics-batch",
             "reader": channel.reader_ref,
-        })).await.map_err(|e| IIIError::Handler(e.to_string()))?;
+        }))).await.map_err(|e| IIIError::Handler(e.to_string()))?;
 
         Ok(result)
     }
@@ -348,9 +348,12 @@ const coordinator = iii.registerFunction(
       writeNext()
     })
 
-    const callPromise = iii.call('stream.worker', {
-      reader: inputChannel.readerRef,
-      writer: outputChannel.writerRef,
+    const triggerPromise = iii.trigger({
+      function_id: 'stream.worker',
+      payload: {
+        reader: inputChannel.readerRef,
+        writer: outputChannel.writerRef,
+      },
     })
 
     const resultChunks: Buffer[] = []
@@ -359,7 +362,7 @@ const coordinator = iii.registerFunction(
     }
 
     await writePromise
-    const workerResult = await callPromise
+    const workerResult = await triggerPromise
     const binaryResult = JSON.parse(Buffer.concat(resultChunks).toString('utf-8'))
 
     return { messages, binaryResult, workerResult }
@@ -420,9 +423,12 @@ def coordinator_handler(input_data):
         offset = end
     input_channel.writer.close_async()
 
-    worker_result = iii_client.trigger("stream.worker", {
-        "reader": input_channel.reader_ref.model_dump(),
-        "writer": output_channel.writer_ref.model_dump(),
+    worker_result = iii_client.trigger({
+        "function_id": "stream.worker",
+        "payload": {
+            "reader": input_channel.reader_ref.model_dump(),
+            "writer": output_channel.writer_ref.model_dump(),
+        },
     })
 
     result_data = output_channel.reader.read_all()
@@ -438,7 +444,7 @@ iii_client.register_function("stream.coordinator", coordinator_handler)
 ```rust
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use iii_sdk::{III, IIIError, ChannelReader, ChannelWriter, extract_channel_refs, ChannelDirection};
+use iii_sdk::{III, IIIError, ChannelReader, ChannelWriter, extract_channel_refs, ChannelDirection, TriggerRequest};
 use serde_json::{json, Value};
 
 let iii_for_worker = iii.clone();
@@ -523,15 +529,15 @@ iii.register_function("stream.coordinator", move |input: Value| {
             writer.close().await.expect("channel close");
         });
 
-        let call_handle = {
+        let trigger_handle = {
             let iii = iii.clone();
             let reader_ref = input_channel.reader_ref.clone();
             let writer_ref = output_channel.writer_ref.clone();
             tokio::spawn(async move {
-                iii.call("stream.worker", json!({
+                iii.trigger(TriggerRequest::new("stream.worker", json!({
                     "reader": reader_ref,
                     "writer": writer_ref,
-                })).await
+                }))).await
             })
         };
 
@@ -539,7 +545,7 @@ iii.register_function("stream.coordinator", move |input: Value| {
             .map_err(|e| IIIError::Handler(e.to_string()))?;
 
         write_handle.await.map_err(|e| IIIError::Handler(e.to_string()))?;
-        let worker_result = call_handle.await
+        let worker_result = trigger_handle.await
             .map_err(|e| IIIError::Handler(e.to_string()))?
             .map_err(|e| IIIError::Handler(e.to_string()))?;
 
@@ -569,7 +575,7 @@ sequenceDiagram
 
     C->>Engine: createChannel (input)
     C->>Engine: createChannel (output)
-    C->>Engine: call worker with inputChannel.readerRef + outputChannel.writerRef
+    C->>Engine: trigger worker with inputChannel.readerRef + outputChannel.writerRef
 
     loop For each chunk
         C->>Engine: inputChannel.writer.stream.write(chunk)
@@ -583,5 +589,5 @@ sequenceDiagram
     W->>Engine: writer.stream.end(result)
     Engine->>C: outputChannel.reader.stream emits result
     W-->>Engine: return { status: 'done' }
-    Engine-->>C: call resolves
+    Engine-->>C: trigger resolves
 ```
