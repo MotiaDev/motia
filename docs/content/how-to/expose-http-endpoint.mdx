@@ -46,9 +46,9 @@ Make sure `iii-config.yaml` has the REST API module enabled:
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="http-endpoint.ts"
-import {Logger} from 'iii-sdk'
+import {registerWorker, Logger} from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'users::create' }, async (req) => {
   const logger = new Logger()
