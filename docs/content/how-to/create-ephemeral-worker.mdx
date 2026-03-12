@@ -130,7 +130,10 @@ async def main():
     print("Worker ready, triggering task...")
     
     # Trigger the task and await its completion
-    result = await iii.trigger({'function_id': 'reports::generate', 'payload': {'body': {'reportId': '123'}}})
+    result = await iii.trigger({
+        'function_id': 'reports::generate',
+        'payload': {'body': {'reportId': '123'}},
+    })
     print(f"Task completed: status_code={result.get('status_code')} body={result.get('body')}")
     
     print("Task completed. Shutting down worker...")
@@ -147,7 +150,12 @@ asyncio.run(main())
     println!("Worker ready, triggering task...");
     
     // Trigger the task and await its completion
-    let result = iii.trigger(TriggerRequest::new("reports::generate", json!({ "body": { "reportId": "123" } }))).await?;
+    let result = iii
+        .trigger(TriggerRequest::new(
+            "reports::generate",
+            json!({ "body": { "reportId": "123" } }),
+        ))
+        .await?;
     println!("Task completed: {}", result);
     
     println!("Task completed. Shutting down worker...");
