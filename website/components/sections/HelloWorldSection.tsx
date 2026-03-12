@@ -28,46 +28,74 @@ const NodeIcon = () => (
 const pythonCode = `import torch
 from iii import register_worker
 
-iii = register_worker("ws://localhost:49134")
+iii = register_worker(
+    "ws://localhost:49134"
+)
 
-async def predict(input: dict) -> dict:
-    tensor = torch.tensor(input["data"])
+async def predict(
+    input: dict,
+) -> dict:
+    tensor = torch.tensor(
+        input["data"]
+    )
     result = model(tensor)
-    return {"predictions": result.tolist()}
+    return {
+        "predictions": result.tolist()
+    }
 
-iii.register_function("ml::predict", predict)`;
+iii.register_function(
+    "ml::predict", predict
+)`;
 
-const rustCode = `use iii_sdk::{register_worker, InitOptions, Value, IIIError};
+const rustCode = `use iii_sdk::{
+    register_worker, InitOptions,
+    Value, IIIError,
+};
 use serde_json::json;
 
-async fn transform(input: Value) -> Result<Value, IIIError> {
-    let nums: Vec<f64> = serde_json::from_value(input)?;
-    let doubled: Vec<f64> = nums.iter().map(|x| x * 2.0).collect();
+async fn transform(
+    input: Value,
+) -> Result<Value, IIIError> {
+    let nums: Vec<f64> =
+        serde_json::from_value(input)?;
+    let doubled: Vec<f64> =
+        nums.iter()
+            .map(|x| x * 2.0)
+            .collect();
     Ok(json!(doubled))
 }
 
 #[tokio::main]
 async fn main() -> Result<(), IIIError> {
-    let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
+    let iii = register_worker(
+        "ws://localhost:49134",
+        InitOptions::default(),
+    )?;
 
-    iii.register_function("data::transform", transform);
+    iii.register_function(
+        "data::transform",
+        transform,
+    );
 
     Ok(())
 }`;
 
-const nodeCode = `import { registerWorker } from "iii-sdk";
+const nodeCode = `import { registerWorker }
+  from "iii-sdk"
 
-const iii = registerWorker("ws://localhost:49134");
+const iii = registerWorker(
+  "ws://localhost:49134"
+)
 
 const transformed = await iii.trigger({
   function_id: "data::transform",
-  payload: [1.0, 2.0, 3.0]
-});
+  payload: [1.0, 2.0, 3.0],
+})
 
 const prediction = await iii.trigger({
   function_id: "ml::predict",
-  payload: { data: transformed }
-});`;
+  payload: { data: transformed },
+})`;
 
 export function HelloWorldSection({
   isDarkMode = true,
@@ -222,7 +250,7 @@ export function HelloWorldSection({
                       getTokenProps,
                     }) => (
                       <pre
-                        className={`text-[11px] md:text-xs leading-relaxed overflow-x-auto whitespace-pre p-5 h-full ${className}`}
+                        className={`text-[11px] md:text-xs leading-relaxed overflow-x-hidden whitespace-pre p-5 h-full ${className}`}
                         style={{
                           ...style,
                           background: "transparent",
