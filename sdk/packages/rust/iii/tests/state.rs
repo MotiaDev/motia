@@ -215,10 +215,7 @@ async fn state_list_all_items_in_scope() {
     }
 
     let result = iii
-        .trigger(TriggerRequest::new(
-            "state::list",
-            json!({"scope": scope}),
-        ))
+        .trigger(TriggerRequest::new("state::list", json!({"scope": scope})))
         .await
         .expect("state::list");
 
@@ -275,11 +272,7 @@ async fn reactive_state() {
     });
 
     let trigger = iii
-        .register_trigger(
-            "state",
-            &fn_ref.id,
-            json!({"scope": SCOPE, "key": KEY}),
-        )
+        .register_trigger("state", &fn_ref.id, json!({"scope": SCOPE, "key": KEY}))
         .expect("register state trigger");
 
     iii.trigger(TriggerRequest::new(
@@ -295,7 +288,10 @@ async fn reactive_state() {
         .expect("channel error");
 
     let captured = reactive_data.lock().await.clone();
-    assert_eq!(captured, Some(json!({"name": "New Test Data", "value": 200})));
+    assert_eq!(
+        captured,
+        Some(json!({"name": "New Test Data", "value": 200}))
+    );
 
     trigger.unregister();
     fn_ref.unregister();

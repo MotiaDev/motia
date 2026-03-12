@@ -50,7 +50,10 @@ async fn register_and_invoke_function() {
     settle().await;
 
     let result = iii
-        .trigger(TriggerRequest::new("test.bridge.rs.echo", json!({"message": "hello"})))
+        .trigger(TriggerRequest::new(
+            "test.bridge.rs.echo",
+            json!({"message": "hello"}),
+        ))
         .await
         .expect("trigger");
 
@@ -145,10 +148,7 @@ async fn reject_non_existent_function() {
     settle().await;
 
     let result = iii
-        .trigger(
-            TriggerRequest::new("nonexistent.function.rs", json!({}))
-                .timeout_ms(2000),
-        )
+        .trigger(TriggerRequest::new("nonexistent.function.rs", json!({})).timeout_ms(2000))
         .await;
 
     assert!(result.is_err());

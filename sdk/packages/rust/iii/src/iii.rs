@@ -1472,10 +1472,7 @@ mod tests {
     async fn invoke_function_times_out_and_clears_pending() {
         let iii = III::new("ws://localhost:1234");
         let result = iii
-            .trigger(
-                TriggerRequest::new("functions.echo", json!({ "a": 1 }))
-                    .timeout_ms(10),
-            )
+            .trigger(TriggerRequest::new("functions.echo", json!({ "a": 1 })).timeout_ms(10))
             .await;
 
         assert!(matches!(result, Err(IIIError::Timeout)));
