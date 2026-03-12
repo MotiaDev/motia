@@ -17,8 +17,10 @@ from .iii_types import (
     RegisterServiceInput,
     RegisterTriggerInput,
     RegisterTriggerTypeInput,
+    RegisterTriggerMessage,
     RegisterTriggerTypeMessage,
     StreamChannelRef,
+    TriggerRequest,
 )
 from .stream import IStream
 from .triggers import Trigger, TriggerHandler
@@ -86,7 +88,7 @@ FunctionsAvailableCallback = Callable[[list[FunctionInfo]], None]
 class IIIClient(Protocol):
     """Protocol for III client implementations."""
 
-    def register_trigger(self, trigger: RegisterTriggerInput | dict[str, Any]) -> Trigger: ...
+    def register_trigger(self, trigger: RegisterTriggerMessage) -> Trigger: ...
 
     def register_service(self, service: RegisterServiceInput | dict[str, Any]) -> None: ...
 
@@ -96,7 +98,7 @@ class IIIClient(Protocol):
         handler_or_invocation: RemoteFunctionHandler | HttpInvocationConfig,
     ) -> Any: ...
 
-    def trigger(self, request: dict[str, Any]) -> Any: ...
+    async def trigger(self, request: dict[str, Any] | TriggerRequest) -> Any: ...
 
     def register_trigger_type(
         self,
