@@ -1,6 +1,3 @@
-// Console configuration types and getter-based module
-// Config is set once at startup by ConfigProvider, then available everywhere.
-
 export interface ConsoleConfig {
   engineHost: string
   enginePort: number
@@ -25,23 +22,33 @@ export function getConfig(): ConsoleConfig {
   return _config
 }
 
-export function getDevtoolsApi(): string {
+function resolveEngineHost(): string {
   const c = getConfig()
+  const loopbackHosts = ['127.0.0.1', 'localhost']
+  // When the engine is configured for loopback, use the browser's hostname so the
+  // console works when accessed via LAN IP or custom hostname (e.g. Docker, remote dev).
+  // Security: this assumes the console is only served from trusted origins.
+  if (typeof window !== 'undefined' && loopbackHosts.includes(c.engineHost)) {
+    return window.location.hostname
+  }
+  return c.engineHost
+}
+
+export function getDevtoolsApi(): string {
   const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:'
-  return `${protocol}//${c.engineHost}:${c.enginePort}/_console`
+  const c = getConfig()
+  return `${protocol}//${resolveEngineHost()}:${c.enginePort}/_console`
 }
 
 export function getManagementApi(): string {
-  const c = getConfig()
-  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:'
-  return `${protocol}//${c.engineHost}:${c.enginePort}/_console`
+  return getDevtoolsApi()
 }
 
 export function getStreamsWs(): string {
   const c = getConfig()
   const wsProtocol =
     typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${wsProtocol}//${c.engineHost}:${c.wsPort}`
+  return `${wsProtocol}//${resolveEngineHost()}:${c.wsPort}`
 }
 
 export function getConnectionInfo() {
