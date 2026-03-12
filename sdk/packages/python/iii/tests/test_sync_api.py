@@ -1,7 +1,6 @@
 """Tests for the synchronous public API."""
 
 import json
-import threading
 import time
 from types import SimpleNamespace
 from typing import Any
@@ -56,7 +55,7 @@ def test_iii_creates_background_thread() -> None:
 
 def test_connect_is_sync(monkeypatch: pytest.MonkeyPatch) -> None:
     """connect() should be a synchronous call (no await needed)."""
-    ws = _patch_ws(monkeypatch)
+    _patch_ws(monkeypatch)
     client = III("ws://fake", InitOptions())
     client._register_worker_metadata = lambda: None
 
@@ -94,7 +93,7 @@ def test_background_thread_stops_on_shutdown(monkeypatch: pytest.MonkeyPatch) ->
 
 def test_trigger_is_sync(monkeypatch: pytest.MonkeyPatch) -> None:
     """trigger() should be synchronous and return the result directly."""
-    ws = _patch_ws(monkeypatch)
+    _patch_ws(monkeypatch)
     client = III("ws://fake", InitOptions())
     client._register_worker_metadata = lambda: None
     client.connect()
@@ -163,7 +162,7 @@ def test_register_function_accepts_sync_handler(monkeypatch: pytest.MonkeyPatch)
 
 def test_register_function_accepts_async_handler(monkeypatch: pytest.MonkeyPatch) -> None:
     """register_function should still accept async functions."""
-    ws = _patch_ws(monkeypatch)
+    _patch_ws(monkeypatch)
     client = III("ws://fake", InitOptions())
     client._register_worker_metadata = lambda: None
     client.connect()
@@ -196,5 +195,7 @@ def test_public_methods_are_sync(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_register_worker_is_sync() -> None:
     """register_worker() should be a synchronous function."""
     import inspect
+
     from iii import register_worker
+
     assert not inspect.iscoroutinefunction(register_worker)

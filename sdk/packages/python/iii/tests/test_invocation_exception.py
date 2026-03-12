@@ -1,7 +1,5 @@
 """Tests for exception recording on function invocation spans."""
 
-import asyncio
-
 import pytest
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
