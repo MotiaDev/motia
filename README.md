@@ -58,7 +58,7 @@ iii.registerTrigger({
   config: { api_path: 'add', http_method: 'POST' },
 });
 
-const result = await iii.trigger('math.add', { a: 1, b: 2 });
+const result = await iii.trigger({ function_id: 'math.add', payload: { a: 1, b: 2 } });
 logger.info('result', result); // { sum: 3 }
 ```
 
@@ -90,7 +90,7 @@ async def main():
         config={"api_path": "add", "http_method": "POST"}
     )
 
-    result = await iii.trigger("math.add", {"a": 1, "b": 2})
+    result = await iii.trigger({"function_id": "math.add", "payload": {"a": 1, "b": 2}})
     logger.info("result", result)  # {"sum": 3}
 
 asyncio.run(main())
@@ -102,7 +102,7 @@ asyncio.run(main())
 <summary>Rust</summary>
 
 ```rust
-use iii_sdk::{init, InitOptions, get_context};
+use iii_sdk::{init, InitOptions, get_context, TriggerRequest};
 use serde_json::json;
 
 #[tokio::main]
@@ -120,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "http_method": "POST"
     }))?;
 
-    let result = iii.trigger("math.add", json!({ "a": 1, "b": 2 })).await?;
+    let result = iii.trigger(TriggerRequest::new("math.add", json!({ "a": 1, "b": 2 }))).await?;
     let logger = get_context().logger;
     logger.info("result", &result); // {"sum":3}
 
