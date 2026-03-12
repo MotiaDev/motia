@@ -53,8 +53,8 @@ async def test_stream_data_from_sender_to_processor(iii_client: III):
 
         return result
 
-    proc_ref = iii_client.register_function("test.data.processor", processor_handler)
-    sender_ref = iii_client.register_function("test.data.sender", sender_handler)
+    proc_ref = iii_client.register_function({"id": "test.data.processor"}, processor_handler)
+    sender_ref = iii_client.register_function({"id": "test.data.sender"}, sender_handler)
 
     await asyncio.sleep(0.3)
 
@@ -159,8 +159,8 @@ async def test_bidirectional_streaming(iii_client: III):
             "workerResult": worker_result,
         }
 
-    worker_ref = iii_client.register_function("test.stream.worker", worker_handler)
-    coord_ref = iii_client.register_function("test.stream.coordinator", coordinator_handler)
+    worker_ref = iii_client.register_function({"id": "test.stream.worker"}, worker_handler)
+    coord_ref = iii_client.register_function({"id": "test.stream.coordinator"}, coordinator_handler)
 
     await asyncio.sleep(0.3)
 

@@ -196,7 +196,7 @@ async def test_register_http_function_sends_invocation_message(monkeypatch: pyte
     client = await _make_connected_client()
 
     config = HttpInvocationConfig(url="https://example.com/invoke", method="POST", timeout_ms=3000)
-    ref = client.register_function("external::my_lambda", config)
+    ref = client.register_function({"id": "external::my_lambda"}, config)
     await asyncio.sleep(0.02)
 
     assert ref.id == "external::my_lambda"
@@ -225,7 +225,7 @@ async def test_register_http_function_with_all_config_options(monkeypatch: pytes
         headers={"X-Custom-Header": "test-value", "X-Another": "123"},
         auth=HttpAuthBearer(token_key="MY_SECRET_TOKEN"),
     )
-    ref = client.register_function("external::full_config", config)
+    ref = client.register_function({"id": "external::full_config"}, config)
     await asyncio.sleep(0.02)
 
     assert ref.id == "external::full_config"
@@ -250,7 +250,7 @@ async def test_unregister_removes_function_from_sent_messages(monkeypatch: pytes
     client = await _make_connected_client()
 
     config = HttpInvocationConfig(url="https://example.com/fn", method="POST")
-    ref = client.register_function("external::to_remove", config)
+    ref = client.register_function({"id": "external::to_remove"}, config)
     await asyncio.sleep(0.02)
 
     # Verify registration was sent.
@@ -293,7 +293,7 @@ async def test_delivers_queue_events_to_external_http_function() -> None:
 
     try:
         http_fn = client.register_function(
-            function_id,
+            {"id": function_id},
             HttpInvocationConfig(url=probe.url(), method="POST", timeout_ms=3000),
         )
         await asyncio.sleep(0.5)
@@ -330,7 +330,7 @@ async def test_registers_and_unregisters_external_function() -> None:
 
     try:
         http_fn = client.register_function(
-            function_id,
+            {"id": function_id},
             HttpInvocationConfig(url=probe.url(), method="POST", timeout_ms=3000),
         )
         await asyncio.sleep(0.5)
@@ -383,7 +383,7 @@ async def test_delivers_events_with_custom_headers() -> None:
 
     try:
         http_fn = client.register_function(
-            function_id,
+            {"id": function_id},
             HttpInvocationConfig(
                 url=probe.url(),
                 method="POST",
@@ -444,11 +444,11 @@ async def test_delivers_events_to_multiple_external_functions() -> None:
 
     try:
         http_fn_a = client.register_function(
-            fn_id_a,
+            {"id": fn_id_a},
             HttpInvocationConfig(url=probe_a.url("/hook_a"), method="POST", timeout_ms=3000),
         )
         http_fn_b = client.register_function(
-            fn_id_b,
+            {"id": fn_id_b},
             HttpInvocationConfig(url=probe_b.url("/hook_b"), method="POST", timeout_ms=3000),
         )
         await asyncio.sleep(0.5)
@@ -499,7 +499,7 @@ async def test_stops_delivering_after_unregister() -> None:
 
     try:
         http_fn = client.register_function(
-            function_id,
+            {"id": function_id},
             HttpInvocationConfig(url=probe.url(), method="POST", timeout_ms=3000),
         )
         await asyncio.sleep(0.5)
@@ -547,7 +547,7 @@ async def test_delivers_with_put_method() -> None:
 
     try:
         http_fn = client.register_function(
-            function_id,
+            {"id": function_id},
             HttpInvocationConfig(url=probe.url(), method="PUT", timeout_ms=3000),
         )
         await asyncio.sleep(0.5)

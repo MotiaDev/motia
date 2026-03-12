@@ -49,7 +49,7 @@ async def test_handle_invoke_restores_trace_context_from_traceparent():
         return {"ok": True}
 
     client = III(address="ws://localhost:9999", options=InitOptions(worker_name="test"))
-    client.register_function("test::fn", handler)
+    client.register_function({"id": "test::fn"}, handler)
 
     # Real W3C traceparent: trace_id = 4bf92f3577b34da6a3ce929d0e0e4736
     fake_traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
@@ -78,7 +78,7 @@ async def test_handle_invoke_without_traceparent_runs_normally():
         return {"ok": True}
 
     client = III(address="ws://localhost:9999", options=InitOptions(worker_name="test"))
-    client.register_function("test::fn", handler)
+    client.register_function({"id": "test::fn"}, handler)
 
     with patch.object(client, "_send", new_callable=AsyncMock):
         await client._handle_invoke(

@@ -26,7 +26,7 @@ async def test_enqueue_delivers_message_to_function(iii_client: III):
         received.append(input_data)
         return None
 
-    ref = iii_client.register_function("test.queue.py.consumer", consumer_handler)
+    ref = iii_client.register_function({"id": "test.queue.py.consumer"}, consumer_handler)
     await asyncio.sleep(0.3)
 
     try:
@@ -55,7 +55,7 @@ async def test_void_trigger_returns_none(iii_client: III):
         calls.append(input_data)
         return None
 
-    ref = iii_client.register_function("test.queue.py.void-consumer", void_consumer_handler)
+    ref = iii_client.register_function({"id": "test.queue.py.void-consumer"}, void_consumer_handler)
     await asyncio.sleep(0.3)
 
     try:
@@ -83,7 +83,7 @@ async def test_enqueue_multiple_messages(iii_client: III):
         received.append(input_data)
         return None
 
-    ref = iii_client.register_function("test.queue.py.multi", multi_handler)
+    ref = iii_client.register_function({"id": "test.queue.py.multi"}, multi_handler)
     await asyncio.sleep(0.3)
 
     try:
@@ -120,8 +120,8 @@ async def test_chained_enqueue(iii_client: III):
         chain_received.append(input_data)
         return None
 
-    ref_a = iii_client.register_function("test.queue.py.chain-a", chain_a_handler)
-    ref_b = iii_client.register_function("test.queue.py.chain-b", chain_b_handler)
+    ref_a = iii_client.register_function({"id": "test.queue.py.chain-a"}, chain_a_handler)
+    ref_b = iii_client.register_function({"id": "test.queue.py.chain-b"}, chain_b_handler)
     await asyncio.sleep(0.3)
 
     try:
