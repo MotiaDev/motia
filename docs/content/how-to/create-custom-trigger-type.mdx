@@ -28,7 +28,7 @@ import express from 'express'
 
 type WebhookConfig = { path: string }
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 const app = express()
 app.use(express.json())
@@ -56,7 +56,7 @@ from aiohttp import web
 from iii import III
 from iii.triggers import TriggerHandler, TriggerConfig
 
-iii_client = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii_client = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 routes: dict[str, str] = {}
 aiohttp_app = web.Application()
@@ -153,7 +153,7 @@ use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+    let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
     let iii = III::new(&url);
     iii.connect().await?;
 
@@ -179,7 +179,7 @@ From any worker — including one written in a different language — functions 
 ```typescript title="github-webhook.ts"
 import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'github::push' }, async (payload) => {
   const logger = new Logger()
@@ -200,7 +200,7 @@ from iii import III
 from iii.logger import Logger
 import os
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 async def handle_push(payload):
     logger = Logger()
@@ -223,7 +223,7 @@ use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+    let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
     let iii = III::new(&url);
     iii.connect().await?;
 

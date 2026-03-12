@@ -24,7 +24,7 @@ Every iii worker starts by initialising the SDK and connecting to the engine.
 // worker.ts
 import { registerWorker, Logger, TriggerAction } from 'iii-sdk'
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 ```
 
   </Tab>

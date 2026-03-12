@@ -3,11 +3,12 @@ export type { ConnectionStateCallback } from './iii'
 export type {
   FunctionInfo,
   FunctionInfo as FunctionMessage,
+  RegisterFunctionFormat,
   WorkerInfo,
   WorkerStatus,
 } from './iii-types'
 
-export type { WorkerMetrics } from './worker-metrics'
+export type { WorkerMetrics, WorkerMetricsCollectorOptions } from './worker-metrics'
 
 export {
   type IIIConnectionState,
@@ -45,6 +46,7 @@ export {
   shutdownOtel,
   withSpan,
   type OtelConfig,
+  type ReconnectionConfig,
   type Span,
   type Logger as OtelLogger,
   type Meter,
@@ -54,9 +56,6 @@ export {
 
 export type {
   FunctionsAvailableCallback,
-  LogCallback,
-  LogConfig,
-  LogSeverityLevel,
   OtelLogEvent,
 } from './types'
 

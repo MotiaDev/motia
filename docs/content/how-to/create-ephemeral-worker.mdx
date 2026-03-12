@@ -22,7 +22,7 @@ Connect to iii and register the `reports::generate` function handler to process 
 ```typescript title="worker.ts"
 import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'reports::generate' }, async (req) => {
   const logger = new Logger()
@@ -45,7 +45,7 @@ import asyncio
 import os
 from iii import III, Logger
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 async def generate_report(req):
     logger = Logger()
@@ -70,7 +70,7 @@ use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+    let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
     let iii = III::new(&url);
 
     iii.register_function("reports::generate", move |req| {

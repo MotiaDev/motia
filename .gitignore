@@ -31,3 +31,7 @@ conductor
 .cursor
 AGENTS.md
 .planning
+
+# Generated API doc intermediates
+sdk/packages/node/iii/api-docs.json
+sdk/packages/python/iii/api-docs.json

@@ -1,11 +1,39 @@
-export { registerWorker, TriggerAction, type InitOptions } from './iii'
+export { ChannelReader, ChannelWriter } from './channels'
+
+export { type InitOptions, registerWorker, TriggerAction } from './iii'
+
+export type {
+  EnqueueResult,
+  HttpAuthConfig,
+  HttpInvocationConfig,
+  MessageType,
+  RegisterFunctionMessage,
+  RegisterTriggerMessage,
+  RegisterTriggerTypeMessage,
+  StreamChannelRef,
+  TriggerAction as TriggerActionType,
+  TriggerInfo,
+  TriggerRequest,
+} from './iii-types'
 
 export { Logger } from './logger'
-export type { ISdk } from './types'
 
-export type { ApiRequest, HttpRequest, HttpResponse, ApiResponse, Channel } from './types'
-export type { EnqueueResult, HttpInvocationConfig, HttpAuthConfig, TriggerAction as TriggerActionType, TriggerInfo, TriggerRequest } from './iii-types'
-export type { StreamChannelRef } from './iii-types'
-export { ChannelWriter, ChannelReader } from './channels'
+export type { TriggerConfig, TriggerHandler } from './triggers'
+
+export type {
+  ApiRequest,
+  ApiResponse,
+  Channel,
+  FunctionRef,
+  HttpRequest,
+  HttpResponse,
+  InternalHttpRequest,
+  ISdk,
+  RegisterFunctionInput,
+  RegisterTriggerInput,
+  RegisterTriggerTypeInput,
+  RemoteFunctionHandler,
+  Trigger,
+} from './types'
 
 export { http } from './utils'

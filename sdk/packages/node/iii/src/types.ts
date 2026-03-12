@@ -1,3 +1,4 @@
+import type { ChannelReader, ChannelWriter } from './channels'
 import type {
   FunctionInfo,
   HttpInvocationConfig,
@@ -9,10 +10,22 @@ import type {
   TriggerInfo,
   TriggerRequest,
 } from './iii-types'
-import type { TriggerHandler } from './triggers'
 import type { IStream } from './stream'
-import type { ChannelReader, ChannelWriter } from './channels'
+import type { TriggerHandler } from './triggers'
 
+/**
+ * Async function handler for a registered function. Receives the invocation
+ * payload and returns the result.
+ *
+ * @typeParam TInput - Type of the invocation payload.
+ * @typeParam TOutput - Type of the return value.
+ *
+ * @example
+ * ```typescript
+ * const handler: RemoteFunctionHandler<{ name: string }, { message: string }> =
+ *   async (data) => ({ message: `Hello, ${data.name}!` })
+ * ```
+ */
 // biome-ignore lint/suspicious/noExplicitAny: generic defaults require any for contravariant compatibility
 export type RemoteFunctionHandler<TInput = any, TOutput = any> = (data: TInput) => Promise<TOutput>
 
@@ -44,17 +57,6 @@ export type OtelLogEvent = {
   instrumentation_scope_version?: string
 }
 
-/** Severity levels for log filtering */
-export type LogSeverityLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'all'
-
-/** Optional configuration for onLog */
-export type LogConfig = {
-  /** Minimum severity level to receive (default: 'all') */
-  level?: LogSeverityLevel
-}
-
-/** Callback type for log events */
-export type LogCallback = (log: OtelLogEvent) => void
 // biome-ignore lint/suspicious/noExplicitAny: generic default requires any for contravariant compatibility
 export type Invocation<TOutput = any> = {
   resolve: (data: TOutput) => void
@@ -97,15 +99,37 @@ export interface ISdk {
    * Registers a new trigger. A trigger is a way to invoke a function when a certain event occurs.
    * @param trigger - The trigger to register
    * @returns A trigger object that can be used to unregister the trigger
+   *
+   * @example
+   * ```typescript
+   * const trigger = iii.registerTrigger({
+   *   type: 'cron',
+   *   function_id: 'my-service::process-batch',
+   *   config: { schedule: '*\/5 * * * *' },
+   * })
+   *
+   * // Later, remove the trigger
+   * trigger.unregister()
+   * ```
    */
   registerTrigger(trigger: RegisterTriggerInput): Trigger
 
   /**
-   * Registers a new function. A function is a unit of work that can be invoked by other services.
-   * Pass a handler for local execution, or an HttpInvocationConfig for HTTP-invoked functions.
+   * Registers a new function with a local handler.
    * @param func - The function to register
-   * @param handlerOrInvocation - The handler for local execution, or HTTP invocation config
-   * @returns A function object that can be used to unregister the function
+   * @param handler - The handler for local execution
+   * @returns A handle that can be used to unregister the function
+   *
+   * @example
+   * ```typescript
+   * const ref = iii.registerFunction(
+   *   { id: 'greet', description: 'Returns a greeting' },
+   *   async (data: { name: string }) => ({ message: `Hello, ${data.name}!` }),
+   * )
+   *
+   * // Later, remove the function
+   * ref.unregister()
+   * ```
    */
   /**
    * Registers a new service.
@@ -114,6 +138,25 @@ export interface ISdk {
   registerService(message: RegisterServiceInput): void
 
   registerFunction(func: RegisterFunctionInput, handler: RemoteFunctionHandler): FunctionRef
+  /**
+   * Registers a new function with an HTTP invocation config (Lambda, Cloudflare Workers, etc.).
+   * @param func - The function to register
+   * @param invocation - HTTP invocation config
+   * @returns A handle that can be used to unregister the function
+   *
+   * @example
+   * ```typescript
+   * const ref = iii.registerFunction(
+   *   { id: 'external::my-lambda', description: 'Proxied Lambda function' },
+   *   {
+   *     url: 'https://abc123.lambda-url.us-east-1.on.aws',
+   *     method: 'POST',
+   *     timeout_ms: 30_000,
+   *     auth: { type: 'bearer', token_key: 'LAMBDA_AUTH_TOKEN' },
+   *   },
+   * )
+   * ```
+   */
   registerFunction(func: RegisterFunctionInput, invocation: HttpInvocationConfig): FunctionRef
 
   /**
@@ -121,11 +164,44 @@ export interface ISdk {
    *
    * @param request - The trigger request containing function_id, payload, and optional action/timeout
    * @returns The result of the function
+   *
+   * @example
+   * ```typescript
+   * // Synchronous invocation
+   * const result = await iii.trigger<{ name: string }, { message: string }>({
+   *   function_id: 'greet',
+   *   payload: { name: 'World' },
+   *   timeoutMs: 5000,
+   * })
+   * console.log(result.message) // "Hello, World!"
+   *
+   * // Fire-and-forget
+   * await iii.trigger({
+   *   function_id: 'send-email',
+   *   payload: { to: 'user@example.com' },
+   *   action: TriggerAction.Void(),
+   * })
+   *
+   * // Enqueue for async processing
+   * const receipt = await iii.trigger({
+   *   function_id: 'process-order',
+   *   payload: { orderId: '123' },
+   *   action: TriggerAction.Enqueue({ queue: 'orders' }),
+   * })
+   * ```
    */
   trigger<TInput, TOutput>(request: TriggerRequest<TInput>): Promise<TOutput>
 
   /**
    * Lists all registered functions.
+   *
+   * @example
+   * ```typescript
+   * const functions = await iii.listFunctions()
+   * for (const fn of functions) {
+   *   console.log(`${fn.function_id}: ${fn.description}`)
+   * }
+   * ```
    */
   listFunctions(): Promise<FunctionInfo[]>
 
@@ -140,21 +216,38 @@ export interface ISdk {
    * @param triggerType - The trigger type to register
    * @param handler - The handler for the trigger type
    * @returns A trigger type object that can be used to unregister the trigger type
+   *
+   * @example
+   * ```typescript
+   * type CronConfig = { schedule: string }
+   *
+   * iii.registerTriggerType<CronConfig>(
+   *   { id: 'cron', description: 'Fires on a cron schedule' },
+   *   {
+   *     async registerTrigger({ id, function_id, config }) {
+   *       startCronJob(id, config.schedule, () =>
+   *         iii.trigger({ function_id, payload: {} }),
+   *       )
+   *     },
+   *     async unregisterTrigger({ id }) {
+   *       stopCronJob(id)
+   *     },
+   *   },
+   * )
+   * ```
    */
   registerTriggerType<TConfig>(triggerType: RegisterTriggerTypeInput, handler: TriggerHandler<TConfig>): void
 
   /**
    * Unregisters a trigger type.
    * @param triggerType - The trigger type to unregister
+   *
+   * @example
+   * ```typescript
+   * iii.unregisterTriggerType({ id: 'cron', description: 'Fires on a cron schedule' })
+   * ```
    */
   unregisterTriggerType(triggerType: RegisterTriggerTypeInput): void
-
-  /**
-   * Registers a callback for a specific event.
-   * @param event - The event to register the callback for
-   * @param callback - The callback to register
-   */
-  on(event: string, callback: (arg?: unknown) => void): void
 
   /**
    * Creates a streaming channel pair for worker-to-worker data transfer.
@@ -163,6 +256,22 @@ export interface ISdk {
    *
    * @param bufferSize - Optional buffer size for the channel (default: 64)
    * @returns A Channel with writer, reader, and their serializable refs
+   *
+   * @example
+   * ```typescript
+   * const channel = await iii.createChannel()
+   *
+   * // Pass the writer ref to another function
+   * await iii.trigger({
+   *   function_id: 'stream-producer',
+   *   payload: { outputChannel: channel.writerRef },
+   * })
+   *
+   * // Read data locally
+   * channel.reader.onMessage((msg) => {
+   *   console.log('Received:', msg)
+   * })
+   * ```
    */
   createChannel(bufferSize?: number): Promise<Channel>
 
@@ -173,42 +282,98 @@ export interface ISdk {
    *
    * @param streamName - The name of the stream
    * @param stream - The stream implementation
+   *
+   * @example
+   * ```typescript
+   * const redisStream: IStream<UserSession> = {
+   *   async get({ group_id, item_id }) {
+   *     return JSON.parse(await redis.get(`${group_id}:${item_id}`) ?? 'null')
+   *   },
+   *   async set({ group_id, item_id, data }) {
+   *     const old = await this.get({ stream_name: 'sessions', group_id, item_id })
+   *     await redis.set(`${group_id}:${item_id}`, JSON.stringify(data))
+   *     return { old_value: old ?? undefined, new_value: data }
+   *   },
+   *   async delete({ group_id, item_id }) {
+   *     const old = await this.get({ stream_name: 'sessions', group_id, item_id })
+   *     await redis.del(`${group_id}:${item_id}`)
+   *     return { old_value: old ?? undefined }
+   *   },
+   *   async list({ group_id }) { return [] },
+   *   async listGroups() { return [] },
+   *   async update({ group_id, item_id, ops }) { return { new_value: {} } },
+   * }
+   *
+   * iii.createStream('sessions', redisStream)
+   * ```
    */
   createStream<TData>(streamName: string, stream: IStream<TData>): void
 
   /**
    * Registers a callback to receive the current functions list
    * when the engine announces changes.
+   *
+   * @example
+   * ```typescript
+   * const unsubscribe = iii.onFunctionsAvailable((functions) => {
+   *   console.log(`${functions.length} functions available:`)
+   *   for (const fn of functions) {
+   *     console.log(`  - ${fn.function_id}`)
+   *   }
+   * })
+   *
+   * // Later, stop listening
+   * unsubscribe()
+   * ```
    */
   onFunctionsAvailable(callback: FunctionsAvailableCallback): () => void
 
   /**
-   * Registers a callback to receive OTEL log events from the engine.
-   * @param callback - The callback to invoke when a log event is received
-   * @param config - Optional configuration for filtering logs by severity level
-   * @returns A function to unregister the callback
-   */
-  onLog(callback: LogCallback, config?: LogConfig): () => void
-
-  /**
    * Gracefully shutdown the iii, cleaning up all resources.
+   *
+   * @example
+   * ```typescript
+   * process.on('SIGTERM', async () => {
+   *   await iii.shutdown()
+   *   process.exit(0)
+   * })
+   * ```
    */
   shutdown(): Promise<void>
 }
 
+/**
+ * Handle returned by {@link ISdk.registerTrigger}. Use `unregister()` to
+ * remove the trigger from the engine.
+ */
 export type Trigger = {
+  /** Removes this trigger from the engine. */
   unregister(): void
 }
 
+/**
+ * Handle returned by {@link ISdk.registerFunction}. Contains the function's
+ * `id` and an `unregister()` method.
+ */
 export type FunctionRef = {
+  /** The unique function identifier. */
   id: string
+  /** Removes this function from the engine. */
   unregister: () => void
 }
 
+/**
+ * A streaming channel pair for worker-to-worker data transfer. Created via
+ * {@link ISdk.createChannel}.
+ */
 export type Channel = {
+  /** Writer end of the channel. */
   writer: ChannelWriter
+  /** Reader end of the channel. */
   reader: ChannelReader
+  /** Serializable reference to the writer (can be sent to other workers). */
   writerRef: StreamChannelRef
+  /** Serializable reference to the reader (can be sent to other workers). */
   readerRef: StreamChannelRef
 }
 
@@ -222,18 +387,56 @@ export type InternalHttpRequest<TBody = unknown> = {
   request_body: ChannelReader
 }
 
+/**
+ * Response object passed to HTTP function handlers. Use `status()` and
+ * `headers()` to set response metadata, write to `stream` for streaming
+ * responses, and call `close()` when done.
+ */
 export type HttpResponse = {
+  /** Set the HTTP status code. */
   status: (statusCode: number) => void
+  /** Set response headers. */
   headers: (headers: Record<string, string>) => void
+  /** Writable stream for the response body. */
   stream: NodeJS.WritableStream
+  /** Close the response. */
   close: () => void
 }
 
+/**
+ * Incoming HTTP request received by a function registered with an HTTP trigger.
+ *
+ * @typeParam TBody - Type of the parsed request body.
+ */
 export type HttpRequest<TBody = unknown> = Omit<InternalHttpRequest<TBody>, 'response'>
+
+/**
+ * Alias for {@link HttpRequest}. Represents an incoming API request.
+ *
+ * @typeParam TBody - Type of the parsed request body.
+ */
 export type ApiRequest<TBody = unknown> = HttpRequest<TBody>
 
+/**
+ * Structured API response returned from HTTP function handlers.
+ *
+ * @typeParam TStatus - HTTP status code literal type.
+ * @typeParam TBody - Type of the response body.
+ *
+ * @example
+ * ```typescript
+ * const response: ApiResponse = {
+ *   status_code: 200,
+ *   headers: { 'content-type': 'application/json' },
+ *   body: { message: 'ok' },
+ * }
+ * ```
+ */
 export type ApiResponse<TStatus extends number = number, TBody = string | Buffer | Record<string, unknown>> = {
+  /** HTTP status code. */
   status_code: TStatus
+  /** Response headers. */
   headers?: Record<string, string>
+  /** Response body. */
   body?: TBody
 }
