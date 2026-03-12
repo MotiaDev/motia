@@ -867,10 +867,7 @@ class III:
             baggage=self._inject_baggage(),
             action=TriggerActionVoid(),
         )
-        try:
-            asyncio.get_running_loop().create_task(self._send(msg))
-        except RuntimeError:
-            self._enqueue(msg)
+        asyncio.run_coroutine_threadsafe(self._send(msg), self._loop)
 
     def on_functions_available(self, callback: Callable[[list[FunctionInfo]], None]) -> Callable[[], None]:
         """Subscribe to function availability events.

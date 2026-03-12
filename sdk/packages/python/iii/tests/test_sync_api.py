@@ -191,3 +191,10 @@ def test_public_methods_are_sync(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not inspect.iscoroutinefunction(client.create_channel)
 
     client.shutdown()
+
+
+def test_register_worker_is_sync() -> None:
+    """register_worker() should be a synchronous function."""
+    import inspect
+    from iii import register_worker
+    assert not inspect.iscoroutinefunction(register_worker)
