@@ -41,20 +41,20 @@ iii.registerFunction({ id: 'reports::generate' }, async (req) => {
 </Tab>
 <Tab value="Python">
 ```python title="worker.py"
-import asyncio
+import time
 import os
 from iii import III, Logger
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
-async def generate_report(req):
+def generate_report(req):
     logger = Logger()
     report_id = req.get('body', {}).get('reportId', 'unknown')
 
     logger.info('Generating heavy report...', {'reportId': report_id})
 
     # ... perform resource-intensive work here ...
-    await asyncio.sleep(5) # example 5 second delay
+    time.sleep(5) # example 5 second delay
 
     logger.info('Report generated', {'reportId': report_id})
     
@@ -125,20 +125,17 @@ main().catch(console.error)
 </Tab>
 <Tab value="Python">
 ```python title="worker.py"
-async def main():
-    await iii.connect()
-    print("Worker ready, triggering task...")
-    
-    # Trigger the task and await its completion
-    result = await iii.trigger({'function_id': 'reports::generate', 'payload': {'body': {'reportId': '123'}}})
-    print(f"Task completed: status_code={result.get('status_code')} body={result.get('body')}")
-    
-    print("Task completed. Shutting down worker...")
-    
-    # Cleanly close the WebSocket connection
-    await iii.shutdown()
+iii.connect()
+print("Worker ready, triggering task...")
 
-asyncio.run(main())
+# Trigger the task and its completion
+result = iii.trigger({'function_id': 'reports::generate', 'payload': {'body': {'reportId': '123'}}})
+print(f"Task completed: status_code={result.get('status_code')} body={result.get('body')}")
+
+print("Task completed. Shutting down worker...")
+
+# Cleanly close the WebSocket connection
+iii.shutdown()
 ```
 </Tab>
 <Tab value="Rust">

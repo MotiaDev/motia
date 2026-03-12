@@ -1,6 +1,5 @@
 """III SDK for Python."""
 
-import asyncio
 import logging
 
 from .channels import ChannelReader, ChannelWriter, ReadableStream, WritableStream
@@ -18,6 +17,11 @@ from .iii_types import (
     FunctionInfo,
     HttpAuthConfig,
     HttpInvocationConfig,
+    RegisterFunctionFormat,
+    RegisterFunctionInput,
+    RegisterServiceInput,
+    RegisterTriggerInput,
+    RegisterTriggerTypeInput,
     StreamChannelRef,
     TriggerActionEnqueue,
     TriggerActionVoid,
@@ -72,18 +76,9 @@ from .utils import http, is_channel_ref
 
 
 def register_worker(address: str, options: InitOptions | None = None) -> III:
-    """Create an III client and auto-start its connection task."""
+    """Create an III client and connect synchronously."""
     client = III(address, options)
-
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError as exc:
-        raise RuntimeError(
-            "iii.register_worker() requires an active asyncio event loop. "
-            "Call it inside async code or use `client = III(...); await client.connect()`"
-        ) from exc
-
-    loop.create_task(client.connect())
+    client.connect()
     return client
 
 
@@ -131,6 +126,11 @@ __all__ = [
     "FunctionInfo",
     "HttpAuthConfig",
     "HttpInvocationConfig",
+    "RegisterFunctionFormat",
+    "RegisterFunctionInput",
+    "RegisterServiceInput",
+    "RegisterTriggerInput",
+    "RegisterTriggerTypeInput",
     "TriggerActionEnqueue",
     "TriggerActionVoid",
     "TriggerInfo",

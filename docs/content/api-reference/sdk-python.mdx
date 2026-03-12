@@ -20,24 +20,18 @@ from iii import III, InitOptions, ApiRequest, ApiResponse
 The Python SDK requires an explicit `connect()` call to establish the WebSocket connection.
 
 ```python
-import asyncio
 from iii import III
 
 iii = III("ws://localhost:49134")
 
-async def sum_function(data):
+def sum_function(data):
     a = data.get("a", 0)
     b = data.get("b", 0)
     return {"sum": a + b}
 
 iii.register_function("math.sum", sum_function, description="Add two numbers")
-
-async def main():
-    await iii.connect()
-    result = await iii.trigger("math.sum", {"a": 2, "b": 3})
-    print(result)  # {"sum": 5}
-
-asyncio.run(main())
+result = iii.trigger("math.sum", {"a": 2, "b": 3})
+print(result)  # {"sum": 5}
 ```
 
 You can also pass `InitOptions` to customize the worker name:
@@ -103,7 +97,7 @@ iii = III(
     </Accordion>
     <Accordion iconName="Code" title="Example" description="">
       ```python
-      async def greet(data):
+      def greet(data):
           return {"message": f"Hello, {data['name']}!"}
 
       iii.register_function("greet", greet, description="Greets a user")
@@ -114,19 +108,24 @@ iii = III(
 
 ### register_trigger
 
-<ResponseField name="register_trigger" type="(type: str, function_id: str, config: Any) => Trigger" required>
+<ResponseField name="register_trigger" type="(trigger: RegisterTriggerInput | dict) => Trigger" required>
   Binds a trigger configuration to a registered function.
 
   <AccordionGroup>
     <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="type" type="str" required>
-        Trigger type (e.g. `http`, `queue`, `cron`).
-      </ResponseField>
-      <ResponseField name="function_id" type="str" required>
-        ID of the function to invoke.
-      </ResponseField>
-      <ResponseField name="config" type="Any" required>
-        Trigger-specific configuration.
+      <ResponseField name="trigger" type="RegisterTriggerInput | dict" required>
+        A dict (or `RegisterTriggerInput`) with the following keys:
+        <Expandable title="RegisterTriggerInput">
+          <ResponseField name="type" type="str" required>
+            Trigger type (e.g. `http`, `queue`, `cron`).
+          </ResponseField>
+          <ResponseField name="function_id" type="str" required>
+            ID of the function to invoke.
+          </ResponseField>
+          <ResponseField name="config" type="Any" required>
+            Trigger-specific configuration.
+          </ResponseField>
+        </Expandable>
       </ResponseField>
     </Accordion>
     <Accordion iconName="ArrowUpRight" title="Returns" description="">
@@ -136,11 +135,11 @@ iii = III(
     </Accordion>
     <Accordion iconName="Code" title="Example" description="">
       ```python
-      iii.register_trigger(
-          type="http",
-          function_id="greet",
-          config={"api_path": "/greet", "http_method": "GET"},
-      )
+      iii.register_trigger({
+          "type": "http",
+          "function_id": "greet",
+          "config": {"api_path": "/greet", "http_method": "GET"},
+      })
       ```
     </Accordion>
   </AccordionGroup>
@@ -165,7 +164,7 @@ iii = III(
     </Accordion>
     <Accordion iconName="Code" title="Example" description="">
       ```python
-      result = await iii.trigger("enqueue", {
+      result = iii.trigger("enqueue", {
           "topic": "user.created",
           "data": {"user_id": "123"},
       })
@@ -227,16 +226,13 @@ iii = III(
 
 ### register_trigger_type
 
-<ResponseField name="register_trigger_type" type="(id: str, description: str, handler: TriggerHandler) => None" required>
+<ResponseField name="register_trigger_type" type="(trigger_type: RegisterTriggerTypeInput | dict, handler: TriggerHandler) => None" required>
   Registers a custom trigger type.
 
   <AccordionGroup>
     <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="id" type="str" required>
-        Unique trigger type identifier.
-      </ResponseField>
-      <ResponseField name="description" type="str" required>
-        Human-readable description.
+      <ResponseField name="trigger_type" type="RegisterTriggerTypeInput | dict" required>
+        Object with `id` (str) and `description` (str) fields.
       </ResponseField>
       <ResponseField name="handler" type="TriggerHandler" required>
         Must implement `register_trigger(config: TriggerConfig)` and `unregister_trigger(config: TriggerConfig)` async methods.
@@ -247,8 +243,8 @@ iii = III(
 
 ### unregister_trigger_type
 
-<ResponseField name="unregister_trigger_type" type="(id: str) => None" required>
-  Unregisters a trigger type.
+<ResponseField name="unregister_trigger_type" type="(trigger_type: RegisterTriggerTypeInput | dict) => None" required>
+  Unregisters a trigger type. Pass the same object used during registration.
 </ResponseField>
 
 ## Types

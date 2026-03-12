@@ -51,7 +51,7 @@ const channel = await iii.createChannel()
 </Tab>
 <Tab value="Python">
 ```python
-channel = await iii_client.create_channel()
+channel = iii_client.create_channel()
 ```
 </Tab>
 <Tab value="Rust">
@@ -163,11 +163,11 @@ import json
 from iii import III
 from iii.channels import ChannelReader
 
-async def processor_handler(input_data):
+def processor_handler(input_data):
     reader: ChannelReader = input_data["reader"]
     label = input_data["label"]
 
-    raw = await reader.read_all()
+    raw = reader.read_all()
     records = json.loads(raw.decode("utf-8"))
 
     total = sum(r["value"] for r in records)
@@ -183,15 +183,15 @@ async def processor_handler(input_data):
         ],
     }
 
-async def sender_handler(input_data):
+def sender_handler(input_data):
     records = input_data["records"]
-    channel = await iii_client.create_channel()
+    channel = iii_client.create_channel()
 
     payload = json.dumps(records).encode("utf-8")
-    await channel.writer.write(payload)
-    await channel.writer.close_async()
+    channel.writer.write(payload)
+    channel.writer.close_async()
 
-    result = await iii_client.call("data.processor", {
+    result = iii_client.trigger("data.processor", {
         "label": "metrics-batch",
         "reader": channel.reader_ref.model_dump(),
     })
@@ -369,21 +369,20 @@ const coordinator = iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python
-import asyncio
 import json
 from iii import III
 from iii.channels import ChannelReader, ChannelWriter
 
-async def worker_handler(input_data):
+def worker_handler(input_data):
     reader: ChannelReader = input_data["reader"]
     writer: ChannelWriter = input_data["writer"]
 
     chunks = []
     chunk_count = 0
-    async for chunk in reader:
+    for chunk in reader:
         chunks.append(chunk)
         chunk_count += 1
-        await writer.send_message_async(json.dumps({
+        writer.send_message_async(json.dumps({
             "type": "progress",
             "chunks_received": chunk_count,
         }))
@@ -391,44 +390,42 @@ async def worker_handler(input_data):
     full_data = b"".join(chunks).decode("utf-8")
     words = full_data.split()
 
-    await writer.send_message_async(json.dumps({
+    writer.send_message_async(json.dumps({
         "type": "complete",
         "word_count": len(words),
         "byte_count": len(b"".join(chunks)),
     }))
 
     result_json = json.dumps({"words": words[:5], "total": len(words)}).encode("utf-8")
-    await writer.write(result_json)
-    await writer.close_async()
+    writer.write(result_json)
+    writer.close_async()
 
     return {"status": "done"}
 
-async def coordinator_handler(input_data):
+def coordinator_handler(input_data):
     text = input_data["text"]
     chunk_size = input_data["chunkSize"]
 
-    input_channel = await iii_client.create_channel()
-    output_channel = await iii_client.create_channel()
+    input_channel = iii_client.create_channel()
+    output_channel = iii_client.create_channel()
 
     messages = []
     output_channel.reader.on_message(lambda msg: messages.append(json.loads(msg)))
-
-    call_task = asyncio.create_task(iii_client.call("stream.worker", {
-        "reader": input_channel.reader_ref.model_dump(),
-        "writer": output_channel.writer_ref.model_dump(),
-    }))
 
     text_bytes = text.encode("utf-8")
     offset = 0
     while offset < len(text_bytes):
         end = min(offset + chunk_size, len(text_bytes))
-        await input_channel.writer.write(text_bytes[offset:end])
+        input_channel.writer.write(text_bytes[offset:end])
         offset = end
-    await input_channel.writer.close_async()
+    input_channel.writer.close_async()
 
-    result_data = await output_channel.reader.read_all()
+    worker_result = iii_client.trigger("stream.worker", {
+        "reader": input_channel.reader_ref.model_dump(),
+        "writer": output_channel.writer_ref.model_dump(),
+    })
 
-    worker_result = await call_task
+    result_data = output_channel.reader.read_all()
     binary_result = json.loads(result_data.decode("utf-8"))
 
     return {"messages": messages, "binaryResult": binary_result, "workerResult": worker_result}

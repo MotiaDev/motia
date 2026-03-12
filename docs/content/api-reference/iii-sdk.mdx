@@ -23,7 +23,7 @@ const iii = init('ws://localhost:49134', {
 from iii import III
 
 iii = III('ws://localhost:49134')
-await iii.connect()
+iii.connect()
 ```
 </Tab>
 <Tab value="Rust">
@@ -77,7 +77,7 @@ const result = await iii.trigger<{ name: string }, { id: string }>(
 </Tab>
 <Tab value="Python">
 ```python
-result = await iii.trigger('users::create', {'name': 'Alice'})
+result = iii.trigger('users::create', {'name': 'Alice'})
 ```
 </Tab>
 <Tab value="Rust">
@@ -131,7 +131,7 @@ iii.triggerVoid('notifications::send', {
 </Tab>
 <Tab value="Python">
 ```python
-iii.trigger_void('notifications::send', {
+iii.trigger('notifications::send', {
     'to': 'alice@example.com',
     'message': 'Welcome!',
 })
@@ -185,10 +185,10 @@ const ref = iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python
-async def create_user(data):
+def create_user(data):
     return {'id': str(uuid.uuid4()), 'name': data['name']}
 
-ref = iii.register_function('users::create', create_user)
+ref = iii.register_function({'id': 'users::create'}, create_user)
 ```
 </Tab>
 <Tab value="Rust">
@@ -254,11 +254,11 @@ const trigger = iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-trigger = iii.register_trigger(
-    type='http',
-    function_id='users::create',
-    config={'method': 'POST', 'path': '/users'},
-)
+trigger = iii.register_trigger({
+    'type': 'http',
+    'function_id': 'users::create',
+    'config': {'method': 'POST', 'path': '/users'},
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -402,7 +402,7 @@ const functions = await iii.listFunctions()
 </Tab>
 <Tab value="Python">
 ```python
-functions = await iii.list_functions()
+functions = iii.list_functions()
 ```
 </Tab>
 <Tab value="Rust">
@@ -508,7 +508,7 @@ await iii.shutdown()
 </Tab>
 <Tab value="Python">
 ```python
-await iii.shutdown()
+iii.shutdown()
 ```
 </Tab>
 <Tab value="Rust">

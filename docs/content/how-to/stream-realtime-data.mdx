@@ -66,20 +66,20 @@ logger.info('Sent message', { messageId })
 </Tab>
 <Tab value="Python">
 ```python title="stream_writer.py"
-import asyncio
 import os
 import signal
 import uuid
 from iii import III
 from iii import Logger
+import threading
 
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
-async def send_message(input):
+def send_message(input):
     logger = Logger()
     message_id = str(uuid.uuid4())
 
-    await iii.trigger({'function_id': 'stream::set', 'payload': {
+    iii.trigger({'function_id': 'stream::set', 'payload': {
         'stream_name': 'chat',
         'group_id': input['roomId'],
         'item_id': message_id,
@@ -90,19 +90,12 @@ async def send_message(input):
     return {'messageId': message_id}
 
 iii.register_function('chat::send', send_message)
-
-async def main():
-    await iii.connect()
-    stop = asyncio.Event()
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop.set)
-    await stop.wait()
-
-asyncio.run(main())
+iii.connect()
+stop = threading.Event()
+stop.wait()
 
 # Then call from another function or worker
-result = await iii.trigger({'function_id': 'chat::send', 'payload': {'roomId': 'room-123', 'text': 'Hello world', 'author': 'alice'}})
+result = iii.trigger({'function_id': 'chat::send', 'payload': {'roomId': 'room-123', 'text': 'Hello world', 'author': 'alice'}})
 print('Sent message:', result['messageId'])
 ```
 </Tab>
@@ -175,10 +168,10 @@ logger.info('Messages', { messages })
 </Tab>
 <Tab value="Python">
 ```python title="stream_reader.py"
-async def list_messages(input):
+def list_messages(input):
     logger = Logger()
 
-    messages = await iii.trigger({'function_id': 'stream::list', 'payload': {
+    messages = iii.trigger({'function_id': 'stream::list', 'payload': {
         'stream_name': 'chat',
         'group_id': input['roomId'],
     }})
@@ -189,7 +182,7 @@ async def list_messages(input):
 iii.register_function('chat::list', list_messages)
 
 # Then call from another function or worker
-messages = await iii.trigger({'function_id': 'chat::list', 'payload': {'roomId': 'room-123'}})
+messages = iii.trigger({'function_id': 'chat::list', 'payload': {'roomId': 'room-123'}})
 print('Messages:', messages)
 ```
 </Tab>
