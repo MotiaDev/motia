@@ -125,10 +125,7 @@ async fn list_registered_functions() {
     settle().await;
 
     let functions = iii.list_functions().await.expect("list_functions");
-    let ids: Vec<&str> = functions
-        .iter()
-        .map(|f| f.function_id.as_str())
-        .collect();
+    let ids: Vec<&str> = functions.iter().map(|f| f.function_id.as_str()).collect();
 
     assert!(ids.contains(&"test.bridge.rs.list.func1"));
     assert!(ids.contains(&"test.bridge.rs.list.func2"));
