@@ -51,7 +51,10 @@ async fn register_healthcheck_function_and_trigger() {
     });
 
     let status_before = get_health_status(&engine_http_url()).await;
-    assert_eq!(status_before, 404, "expected 404 before trigger registration");
+    assert_eq!(
+        status_before, 404,
+        "expected 404 before trigger registration"
+    );
 
     let trigger = iii
         .register_trigger(

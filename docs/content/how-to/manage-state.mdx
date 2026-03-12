@@ -35,7 +35,7 @@ modules:
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="state-writer.ts"
-import { registerWorker, Logger , registerWorker} from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
 const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
@@ -44,11 +44,6 @@ iii.registerFunction({ id: 'users::create' }, async (input) => {
   const userId = crypto.randomUUID()
   const user = { id: userId, name: input.name, email: input.email }
 
-  await iii.trigger({ function_id: 'state::set', payload: {
-    scope: 'users',
-    key: userId,
-    value: user,
-  }})
   await iii.trigger({
     function_id: 'state::set',
     payload: { scope: 'users', key: userId, value: user },
@@ -112,7 +107,7 @@ print('Created user:', result['userId'])
 </Tab>
 <Tab value="Rust">
 ```rust title="state_writer.rs"
-use iii_sdk::{Logger, TriggerRequest, III, TriggerRequest};
+use iii_sdk::{Logger, III, TriggerRequest};
 use serde_json::json;
 use tokio::signal;
 

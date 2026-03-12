@@ -65,16 +65,8 @@ def init_otel(
             "Install with: pip install 'iii-sdk[otel]'"
         ) from exc
 
-    service_name = (
-        cfg.service_name
-        or os.environ.get("OTEL_SERVICE_NAME")
-        or _DEFAULT_SERVICE_NAME
-    )
-    service_version = (
-        cfg.service_version
-        or os.environ.get("SERVICE_VERSION")
-        or "unknown"
-    )
+    service_name = cfg.service_name or os.environ.get("OTEL_SERVICE_NAME") or _DEFAULT_SERVICE_NAME
+    service_version = cfg.service_version or os.environ.get("SERVICE_VERSION") or "unknown"
     service_instance_id = cfg.service_instance_id or str(uuid.uuid4())
 
     resource_attrs: dict[str, Any] = {
@@ -92,11 +84,7 @@ def init_otel(
     # --- Span exporter ---
     from .telemetry_exporters import EngineSpanExporter, SharedEngineConnection
 
-    ws_url = (
-        cfg.engine_ws_url
-        or os.environ.get("III_URL")
-        or "ws://localhost:49134"
-    )
+    ws_url = cfg.engine_ws_url or os.environ.get("III_URL") or "ws://localhost:49134"
     _connection = SharedEngineConnection(ws_url)
     if loop is not None:
         _connection.start(loop)
@@ -137,9 +125,7 @@ def _configure_meter_provider(
 
         from .telemetry_exporters import EngineMetricsExporter
     except ImportError:
-        logging.getLogger("iii.telemetry").warning(
-            "opentelemetry-sdk metrics not available; metrics export skipped."
-        )
+        logging.getLogger("iii.telemetry").warning("opentelemetry-sdk metrics not available; metrics export skipped.")
         return
 
     metrics_exporter = EngineMetricsExporter(connection)
@@ -479,9 +465,10 @@ async def with_span(
         return await fn(_NoopSpan())
 
     try:
-        from opentelemetry import context as otel_ctx, trace
+        from opentelemetry import context as otel_ctx
         from opentelemetry.propagate import extract as otel_extract
-        from opentelemetry.trace import SpanKind as _SpanKind, StatusCode
+        from opentelemetry.trace import SpanKind as _SpanKind
+        from opentelemetry.trace import StatusCode
     except ImportError:
         return await fn(None)
 
@@ -570,7 +557,7 @@ def get_baggage_entry(key: str) -> str | None:
 def set_baggage_entry(key: str, value: str) -> Any:
     """Set a baggage entry in the current context. Returns the new context."""
     try:
-        from opentelemetry import baggage as otel_baggage, context as otel_ctx
+        from opentelemetry import baggage as otel_baggage
         ctx = otel_baggage.set_baggage(key, value)
         return ctx
     except ImportError:

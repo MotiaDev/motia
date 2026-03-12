@@ -8,7 +8,7 @@ use std::time::Duration;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
-use iii_sdk::{III, TriggerAction, TriggerRequest};
+use iii_sdk::{FunctionInfo, III, TriggerAction, TriggerRequest};
 
 fn engine_ws_url() -> String {
     std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
@@ -24,8 +24,9 @@ async fn connect_successfully() {
     iii.connect().await.expect("connect");
     settle().await;
 
-    let functions = iii.list_functions().await.expect("list_functions");
-    assert!(functions.is_array() || functions.is_null() || matches!(functions, Value::Array(_)));
+    let functions: Vec<FunctionInfo> = iii.list_functions().await.expect("list_functions");
+    // Just verify it returns a valid list (may be empty if no functions registered)
+    let _ = functions;
 
     iii.shutdown_async().await;
 }
@@ -50,7 +51,10 @@ async fn register_and_invoke_function() {
     settle().await;
 
     let result = iii
-        .trigger(TriggerRequest::new("test.bridge.rs.echo", json!({"message": "hello"})))
+        .trigger(TriggerRequest::new(
+            "test.bridge.rs.echo",
+            json!({"message": "hello"}),
+        ))
         .await
         .expect("trigger");
 
@@ -122,13 +126,8 @@ async fn list_registered_functions() {
 
     settle().await;
 
-    let functions = iii.list_functions().await.expect("list_functions");
-    let ids: Vec<&str> = functions
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter_map(|f| f["function_id"].as_str())
-        .collect();
+    let functions: Vec<FunctionInfo> = iii.list_functions().await.expect("list_functions");
+    let ids: Vec<&str> = functions.iter().map(|f| f.function_id.as_str()).collect();
 
     assert!(ids.contains(&"test.bridge.rs.list.func1"));
     assert!(ids.contains(&"test.bridge.rs.list.func2"));
@@ -145,10 +144,7 @@ async fn reject_non_existent_function() {
     settle().await;
 
     let result = iii
-        .trigger(
-            TriggerRequest::new("nonexistent.function.rs", json!({}))
-                .timeout_ms(2000),
-        )
+        .trigger(TriggerRequest::new("nonexistent.function.rs", json!({})).timeout_ms(2000))
         .await;
 
     assert!(result.is_err());

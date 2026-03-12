@@ -259,6 +259,15 @@ class StreamChannelRef(BaseModel):
     direction: Literal["read", "write"]
 
 
+LogSeverityLevel = Literal["trace", "debug", "info", "warn", "error", "fatal", "all"]
+
+
+class LogConfig(BaseModel):
+    """Configuration for log subscription callbacks."""
+
+    min_severity: LogSeverityLevel | None = None
+
+
 class OtelLogEvent(BaseModel):
     """OTEL log event received from the engine via ``on_log``."""
 

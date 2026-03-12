@@ -41,8 +41,10 @@ pub use serde_json::Value;
 /// ```rust
 /// use iii_sdk::{register_worker, InitOptions};
 ///
-/// let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
-/// # Ok::<(), iii_sdk::IIIError>(())
+/// #[tokio::main]
+/// async fn main() {
+///     let iii = register_worker("ws://localhost:49134", InitOptions::default()).unwrap();
+/// }
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct InitOptions {

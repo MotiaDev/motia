@@ -691,8 +691,8 @@ impl III {
     ///
     /// The routing behavior depends on the `action` field of the request:
     /// - No action: synchronous -- waits for the function to return.
-    /// - [`TriggerAction::Enqueue`]: async via named queue.
-    /// - [`TriggerAction::Void`]: fire-and-forget.
+    /// - [`TriggerAction::Enqueue`][]: async via named queue.
+    /// - [`TriggerAction::Void`][]: fire-and-forget.
     ///
     /// # Examples
     /// ```rust
@@ -1544,10 +1544,7 @@ mod tests {
     async fn invoke_function_times_out_and_clears_pending() {
         let iii = III::new("ws://localhost:1234");
         let result = iii
-            .trigger(
-                TriggerRequest::new("functions.echo", json!({ "a": 1 }))
-                    .timeout_ms(10),
-            )
+            .trigger(TriggerRequest::new("functions.echo", json!({ "a": 1 })).timeout_ms(10))
             .await;
 
         assert!(matches!(result, Err(IIIError::Timeout)));

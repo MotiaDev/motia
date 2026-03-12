@@ -337,19 +337,9 @@ def _serialize_metrics(metrics_data: Any) -> bytes:
 
                 for pt in data.data_points:
                     dp: dict[str, Any] = {
-                        "attributes": _attrs_to_otlp(
-                            pt.attributes if hasattr(pt, "attributes") else None
-                        ),
-                        "startTimeUnixNano": str(
-                            pt.start_time_unix_nano
-                            if hasattr(pt, "start_time_unix_nano")
-                            else 0
-                        ),
-                        "timeUnixNano": str(
-                            pt.time_unix_nano
-                            if hasattr(pt, "time_unix_nano")
-                            else 0
-                        ),
+                        "attributes": _attrs_to_otlp(pt.attributes if hasattr(pt, "attributes") else None),
+                        "startTimeUnixNano": str(pt.start_time_unix_nano if hasattr(pt, "start_time_unix_nano") else 0),
+                        "timeUnixNano": str(pt.time_unix_nano if hasattr(pt, "time_unix_nano") else 0),
                     }
 
                     # NumberDataPoint: has value as int or float
@@ -364,9 +354,7 @@ def _serialize_metrics(metrics_data: Any) -> bytes:
                     if hasattr(pt, "bucket_counts"):
                         dp["count"] = str(pt.count) if hasattr(pt, "count") else "0"
                         dp["sum"] = pt.sum if hasattr(pt, "sum") else 0
-                        dp["bucketCounts"] = [
-                            str(c) for c in pt.bucket_counts
-                        ]
+                        dp["bucketCounts"] = [str(c) for c in pt.bucket_counts]
                         dp["explicitBounds"] = list(pt.explicit_bounds) if hasattr(pt, "explicit_bounds") else []
                         dp["min"] = pt.min if hasattr(pt, "min") else 0
                         dp["max"] = pt.max if hasattr(pt, "max") else 0

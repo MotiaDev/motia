@@ -10,6 +10,7 @@ export type {
   RegisterTriggerTypeMessage,
   StreamChannelRef,
   TriggerAction as TriggerActionType,
+  TriggerInfo,
   TriggerRequest,
 } from './iii-types'
 export { Logger } from './logger'

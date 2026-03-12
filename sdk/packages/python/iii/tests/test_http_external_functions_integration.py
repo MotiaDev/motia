@@ -1,4 +1,8 @@
-"""Tests for HTTP external functions. Unit tests use FakeWebSocket; integration tests require a running III engine with HttpFunctionsModule."""
+"""Tests for HTTP external functions.
+
+Unit tests use FakeWebSocket; integration tests require a running III engine
+with HttpFunctionsModule.
+"""
 
 import asyncio
 import json
@@ -125,6 +129,7 @@ class WebhookProbe:
 # Helpers for FakeWs-based unit tests
 # ---------------------------------------------------------------------------
 
+
 def _make_fake_ws_env(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     """Set up a FakeWs monkeypatch and return the list that collects sent messages."""
     from types import SimpleNamespace
@@ -167,6 +172,7 @@ async def _make_connected_client(sent: list[dict[str, Any]] | None = None) -> II
 # ---------------------------------------------------------------------------
 # Helpers for integration tests
 # ---------------------------------------------------------------------------
+
 
 async def _make_integration_client() -> III:
     """Create a real III client connected to the engine; skips if unavailable."""
@@ -409,9 +415,7 @@ async def test_delivers_events_with_custom_headers() -> None:
         assert received_headers.get("x-custom-header") == "test-value", (
             f"Expected x-custom-header=test-value, got headers: {received_headers}"
         )
-        assert received_headers.get("x-another") == "123", (
-            f"Expected x-another=123, got headers: {received_headers}"
-        )
+        assert received_headers.get("x-another") == "123", f"Expected x-another=123, got headers: {received_headers}"
     finally:
         if trigger:
             trigger.unregister()
