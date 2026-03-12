@@ -153,11 +153,11 @@ def create_user(data):
 
 iii.register_function("users::create", create_user, description="Create a user")
 
-iii.register_trigger(
-    type="http",
-    function_id="users::create",
-    config={"api_path": "/users", "http_method": "POST"},
-)
+iii.register_trigger({
+    "type": "http",
+    "function_id": "users::create",
+    "config": {"api_path": "/users", "http_method": "POST"},
+})
 iii.connect()
 while True:
     time.sleep(60)

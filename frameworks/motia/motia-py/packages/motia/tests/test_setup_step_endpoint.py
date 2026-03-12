@@ -19,8 +19,8 @@ class FakeIII:
         func_id = func["id"] if isinstance(func, dict) else func
         self.functions[func_id] = handler
 
-    def register_trigger(self, trigger: dict[str, object]) -> None:
-        self.triggers.append(trigger)
+    def register_trigger(self, type: str, function_id: str, config: dict[str, object]) -> None:
+        self.triggers.append({"type": type, "function_id": function_id, "config": config})
 
 
 def _create_step_file(tmp_path: Path) -> Path:

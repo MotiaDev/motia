@@ -126,7 +126,7 @@ app.listen(4000)
 <Tab value="Python">
 ```python title="webhook_trigger_type.py"
 import threading
-iii_client.register_trigger_type('webhook', 'External webhook trigger', WebhookHandler())
+iii_client.register_trigger_type({"id": "webhook", "description": "External webhook trigger"}, WebhookHandler())
 iii_client.connect()
 
 runner = web.AppRunner(aiohttp_app)
@@ -252,7 +252,7 @@ iii.unregisterTriggerType({ id: 'webhook', description: 'External webhook trigge
 </Tab>
 <Tab value="Python">
 ```python title="teardown.py"
-iii_client.unregister_trigger_type('webhook')
+iii_client.unregister_trigger_type({"id": "webhook", "description": "External webhook trigger"})
 ```
 </Tab>
 <Tab value="Rust">

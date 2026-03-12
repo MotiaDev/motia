@@ -25,9 +25,11 @@ from .iii_types import (
     MessageType,
     RegisterFunctionInput,
     RegisterFunctionMessage,
+    RegisterServiceInput,
     RegisterServiceMessage,
     RegisterTriggerInput,
     RegisterTriggerMessage,
+    RegisterTriggerTypeInput,
     RegisterTriggerTypeMessage,
     StreamChannelRef,
     TriggerActionEnqueue,
@@ -608,14 +610,20 @@ class III:
 
     # Public API
 
-    def register_trigger_type(self, id: str, description: str, handler: TriggerHandler[Any]) -> None:
-        msg = RegisterTriggerTypeMessage(id=id, description=description)
-        self._trigger_types[id] = RemoteTriggerTypeData(message=msg, handler=handler)
+    def register_trigger_type(
+        self, trigger_type: RegisterTriggerTypeInput | dict[str, Any], handler: TriggerHandler[Any]
+    ) -> None:
+        if isinstance(trigger_type, dict):
+            trigger_type = RegisterTriggerTypeInput(**trigger_type)
+        msg = RegisterTriggerTypeMessage(id=trigger_type.id, description=trigger_type.description)
+        self._trigger_types[trigger_type.id] = RemoteTriggerTypeData(message=msg, handler=handler)
         self._send_if_connected(msg)
 
-    def unregister_trigger_type(self, id: str) -> None:
-        self._trigger_types.pop(id, None)
-        self._send_if_connected(UnregisterTriggerTypeMessage(id=id))
+    def unregister_trigger_type(self, trigger_type: RegisterTriggerTypeInput | dict[str, Any]) -> None:
+        if isinstance(trigger_type, dict):
+            trigger_type = RegisterTriggerTypeInput(**trigger_type)
+        self._trigger_types.pop(trigger_type.id, None)
+        self._send_if_connected(UnregisterTriggerTypeMessage(id=trigger_type.id))
 
     def register_trigger(self, trigger: RegisterTriggerInput | dict[str, Any]) -> Trigger:
         if isinstance(trigger, dict):
@@ -694,16 +702,16 @@ class III:
 
         return FunctionRef(id=func_id, unregister=unregister)
 
-    def register_service(
-        self,
-        id: str,
-        description: str | None = None,
-        parent_id: str | None = None,
-        *,
-        name: str | None = None,
-    ) -> None:
-        msg = RegisterServiceMessage(id=id, name=name or id, description=description, parent_service_id=parent_id)
-        self._services[id] = msg
+    def register_service(self, service: RegisterServiceInput | dict[str, Any]) -> None:
+        if isinstance(service, dict):
+            service = RegisterServiceInput(**service)
+        msg = RegisterServiceMessage(
+            id=service.id,
+            name=service.name or service.id,
+            description=service.description,
+            parent_service_id=service.parent_service_id,
+        )
+        self._services[service.id] = msg
         self._send_if_connected(msg)
 
     def trigger(self, request: "dict[str, Any] | TriggerRequest") -> Any:

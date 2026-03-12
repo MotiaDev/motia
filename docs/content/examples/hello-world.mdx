@@ -143,11 +143,11 @@ iii.register_function("hello.api", lambda data: hello_api(
     ApiRequest(**data) if isinstance(data, dict) else data,
     Logger(),
 ))
-iii.register_trigger(
-    type="http",
-    function_id="hello.api",
-    config={"api_path": "hello", "http_method": "GET"},
-)
+iii.register_trigger({
+    "type": "http",
+    "function_id": "hello.api",
+    "config": {"api_path": "hello", "http_method": "GET"},
+})
 ```
 
   </Tab>
@@ -268,11 +268,11 @@ def greet_process(data: dict, ctx) -> None:
     logger.info("Greeting processed", {"requestId": request_id, "greeting": greeting})
 
 iii.register_function("greet.process", lambda data: greet_process(data, Logger()))
-iii.register_trigger(
-    type="queue",
-    function_id="greet.process",
-    config={"topic": "greet.process"},
-)
+iii.register_trigger({
+    "type": "queue",
+    "function_id": "greet.process",
+    "config": {"topic": "greet.process"},
+})
 ```
 
   </Tab>

@@ -14,8 +14,10 @@ from .iii_types import (
     HttpInvocationConfig,
     RegisterFunctionInput,
     RegisterFunctionMessage,
+    RegisterServiceInput,
     RegisterTriggerInput,
     RegisterTriggerMessage,
+    RegisterTriggerTypeInput,
     RegisterTriggerTypeMessage,
     StreamChannelRef,
 )
@@ -78,10 +80,6 @@ class RemoteServiceFunctionData(BaseModel):
 
 
 # Type aliases for registration inputs
-RegisterServiceInput = str
-RegisterTriggerTypeInput = RegisterTriggerTypeMessage
-
-
 # Callback type for functions available event
 FunctionsAvailableCallback = Callable[[list[FunctionInfo]], None]
 
@@ -91,14 +89,7 @@ class IIIClient(Protocol):
 
     def register_trigger(self, trigger: RegisterTriggerInput | dict[str, Any]) -> Trigger: ...
 
-    def register_service(
-        self,
-        id: str,
-        description: str | None = None,
-        parent_id: str | None = None,
-        *,
-        name: str | None = None,
-    ) -> None: ...
+    def register_service(self, service: RegisterServiceInput | dict[str, Any]) -> None: ...
 
     def register_function(
         self,
@@ -110,12 +101,11 @@ class IIIClient(Protocol):
 
     def register_trigger_type(
         self,
-        trigger_type_id: str,
-        description: str,
+        trigger_type: RegisterTriggerTypeInput | dict[str, Any],
         handler: TriggerHandler[Any],
     ) -> None: ...
 
-    def unregister_trigger_type(self, trigger_type_id: str) -> None: ...
+    def unregister_trigger_type(self, trigger_type: RegisterTriggerTypeInput | dict[str, Any]) -> None: ...
 
     def on(self, event: str, callback: Callable[..., None]) -> Callable[[], None]: ...
 

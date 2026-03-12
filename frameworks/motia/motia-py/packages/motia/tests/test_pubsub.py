@@ -28,22 +28,26 @@ def test_pubsub_subscribe_and_publish(bridge):
 
     # Register subscribe trigger
     bridge.register_trigger(
-        {"type": "subscribe", "function_id": f"test.pubsub.subscriber.{topic}", "config": {
+        "subscribe",
+        f"test.pubsub.subscriber.{topic}",
+        {
             "topic": topic,
-        }}
+        },
     )
 
     flush_bridge_queue(bridge)
     time.sleep(0.3)
 
     # Publish a message
-    bridge.trigger({
-        "function_id": "publish",
-        "payload": {
-            "topic": topic,
-            "data": {"message": "Hello PubSub!"},
-        },
-    })
+    bridge.trigger(
+        {
+            "function_id": "publish",
+            "payload": {
+                "topic": topic,
+                "data": {"message": "Hello PubSub!"},
+            },
+        }
+    )
 
     # Wait for message
     if not message_received.wait(timeout=5.0):
@@ -75,20 +79,22 @@ def test_pubsub_different_topics(bridge):
     bridge.register_function({"id": f"test.pubsub.topic_a.{topic_a}"}, subscriber_a)
     bridge.register_function({"id": f"test.pubsub.topic_b.{topic_b}"}, subscriber_b)
 
-    bridge.register_trigger({"type": "subscribe", "function_id": f"test.pubsub.topic_a.{topic_a}", "config": {"topic": topic_a}})
-    bridge.register_trigger({"type": "subscribe", "function_id": f"test.pubsub.topic_b.{topic_b}", "config": {"topic": topic_b}})
+    bridge.register_trigger("subscribe", f"test.pubsub.topic_a.{topic_a}", {"topic": topic_a})
+    bridge.register_trigger("subscribe", f"test.pubsub.topic_b.{topic_b}", {"topic": topic_b})
 
     flush_bridge_queue(bridge)
     time.sleep(0.3)
 
     # Publish to topic A only
-    bridge.trigger({
-        "function_id": "publish",
-        "payload": {
-            "topic": topic_a,
-            "data": {"for": "a"},
-        },
-    })
+    bridge.trigger(
+        {
+            "function_id": "publish",
+            "payload": {
+                "topic": topic_a,
+                "data": {"for": "a"},
+            },
+        }
+    )
 
     if not message_a_received.wait(timeout=5.0):
         raise TimeoutError("Did not receive message within 5s")

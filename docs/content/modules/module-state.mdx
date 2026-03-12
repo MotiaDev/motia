@@ -301,7 +301,7 @@ def on_user_updated(event):
     return {}
 
 iii.register_function('state::onUserUpdated', on_user_updated)
-iii.register_trigger(type='state', function_id='state::onUserUpdated', config={'scope': 'users', 'key': 'profile'})
+iii.register_trigger({'type': 'state', 'function_id': 'state::onUserUpdated', 'config': {'scope': 'users', 'key': 'profile'}})
 ```
 </Tab>
 <Tab value="Rust">
@@ -437,15 +437,15 @@ def on_email_change(event):
     return {}
 
 iii.register_function('state::onEmailChange', on_email_change)
-iii.register_trigger(
-    type='state',
-    function_id='state::onEmailChange',
-    config={
+iii.register_trigger({
+    'type': 'state',
+    'function_id': 'state::onEmailChange',
+    'config': {
         'scope': 'users',
         'key': 'profile',
         'condition_function_id': 'conditions::emailChanged',
     },
-)
+})
 ```
 </Tab>
 <Tab value="Rust">

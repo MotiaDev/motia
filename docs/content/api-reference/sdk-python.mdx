@@ -227,16 +227,13 @@ iii = III(
 
 ### register_trigger_type
 
-<ResponseField name="register_trigger_type" type="(id: str, description: str, handler: TriggerHandler) => None" required>
+<ResponseField name="register_trigger_type" type="(trigger_type: RegisterTriggerTypeInput | dict, handler: TriggerHandler) => None" required>
   Registers a custom trigger type.
 
   <AccordionGroup>
     <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="id" type="str" required>
-        Unique trigger type identifier.
-      </ResponseField>
-      <ResponseField name="description" type="str" required>
-        Human-readable description.
+      <ResponseField name="trigger_type" type="RegisterTriggerTypeInput | dict" required>
+        Object with `id` (str) and `description` (str) fields.
       </ResponseField>
       <ResponseField name="handler" type="TriggerHandler" required>
         Must implement `register_trigger(config: TriggerConfig)` and `unregister_trigger(config: TriggerConfig)` async methods.
@@ -247,8 +244,8 @@ iii = III(
 
 ### unregister_trigger_type
 
-<ResponseField name="unregister_trigger_type" type="(id: str) => None" required>
-  Unregisters a trigger type.
+<ResponseField name="unregister_trigger_type" type="(trigger_type: RegisterTriggerTypeInput | dict) => None" required>
+  Unregisters a trigger type. Pass the same object used during registration.
 </ResponseField>
 
 ## Types

@@ -85,12 +85,28 @@ class TriggerRegistrationResultMessage(BaseModel):
     message_type: MessageType = Field(default=MessageType.TRIGGER_REGISTRATION_RESULT, alias="type")
 
 
+class RegisterTriggerTypeInput(BaseModel):
+    """Input for registering a trigger type (matches Node SDK's RegisterTriggerTypeInput)."""
+
+    id: str
+    description: str
+
+
 class RegisterTriggerInput(BaseModel):
     """Input for registering a trigger (matches Node SDK's RegisterTriggerInput)."""
 
     type: str
     function_id: str
     config: Any = None
+
+
+class RegisterServiceInput(BaseModel):
+    """Input for registering a service (matches Node SDK's RegisterServiceInput)."""
+
+    id: str
+    name: str | None = None
+    description: str | None = None
+    parent_service_id: str | None = None
 
 
 class RegisterTriggerMessage(BaseModel):

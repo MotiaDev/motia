@@ -8,7 +8,8 @@ from typing import Any
 import pytest
 
 import iii.iii as iii_module
-from iii import III, InitOptions
+from iii import III, InitOptions, RegisterServiceInput, RegisterTriggerTypeInput
+from iii.triggers import TriggerConfig, TriggerHandler
 
 
 class FakeWebSocket:
@@ -27,6 +28,14 @@ class FakeWebSocket:
 
     async def __anext__(self) -> Any:
         raise StopAsyncIteration
+
+
+class DummyTriggerHandler(TriggerHandler[Any]):
+    async def register_trigger(self, config: TriggerConfig[Any]) -> None:
+        return None
+
+    async def unregister_trigger(self, config: TriggerConfig[Any]) -> None:
+        return None
 
 
 def _patch_ws(monkeypatch: pytest.MonkeyPatch) -> FakeWebSocket:
@@ -172,6 +181,44 @@ def test_register_function_accepts_async_handler(monkeypatch: pytest.MonkeyPatch
 
     ref = client.register_function({"id": "test.greet.async"}, greet)
     assert ref.id == "test.greet.async"
+
+    client.shutdown()
+
+
+def test_register_service_accepts_input_object() -> None:
+    """register_service should store services by the provided service id."""
+    client = III("ws://fake", InitOptions())
+
+    client.register_service(
+        RegisterServiceInput(
+            id="svc.test",
+            name="Test Service",
+            description="service description",
+            parent_service_id="svc.parent",
+        )
+    )
+
+    assert "svc.test" in client._services
+    service = client._services["svc.test"]
+    assert service.name == "Test Service"
+    assert service.parent_service_id == "svc.parent"
+
+    client.shutdown()
+
+
+def test_register_and_unregister_trigger_type_accept_input_object() -> None:
+    """Trigger type registration should accept input objects symmetrically."""
+    client = III("ws://fake", InitOptions())
+    trigger_type = RegisterTriggerTypeInput(id="trigger.test", description="Trigger description")
+
+    client.register_trigger_type(trigger_type, DummyTriggerHandler())
+
+    assert "trigger.test" in client._trigger_types
+    assert client._trigger_types["trigger.test"].message.description == "Trigger description"
+
+    client.unregister_trigger_type(trigger_type)
+
+    assert "trigger.test" not in client._trigger_types
 
     client.shutdown()
 
