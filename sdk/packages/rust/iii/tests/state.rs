@@ -285,7 +285,11 @@ async fn reactive_state() {
 
     let key_clone = key.clone();
     let trigger = iii
-        .register_trigger("state", &fn_ref.id, json!({"scope": SCOPE, "key": key_clone}))
+        .register_trigger(
+            "state",
+            &fn_ref.id,
+            json!({"scope": SCOPE, "key": key_clone}),
+        )
         .expect("register state trigger");
 
     // Poll: re-trigger state::set each attempt until the handler fires.
