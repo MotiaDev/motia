@@ -45,7 +45,7 @@ sequenceDiagram
 ```
 
 <Callout title="Node.js auto-connects" type="info">
-  The Node SDK connects automatically when you call `init()`. Python and Rust require an explicit `connect()` / `connect().await` call.
+  All three SDKs provide an auto-connect registration helper: Node uses `init()`, Python uses `register_worker()`, and Rust uses `register_worker()`.
 </Callout>
 
 ### Reconnection
@@ -137,15 +137,15 @@ pip install iii-sdk
 ### Basic Usage
 
 ```python
-import time
-from iii import III, InitOptions, ApiRequest, ApiResponse
+import asyncio
+from iii import InitOptions, ApiRequest, ApiResponse, register_worker
 
-iii = III(
+iii = register_worker(
     address="ws://127.0.0.1:49134",
     options=InitOptions(worker_name="my-worker"),
 )
 
-def create_user(data):
+async def create_user(data):
     logger = Logger()
     logger.info("Creating user")
     user = {"id": "123", **data}
@@ -153,14 +153,14 @@ def create_user(data):
 
 iii.register_function("users::create", create_user, description="Create a user")
 
-iii.register_trigger({
-    "type": "http",
-    "function_id": "users::create",
-    "config": {"api_path": "/users", "http_method": "POST"},
-})
-iii.connect()
+iii.register_trigger(
+    type="http",
+    function_id="users::create",
+    config={"api_path": "/users", "http_method": "POST"},
+)
+
 while True:
-    time.sleep(60)
+    await asyncio.sleep(60)
 ```
 
 ### Key Components
@@ -170,10 +170,12 @@ while True:
     The main client class. Manages the WebSocket connection, function/trigger registries, and reconnection.
 
     ```python
-    from iii import III, InitOptions
+    from iii import InitOptions, register_worker
 
-    iii = III(address="ws://127.0.0.1:49134", options=InitOptions(worker_name="worker-1"))
-    iii.connect()
+    iii = register_worker(
+        address="ws://127.0.0.1:49134",
+        options=InitOptions(worker_name="worker-1"),
+    )
     ```
 
   </Accordion>
@@ -242,12 +244,12 @@ iii-sdk = { version = "0.2", features = ["otel"] }
 ### Basic Usage
 
 ```rust
-use iii_sdk::{III, Logger};
+use iii_sdk::{InitOptions, Logger, register_worker};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
+    let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default())?;
 
     iii.register_function("users::create", |input| async move {
         let logger = Logger();
@@ -262,8 +264,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "api_path": "/users",
         "http_method": "POST",
     }))?;
-
-    iii.connect().await?;
 
     loop {
         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
@@ -411,7 +411,7 @@ iii.registerFunction({ id: 'handler' }, async (data: ApiRequest) => {
 ```python
 from iii import ApiRequest, ApiResponse
 
-def handler(data) -> ApiResponse:
+async def handler(data) -> ApiResponse:
     req = ApiRequest(**data)
     return ApiResponse(status_code=200, body={"ok": True})
 ```
@@ -437,9 +437,9 @@ iii.register_function("handler", |input| async move {
     Always handle errors gracefully and return appropriate HTTP status codes.
 
     ```python
-    def handler(data):
+    async def handler(data):
         try:
-            result = process_data(data)
+            result = await process_data(data)
             return ApiResponse(status_code=200, body=result)
         except ValueError as e:
             logger = Logger()
@@ -466,12 +466,10 @@ process.on('SIGINT', async () => {
       <Tab value="Python">
 
 ```python
-import threading
 try:
-    iii.connect()
-    threading.Event().wait()
+    await asyncio.Event().wait()
 finally:
-    iii.shutdown()
+    await iii.shutdown()
 ```
 
       </Tab>

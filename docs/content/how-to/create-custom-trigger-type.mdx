@@ -39,7 +39,7 @@ const webhookHandler: TriggerHandler<WebhookConfig> = {
   registerTrigger: async ({ function_id, config }) => {
     routes.set(config.path, function_id)
     app.post(config.path, async (req, res) => {
-      const result = await iii.trigger({ function_id: function_id, payload: req.body })
+      const result = await iii.trigger({ function_id, payload: req.body })
       res.json(result)
     })
   },
@@ -53,10 +53,10 @@ const webhookHandler: TriggerHandler<WebhookConfig> = {
 ```python title="webhook_trigger_type.py"
 import os
 from aiohttp import web
-from iii import III
+from iii import register_worker
 from iii.triggers import TriggerHandler, TriggerConfig
 
-iii_client = III(os.environ.get('III_URL', 'ws://localhost:49134'))
+iii_client = register_worker(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 routes: dict[str, str] = {}
 aiohttp_app = web.Application()
@@ -67,9 +67,12 @@ class WebhookHandler(TriggerHandler):
         function_id = trigger.function_id
         routes[path] = function_id
 
-        def handle(request: web.Request) -> web.Response:
-            body = request.json()
-            result = iii_client.trigger({'function_id': function_id, 'payload': body})
+        async def handle(request: web.Request) -> web.Response:
+            body = await request.json()
+            result = await iii_client.trigger({
+                'function_id': function_id,
+                'payload': body,
+            })
             return web.json_response(result)
 
         aiohttp_app.router.add_post(path, handle)
@@ -125,21 +128,24 @@ app.listen(4000)
 </Tab>
 <Tab value="Python">
 ```python title="webhook_trigger_type.py"
-import threading
-iii_client.register_trigger_type({"id": "webhook", "description": "External webhook trigger"}, WebhookHandler())
-iii_client.connect()
+import asyncio
 
-runner = web.AppRunner(aiohttp_app)
-runner.setup()
-site = web.TCPSite(runner, 'localhost', 4000)
-site.start()
+iii_client.register_trigger_type('webhook', 'External webhook trigger', WebhookHandler())
 
-threading.Event().wait()
+async def main():
+    runner = web.AppRunner(aiohttp_app)
+    await runner.setup()
+    site = web.TCPSite(runner, 'localhost', 4000)
+    await site.start()
+
+    await asyncio.Event().wait()
+
+asyncio.run(main())
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="webhook_trigger_type.rs"
-use iii_sdk::III;
+use iii_sdk::{register_worker, InitOptions};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -147,8 +153,7 @@ use tokio::sync::Mutex;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
-    iii.connect().await?;
+    let iii = register_worker(&url, InitOptions::default())?;
 
     let handler = WebhookHandler {
         routes: Arc::new(Mutex::new(HashMap::new())),
@@ -189,36 +194,35 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="github_webhook.py"
-from iii import III
-from iii.logger import Logger
 import os
+from iii import register_worker
+from iii.logger import Logger
 
-iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
+iii = register_worker(os.environ.get('III_URL', 'ws://localhost:49134'))
 
-def handle_push(payload):
+async def handle_push(payload):
     logger = Logger()
     logger.info('Push event received', {'repo': payload.get('repository', {}).get('full_name')})
     return {'ok': True}
 
 iii.register_function('github::push', handle_push)
 
-iii.register_trigger({
-    "type": "webhook",
-    "function_id": "github::push",
-    "config": {"path": "/hooks/github"},
-})
+iii.register_trigger(
+    type="webhook",
+    function_id="github::push",
+    config={"path": "/hooks/github"},
+)
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="github_webhook.rs"
-use iii_sdk::{get_context, III};
+use iii_sdk::{get_context, register_worker, InitOptions};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
-    iii.connect().await?;
+    let iii = register_worker(&url, InitOptions::default())?;
 
     iii.register_function("github::push", |payload| async move {
         let ctx = get_context();
@@ -252,7 +256,7 @@ iii.unregisterTriggerType({ id: 'webhook', description: 'External webhook trigge
 </Tab>
 <Tab value="Python">
 ```python title="teardown.py"
-iii_client.unregister_trigger_type({"id": "webhook", "description": "External webhook trigger"})
+iii_client.unregister_trigger_type('webhook')
 ```
 </Tab>
 <Tab value="Rust">

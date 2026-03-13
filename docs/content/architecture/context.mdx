@@ -39,9 +39,9 @@ iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III
+from iii import register_worker
 
-iii = III('ws://localhost:49134')
+iii = register_worker('ws://localhost:49134')
 
 def create_order(data):
     logger = Logger()
