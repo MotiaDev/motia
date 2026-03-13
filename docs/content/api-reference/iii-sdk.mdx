@@ -20,19 +20,18 @@ const iii = registerWorker('ws://localhost:49134', {
 </Tab>
 <Tab value="Python">
 ```python
-from iii import InitOptions, register_worker
+from iii import III
 
-iii = register_worker(
-    'ws://localhost:49134',
-    InitOptions(worker_name='my-worker'),
-)
+iii = III('ws://localhost:49134')
+await iii.connect()
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{InitOptions, register_worker};
+use iii_sdk::III;
 
-let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
+let iii = III::new("ws://localhost:49134");
+iii.connect().await?;
 ```
 </Tab>
 </Tabs>
@@ -100,9 +99,10 @@ iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python
-from iii import TriggerAction, register_worker
+from iii import III, TriggerAction
 
-iii = register_worker('ws://localhost:49134')
+iii = III('ws://localhost:49134')
+await iii.connect()
 
 result = await iii.trigger({
     'function_id': 'users::create',
@@ -124,10 +124,11 @@ await iii.trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{InitOptions, TriggerAction, TriggerRequest, register_worker};
+use iii_sdk::{III, TriggerRequest, TriggerAction};
 use serde_json::json;
 
-let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
+let iii = III::new("ws://localhost:49134");
+iii.connect().await?;
 
 let result = iii.trigger(
     TriggerRequest::new("users::create", json!({"name": "Alice"}))
@@ -625,7 +626,7 @@ The SDK exports the following from the main package:
 
 | Export | Description |
 |--------|-------------|
-| `registerWorker` / `register_worker` | Create and connect an SDK instance (Node, Python, Rust) |
+| `registerWorker` | Create and connect an SDK instance (Node); Python/Rust use `III` + `connect()` or `register_worker()` |
 | `TriggerAction` | Factory for `Enqueue` and `Void` actions |
 | `TriggerRequest` | Request type for `trigger()` |
 | `EnqueueResult` | Result type when enqueueing to a named queue |
