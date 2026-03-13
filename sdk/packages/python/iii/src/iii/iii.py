@@ -983,12 +983,14 @@ class III:
         (e.g. a new worker connects or a function is unregistered).
 
         Args:
-            callback: Receives the current list of ``FunctionInfo`` objects
-                each time availability changes.
+            callback (Callable[[list[FunctionInfo]], None]): Receives the
+                current list of ``FunctionInfo`` objects each time
+                availability changes.
 
         Returns:
-            An unsubscribe callable.  Calling it removes the callback and,
-            if no callbacks remain, tears down the internal trigger.
+            A callable that unsubscribes when called.  Calling the
+            returned function removes the callback and, if no callbacks
+            remain, tears down the internal trigger.
 
         Examples:
             >>> def on_change(functions):
