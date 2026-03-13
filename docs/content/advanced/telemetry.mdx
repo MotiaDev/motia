@@ -51,9 +51,9 @@ const iii = init('ws://localhost:49134', {
   <Tab value="Python">
 
 ```python
-from iii import III, InitOptions, OtelOptions
+from iii import InitOptions, OtelOptions, register_worker
 
-iii = III(
+iii = register_worker(
     address="ws://localhost:49134",
     options=InitOptions(
         otel=OtelOptions(
@@ -69,17 +69,19 @@ iii = III(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, InitOptions, OtelOptions};
+use iii_sdk::{InitOptions, OtelOptions, register_worker};
 
-let iii = III::builder("ws://localhost:49134")
-    .otel(OtelOptions {
-        enabled: true,
-        service_name: "my-service".into(),
-        exporter_endpoint: "http://localhost:4318".into(),
-    })
-    .build();
-
-iii.connect().await?;
+let iii = register_worker(
+    "ws://localhost:49134",
+    InitOptions {
+        otel: Some(OtelOptions {
+            enabled: true,
+            service_name: "my-service".into(),
+            exporter_endpoint: "http://localhost:4318".into(),
+        }),
+        ..Default::default()
+    },
+)?;
 ```
 
   </Tab>
@@ -180,7 +182,7 @@ const iii = init('ws://localhost:49134', {
   <Tab value="Python">
 
 ```python
-iii = III(
+iii = register_worker(
     address="ws://localhost:49134",
     options=InitOptions(enable_metrics_reporting=True),
 )
@@ -230,31 +232,28 @@ iii.onLog((log) => {
   <Tab value="Python">
 
 ```python
-from iii import III, InitOptions
+from iii import register_worker
 
-iii = III(address="ws://localhost:49134")
+iii = register_worker(address="ws://localhost:49134")
 
 def handle_log(log):
     print(f"[{log.severity_text}] {log.body}")
 
 iii.on_log(handle_log, level="warn")
-
-iii.connect()
 ```
 
   </Tab>
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::III;
+use iii_sdk::{InitOptions, register_worker};
 
-let iii = III::new("ws://localhost:49134");
+let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
 
 iii.on_log(|log| {
     println!("[{}] {}", log.severity_text, log.body);
 }, Some("warn"));
 
-iii.connect().await?;
 ```
 
   </Tab>

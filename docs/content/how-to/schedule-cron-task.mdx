@@ -21,14 +21,6 @@ modules:
 
 ### 2. Register the Function
 
-{/* TODO: Remove once addressed */}
-<TabsConditional groupId="language" persist values={["Python", "Rust"]}>
-  <Callout title="Persistence in Python & Rust APIs" type="info">
-  You may notice that currently the Node API has no code around persistence while Python and Rust do.
-  This will be addressed shortly so that a single initialization step is all that will be required in all languages.
-  </Callout>
-</TabsConditional>
-
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="cron-task.ts"
@@ -42,54 +34,45 @@ iii.registerFunction({ id: 'cleanup::expired-sessions' }, async () => {
   logger.info('Cleanup ran', { timestamp: new Date().toISOString() })
   return { deleted: 0 }
 })
-
 ```
 </Tab>
 <Tab value="Python">
 ```python title="cron_task.py"
 import os
-import signal
-from iii import III
-from iii import Logger
-import threading
 
-iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
+from iii import Logger, register_worker
+
+iii = register_worker(os.environ.get("III_URL", "ws://localhost:49134"))
+
 
 def cleanup_sessions(_):
     logger = Logger()
     # ...cleanup logic here...
-    logger.info('Cleanup ran')
-    print('Cleanup ran')
-    return {'deleted': 0}
+    logger.info("Cleanup ran")
+    return {"deleted": 0}
 
-iii.register_function('cleanup::expired-sessions', cleanup_sessions)
-iii.connect()
-print('Cron task registered')
-stop = threading.Event()
-stop.wait()
+
+iii.register_function({"id": "cleanup::expired-sessions"}, cleanup_sessions)
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="cron_task.rs"
-use iii_sdk::{Logger, III};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
-    iii.connect().await?;
+    let iii = register_worker(&url, InitOptions::default())?;
 
     iii.register_function("cleanup::expired-sessions", |_| async move {
         let logger = Logger();
         // ...cleanup logic here...
         logger.info("Cleanup ran", None);
-        println!("Cleanup ran");
         Ok(json!({ "deleted": 0 }))
     });
 
-    println!("Cron task registered");
     signal::ctrl_c().await?;
     Ok(())
 }

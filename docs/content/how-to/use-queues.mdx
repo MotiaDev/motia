@@ -49,7 +49,7 @@ The `default` queue is used when no queue name is specified. You can add as many
 
 ### 2. Enqueue work via trigger action
 
-From any function, enqueue a job by calling `trigger()` with the `Enqueue` action and the target queue name. The enqueue operation is asynchronous — the caller does not wait for the job to be processed — but the SDK does await an acknowledgement from the engine confirming the job was accepted. The returned result contains `{ enqueued: true }` on success, or an `enqueue_error` if the queue was not found or FIFO validation failed.
+From any function, enqueue a job by calling `trigger()` with the `Enqueue` action and the target queue name. The enqueue operation is asynchronous — the caller does not wait for the job to be processed — but the SDK does await an acknowledgement from the engine confirming the job was accepted. The returned result contains `{ messageReceiptId: string }` on success, or an `enqueue_error` if the queue was not found or FIFO validation failed.
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
@@ -63,7 +63,7 @@ iii.registerFunction({ id: 'orders::create' }, async (input) => {
   const order = { id: crypto.randomUUID(), ...input }
 
   // Enqueue to the 'payment' queue — process-order receives `order` as its input
-  iii.trigger({
+  await iii.trigger({
     function_id: 'orders::process-order',
     payload: order,
     action: TriggerAction.Enqueue({ queue: 'payment' }),
@@ -76,11 +76,13 @@ iii.registerFunction({ id: 'orders::create' }, async (input) => {
 </Tab>
 <Tab value="Python">
 ```python title="enqueue_order.py"
-import uuid
 import os
-from iii import III, Logger, TriggerAction
+import uuid
 
-iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
+from iii import Logger, TriggerAction, register_worker
+
+iii = register_worker(os.environ.get("III_URL", "ws://localhost:49134"))
+
 
 def create_order(input):
     logger = Logger()
@@ -93,23 +95,26 @@ def create_order(input):
         "action": TriggerAction.Enqueue(queue="payment"),
     })
 
-    logger.info('Order enqueued', {'orderId': order['id']})
-    return {'orderId': order['id']}
+    logger.info("Order enqueued", {"orderId": order["id"]})
+    return {"orderId": order["id"]}
 
-iii.register_function("orders::create", create_order)
+
+iii.register_function({"id": "orders::create"}, create_order)
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="enqueue_order.rs"
-use iii_sdk::{Logger, TriggerAction, TriggerRequest, III};
+use iii_sdk::{register_worker, InitOptions, Logger, TriggerAction, TriggerRequest};
 use serde_json::json;
 
-let iii = III::new(&std::env::var("III_URL")
-    .unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
+let iii = register_worker(
+    &std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()),
+    InitOptions::default(),
+)?;
 
-let iii_for_create = iii.clone();
+let iii_clone = iii.clone();
 iii.register_function("orders::create", move |input| {
-    let iii = iii_for_create.clone();
+    let iii = iii_clone.clone();
     async move {
         let logger = Logger();
         let order_id = uuid::Uuid::new_v4().to_string();
@@ -160,26 +165,31 @@ iii.registerFunction({ id: 'orders::process-order' }, async (order) => {
 <Tab value="Python">
 ```python title="process_order.py"
 import os
-from iii import III, Logger
 
-iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
+from iii import Logger, register_worker
+
+iii = register_worker(os.environ.get("III_URL", "ws://localhost:49134"))
+
 
 def process_order(order):
     logger = Logger()
-    logger.info('Processing payment', {'orderId': order['id']})
+    logger.info("Processing payment", {"orderId": order["id"]})
     # ...payment logic...
-    return {'processed': True}
+    return {"processed": True}
 
-iii.register_function("orders::process-order", process_order)
+
+iii.register_function({"id": "orders::process-order"}, process_order)
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="process_order.rs"
-use iii_sdk::{Logger, III};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 
-let iii = III::new(&std::env::var("III_URL")
-    .unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()));
+let iii = register_worker(
+    &std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()),
+    InitOptions::default(),
+)?;
 
 iii.register_function("orders::process-order", |order| async move {
     let logger = Logger();
@@ -200,7 +210,7 @@ A worker can also enqueue further work, creating processing pipelines:
 iii.registerFunction({ id: 'orders::process-order' }, async (order) => {
   // ...charge the customer...
 
-  iii.trigger({
+  await iii.trigger({
     function_id: 'notifications::send',
     payload: { orderId: order.id, type: 'payment-confirmed' },
     action: TriggerAction.Enqueue({ queue: 'default' }),
@@ -221,7 +231,7 @@ def process_order(order):
         "action": TriggerAction.Enqueue(queue="default"),
     })
 
-    return {'processed': True}
+    return {"processed": True}
 ```
 </Tab>
 <Tab value="Rust">
@@ -229,21 +239,17 @@ def process_order(order):
 use iii_sdk::{TriggerAction, TriggerRequest};
 use serde_json::json;
 
-let iii_for_process_order = iii.clone();
-iii.register_function("orders::process-order", move |order| {
-    let iii = iii_for_process_order.clone();
-    async move {
-        iii.trigger(
-            TriggerRequest::new("notifications::send", json!({
-                "orderId": order["id"],
-                "type": "payment-confirmed",
-            }))
-            .action(TriggerAction::enqueue("default")),
-        )
-        .await?;
+iii.register_function("orders::process-order", |order| async move {
+    iii.trigger(
+        TriggerRequest::new("notifications::send", json!({
+            "orderId": order["id"],
+            "type": "payment-confirmed",
+        }))
+        .action(TriggerAction::enqueue("default")),
+    )
+    .await?;
 
-        Ok(json!({ "processed": true }))
-    }
+    Ok(json!({ "processed": true }))
 });
 ```
 </Tab>
@@ -309,7 +315,7 @@ iii.trigger(
 
 ### 5. Use Void for fire-and-forget calls
 
-When you want to trigger a function without waiting for a response and without going through a queue, use the `Void` action. This replaces the old `triggerVoid` method. In Node/TypeScript, `await` is optional for Void but recommended for surfacing errors.
+When you want to trigger a function without waiting for a response and without going through a queue, use the `Void` action. This replaces the old `triggerVoid` method.
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
@@ -364,7 +370,7 @@ const { orderId } = await iii.trigger({
   function_id: 'orders::create',
   payload: { items: ['item-1', 'item-2'], total: 99.99 },
 })
-console.log('Order created', orderId)
+logger.info('Order created', { orderId })
 ```
 </Tab>
 <Tab value="Python">
@@ -399,10 +405,8 @@ println!("Order created: {}", result["orderId"]);
 | Action | Behavior | SDK Usage |
 |--------|----------|-----------|
 | _(none)_ | Direct call — waits for response | `trigger({ function_id: 'fn', payload: data })` |
-| `Enqueue` | Async via named queue — returns `{ enqueued: true }` or `enqueue_error` | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Enqueue({ queue: 'name' }) })` |
+| `Enqueue` | Async via named queue — returns `{ messageReceiptId: string }` or `enqueue_error` | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Enqueue({ queue: 'name' }) })` |
 | `Void` | Fire-and-forget, no queue | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Void() })` |
-
-Python and Rust expose equivalent APIs with their language-specific syntax.
 
 ### SDK quick reference
 
@@ -414,7 +418,10 @@ import { registerWorker, TriggerAction } from 'iii-sdk'
 const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 // Direct call (request/response)
-const result = await iii.trigger({ function_id: 'get-order', payload: { id: '123' } })
+const result = await iii.trigger({
+  function_id: 'get-order',
+  payload: { id: '123' },
+})
 
 // Enqueue to named queue (async, returns acknowledgement)
 await iii.trigger({
@@ -433,12 +440,17 @@ iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III, TriggerAction
+import os
 
-iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
+from iii import TriggerAction, register_worker
+
+iii = register_worker(os.environ.get("III_URL", "ws://localhost:49134"))
 
 # Direct call (request/response)
-result = iii.trigger({"function_id": "get-order", "payload": {"id": "123"}})
+result = iii.trigger({
+    "function_id": "get-order",
+    "payload": {"id": "123"},
+})
 
 # Enqueue to named queue (async, returns acknowledgement)
 iii.trigger({
@@ -457,11 +469,18 @@ iii.trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{III, TriggerAction, TriggerRequest};
+use iii_sdk::{register_worker, InitOptions, TriggerAction, TriggerRequest};
 use serde_json::json;
 
+let iii = register_worker(
+    &std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()),
+    InitOptions::default(),
+)?;
+
 // Direct call (request/response)
-let result = iii.trigger(TriggerRequest::new("get-order", json!({ "id": "123" }))).await?;
+let result = iii
+    .trigger(TriggerRequest::new("get-order", json!({ "id": "123" })))
+    .await?;
 
 // Enqueue to named queue (async, returns acknowledgement)
 iii.trigger(
@@ -470,7 +489,6 @@ iii.trigger(
 .await?;
 
 // Void (fire-and-forget, no queue)
-// When calling from a handler closure, clone iii into the closure first.
 iii.trigger(
     TriggerRequest::new("send-notification", data).action(TriggerAction::void()),
 )
@@ -481,8 +499,8 @@ iii.trigger(
 
 ## Migrating from the old topic-based API
 
-<Callout title="Deprecation notice" type="warn">
-  The old topic-based API (`trigger({ function_id: 'enqueue', payload: { topic, data }, action: TriggerAction.Void() })` and `registerTrigger({ type: 'queue', ... })`) still works but is deprecated. Migrate to Named Queues + Trigger Actions at your earliest convenience.
+<Callout title="Topic-based queues" type="info">
+  The topic-based API (`triggerVoid('enqueue', { topic, data })` and `registerTrigger({ type: 'queue', ... })`) remains valid. Named Queues + Trigger Actions offer config-driven retries, concurrency, and FIFO ordering.
 </Callout>
 
 ### Enqueue: before and after
@@ -517,10 +535,10 @@ iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python title="Before (deprecated)"
-# Old: enqueue via trigger_void with topic
-iii.trigger("enqueue", {
-    "topic": "order.created",
-    "data": order,
+# Old: enqueue via trigger with topic
+iii.trigger({
+    "function_id": "enqueue",
+    "payload": {"topic": "order.created", "data": order},
 })
 
 # Old: register a queue trigger to consume
@@ -546,11 +564,11 @@ iii.trigger({
 ```rust title="Before (deprecated)"
 use serde_json::json;
 
-// Old: enqueue via trigger_void with topic
-iii.trigger_void("enqueue", json!({
-    "topic": "order.created",
-    "data": order,
-}))?;
+// Old: enqueue via trigger with topic
+iii.trigger(
+    TriggerRequest::new("enqueue", json!({"topic": "order.created", "data": order}))
+        .action(TriggerAction::void()),
+).await?;
 
 // Old: register a queue trigger to consume
 iii.register_trigger("queue", "orders::process-payment", json!({
@@ -588,7 +606,10 @@ iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python title="Before (deprecated)"
-iii.trigger('send-notification', data)
+iii.trigger({
+    "function_id": "send-notification",
+    "payload": data,
+})
 ```
 
 ```python title="After"
@@ -601,7 +622,9 @@ iii.trigger({
 </Tab>
 <Tab value="Rust">
 ```rust title="Before (deprecated)"
-iii.trigger_void("send-notification", data)?;
+iii.trigger(
+    TriggerRequest::new("send-notification", data).action(TriggerAction::void()),
+).await?;
 ```
 
 ```rust title="After"

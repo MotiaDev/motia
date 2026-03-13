@@ -26,14 +26,6 @@ modules:
 
 The `state` trigger fires whenever the watched `scope`/`key` pair changes. The handler receives an event with `key`, `new_value`, `old_value`, `scope`, and `event_type` properties.
 
-{/* TODO: Remove once addressed */}
-<TabsConditional groupId="language" persist values={["Python", "Rust"]}>
-  <Callout title="Persistence in Python & Rust APIs" type="info">
-  You may notice that currently the Node API has no code around persistence while Python and Rust do.
-  This will be addressed shortly so that a single initialization step is all that will be required in all languages.
-  </Callout>
-</TabsConditional>
-
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="state-watcher.ts"
@@ -52,45 +44,36 @@ iii.registerFunction({ id: 'orders::on-status-change' }, async (event) => {
 <Tab value="Python">
 ```python title="state_watcher.py"
 import os
-import signal
-from iii import III, Logger
-import threading
 
-iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
+from iii import Logger, register_worker
+
+iii = register_worker(os.environ.get("III_URL", "ws://localhost:49134"))
+
 
 def on_status_change(event):
     logger = Logger()
-    logger.info('Order status changed', {'key': event['key'], 'new_value': event['new_value']})
-    print(f"Order status changed: key={event['key']}, new_value={event['new_value']}")
+    logger.info("Order status changed", {"key": event["key"], "new_value": event["new_value"]})
     # ...react to the change here...
-    return {'handled': True}
+    return {"handled": True}
 
-iii.register_function({'id': 'orders::on-status-change'}, on_status_change)
-iii.connect()
-print("Watching orders/status for changes")
-stop = threading.Event()
-stop.wait()
+
+iii.register_function({"id": "orders::on-status-change"}, on_status_change)
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="state_watcher.rs"
-use iii_sdk::{Logger, III};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = III::new(&url);
-    iii.connect().await?;
+    let iii = register_worker(&url, InitOptions::default())?;
 
     iii.register_function("orders::on-status-change", |event| async move {
         let logger = Logger();
         logger.info("Order status changed", Some(json!({ "key": event["key"], "new_value": event["new_value"] })));
-        println!(
-            "Order status changed: key={}, new_value={}",
-            event["key"], event["new_value"]
-        );
         // ...react to the change here...
         Ok(json!({ "handled": true }))
     });
@@ -117,11 +100,14 @@ await iii.registerTrigger({
 })
 
 // Then run iii.trigger() from another function or worker to trigger the state change
-await iii.trigger({ function_id: 'state::set', payload: {
-  scope: 'orders',
-  key: 'status',
-  value: { orderId: 'order-123', status: 'shipped' },
-}})
+await iii.trigger({
+  function_id: 'state::set',
+  payload: {
+    scope: 'orders',
+    key: 'status',
+    value: { orderId: 'order-123', status: 'shipped' },
+  },
+})
 ```
 </Tab>
 <Tab value="Python">
@@ -133,16 +119,20 @@ iii.register_trigger({
 })
 
 # Then run iii.trigger() from another function or worker to trigger the state change
-iii.trigger({'function_id': 'state::set', 'payload': {
-    'scope': 'orders',
-    'key': 'status',
-    'value': {'orderId': 'order-123', 'status': 'shipped'},
-}})
+iii.trigger({
+    "function_id": "state::set",
+    "payload": {
+        "scope": "orders",
+        "key": "status",
+        "value": {"orderId": "order-123", "status": "shipped"},
+    },
+})
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="state_trigger.rs"
 use iii_sdk::TriggerRequest;
+use serde_json::json;
 
 iii.register_trigger(
     "state",

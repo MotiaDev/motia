@@ -162,8 +162,8 @@ iii.register_function("users::create", create_user)`,
     ],
     code: {
       typescript: `const iii = registerWorker("ws://localhost:49134")`,
-      python: `iii = III("ws://localhost:49134")`,
-      rust: `let iii = III::new("ws://localhost:49134");`,
+      python: `iii = register_worker("ws://localhost:49134")`,
+      rust: `let iii = register_worker("ws://localhost:49134").await?;`,
     },
   },
 ];
