@@ -31,10 +31,12 @@ async def test_subscribe_and_receive_published_messages(iii_client: III):
     await asyncio.sleep(0.3)
 
     try:
-        await iii_client.trigger({
-            "function_id": "publish",
-            "payload": {"topic": topic, "data": {"message": "Hello PubSub!"}},
-        })
+        await iii_client.trigger(
+            {
+                "function_id": "publish",
+                "payload": {"topic": topic, "data": {"message": "Hello PubSub!"}},
+            }
+        )
 
         await asyncio.wait_for(received_event.wait(), timeout=5.0)
 
@@ -72,10 +74,12 @@ async def test_topic_isolation(iii_client: III):
     await asyncio.sleep(0.3)
 
     try:
-        await iii_client.trigger({
-            "function_id": "publish",
-            "payload": {"topic": topic_a, "data": {"for": "a"}},
-        })
+        await iii_client.trigger(
+            {
+                "function_id": "publish",
+                "payload": {"topic": topic_a, "data": {"for": "a"}},
+            }
+        )
 
         await asyncio.wait_for(received_a_event.wait(), timeout=5.0)
         await asyncio.sleep(0.2)
