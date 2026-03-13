@@ -32,10 +32,10 @@ install_cli() {
 
   if [ -n "$cli_dir" ]; then
     # shellcheck disable=SC2086
-    INSTALL_DIR="$cli_dir" sh "$cli_script" $cli_sh_args
+    INSTALL_DIR="$cli_dir" bash "$cli_script" $cli_sh_args
   else
     # shellcheck disable=SC2086
-    sh "$cli_script" $cli_sh_args
+    bash "$cli_script" $cli_sh_args
   fi
 
   cli_exit=$?
