@@ -37,10 +37,12 @@ async def test_register_and_invoke_function(iii_client: III):
     await asyncio.sleep(0.3)
 
     try:
-        result = await iii_client.trigger({
-            "function_id": "test.bridge.py.echo",
-            "payload": {"message": "hello"},
-        })
+        result = await iii_client.trigger(
+            {
+                "function_id": "test.bridge.py.echo",
+                "payload": {"message": "hello"},
+            }
+        )
 
         assert result is not None
         assert result["echoed"]["message"] == "hello"
@@ -64,11 +66,13 @@ async def test_invoke_function_fire_and_forget(iii_client: III):
     await asyncio.sleep(0.3)
 
     try:
-        result = await iii_client.trigger({
-            "function_id": "test.bridge.py.receiver",
-            "payload": {"value": 42},
-            "action": TriggerAction.Void(),
-        })
+        result = await iii_client.trigger(
+            {
+                "function_id": "test.bridge.py.receiver",
+                "payload": {"value": 42},
+                "action": TriggerAction.Void(),
+            }
+        )
 
         assert result is None
 
@@ -87,7 +91,7 @@ async def test_list_registered_functions(iii_client: III):
 
     try:
         functions = await iii_client.list_functions()
-        function_ids = [f["function_id"] for f in functions]
+        function_ids = [f.function_id for f in functions]
 
         assert "test.bridge.py.list.func1" in function_ids
         assert "test.bridge.py.list.func2" in function_ids
@@ -100,8 +104,10 @@ async def test_list_registered_functions(iii_client: III):
 async def test_reject_non_existent_function(iii_client: III):
     """Triggering a non-existent function raises an error."""
     with pytest.raises(Exception):
-        await iii_client.trigger({
-            "function_id": "nonexistent.function.py",
-            "payload": {},
-            "timeout_ms": 2000,
-        })
+        await iii_client.trigger(
+            {
+                "function_id": "nonexistent.function.py",
+                "payload": {},
+                "timeout_ms": 2000,
+            }
+        )

@@ -1,4 +1,5 @@
 """Tests for OTel init/shutdown."""
+
 import urllib.request
 
 import pytest
@@ -14,6 +15,7 @@ def _reset_otel_singleton(module_path: str, provider_attr: str, set_once_attr: s
     """Reset one OTel global singleton (provider + its SetOnce guard)."""
     try:
         import importlib
+
         mod = importlib.import_module(module_path)
         setattr(mod, provider_attr, None)
         getattr(mod, set_once_attr)._done = False
@@ -86,6 +88,7 @@ def test_shutdown_without_init_is_safe():
 
 def test_telemetry_apis_exported_from_package():
     import iii
+
     assert hasattr(iii, "init_otel")
     assert hasattr(iii, "shutdown_otel")
     assert hasattr(iii, "get_tracer")
@@ -137,8 +140,10 @@ def test_shutdown_closes_connection():
 
     from iii.telemetry_exporters import SharedEngineConnection
 
-    with patch.object(SharedEngineConnection, "start"), \
-         patch.object(SharedEngineConnection, "shutdown", new_callable=AsyncMock) as mock_shutdown:
+    with (
+        patch.object(SharedEngineConnection, "start"),
+        patch.object(SharedEngineConnection, "shutdown", new_callable=AsyncMock) as mock_shutdown,
+    ):
         init_otel(OtelConfig(enabled=True))
         asyncio.run(shutdown_otel_async())
         mock_shutdown.assert_called_once()

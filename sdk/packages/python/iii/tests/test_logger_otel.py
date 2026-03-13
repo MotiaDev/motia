@@ -1,4 +1,5 @@
 """Tests for OTel-bridge behavior of Logger."""
+
 from unittest.mock import patch
 
 import pytest
@@ -7,23 +8,27 @@ import pytest
 @pytest.fixture(autouse=True)
 def reset_otel():
     from iii.telemetry import shutdown_otel
+
     yield
     shutdown_otel()
     # Reset all OTel global singletons so tests don't bleed state
     try:
         import opentelemetry._logs._internal as _li
+
         _li._LOGGER_PROVIDER = None
         _li._LOGGER_PROVIDER_SET_ONCE._done = False
     except Exception:
         pass
     try:
         import opentelemetry.trace._internal as _ti
+
         _ti._TRACER_PROVIDER = None
         _ti._TRACER_PROVIDER_SET_ONCE._done = False
     except Exception:
         pass
     try:
         import opentelemetry.metrics._internal as _mi
+
         _mi._METER_PROVIDER = None
         _mi._METER_PROVIDER_SET_ONCE._done = False
     except Exception:
