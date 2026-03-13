@@ -46,7 +46,7 @@ asyncio.run(main())
 | Register function        | `iii.register_function(id, handler)`              | Register a function that can be invoked by name        |
 | Register trigger         | `iii.register_trigger(type, function_id, config)` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
 | Invoke (await)           | `await iii.trigger({"function_id": id, "payload": data})` | Invoke a function and wait for the result              |
-| Invoke (fire-and-forget) | `iii.trigger_void(id, data)`                      | Invoke a function without waiting (fire-and-forget)    |
+| Invoke (fire-and-forget) | `iii.trigger({"function_id": id, "payload": data, "action": TriggerAction.Void()})` | Invoke a function without waiting (fire-and-forget)    |
 
 `init()` must be called inside an async context. It creates the SDK instance and auto-connects to the engine.
 
@@ -72,9 +72,11 @@ iii.register_trigger(
 ### Invoking Functions
 
 ```python
+from iii import TriggerAction
+
 result = await iii.trigger({"function_id": "orders.create", "payload": {"body": {"item": "widget"}}})
 
-iii.trigger_void("analytics.track", {"event": "page_view"})
+iii.trigger({"function_id": "analytics.track", "payload": {"event": "page_view"}, "action": TriggerAction.Void()})
 ```
 
 ## Modules

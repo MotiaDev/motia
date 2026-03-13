@@ -133,8 +133,8 @@ iii.register_trigger("http", "users.create", json!({
 ## Core SDK Methods
 - iii.registerFunction({ id }, handler) — register a function
 - iii.registerTrigger({ type, function_id, config }) — bind a trigger
-- iii.trigger("ns::name", input) — invoke a function (awaitable)
-- iii.triggerVoid("publish", { topic, data }) — fire-and-forget
+- iii.trigger({ function_id: "ns::name", payload: input }) — invoke a function (awaitable)
+- iii.trigger({ function_id: "publish", payload: { topic, data }, action: TriggerAction.Void() }) — fire-and-forget
 - iii.listFunctions() — discover all available functions
 - iii.onFunctionsAvailable(callback) — subscribe to topology changes
 - new Logger() — auto-injected logger with traceId correlation
@@ -210,10 +210,10 @@ iii.registerFunction(
   async ({ query }) => {
     const response = await callLLM(query, { tools })
     while (response.toolCall) {
-      const result = await iii.trigger(
-        response.toolCall.function,
-        response.toolCall.args
-      )
+      const result = await iii.trigger({
+        function_id: response.toolCall.function,
+        payload: response.toolCall.args
+      })
       logger.info("Tool used", { tool: response.toolCall.function })
       response = await callLLM(query, { tools, toolResult: result })
     }
@@ -224,22 +224,22 @@ iii.registerFunction(
 
 ## 2. Multi-Agent Network — Researcher → Analyzer → Writer pipeline
 \`\`\`typescript
+import { TriggerAction } from "iii-sdk"
+
 iii.registerFunction({ id: "agents::researcher" }, async ({ topic }) => {
-  const sources = await iii.trigger("tools::webSearch", { query: topic })
-  return iii.trigger("agents::analyzer", { sources, topic })
+  const sources = await iii.trigger({ function_id: "tools::webSearch", payload: { query: topic } })
+  return iii.trigger({ function_id: "agents::analyzer", payload: { sources, topic } })
 })
 
 iii.registerFunction({ id: "agents::analyzer" }, async ({ sources, topic }) => {
   const insights = await callLLM("Analyze these sources", { sources })
-  return iii.trigger("agents::writer", { insights, topic })
+  return iii.trigger({ function_id: "agents::writer", payload: { insights, topic } })
 })
 
 iii.registerFunction({ id: "agents::writer" }, async ({ insights, topic }) => {
   const draft = await callLLM("Write a report", { insights })
-  await iii.trigger("state::set", {
-    scope: "reports", key: topic, value: draft
-  })
-  iii.triggerVoid("publish", { topic: "report.ready", data: { topic } })
+  await iii.trigger({ function_id: "state::set", payload: { scope: "reports", key: topic, value: draft } })
+  iii.trigger({ function_id: "publish", payload: { topic: "report.ready", data: { topic } }, action: TriggerAction.Void() })
   return draft
 })
 \`\`\`
@@ -248,22 +248,18 @@ iii.registerFunction({ id: "agents::writer" }, async ({ insights, topic }) => {
 \`\`\`typescript
 iii.registerFunction({ id: "orders::process" }, async ({ orderId }) => {
   const logger = new Logger()
-  const step = await iii.trigger("state::get", {
-    scope: orderId, key: "step"
-  }) ?? 0
+  const step = await iii.trigger({ function_id: "state::get", payload: { scope: orderId, key: "step" } }) ?? 0
 
   const pipeline = [
-    () => iii.trigger("payments::charge", { orderId }),
-    () => iii.trigger("inventory::reserve", { orderId }),
-    () => iii.trigger("shipping::create", { orderId }),
-    () => iii.trigger("notifications::send", { orderId }),
+    () => iii.trigger({ function_id: "payments::charge", payload: { orderId } }),
+    () => iii.trigger({ function_id: "inventory::reserve", payload: { orderId } }),
+    () => iii.trigger({ function_id: "shipping::create", payload: { orderId } }),
+    () => iii.trigger({ function_id: "notifications::send", payload: { orderId } }),
   ]
 
   for (let i = step; i < pipeline.length; i++) {
     await pipeline[i]()
-    await iii.trigger("state::set", {
-      scope: orderId, key: "step", value: i + 1
-    })
+    await iii.trigger({ function_id: "state::set", payload: { scope: orderId, key: "step", value: i + 1 } })
     logger.info("Step completed", { orderId, step: i + 1 })
   }
   return { status: "completed" }
@@ -272,9 +268,11 @@ iii.registerFunction({ id: "orders::process" }, async ({ orderId }) => {
 
 ## 4. Polyglot Workers — TS + Python + Rust as one system
 \`\`\`typescript
+import { TriggerAction } from "iii-sdk"
+
 iii.registerFunction({ id: "api::users" }, async (req) => {
   const user = await db.createUser(req)
-  iii.triggerVoid("publish", { topic: "user.created", data: user })
+  iii.trigger({ function_id: "publish", payload: { topic: "user.created", data: user }, action: TriggerAction.Void() })
   return user
 })
 
@@ -293,18 +291,16 @@ iii.registerTrigger({
 \`\`\`typescript
 iii.registerFunction({ id: "chat::send" }, async ({ roomId, message }) => {
   const logger = new Logger()
-  await iii.trigger("stream::set", {
+  await iii.trigger({ function_id: "stream::set", payload: {
     stream_name: "chat", group_id: roomId,
     item_id: crypto.randomUUID(), data: message
-  })
-  const history = await iii.trigger("stream::list", {
+  } })
+  const history = await iii.trigger({ function_id: "stream::list", payload: {
     stream_name: "chat", group_id: roomId
-  })
+  } })
   if (history.length > 100) {
-    const summary = await iii.trigger("agents::summarize", { history })
-    await iii.trigger("state::set", {
-      scope: roomId, key: "summary", value: summary
-    })
+    const summary = await iii.trigger({ function_id: "agents::summarize", payload: { history } })
+    await iii.trigger({ function_id: "state::set", payload: { scope: roomId, key: "summary", value: summary } })
   }
   logger.info("Message sent", { roomId, messages: history.length })
 })
@@ -318,7 +314,7 @@ iii.registerFunction({ id: "research::deep" }, async ({ question, depth = 3 }) =
   for (let i = 0; i < depth; i++) {
     const subQueries = await callLLM("Break into sub-questions", { question, context })
     const results = await Promise.all(
-      subQueries.map((q: string) => iii.trigger("tools::webSearch", { query: q }))
+      subQueries.map((q: string) => iii.trigger({ function_id: "tools::webSearch", payload: { query: q } }))
     )
     context.push(...results.flat())
     const assessment = await callLLM("Is this enough?", { question, context })
@@ -326,7 +322,7 @@ iii.registerFunction({ id: "research::deep" }, async ({ question, depth = 3 }) =
     logger.info("Research iteration", { iteration: i + 1, sources: context.length })
   }
   const report = await callLLM("Write comprehensive answer", { question, context })
-  await iii.trigger("state::set", { scope: "research", key: question, value: report })
+  await iii.trigger({ function_id: "state::set", payload: { scope: "research", key: question, value: report } })
   return report
 })
 \`\`\`
@@ -336,15 +332,15 @@ iii.registerFunction({ id: "research::deep" }, async ({ question, depth = 3 }) =
 iii.registerFunction({ id: "pipeline::onUserCreated" }, async ({ user }) => {
   const logger = new Logger()
   await Promise.all([
-    iii.trigger("crm::syncContact", { user }),
-    iii.trigger("analytics::track", { event: "signup", user }),
-    iii.trigger("ml::computeSegment", { user }),
+    iii.trigger({ function_id: "crm::syncContact", payload: { user } }),
+    iii.trigger({ function_id: "analytics::track", payload: { event: "signup", user } }),
+    iii.trigger({ function_id: "ml::computeSegment", payload: { user } }),
   ])
-  const segment = await iii.trigger("state::get", { scope: user.id, key: "segment" })
-  await iii.trigger("enqueue", {
+  const segment = await iii.trigger({ function_id: "state::get", payload: { scope: user.id, key: "segment" } })
+  await iii.trigger({ function_id: "enqueue", payload: {
     topic: "emails",
     data: { template: segment === "enterprise" ? "white-glove" : "welcome", user }
-  })
+  } })
   logger.info("Pipeline complete", { userId: user.id, segment })
 })
 
@@ -358,24 +354,24 @@ iii.registerTrigger({
 \`\`\`typescript
 iii.registerFunction({ id: "monitor::anomalies" }, async () => {
   const logger = new Logger()
-  const metrics = await iii.trigger("metrics::getLast24h", {})
-  const baseline = await iii.trigger("state::get", {
+  const metrics = await iii.trigger({ function_id: "metrics::getLast24h", payload: {} })
+  const baseline = await iii.trigger({ function_id: "state::get", payload: {
     scope: "monitor", key: "baseline"
-  })
+  } })
   const analysis = await callLLM(
     "Analyze metrics against baseline. Flag anomalies.", { metrics, baseline }
   )
   if (analysis.anomalies.length > 0) {
-    await iii.trigger("alerts::send", {
+    await iii.trigger({ function_id: "alerts::send", payload: {
       channel: "slack", message: analysis.summary,
       severity: analysis.anomalies[0].severity
-    })
+    } })
     logger.info("Anomalies detected", { count: analysis.anomalies.length })
   }
-  await iii.trigger("state::set", {
+  await iii.trigger({ function_id: "state::set", payload: {
     scope: "monitor", key: "baseline",
     value: { ...baseline, ...metrics.averages }
-  })
+  } })
 })
 
 iii.registerTrigger({
@@ -431,7 +427,7 @@ Every invocation carries a trace ID. Logs and metrics flow automatically.
 
 ## Event Bus — Pub/sub between workers
 Publish events from any worker, subscribe from any other.
-  iii.triggerVoid("publish", { topic: "order.created", data: order })
+  iii.trigger({ function_id: "publish", payload: { topic: "order.created", data: order }, action: TriggerAction.Void() })
   iii.registerTrigger({ type: "subscribe", function_id: "notify", config: { topic: "order.created" } })`}</pre>
 
           <pre className="whitespace-pre-wrap break-words overflow-x-auto">{`# FAQ

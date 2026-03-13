@@ -21,7 +21,7 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import {Logger, TriggerAction} from 'iii-sdk'
 
 const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
@@ -38,10 +38,10 @@ iii.registerFunction(
     const { status = 'active' } = req.body ?? {}
 
     // Write to state — addressed by scope + key
-    iii.triggerVoid('state::set', {
-      scope: 'users',
-      key: userId,
-      value: { status, updatedAt: new Date().toISOString() },
+    iii.trigger({
+      function_id: 'state::set',
+      payload: { scope: 'users', key: userId, value: { status, updatedAt: new Date().toISOString() } },
+      action: TriggerAction.Void(),
     })
 
     logger.info(`Updated user ${userId} status to ${status}`)
@@ -62,7 +62,7 @@ iii.registerTrigger({
 
 ```python
 from datetime import datetime, timezone
-from iii import III, InitOptions, ApiRequest, ApiResponse
+from iii import III, InitOptions, ApiRequest, ApiResponse, TriggerAction
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="state-worker"))
 
@@ -76,10 +76,10 @@ async def update_user_status(req: ApiRequest, ctx) -> ApiResponse:
     new_status = (req.body or {}).get("status", "active")
 
     # Write to state — addressed by scope + key
-    iii.trigger_void("state::set", {
-        "scope": "users",
-        "key": user_id,
-        "value": {"status": new_status, "updatedAt": datetime.now(timezone.utc).isoformat()},
+    iii.trigger_void({
+        "function_id": "state::set",
+        "payload": {"scope": "users", "key": user_id, "value": {"status": new_status, "updatedAt": datetime.now(timezone.utc).isoformat()}},
+        "action": TriggerAction.Void(),
     })
 
     logger.info(f"Updated user {user_id} status to {new_status}")
@@ -100,7 +100,7 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger, types::ApiRequest};
+use iii_sdk::{III, Logger, TriggerRequest, TriggerAction, types::ApiRequest};
 use serde_json::json;
 
 iii.register_function("users.update_status", |input| async move {
@@ -115,14 +115,14 @@ iii.register_function("users.update_status", |input| async move {
     let new_status = req.body["status"].as_str().unwrap_or("active").to_string();
 
     // Write to state — addressed by scope + key
-    iii.trigger_void("state::set", json!({
+    iii.trigger(TriggerRequest::new("state::set", json!({
         "scope": "users",
         "key": user_id,
         "value": {
             "status": new_status,
             "updatedAt": chrono::Utc::now().to_rfc3339(),
         },
-    }))?;
+    })).action(TriggerAction::void())).await?;
 
     logger.info(&format!("Updated user {} status to {}", user_id, new_status), None);
 
@@ -154,9 +154,9 @@ iii.registerFunction(
       return { status_code: 400, body: { error: 'Missing user id' } }
     }
 
-    const user = await iii.trigger<{ status: string } | null>('state::get', {
-      scope: 'users',
-      key: userId,
+    const user = await iii.trigger<{ status: string } | null>({
+      function_id: 'state::get',
+      payload: { scope: 'users', key: userId },
     })
 
     if (!user) {
@@ -182,7 +182,7 @@ iii.registerTrigger({
 async def get_user_status(req: ApiRequest, ctx) -> ApiResponse:
     user_id = req.path_params.get("id") if req.path_params else None
 
-    user = await iii.trigger("state::get", {"scope": "users", "key": user_id}) if user_id else None
+    user = await iii.trigger({"function_id": "state::get", "payload": {"scope": "users", "key": user_id}}) if user_id else None
 
     if not user:
         return ApiResponse(statusCode=404, body={"error": "User not found"})
@@ -209,10 +209,10 @@ iii.register_function("users.get_status", |input| async move {
     let req: ApiRequest = serde_json::from_value(input)?;
     let user_id = req.path_params.get("id").cloned().unwrap_or_default();
 
-    let user = iii.trigger("state::get", json!({
+    let user = iii.trigger(TriggerRequest::new("state::get", json!({
         "scope": "users",
         "key": user_id,
-    })).await?;
+    }))).await?;
 
     if user.is_null() {
         return Ok(json!({ "status_code": 404, "body": { "error": "User not found" } }));
@@ -244,18 +244,19 @@ iii.registerFunction(
   async () => {
     const logger = new Logger()
 
-    const orders = await iii.trigger<{ id: string; shipDate: string; complete: boolean; status: string }[]>(
-      'state::list',
-      { scope: 'orders' },
-    )
+    const orders = await iii.trigger<{ id: string; shipDate: string; complete: boolean; status: string }[]>({
+      function_id: 'state::list',
+      payload: { scope: 'orders' },
+    })
 
     for (const order of orders ?? []) {
       if (!order.complete && new Date() > new Date(order.shipDate)) {
         logger.warn('Order overdue', { orderId: order.id })
 
-        iii.triggerVoid('enqueue', {
-          topic: 'notification',
-          data: { orderId: order.id, templateId: 'order-audit-warning', status: order.status },
+        iii.trigger({
+          function_id: 'enqueue',
+          payload: { topic: 'notification', data: { orderId: order.id, templateId: 'order-audit-warning', status: order.status } },
+          action: TriggerAction.Void(),
         })
       }
     }
@@ -277,7 +278,7 @@ from datetime import datetime, timezone
 
 
 async def orders_audit(_data, ctx) -> None:
-    orders = await iii.trigger("state::list", {"scope": "orders"}) or []
+    orders = await iii.trigger({"function_id": "state::list", "payload": {"scope": "orders"}}) or []
 
     for order in orders:
         ship_date_str = order.get("shipDate") or order.get("ship_date", "2099-01-01T00:00:00Z")
@@ -291,10 +292,12 @@ async def orders_audit(_data, ctx) -> None:
         if not complete and datetime.now(timezone.utc) > ship_date:
             logger.warn("Order overdue", {"orderId": order.get("id")})
 
-            iii.trigger_void("enqueue", {
-                "topic": "notification",
-                "data": {"orderId": order.get("id"), "templateId": "order-audit-warning"},
+            iii.trigger_void({
+                "function_id": "enqueue",
+                "payload": {"topic": "notification", "data": {"orderId": order.get("id"), "templateId": "order-audit-warning"}},
+                "action": TriggerAction.Void(),
             })
+
 
 
 iii.register_function("cron.orders_audit", lambda data: orders_audit(data, Logger()))
@@ -308,7 +311,7 @@ iii.register_trigger(type="cron", function_id="cron.orders_audit", config={"expr
 iii.register_function("cron.orders_audit", |_input| async move {
     let logger = Logger();
 
-    let orders_val = iii.trigger("state::list", json!({ "scope": "orders" })).await?;
+    let orders_val = iii.trigger(TriggerRequest::new("state::list", json!({ "scope": "orders" }))).await?;
     let orders = orders_val.as_array().cloned().unwrap_or_default();
 
     for order in &orders {
@@ -319,10 +322,10 @@ iii.register_function("cron.orders_audit", |_input| async move {
             if !complete && chrono::Utc::now() > ship_date {
                 logger.warn("Order overdue", Some(json!({ "orderId": order["id"] })));
 
-                iii.trigger_void("enqueue", json!({
+                iii.trigger(TriggerRequest::new("enqueue", json!({
                     "topic": "notification",
                     "data": { "orderId": order["id"], "templateId": "order-audit-warning" },
-                }))?;
+                })).action(TriggerAction::void())).await?;
             }
         }
     }
@@ -340,10 +343,10 @@ iii.register_trigger("cron", "cron.orders_audit", json!({ "expression": "*/5 * *
 
 | Operation | TypeScript | Python | Rust |
 |---|---|---|---|
-| Write | `iii.triggerVoid('state::set', { scope, key, value })` | `iii.trigger_void("state::set", {...})` | `iii.trigger_void("state::set", json!({...}))` |
-| Read one | `await iii.trigger('state::get', { scope, key })` | `await iii.trigger("state::get", {...})` | `iii.trigger("state::get", json!({...})).await` |
-| Read all in scope | `await iii.trigger('state::list', { scope })` | `await iii.trigger("state::list", {...})` | `iii.trigger("state::list", json!({...})).await` |
-| Delete | `iii.triggerVoid('state::delete', { scope, key })` | `iii.trigger_void("state::delete", {...})` | `iii.trigger_void("state::delete", json!({...}))` |
+| Write | `iii.trigger({ function_id: 'state::set', payload: { scope, key, value }, action: TriggerAction.Void() })` | `iii.trigger({'function_id': 'state::set', 'payload': {...}, 'action': TriggerAction.Void()})` | `iii.trigger(TriggerRequest::new("state::set", json!({...})).action(TriggerAction::void())).await?` |
+| Read one | `await iii.trigger({ function_id: 'state::get', payload: { scope, key } })` | `await iii.trigger({'function_id': 'state::get', 'payload': {...}})` | `iii.trigger(TriggerRequest::new("state::get", json!({...}))).await?` |
+| Read all in scope | `await iii.trigger({ function_id: 'state::list', payload: { scope } })` | `await iii.trigger({'function_id': 'state::list', 'payload': {...}})` | `iii.trigger(TriggerRequest::new("state::list", json!({...}))).await?` |
+| Delete | `iii.trigger({ function_id: 'state::delete', payload: { scope, key }, action: TriggerAction.Void() })` | `iii.trigger({'function_id': 'state::delete', 'payload': {...}, 'action': TriggerAction.Void()})` | `iii.trigger(TriggerRequest::new("state::delete", json!({...})).action(TriggerAction::void())).await?` |
 
 ## Key concepts
 

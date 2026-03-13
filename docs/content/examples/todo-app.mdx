@@ -149,7 +149,7 @@ let streams = Streams::new(iii.clone());
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import {Logger, TriggerAction} from 'iii-sdk'
 import { iii } from './stream'
 
 iii.registerFunction(
@@ -166,17 +166,20 @@ iii.registerFunction(
 
     logger.info('Creating todo', { todoId })
 
-    const todo = await iii.trigger('stream::set', {
-      stream_name: 'todo',
-      group_id: 'inbox',
-      item_id: todoId,
-      data: {
-        id: todoId,
-        description,
-        groupId: 'inbox',
-        createdAt: new Date().toISOString(),
-        dueDate,
-        completedAt: null,
+    const todo = await iii.trigger({
+      function_id: 'stream::set',
+      payload: {
+        stream_name: 'todo',
+        group_id: 'inbox',
+        item_id: todoId,
+        data: {
+          id: todoId,
+          description,
+          groupId: 'inbox',
+          createdAt: new Date().toISOString(),
+          dueDate,
+          completedAt: null,
+        },
       },
     })
 
@@ -198,7 +201,7 @@ iii.registerTrigger({
 ```python
 import random, string, time
 from datetime import datetime, timezone
-from iii import ApiRequest, ApiResponse
+from iii import ApiRequest, ApiResponse, TriggerAction
 from .iii import iii
 
 
@@ -214,16 +217,19 @@ async def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
 
     logger.info("Creating todo", {"todoId": todo_id})
 
-    todo = await iii.trigger("stream::set", {
-        "stream_name": "todo",
-        "group_id": "inbox",
-        "item_id": todo_id,
-        "data": {
-            "id": todo_id,
-            "description": description,
-            "createdAt": datetime.now(timezone.utc).isoformat(),
-            "dueDate": due_date,
-            "completedAt": None,
+    todo = await iii.trigger({
+        "function_id": "stream::set",
+        "payload": {
+            "stream_name": "todo",
+            "group_id": "inbox",
+            "item_id": todo_id,
+            "data": {
+                "id": todo_id,
+                "description": description,
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+                "dueDate": due_date,
+                "completedAt": None,
+            },
         },
     })
 
@@ -299,10 +305,13 @@ iii.registerFunction(
     const todoId = req.path_params?.id
 
     const existing = todoId
-      ? await iii.trigger<Todo | null>('stream::get', {
-          stream_name: 'todo',
-          group_id: 'inbox',
-          item_id: todoId,
+      ? await iii.trigger<Todo | null>({
+          function_id: 'stream::get',
+          payload: {
+            stream_name: 'todo',
+            group_id: 'inbox',
+            item_id: todoId,
+          },
         })
       : null
 
@@ -312,11 +321,14 @@ iii.registerFunction(
 
     logger.info('Updating todo', { todoId })
 
-    const updated = await iii.trigger('stream::set', {
-      stream_name: 'todo',
-      group_id: 'inbox',
-      item_id: todoId,
-      data: { ...existing, ...req.body },
+    const updated = await iii.trigger({
+      function_id: 'stream::set',
+      payload: {
+        stream_name: 'todo',
+        group_id: 'inbox',
+        item_id: todoId,
+        data: { ...existing, ...req.body },
+      },
     })
 
     logger.info('Todo updated', { todoId })
@@ -338,8 +350,9 @@ iii.registerTrigger({
 async def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
     todo_id = req.path_params.get("id") if req.path_params else None
 
-    existing = await iii.trigger("stream::get", {
-        "stream_name": "todo", "group_id": "inbox", "item_id": todo_id,
+    existing = await iii.trigger({
+        "function_id": "stream::get",
+        "payload": {"stream_name": "todo", "group_id": "inbox", "item_id": todo_id},
     }) if todo_id else None
 
     if not existing:
@@ -348,8 +361,9 @@ async def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
     logger.info("Updating todo", {"todoId": todo_id})
 
     merged = {**existing, **(req.body or {})}
-    updated = await iii.trigger("stream::set", {
-        "stream_name": "todo", "group_id": "inbox", "item_id": todo_id, "data": merged,
+    updated = await iii.trigger({
+        "function_id": "stream::set",
+        "payload": {"stream_name": "todo", "group_id": "inbox", "item_id": todo_id, "data": merged},
     })
 
     logger.info("Todo updated", {"todoId": todo_id})
@@ -421,10 +435,14 @@ iii.registerFunction(
 
     logger.info('Deleting todo', { todoId })
 
-    iii.triggerVoid('stream::delete', {
-      stream_name: 'todo',
-      group_id: 'inbox',
-      item_id: todoId,
+    iii.trigger({
+      function_id: 'stream::delete',
+      payload: {
+        stream_name: 'todo',
+        group_id: 'inbox',
+        item_id: todoId,
+      },
+      action: TriggerAction.Void(),
     })
 
     logger.info('Todo deleted', { todoId })
@@ -451,8 +469,10 @@ async def _delete_todo(req: ApiRequest, ctx) -> ApiResponse:
 
     logger.info("Deleting todo", {"todoId": todo_id})
 
-    iii.trigger_void("stream::delete", {
-        "stream_name": "todo", "group_id": "inbox", "item_id": todo_id,
+    iii.trigger_void({
+        "function_id": "stream::delete",
+        "payload": {"stream_name": "todo", "group_id": "inbox", "item_id": todo_id},
+        "action": TriggerAction.Void(),
     })
 
     logger.info("Todo deleted", {"todoId": todo_id})
@@ -472,6 +492,8 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
+use iii_sdk::{TriggerRequest, TriggerAction};
+
 iii.register_function("api.delete.todo", |input| async move {
     let logger = Logger();
     let req: ApiRequest = serde_json::from_value(input)?;
@@ -483,11 +505,11 @@ iii.register_function("api.delete.todo", |input| async move {
 
     logger.info("Deleting todo", Some(json!({ "todoId": todo_id })));
 
-    iii.trigger_void("stream::delete", json!({
+    iii.trigger(TriggerRequest::new("stream::delete", json!({
         "stream_name": "todo",
         "group_id": "inbox",
         "item_id": todo_id,
-    }))?;
+    })).action(TriggerAction::void())).await?;
 
     logger.info("Todo deleted", Some(json!({ "todoId": todo_id })));
 

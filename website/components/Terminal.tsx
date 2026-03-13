@@ -605,7 +605,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog(");", "success");
         addLog("", "info");
         addLog("// Async invocation (fire and forget)", "warning");
-        addLog("iii.triggerVoid(", "success");
+        addLog("iii.trigger({ function_id, payload, action: TriggerAction.Void() })", "success");
         addLog('  "emailService::sendWelcome",', "success");
         addLog('  { email: "user@example.com" }', "success");
         addLog(");", "success");
@@ -992,7 +992,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("", "info");
         addLog("publish", "success");
         addLog("  Distribute event to all subscribers", "info");
-        addLog("  iii.triggerVoid('publish', { topic, data })", "info");
+        addLog("  iii.trigger({ function_id: 'publish', payload: { topic, data }, action: TriggerAction.Void() })", "info");
         addLog("", "info");
         addLog("engine::functions::list", "success");
         addLog("  List all registered functions", "info");
@@ -1001,7 +1001,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         addLog("  List all connected workers", "info");
         addLog("", "info");
         addLog(
-          "All invokable via iii.trigger() / iii.triggerVoid()",
+          "All invokable via iii.trigger() with optional TriggerAction",
           "warning",
         );
         break;
