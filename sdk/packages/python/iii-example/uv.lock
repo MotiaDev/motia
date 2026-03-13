@@ -41,6 +41,7 @@ dependencies = [
 requires-dist = [
     { name = "aiohttp", marker = "extra == 'dev'", specifier = ">=3.9" },
     { name = "anyio", marker = "extra == 'dev'", specifier = ">=4.0" },
+    { name = "griffe", marker = "extra == 'dev'", specifier = ">=1.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "opentelemetry-api", marker = "extra == 'dev'", specifier = ">=1.25" },
     { name = "opentelemetry-api", marker = "extra == 'otel'", specifier = ">=1.25" },

@@ -29,7 +29,6 @@ from .iii_types import (
     RegisterServiceMessage,
     RegisterTriggerInput,
     RegisterTriggerMessage,
-    RegisterTriggerTypeInput,
     RegisterTriggerTypeMessage,
     StreamChannelRef,
     TriggerActionEnqueue,
@@ -634,21 +633,24 @@ class III:
         self._trigger_types.pop(id, None)
         self._send_if_connected(UnregisterTriggerTypeMessage(id=id))
 
-    def register_trigger(self, type: str, function_id: str, config: Any) -> Trigger:
+    def register_trigger(self, trigger: RegisterTriggerInput | dict[str, Any]) -> Trigger:
         """Bind a trigger configuration to a registered function.
 
         Args:
-            type: Trigger type (e.g. ``http``, ``queue``, ``cron``).
-            function_id: ID of the function to invoke.
-            config: Trigger-specific configuration.
+            trigger: A ``RegisterTriggerInput`` or dict with ``type``, ``function_id``, and optional ``config``.
 
         Returns:
             A Trigger handle with an ``unregister()`` method.
 
         Examples:
-            >>> trigger = iii.register_trigger('http', 'greet', {'api_path': '/greet', 'http_method': 'GET'})
+            >>> trigger = iii.register_trigger({
+            ...     'type': 'http', 'function_id': 'greet',
+            ...     'config': {'api_path': '/greet', 'http_method': 'GET'},
+            ... })
             >>> trigger.unregister()
         """
+        if isinstance(trigger, dict):
+            trigger = RegisterTriggerInput(**trigger)
         trigger_id = str(uuid.uuid4())
         msg = RegisterTriggerMessage(
             id=trigger_id,
@@ -693,7 +695,9 @@ class III:
             ...     return {'message': f"Hello, {data['name']}!"}
             >>> fn = iii.register_function('greet', greet, description='Greets a user')
         """
-        if not path or not path.strip():
+        if isinstance(func, dict):
+            func = RegisterFunctionInput(**func)
+        if not func.id or not func.id.strip():
             raise ValueError("id is required")
         if func.id in self._functions:
             raise ValueError(f"function id '{func.id}' already registered")
