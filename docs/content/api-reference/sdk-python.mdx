@@ -85,15 +85,11 @@ create_channel(buffer_size: int | None = None)
 
 ### create_stream
 
-Register stream functions for a given stream.
+Register a custom stream implementation, overriding the engine default.
 
-This registers the following functions for the stream:
-- \{stream_name\}::get
-- \{stream_name\}::set
-- \{stream_name\}::delete
-- \{stream_name\}::list
-- \{stream_name\}::list_groups
-- \{stream_name\}::update
+Registers 5 of the 6 ``IStream`` methods (``get``, ``set``, ``delete``,
+``list``, ``list_groups``). The ``update`` method is **not** registered
+-- atomic updates are handled by the engine's built-in stream update logic.
 
 **Signature**
 
@@ -128,6 +124,22 @@ List all registered functions from the engine.
 list_functions()
 ```
 
+### list_triggers
+
+List all registered triggers from the engine.
+
+**Signature**
+
+```python
+list_triggers(include_internal: bool = False)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `include_internal` | `bool` | No | - |
+
 ### list_workers
 
 List all connected workers from the engine.
@@ -137,50 +149,6 @@ List all connected workers from the engine.
 ```python
 list_workers()
 ```
-
-### on
-
-Subscribe to an event.
-
-Not supported in the Python SDK. Use on_connection_state_change() or
-on_functions_available() instead.
-
-Raises:
-    NotImplementedError: Always raised. Use specific event methods instead.
-
-**Signature**
-
-```python
-on(event: str, callback: Callable[..., None])
-```
-
-#### Parameters
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `event` | `str` | Yes | - |
-| `callback` | `Callable[..., None]` | Yes | - |
-
-### on_connection_state_change
-
-Register a callback to be notified of connection state changes.
-
-The callback is immediately invoked with the current state.
-
-Returns:
-    A function to unregister the callback.
-
-**Signature**
-
-```python
-on_connection_state_change(callback: ConnectionStateCallback)
-```
-
-#### Parameters
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `callback` | `ConnectionStateCallback` | Yes | - |
 
 ### on_functions_available
 
@@ -235,7 +203,7 @@ register_function(path: str, handler_or_invocation: RemoteFunctionHandler | Http
 **Signature**
 
 ```python
-register_service(id: str, description: str | None = None, parent_id: str | None = None)
+register_service(id: str, description: str | None = None, parent_id: str | None = None, name: str | None = None)
 ```
 
 #### Parameters
@@ -245,6 +213,7 @@ register_service(id: str, description: str | None = None, parent_id: str | None 
 | `id` | `str` | Yes | - |
 | `description` | `str \| None` | No | - |
 | `parent_id` | `str \| None` | No | - |
+| `name` | `str \| None` | No | - |
 
 ### register_trigger
 

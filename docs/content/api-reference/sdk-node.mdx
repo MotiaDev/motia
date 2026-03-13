@@ -229,7 +229,7 @@ registerService(message: RegisterServiceInput) => void
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `message` | `RegisterServiceInput` | Yes | The service to register |
+| `message` | [`RegisterServiceInput`](#registerserviceinput) | Yes | The service to register |
 
 ### registerTrigger
 
@@ -389,11 +389,11 @@ The `iii-sdk` package provides additional entry points:
 | `iii-sdk` | `MessageType`, `ChannelReader`, `ChannelWriter`, `Logger`, `ISdk`, `ApiRequest`, `ApiResponse`, `Channel`, `EnqueueResult`, `FunctionRef`, etc. |
 | `iii-sdk/stream` | `IStream`, `StreamAuthInput`, `StreamAuthResult`, `StreamJoinLeaveEvent`, `StreamJoinResult`, `DeleteResult`, `StreamContext`, `StreamDeleteInput`, `StreamGetInput`, `StreamListGroupsInput`, etc. |
 | `iii-sdk/state` | `StateEventType`, `IState`, `StateEventData`, `DeleteResult`, `StateDeleteInput`, `StateDeleteResult`, `StateGetInput`, `StateListInput`, `StateSetInput`, `StateSetResult`, etc. |
-| `iii-sdk/telemetry` | `WorkerMetricsCollector`, `IIIReconnectionConfig`, `OtelConfig`, `ReconnectionConfig`, `WorkerGaugesOptions`, `WorkerMetricsCollectorOptions`, `ConnectionStateCallback`, `FunctionInfo`, `FunctionsAvailableCallback`, `IIIConnectionState`, etc. |
+| `iii-sdk/telemetry` | `WorkerMetricsCollector`, `IIIReconnectionConfig`, `OtelConfig`, `ReconnectionConfig`, `WorkerGaugesOptions`, `WorkerMetricsCollectorOptions`, `FunctionInfo`, `FunctionsAvailableCallback`, `IIIConnectionState`, `OtelLogEvent`, etc. |
 
 ## Types
 
-[`MessageType`](#messagetype) · [`ChannelReader`](#channelreader) · [`ChannelWriter`](#channelwriter) · [`Channel`](#channel) · [`FunctionRef`](#functionref) · [`HttpAuthConfig`](#httpauthconfig) · [`HttpInvocationConfig`](#httpinvocationconfig) · [`InitOptions`](#initoptions) · [`RegisterFunctionInput`](#registerfunctioninput) · [`RegisterFunctionMessage`](#registerfunctionmessage) · [`RegisterTriggerInput`](#registertriggerinput) · [`RegisterTriggerMessage`](#registertriggermessage) · [`RegisterTriggerTypeInput`](#registertriggertypeinput) · [`RegisterTriggerTypeMessage`](#registertriggertypemessage) · [`RemoteFunctionHandler`](#remotefunctionhandler) · [`StreamChannelRef`](#streamchannelref) · [`Trigger`](#trigger) · [`TriggerHandler`](#triggerhandler) · [`TriggerInfo`](#triggerinfo) · [`TriggerRequest`](#triggerrequest) · [`IStream`](#istream) · [`DeleteResult`](#deleteresult) · [`StreamSetResult`](#streamsetresult) · [`StreamUpdateResult`](#streamupdateresult) · [`DeleteResult`](#deleteresult) · [`IIIReconnectionConfig`](#iiireconnectionconfig) · [`OtelConfig`](#otelconfig) · [`ReconnectionConfig`](#reconnectionconfig) · [`FunctionInfo`](#functioninfo) · [`FunctionsAvailableCallback`](#functionsavailablecallback) · [`RegisterFunctionFormat`](#registerfunctionformat)
+[`MessageType`](#messagetype) · [`ChannelReader`](#channelreader) · [`ChannelWriter`](#channelwriter) · [`Channel`](#channel) · [`FunctionRef`](#functionref) · [`HttpAuthConfig`](#httpauthconfig) · [`HttpInvocationConfig`](#httpinvocationconfig) · [`InitOptions`](#initoptions) · [`RegisterFunctionInput`](#registerfunctioninput) · [`RegisterFunctionMessage`](#registerfunctionmessage) · [`RegisterServiceInput`](#registerserviceinput) · [`RegisterTriggerInput`](#registertriggerinput) · [`RegisterTriggerMessage`](#registertriggermessage) · [`RegisterTriggerTypeInput`](#registertriggertypeinput) · [`RegisterTriggerTypeMessage`](#registertriggertypemessage) · [`RemoteFunctionHandler`](#remotefunctionhandler) · [`StreamChannelRef`](#streamchannelref) · [`Trigger`](#trigger) · [`TriggerHandler`](#triggerhandler) · [`TriggerInfo`](#triggerinfo) · [`TriggerRequest`](#triggerrequest) · [`IStream`](#istream) · [`DeleteResult`](#deleteresult) · [`StreamSetResult`](#streamsetresult) · [`StreamUpdateResult`](#streamupdateresult) · [`DeleteResult`](#deleteresult) · [`IIIReconnectionConfig`](#iiireconnectionconfig) · [`OtelConfig`](#otelconfig) · [`ReconnectionConfig`](#reconnectionconfig) · [`FunctionInfo`](#functioninfo) · [`FunctionsAvailableCallback`](#functionsavailablecallback) · [`RegisterFunctionFormat`](#registerfunctionformat)
 
 ### MessageType
 
@@ -505,6 +505,12 @@ type RegisterFunctionInput = Omit<RegisterFunctionMessage, "message_type">
 | `metadata` | `Record<string, unknown>` | No | - |
 | `request_format` | [`RegisterFunctionFormat`](#registerfunctionformat) | No | The request format of the function |
 | `response_format` | [`RegisterFunctionFormat`](#registerfunctionformat) | No | The response format of the function |
+
+### RegisterServiceInput
+
+```typescript
+type RegisterServiceInput = Omit<RegisterServiceMessage, "message_type">
+```
 
 ### RegisterTriggerInput
 

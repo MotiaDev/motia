@@ -479,9 +479,11 @@ async def with_span(
         return await fn(_NoopSpan())
 
     try:
-        from opentelemetry import context as otel_ctx, trace
+        from opentelemetry import context as otel_ctx
         from opentelemetry.propagate import extract as otel_extract
-        from opentelemetry.trace import SpanKind as _SpanKind, StatusCode
+        from opentelemetry.trace import SpanKind as _SpanKind
+        from opentelemetry.trace import StatusCode
+
     except ImportError:
         return await fn(None)
 
@@ -570,7 +572,7 @@ def get_baggage_entry(key: str) -> str | None:
 def set_baggage_entry(key: str, value: str) -> Any:
     """Set a baggage entry in the current context. Returns the new context."""
     try:
-        from opentelemetry import baggage as otel_baggage, context as otel_ctx
+        from opentelemetry import baggage as otel_baggage
         ctx = otel_baggage.set_baggage(key, value)
         return ctx
     except ImportError:

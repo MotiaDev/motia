@@ -21,10 +21,7 @@ from .iii_types import (
     HttpInvocationConfig,
     InvocationResultMessage,
     InvokeFunctionMessage,
-    LogConfig,
-    LogSeverityLevel,
     MessageType,
-    OtelLogEvent,
     RegisterFunctionMessage,
     RegisterServiceMessage,
     RegisterTriggerMessage,
@@ -160,11 +157,7 @@ class III:
         self._reconnection_config = self._options.reconnection_config or DEFAULT_RECONNECTION_CONFIG
         self._reconnect_attempt = 0
         self._connection_state: IIIConnectionState = "disconnected"
-        self._state_callbacks: set[ConnectionStateCallback] = set()
         self._worker_id: str | None = None
-        self._log_callbacks: dict[Callable[[OtelLogEvent], None], LogConfig] = {}
-        self._log_trigger: Trigger | None = None
-        self._log_function_id: str | None = None
 
     # Connection management
 
@@ -209,7 +202,6 @@ class III:
             await self._ws.close()
             self._ws = None
 
-        self._state_callbacks.clear()
         self._set_connection_state("disconnected")
 
         try:
@@ -579,31 +571,10 @@ class III:
     def _set_connection_state(self, state: IIIConnectionState) -> None:
         if self._connection_state != state:
             self._connection_state = state
-            for callback in self._state_callbacks:
-                try:
-                    callback(state)
-                except Exception:
-                    log.exception("Error in connection state callback")
 
     def get_connection_state(self) -> IIIConnectionState:
         """Get the current connection state."""
         return self._connection_state
-
-    def on_connection_state_change(self, callback: ConnectionStateCallback) -> Callable[[], None]:
-        """Register a callback to be notified of connection state changes.
-
-        The callback is immediately invoked with the current state.
-
-        Returns:
-            A function to unregister the callback.
-        """
-        self._state_callbacks.add(callback)
-        callback(self._connection_state)
-
-        def unsubscribe() -> None:
-            self._state_callbacks.discard(callback)
-
-        return unsubscribe
 
     @property
     def worker_id(self) -> str | None:
@@ -954,14 +925,6 @@ class III:
                 self._functions_available_trigger = None
 
         return unsubscribe
-
-    @staticmethod
-    def _severity_text_to_number(level: LogSeverityLevel) -> int:
-        _MAP: dict[str, int] = {
-            "trace": 1, "debug": 5, "info": 9,
-            "warn": 13, "error": 17, "fatal": 21, "all": 0,
-        }
-        return _MAP.get(level, 0)
 
     def create_stream(self, stream_name: str, stream: IStream[Any]) -> None:
         """Register a custom stream implementation, overriding the engine default.

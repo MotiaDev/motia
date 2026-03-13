@@ -28,8 +28,21 @@ from .iii_types import (
     WorkerStatus,
 )
 from .logger import Logger
+from .otel_worker_gauges import register_worker_gauges, stop_worker_gauges
+from .state import (
+    IState,
+    StateDeleteInput,
+    StateDeleteResult,
+    StateEventData,
+    StateEventType,
+    StateGetInput,
+    StateListInput,
+    StateSetInput,
+    StateSetResult,
+    StateUpdateInput,
+    StateUpdateResult,
+)
 from .stream import (
-    DeleteResult,
     IStream,
     StreamAuthInput,
     StreamAuthResult,
@@ -50,20 +63,6 @@ from .stream import (
     UpdateOp,
     UpdateRemove,
     UpdateSet,
-)
-from .state import (
-    DeleteResult,
-    IState,
-    StateDeleteInput,
-    StateDeleteResult,
-    StateEventData,
-    StateEventType,
-    StateGetInput,
-    StateListInput,
-    StateSetInput,
-    StateSetResult,
-    StateUpdateInput,
-    StateUpdateResult,
 )
 from .telemetry import (
     current_span_id,
@@ -86,8 +85,6 @@ from .telemetry import (
     with_span,
 )
 from .telemetry_types import OtelConfig
-from .worker_metrics import WorkerMetrics, WorkerMetricsCollector
-from .otel_worker_gauges import register_worker_gauges, stop_worker_gauges
 from .types import (
     ApiRequest,
     ApiResponse,
@@ -98,6 +95,7 @@ from .types import (
     RemoteFunctionHandler,
 )
 from .utils import http, is_channel_ref
+from .worker_metrics import WorkerMetrics, WorkerMetricsCollector
 
 
 def register_worker(address: str, options: InitOptions | None = None) -> III:

@@ -70,20 +70,6 @@ function getDefaultWorkerName(): string {
   return `${os.hostname()}:${process.pid}`
 }
 
-/**
- * Callback invoked when the WebSocket connection state changes.
- *
- * @param state - The new connection state.
- *
- * @example
- * ```typescript
- * const unsub = iii.onConnectionStateChange((state) => {
- *   console.log('Connection state:', state)
- * })
- * ```
- */
-export type ConnectionStateCallback = (state: IIIConnectionState) => void
-
 /** @internal */
 export type TelemetryOptions = {
   language?: string
@@ -146,7 +132,6 @@ class Sdk implements ISdk {
   private reconnectionConfig: IIIReconnectionConfig
   private reconnectAttempt = 0
   private connectionState: IIIConnectionState = 'disconnected'
-  private stateCallbacks = new Set<ConnectionStateCallback>()
   private isShuttingDown = false
 
   constructor(
@@ -196,10 +181,6 @@ class Sdk implements ISdk {
       message: { ...triggerType, message_type: MessageType.RegisterTriggerType },
       handler,
     })
-  }
-
-  on = (event: string, callback: (arg?: unknown) => void): void => {
-    this.ws?.on(event, callback)
   }
 
   /**
@@ -645,9 +626,6 @@ class Sdk implements ISdk {
       this.ws = undefined
     }
 
-    // Clear callbacks
-    this.stateCallbacks.clear()
-
     this.setConnectionState('disconnected')
   }
 
@@ -656,13 +634,6 @@ class Sdk implements ISdk {
   private setConnectionState(state: IIIConnectionState): void {
     if (this.connectionState !== state) {
       this.connectionState = state
-      for (const callback of this.stateCallbacks) {
-        try {
-          callback(state)
-        } catch (error) {
-          this.logError('Error in connection state callback', error)
-        }
-      }
     }
   }
 

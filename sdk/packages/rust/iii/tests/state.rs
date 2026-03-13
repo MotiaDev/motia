@@ -206,19 +206,22 @@ async fn state_list_all_items_in_scope() {
     ];
 
     for item in &items {
-        iii.trigger(TriggerRequest::new(
-            "state::set",
-            json!({"scope": scope, "key": item["id"], "value": item}),
-        ))
+        iii.trigger(TriggerRequest {
+            function_id: "state::set".to_string(),
+            payload: json!({"scope": scope, "key": item["id"], "value": item}),
+            action: None,
+            timeout_ms: None,
+        })
         .await
         .expect("state::set");
     }
-
     let result = iii
-        .trigger(TriggerRequest::new(
-            "state::list",
-            json!({"scope": scope}),
-        ))
+        .trigger(TriggerRequest {
+            function_id: "state::list".to_string(),
+            payload: json!({"scope": scope}),
+            action: None,
+            timeout_ms: None,
+        })
         .await
         .expect("state::list");
 
@@ -275,11 +278,7 @@ async fn reactive_state() {
     });
 
     let trigger = iii
-        .register_trigger(
-            "state",
-            &fn_ref.id,
-            json!({"scope": SCOPE, "key": KEY}),
-        )
+        .register_trigger("state", &fn_ref.id, json!({"scope": SCOPE, "key": KEY}))
         .expect("register state trigger");
 
     iii.trigger(TriggerRequest::new(
@@ -295,7 +294,10 @@ async fn reactive_state() {
         .expect("channel error");
 
     let captured = reactive_data.lock().await.clone();
-    assert_eq!(captured, Some(json!({"name": "New Test Data", "value": 200})));
+    assert_eq!(
+        captured,
+        Some(json!({"name": "New Test Data", "value": 200}))
+    );
 
     trigger.unregister();
     fn_ref.unregister();

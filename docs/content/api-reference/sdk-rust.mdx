@@ -366,6 +366,16 @@ register_service
 register_service_with_name
 ```
 
+### register_service_with_parent
+
+
+
+**Signature**
+
+```rust
+register_service_with_parent
+```
+
 ### register_trigger_type
 
 Register a custom trigger type with the engine.
@@ -416,8 +426,8 @@ Invoke a remote function.
 
 The routing behavior depends on the `action` field of the request:
 - No action: synchronous -- waits for the function to return.
-- [`TriggerAction::Enqueue`]: async via named queue.
-- [`TriggerAction::Void`]: fire-and-forget.
+- [`TriggerAction::Enqueue`] - async via named queue.
+- [`TriggerAction::Void`] — fire-and-forget.
 
 **Signature**
 
@@ -438,6 +448,28 @@ let result = iii.trigger(TriggerRequest::new("greet", json!({"name": "World"})))
 iii.trigger(TriggerRequest::new("notify", json!({})).action(TriggerAction::void())).await?;
 # Ok(())
 # }
+```
+
+### get_connection_state
+
+Get the current connection state.
+
+**Signature**
+
+```rust
+get_connection_state
+```
+
+### on_connection_state_change
+
+Register a callback to be notified of connection state changes.
+The callback is immediately invoked with the current state.
+Returns a guard that unsubscribes when dropped.
+
+**Signature**
+
+```rust
+on_connection_state_change
 ```
 
 ### list_functions

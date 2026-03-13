@@ -1,5 +1,12 @@
-export type { ConnectionStateCallback } from './iii'
-
+export {
+  DEFAULT_BRIDGE_RECONNECTION_CONFIG,
+  DEFAULT_INVOCATION_TIMEOUT_MS,
+  EngineFunctions,
+  EngineTriggers,
+  type IIIConnectionState,
+  type IIIReconnectionConfig,
+  LogFunctions,
+} from './iii-constants'
 export type {
   FunctionInfo,
   FunctionInfo as FunctionMessage,
@@ -7,26 +14,11 @@ export type {
   WorkerInfo,
   WorkerStatus,
 } from './iii-types'
-
-export type { WorkerMetrics, WorkerMetricsCollectorOptions } from './worker-metrics'
-
-export {
-  type IIIConnectionState,
-  type IIIReconnectionConfig,
-  DEFAULT_BRIDGE_RECONNECTION_CONFIG,
-  DEFAULT_INVOCATION_TIMEOUT_MS,
-  EngineFunctions,
-  EngineTriggers,
-  LogFunctions,
-} from './iii-constants'
-export { WorkerMetricsCollector } from './worker-metrics'
-
 export {
   registerWorkerGauges,
   stopWorkerGauges,
   type WorkerGaugesOptions,
 } from './otel-worker-gauges'
-
 export {
   currentSpanId,
   currentTraceId,
@@ -41,22 +33,22 @@ export {
   initOtel,
   injectBaggage,
   injectTraceparent,
+  type Logger as OtelLogger,
+  type Meter,
+  type OtelConfig,
+  type ReconnectionConfig,
   removeBaggageEntry,
+  SeverityNumber,
+  type Span,
+  SpanStatusCode,
   setBaggageEntry,
   shutdownOtel,
   withSpan,
-  type OtelConfig,
-  type ReconnectionConfig,
-  type Span,
-  type Logger as OtelLogger,
-  type Meter,
-  SeverityNumber,
-  SpanStatusCode,
 } from './telemetry-system'
-
 export type {
   FunctionsAvailableCallback,
   OtelLogEvent,
 } from './types'
-
 export { safeStringify } from './utils'
+export type { WorkerMetrics, WorkerMetricsCollectorOptions } from './worker-metrics'
+export { WorkerMetricsCollector } from './worker-metrics'
