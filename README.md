@@ -11,9 +11,9 @@
 
 You start building a backend and immediately need six different tools: an API framework, a task queue, a cron scheduler, pub/sub, a state store, and an observability pipeline. Each has its own config, its own deployment, its own failure modes. A simple "process this, then notify that" workflow touches three services before you write any business logic.
 
-iii replaces all of that with a single engine and two primitives: **Function** and **Trigger**.
+iii replaces all of that with a single engine and three primitives: **Function**, **Trigger**, and **Worker**.
 
-A Function is anything that does work. A Trigger is what causes it to run - an HTTP request, a cron schedule, a queue message, a state change. You write the function, declare what triggers it, and the engine handles discovery, routing, retries, and observability.
+A Function is anything that does work. A Trigger is what causes it to run - an HTTP request, a cron schedule, a queue message, a state change. A Worker connects your functions to the engine. You write the function, declare what triggers it, connect a worker, and the engine handles routing, retries, and observability.
 
 One config file. One process. Everything discoverable. Think of it the way React gave frontend a single model for UI - iii gives your backend a single model for execution.
 

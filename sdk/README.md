@@ -1,6 +1,6 @@
 # iii
 
-iii is a single engine that replaces your API framework, task queue, cron scheduler, pub/sub, state store, and observability pipeline with two primitives: **Function** and **Trigger**. You write functions, declare what triggers them, and the engine handles discovery, routing, retries, and observability.
+iii is a single engine that replaces your API framework, task queue, cron scheduler, pub/sub, state store, and observability pipeline with three primitives: **Function**, **Trigger**, and **Worker**. You write functions, declare what triggers them, connect a worker, and the engine handles routing, retries, and observability.
 
 See the [engine README](../engine/README.md) for architecture details and the [documentation](https://iii.dev/docs) for full guides.
 
