@@ -22,6 +22,7 @@ export III_TELEMETRY_ENABLED := false
         fmt-check fmt-check-rust fmt-check-all \
         typecheck-node typecheck-python typecheck-motia-py typecheck \
         build-node build-sdk-node build-motia-js build-console build \
+        fix fix-lint fix-fmt \
         check ci-engine ci-sdk-node ci-sdk-python ci-sdk-rust \
         ci-motia-js ci-motia-py ci-console ci-local
 
@@ -168,6 +169,17 @@ ci-console:
 	$(MAKE) lint-console build-console
 
 # ── Convenience ───────────────────────────────────────────────────────────────
+
+fix: fix-fmt fix-lint
+
+fix-fmt:
+	cargo fmt --all
+
+fix-lint:
+	cd $(PYTHON_SDK_DIR) && uv run ruff check --fix --unsafe-fixes src && uv run ruff format src
+	cd $(MOTIA_PY_DIR) && uv run ruff check --fix --unsafe-fixes src && uv run ruff format src
+	cargo clippy -p iii-sdk --all-targets --all-features --fix --allow-dirty --allow-staged -- -D warnings
+	pnpm --filter console-frontend run lint:fix
 
 check: lint fmt-check-all typecheck build
 

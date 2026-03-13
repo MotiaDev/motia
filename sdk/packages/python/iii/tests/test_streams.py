@@ -10,6 +10,8 @@ import pytest_asyncio
 from iii import III, IStream
 from iii.stream import StreamDeleteInput, StreamDeleteResult, StreamGetInput, StreamListGroupsInput, StreamListInput, StreamSetInput, StreamSetResult, StreamUpdateInput, StreamUpdateResult
 
+_list = list 
+
 STREAM_NAME = "test-stream-py"
 GROUP_ID = "test-group"
 ITEM_ID = "test-item"
@@ -176,7 +178,7 @@ async def test_stream_custom_operations(iii_client: III):
             prefix = f"{input.group_id}::"
             return [v for k, v in state.items() if k.startswith(prefix)]
 
-        async def list_groups(self, input: StreamListGroupsInput) -> list[str]:
+        async def list_groups(self, input: StreamListGroupsInput) -> _list[str]:
             return list(state.keys())
 
         async def update(self, input: StreamUpdateInput) -> StreamUpdateResult | None:
