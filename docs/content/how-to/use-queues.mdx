@@ -535,10 +535,10 @@ iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python title="Before (deprecated)"
-# Old: enqueue via trigger_void with topic
-iii.trigger_void("enqueue", {
-    "topic": "order.created",
-    "data": order,
+# Old: enqueue via trigger with topic
+iii.trigger({
+    "function_id": "enqueue",
+    "payload": {"topic": "order.created", "data": order},
 })
 
 # Old: register a queue trigger to consume
@@ -564,11 +564,11 @@ iii.trigger({
 ```rust title="Before (deprecated)"
 use serde_json::json;
 
-// Old: enqueue via trigger_void with topic
-iii.trigger_void("enqueue", json!({
-    "topic": "order.created",
-    "data": order,
-}))?;
+// Old: enqueue via trigger with topic
+iii.trigger(
+    TriggerRequest::new("enqueue", json!({"topic": "order.created", "data": order}))
+        .action(TriggerAction::void()),
+).await?;
 
 // Old: register a queue trigger to consume
 iii.register_trigger("queue", "orders::process-payment", json!({
@@ -606,7 +606,10 @@ iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python title="Before (deprecated)"
-iii.trigger_void("send-notification", data)
+iii.trigger({
+    "function_id": "send-notification",
+    "payload": data,
+})
 ```
 
 ```python title="After"
@@ -619,7 +622,9 @@ iii.trigger({
 </Tab>
 <Tab value="Rust">
 ```rust title="Before (deprecated)"
-iii.trigger_void("send-notification", data)?;
+iii.trigger(
+    TriggerRequest::new("send-notification", data).action(TriggerAction::void()),
+).await?;
 ```
 
 ```rust title="After"
