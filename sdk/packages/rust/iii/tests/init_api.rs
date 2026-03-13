@@ -21,8 +21,7 @@ async fn init_applies_otel_config_before_auto_connect() {
             }),
             ..Default::default()
         },
-    )
-    .expect("register_worker should succeed");
+    );
 
     client.register_function("test.echo.otel", |input| async move { Ok(input) });
 }
