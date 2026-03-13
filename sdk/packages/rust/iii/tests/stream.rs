@@ -1,6 +1,6 @@
 //! Integration tests for stream operations.
 //!
-//! Requires a running III engine. Set III_BRIDGE_URL or use ws://localhost:49134 default.
+//! Requires a running III engine. Set III_URL or use ws://localhost:49134 default.
 
 use std::time::Duration;
 
@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use iii_sdk::{III, TriggerRequest};
 
 fn engine_ws_url() -> String {
-    std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
+    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
 }
 
 async fn settle() {
@@ -18,23 +18,21 @@ async fn settle() {
 
 const STREAM_NAME: &str = "test-stream-rs";
 const GROUP_ID: &str = "test-group";
-const ITEM_ID: &str = "test-item";
 
-async fn delete_stream_item(iii: &III) {
-    let _ = iii
-        .trigger(TriggerRequest::new(
-            "stream::delete",
-            json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID}),
-        ))
-        .await;
+fn unique_item(prefix: &str) -> String {
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    format!("{prefix}-{ts}")
 }
 
 #[tokio::test]
 async fn stream_set_new_item() {
+    let item_id = unique_item("set-new");
     let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("connect");
     settle().await;
-    delete_stream_item(&iii).await;
 
     let test_data = json!({"name": "Test Item", "value": 42});
 
@@ -44,7 +42,7 @@ async fn stream_set_new_item() {
             json!({
                 "stream_name": STREAM_NAME,
                 "group_id": GROUP_ID,
-                "item_id": ITEM_ID,
+                "item_id": item_id,
                 "data": test_data,
             }),
         ))
@@ -54,23 +52,22 @@ async fn stream_set_new_item() {
     assert_eq!(result["old_value"], Value::Null);
     assert_eq!(result["new_value"], test_data);
 
-    delete_stream_item(&iii).await;
     iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn stream_set_overwrite() {
+    let item_id = unique_item("set-overwrite");
     let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("connect");
     settle().await;
-    delete_stream_item(&iii).await;
 
     let initial_data = json!({"value": 1});
     let updated_data = json!({"value": 2, "updated": true});
 
     iii.trigger(TriggerRequest::new(
         "stream::set",
-        json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": initial_data}),
+        json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": item_id, "data": initial_data}),
     ))
     .await
     .expect("stream::set initial");
@@ -78,7 +75,7 @@ async fn stream_set_overwrite() {
     let result = iii
         .trigger(TriggerRequest::new(
             "stream::set",
-            json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": updated_data}),
+            json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": item_id, "data": updated_data}),
         ))
         .await
         .expect("stream::set overwrite");
@@ -86,22 +83,21 @@ async fn stream_set_overwrite() {
     assert_eq!(result["old_value"], initial_data);
     assert_eq!(result["new_value"], updated_data);
 
-    delete_stream_item(&iii).await;
     iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn stream_get_existing_item() {
+    let item_id = unique_item("get-existing");
     let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("connect");
     settle().await;
-    delete_stream_item(&iii).await;
 
     let test_data = json!({"name": "Test", "value": 100});
 
     iii.trigger(TriggerRequest::new(
         "stream::set",
-        json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": test_data}),
+        json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": item_id, "data": test_data}),
     ))
     .await
     .expect("stream::set");
@@ -109,14 +105,13 @@ async fn stream_get_existing_item() {
     let result = iii
         .trigger(TriggerRequest::new(
             "stream::get",
-            json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID}),
+            json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": item_id}),
         ))
         .await
         .expect("stream::get");
 
     assert_eq!(result, test_data);
 
-    delete_stream_item(&iii).await;
     iii.shutdown_async().await;
 }
 
@@ -141,21 +136,21 @@ async fn stream_get_non_existent_item() {
 
 #[tokio::test]
 async fn stream_delete_existing_item() {
+    let item_id = unique_item("delete-existing");
     let iii = III::new(&engine_ws_url());
     iii.connect().await.expect("connect");
     settle().await;
-    delete_stream_item(&iii).await;
 
     iii.trigger(TriggerRequest::new(
         "stream::set",
-        json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": {"test": true}}),
+        json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": item_id, "data": {"test": true}}),
     ))
     .await
     .expect("stream::set");
 
     iii.trigger(TriggerRequest::new(
         "stream::delete",
-        json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID}),
+        json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": item_id}),
     ))
     .await
     .expect("stream::delete");
@@ -163,7 +158,7 @@ async fn stream_delete_existing_item() {
     let result = iii
         .trigger(TriggerRequest::new(
             "stream::get",
-            json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID}),
+            json!({"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": item_id}),
         ))
         .await
         .expect("stream::get after delete");

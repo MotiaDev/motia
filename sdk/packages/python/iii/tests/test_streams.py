@@ -1,5 +1,7 @@
 """Integration tests for stream operations."""
 
+from __future__ import annotations
+
 import asyncio
 import time
 from typing import Any
@@ -8,7 +10,17 @@ import pytest
 import pytest_asyncio
 
 from iii import III, IStream
-from iii.stream import StreamDeleteInput, StreamGetInput, StreamListGroupsInput, StreamListInput, StreamSetInput, StreamSetResult, StreamUpdateInput
+from iii.stream import (
+    StreamDeleteInput,
+    DeleteResult,
+    StreamGetInput,
+    StreamListGroupsInput,
+    StreamListInput,
+    StreamSetInput,
+    StreamSetResult,
+    StreamUpdateInput,
+    StreamUpdateResult,
+)
 
 STREAM_NAME = "test-stream-py"
 GROUP_ID = "test-group"
@@ -17,15 +29,19 @@ ITEM_ID = "test-item"
 
 @pytest_asyncio.fixture(autouse=True)
 async def cleanup_stream(iii_client: III):
-    await iii_client.trigger({
-        "function_id": "stream::delete",
-        "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID},
-    })
+    await iii_client.trigger(
+        {
+            "function_id": "stream::delete",
+            "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID},
+        }
+    )
     yield
-    await iii_client.trigger({
-        "function_id": "stream::delete",
-        "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID},
-    })
+    await iii_client.trigger(
+        {
+            "function_id": "stream::delete",
+            "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID},
+        }
+    )
 
 
 @pytest.mark.asyncio
@@ -33,15 +49,17 @@ async def test_stream_set_new_item(iii_client: III):
     """Setting a new stream item returns old_value=null and new_value."""
     test_data = {"name": "Test Item", "value": 42}
 
-    result = await iii_client.trigger({
-        "function_id": "stream::set",
-        "payload": {
-            "stream_name": STREAM_NAME,
-            "group_id": GROUP_ID,
-            "item_id": ITEM_ID,
-            "data": test_data,
-        },
-    })
+    result = await iii_client.trigger(
+        {
+            "function_id": "stream::set",
+            "payload": {
+                "stream_name": STREAM_NAME,
+                "group_id": GROUP_ID,
+                "item_id": ITEM_ID,
+                "data": test_data,
+            },
+        }
+    )
 
     assert result is not None
     assert result == {"old_value": None, "new_value": test_data}
@@ -53,15 +71,19 @@ async def test_stream_set_overwrite(iii_client: III):
     initial_data = {"value": 1}
     updated_data = {"value": 2, "updated": True}
 
-    await iii_client.trigger({
-        "function_id": "stream::set",
-        "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": initial_data},
-    })
+    await iii_client.trigger(
+        {
+            "function_id": "stream::set",
+            "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": initial_data},
+        }
+    )
 
-    result = await iii_client.trigger({
-        "function_id": "stream::set",
-        "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": updated_data},
-    })
+    result = await iii_client.trigger(
+        {
+            "function_id": "stream::set",
+            "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": updated_data},
+        }
+    )
 
     assert result["old_value"] == initial_data
     assert result["new_value"] == updated_data
@@ -72,15 +94,19 @@ async def test_stream_get_existing_item(iii_client: III):
     """Getting an existing stream item returns its data."""
     test_data = {"name": "Test", "value": 100}
 
-    await iii_client.trigger({
-        "function_id": "stream::set",
-        "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": test_data},
-    })
+    await iii_client.trigger(
+        {
+            "function_id": "stream::set",
+            "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": test_data},
+        }
+    )
 
-    result = await iii_client.trigger({
-        "function_id": "stream::get",
-        "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID},
-    })
+    result = await iii_client.trigger(
+        {
+            "function_id": "stream::get",
+            "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID},
+        }
+    )
 
     assert result == test_data
 
@@ -88,10 +114,12 @@ async def test_stream_get_existing_item(iii_client: III):
 @pytest.mark.asyncio
 async def test_stream_get_non_existent_item(iii_client: III):
     """Getting a non-existent stream item returns None."""
-    result = await iii_client.trigger({
-        "function_id": "stream::get",
-        "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": "non-existent-item"},
-    })
+    result = await iii_client.trigger(
+        {
+            "function_id": "stream::get",
+            "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": "non-existent-item"},
+        }
+    )
 
     assert result is None
 
@@ -99,29 +127,37 @@ async def test_stream_get_non_existent_item(iii_client: III):
 @pytest.mark.asyncio
 async def test_stream_delete_existing_item(iii_client: III):
     """Deleting an existing stream item removes it."""
-    await iii_client.trigger({
-        "function_id": "stream::set",
-        "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": {"test": True}},
-    })
-    await iii_client.trigger({
-        "function_id": "stream::delete",
-        "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID},
-    })
+    await iii_client.trigger(
+        {
+            "function_id": "stream::set",
+            "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID, "data": {"test": True}},
+        }
+    )
+    await iii_client.trigger(
+        {
+            "function_id": "stream::delete",
+            "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID},
+        }
+    )
 
-    result = await iii_client.trigger({
-        "function_id": "stream::get",
-        "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID},
-    })
+    result = await iii_client.trigger(
+        {
+            "function_id": "stream::get",
+            "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": ITEM_ID},
+        }
+    )
     assert result is None
 
 
 @pytest.mark.asyncio
 async def test_stream_delete_non_existent_item(iii_client: III):
     """Deleting a non-existent stream item does not raise an error."""
-    await iii_client.trigger({
-        "function_id": "stream::delete",
-        "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": "non-existent"},
-    })
+    await iii_client.trigger(
+        {
+            "function_id": "stream::delete",
+            "payload": {"stream_name": STREAM_NAME, "group_id": GROUP_ID, "item_id": "non-existent"},
+        }
+    )
 
 
 @pytest.mark.asyncio
@@ -135,15 +171,19 @@ async def test_stream_list_items_in_group(iii_client: III):
     ]
 
     for item in items:
-        await iii_client.trigger({
-            "function_id": "stream::set",
-            "payload": {"stream_name": STREAM_NAME, "group_id": group_id, "item_id": item["id"], "data": item},
-        })
+        await iii_client.trigger(
+            {
+                "function_id": "stream::set",
+                "payload": {"stream_name": STREAM_NAME, "group_id": group_id, "item_id": item["id"], "data": item},
+            }
+        )
 
-    result = await iii_client.trigger({
-        "function_id": "stream::list",
-        "payload": {"stream_name": STREAM_NAME, "group_id": group_id},
-    })
+    result = await iii_client.trigger(
+        {
+            "function_id": "stream::list",
+            "payload": {"stream_name": STREAM_NAME, "group_id": group_id},
+        }
+    )
 
     assert isinstance(result, list)
     assert len(result) >= len(items)
@@ -168,8 +208,9 @@ async def test_stream_custom_operations(iii_client: III):
             state[key] = input.data
             return StreamSetResult(old_value=old_value, new_value=input.data)
 
-        async def delete(self, input: StreamDeleteInput) -> None:
-            state.pop(f"{input.group_id}::{input.item_id}", None)
+        async def delete(self, input: StreamDeleteInput) -> StreamDeleteResult:
+            old = state.pop(f"{input.group_id}::{input.item_id}", None)
+            return StreamDeleteResult(old_value=old)
 
         async def list(self, input: StreamListInput) -> list:
             prefix = f"{input.group_id}::"
@@ -178,7 +219,7 @@ async def test_stream_custom_operations(iii_client: III):
         async def list_groups(self, input: StreamListGroupsInput) -> list[str]:
             return list(state.keys())
 
-        async def update(self, input: StreamUpdateInput) -> None:
+        async def update(self, input: StreamUpdateInput) -> StreamUpdateResult | None:
             raise NotImplementedError
 
     iii_client.create_stream(stream_name, InMemoryStream())

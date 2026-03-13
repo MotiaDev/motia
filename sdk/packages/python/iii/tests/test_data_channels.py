@@ -43,13 +43,15 @@ async def test_stream_data_from_sender_to_processor(iii_client: III):
         await channel.writer.write(payload)
         await channel.writer.close_async()
 
-        result = await iii_client.trigger({
-            "function_id": "test.data.processor",
-            "payload": {
-                "label": "metrics-batch",
-                "reader": channel.reader_ref.model_dump(),
-            },
-        })
+        result = await iii_client.trigger(
+            {
+                "function_id": "test.data.processor",
+                "payload": {
+                    "label": "metrics-batch",
+                    "reader": channel.reader_ref.model_dump(),
+                },
+            }
+        )
 
         return result
 
@@ -67,10 +69,12 @@ async def test_stream_data_from_sender_to_processor(iii_client: III):
             {"name": "latency_ms", "value": 12},
         ]
 
-        result = await iii_client.trigger({
-            "function_id": "test.data.sender",
-            "payload": {"records": records},
-        })
+        result = await iii_client.trigger(
+            {
+                "function_id": "test.data.sender",
+                "payload": {"records": records},
+            }
+        )
 
         assert result["label"] == "metrics-batch"
         assert len(result["messages"]) == 5
@@ -99,24 +103,34 @@ async def test_bidirectional_streaming(iii_client: III):
         async for chunk in reader:
             chunks.append(chunk)
             chunk_count += 1
-            await writer.send_message_async(json.dumps({
-                "type": "progress",
-                "chunks_received": chunk_count,
-            }))
+            await writer.send_message_async(
+                json.dumps(
+                    {
+                        "type": "progress",
+                        "chunks_received": chunk_count,
+                    }
+                )
+            )
 
         full_data = b"".join(chunks).decode("utf-8")
         words = full_data.split()
 
-        await writer.send_message_async(json.dumps({
-            "type": "complete",
-            "word_count": len(words),
-            "byte_count": len(b"".join(chunks)),
-        }))
+        await writer.send_message_async(
+            json.dumps(
+                {
+                    "type": "complete",
+                    "word_count": len(words),
+                    "byte_count": len(b"".join(chunks)),
+                }
+            )
+        )
 
-        result_json = json.dumps({
-            "words": words[:5],
-            "total": len(words),
-        }).encode("utf-8")
+        result_json = json.dumps(
+            {
+                "words": words[:5],
+                "total": len(words),
+            }
+        ).encode("utf-8")
         await writer.write(result_json)
         await writer.close_async()
 
@@ -132,13 +146,17 @@ async def test_bidirectional_streaming(iii_client: III):
         messages = []
         output_channel.reader.on_message(lambda msg: messages.append(json.loads(msg)))
 
-        call_task = asyncio.create_task(iii_client.trigger({
-            "function_id": "test.stream.worker",
-            "payload": {
-                "reader": input_channel.reader_ref.model_dump(),
-                "writer": output_channel.writer_ref.model_dump(),
-            },
-        }))
+        call_task = asyncio.create_task(
+            iii_client.trigger(
+                {
+                    "function_id": "test.stream.worker",
+                    "payload": {
+                        "reader": input_channel.reader_ref.model_dump(),
+                        "writer": output_channel.writer_ref.model_dump(),
+                    },
+                }
+            )
+        )
 
         text_bytes = text.encode("utf-8")
         offset = 0
@@ -167,13 +185,15 @@ async def test_bidirectional_streaming(iii_client: III):
     try:
         text = "The quick brown fox jumps over the lazy dog and then runs around the park"
 
-        result = await iii_client.trigger({
-            "function_id": "test.stream.coordinator",
-            "payload": {
-                "text": text,
-                "chunkSize": 10,
-            },
-        })
+        result = await iii_client.trigger(
+            {
+                "function_id": "test.stream.coordinator",
+                "payload": {
+                    "text": text,
+                    "chunkSize": 10,
+                },
+            }
+        )
 
         progress_msgs = [m for m in result["messages"] if m["type"] == "progress"]
         complete_msg = next((m for m in result["messages"] if m["type"] == "complete"), None)

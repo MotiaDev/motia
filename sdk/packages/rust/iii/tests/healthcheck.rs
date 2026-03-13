@@ -1,6 +1,6 @@
 //! Integration tests for healthcheck endpoint registration.
 //!
-//! Requires a running III engine. Set III_BRIDGE_URL and III_HTTP_URL, or use localhost defaults.
+//! Requires a running III engine. Set III_URL and III_HTTP_URL, or use localhost defaults.
 
 use std::time::Duration;
 
@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use iii_sdk::III;
 
 fn engine_ws_url() -> String {
-    std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
+    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
 }
 
 fn engine_http_url() -> String {
@@ -51,7 +51,10 @@ async fn register_healthcheck_function_and_trigger() {
     });
 
     let status_before = get_health_status(&engine_http_url()).await;
-    assert_eq!(status_before, 404, "expected 404 before trigger registration");
+    assert_eq!(
+        status_before, 404,
+        "expected 404 before trigger registration"
+    );
 
     let trigger = iii
         .register_trigger(
