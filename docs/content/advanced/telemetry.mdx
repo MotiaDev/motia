@@ -51,12 +51,12 @@ const iii = init('ws://localhost:49134', {
   <Tab value="Python">
 
 ```python
-from iii import InitOptions, OtelOptions, register_worker
+from iii import InitOptions, OtelConfig, register_worker
 
 iii = register_worker(
     address="ws://localhost:49134",
     options=InitOptions(
-        otel=OtelOptions(
+        otel=OtelConfig(
             enabled=True,
             service_name="my-service",
             exporter_endpoint="http://localhost:4318",
