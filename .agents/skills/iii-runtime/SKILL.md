@@ -1,48 +1,50 @@
 ---
 name: iii-runtime
-description: Use when working with iii as an orchestration runtime, especially when evaluating adoption in an existing backend, building functions or triggers or workers, choosing iii modules, integrating iii with queues or cron or http or stream workflows, or using iii for agent and tool-calling systems.
+description: Use when deciding whether iii should own a workflow, adopting iii into an existing backend, or building iii workers, functions, and triggers for http, cron, queue, stream, pub-sub, or state driven orchestration.
 ---
 
 # iii Runtime
 
-Use this skill when the task is about understanding, adopting, or implementing `iii`.
+Use this skill for `iii` adoption calls and for concrete worker / function / trigger work.
 
-`iii` is a centralized orchestration runtime for distributed polyglot function execution built around three primitives:
+`iii` is a centralized orchestration runtime built around three primitives:
 - `Function`
 - `Trigger`
 - `Worker`
 
 ## Use this skill when
 
-- user asks whether to adopt `iii`
-- user wants to build on `iii`
-- user needs help with functions, triggers, or workers
-- user is integrating `iii` with an existing backend
-- user is deciding between `http`, `cron`, queue, stream, pub-sub, or state patterns
-- user wants to use `iii` for agent or tool-calling workflows
+- user asks whether `iii` fits an existing system
+- user wants to add or debug a worker
+- user needs to register functions or triggers
+- user is choosing between `http`, `cron`, queue, `stream`, `pub-sub`, or state patterns
+- user is integrating `iii` with an existing backend or agent system
 
 ## First read
 
-- For core model and repo framing: `references/core-model.md`
-- For adoption and integration guidance: `references/adoption-patterns.md`
+- core framing: `references/core-model.md`
+- adoption and rollout: `references/adoption-patterns.md`
+- failure modes: `references/troubleshooting.md`
 
-Then read the nearest local docs in `docs/content/` rather than everything:
-- quickstart: `docs/content/tutorials/quickstart.mdx`
-- functions and triggers: `docs/content/how-to/use-functions-and-triggers.mdx`
-- HTTP endpoint: `docs/content/how-to/expose-http-endpoint.mdx`
-- trigger types: `docs/content/architecture/trigger-types.mdx`
-- modules: `docs/content/modules/`
+Then read only the nearest local docs:
+- quickstart engine path: `docs/content/tutorials/quickstart.mdx` section `2. Run the Engine`
+- first function: `docs/content/how-to/use-functions-and-triggers.mdx` section `Registering a Function and Triggering it`
+- trigger registration: `docs/content/architecture/trigger-types.mdx` section `Registering Triggers`
+- HTTP surface: `docs/content/how-to/expose-http-endpoint.mdx` section `3. Register the HTTP trigger`
+- Node SDK example: `sdk/packages/node/iii/README.md` section `Hello World`
+- Python SDK example: `sdk/packages/python/iii/README.md` section `Hello World`
+- Rust SDK example: `sdk/packages/rust/iii/README.md` section `Hello World`
 
 ## Working rules
 
-1. For existing systems, prefer `iii` as a sidecar first.
-2. Keep product logic in workers, not engine internals.
-3. Use stable domain-shaped function ids such as `orders::process` or `agent::research`.
+1. For existing systems, start sidecar-first.
+2. Keep domain logic in workers, not engine internals.
+3. Use stable domain-shaped ids like `orders::process` or `agent::research`.
 4. Choose the simplest trigger that preserves retries, ordering, and visibility.
-5. Keep latency-sensitive hot paths outside `iii` until there is real evidence it belongs there.
-6. If the task is only model abstraction or provider routing, do not force `iii` into the solution.
+5. Keep latency-sensitive hot paths outside `iii` until measured evidence says otherwise.
+6. If the problem is only model routing or provider abstraction, do not force `iii` into the design.
 
-## Good first-use cases
+## Good first slices
 
 - webhook ingestion
 - cron jobs
@@ -52,12 +54,29 @@ Then read the nearest local docs in `docs/content/` rather than everything:
 - eval pipelines
 - orchestration-heavy agent workflows
 
-## Higher-risk first-use cases
+## Higher-risk slices
 
 - websocket session authority
-- low-latency voice or streaming inference loops
+- low-latency voice or streaming loops
 - tightly coupled request-response hot paths
 - provider-specific realtime transports
+
+## Anti-patterns
+
+- using `iii` for plain model routing
+- splitting one hot synchronous request across two runtimes first
+- moving latency-critical voice paths on day one
+- vague function ids with no domain meaning
+- enabling many modules before one end-to-end slice works
+
+## Output shape
+
+Report:
+- engine location: local or remote
+- worker language and entry point
+- function ids registered or planned
+- trigger bindings
+- verification: direct invoke or smoke test status
 
 ## Repo anchors
 
@@ -69,5 +88,5 @@ Then read the nearest local docs in `docs/content/` rather than everything:
 
 ## Notes
 
-- This repo already has Cursor-specific guidance under `.cursor/`; this skill is the portable repo-local skill entrypoint.
-- The repo uses dual licensing. Check `engine/` vs SDK/docs/website boundaries before making distribution claims.
+- `.cursor/` has repo-specific authoring guidance; this skill is the portable entrypoint.
+- Check licensing boundaries before making distribution claims about `engine/` versus SDKs, docs, website, or console.

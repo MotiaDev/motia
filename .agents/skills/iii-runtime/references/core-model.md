@@ -28,6 +28,42 @@ Default to the smallest useful rollout:
 
 Do not start by modeling the whole platform.
 
+## Minimal Worker Example
+
+```ts
+import { registerWorker } from 'iii-sdk'
+
+const iii = registerWorker('ws://localhost:49134')
+
+iii.registerFunction({ id: 'lesson.summarize' }, async (input) => {
+  return { summary: `done:${input.lessonId}` }
+})
+
+iii.registerTrigger({
+  type: 'http',
+  function_id: 'lesson.summarize',
+  config: { api_path: '/lesson/summarize', http_method: 'POST' },
+})
+```
+
+Start with one worker, one function, one trigger, one smoke test.
+
+Python follows the same shape:
+
+```py
+from iii import init
+
+iii = init("ws://localhost:49134")
+iii.register_function("lesson.summarize", summarize)
+iii.register_trigger(
+    type="http",
+    function_id="lesson.summarize",
+    config={"api_path": "/lesson/summarize", "http_method": "POST"},
+)
+```
+
+Rust parity lives in `sdk/packages/rust/iii/README.md`.
+
 ## Trigger Choice
 
 Use this mapping:
