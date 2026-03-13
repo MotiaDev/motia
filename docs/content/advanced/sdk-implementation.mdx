@@ -126,7 +126,7 @@ OpenTelemetry is initialized automatically by default. Each function invocation 
 
 ## Python Implementation
 
-The Python SDK (`iii-sdk` on PyPI, imported as `iii`) uses `asyncio` and `websockets`.
+The Python SDK (`iii-sdk` on PyPI, imported as `iii`) uses `websockets`.
 
 ### Installation
 
@@ -212,15 +212,15 @@ from iii import III
 from iii.stream import IStream, StreamGetInput, StreamSetInput, StreamDeleteInput, StreamListInput
 
 class MyStream(IStream):
-    async def get(self, input: StreamGetInput):
+    def get(self, input: StreamGetInput):
         ...
-    async def set(self, input: StreamSetInput):
+    def set(self, input: StreamSetInput):
         ...
-    async def delete(self, input: StreamDeleteInput):
+    def delete(self, input: StreamDeleteInput):
         ...
-    async def list(self, input: StreamListInput):
+    def list(self, input: StreamListInput):
         ...
-    async def list_groups(self, input):
+    def list_groups(self, input):
         ...
 
 iii.create_stream("my-stream", MyStream())
@@ -407,7 +407,7 @@ iii.registerFunction({ id: 'handler' }, async (data: ApiRequest) => {
 ```python
 from iii import ApiRequest, ApiResponse
 
-async def handler(data) -> ApiResponse:
+def handler(data) -> ApiResponse:
     req = ApiRequest(**data)
     return ApiResponse(status_code=200, body={"ok": True})
 ```
@@ -433,9 +433,9 @@ iii.register_function("handler", |input| async move {
     Always handle errors gracefully and return appropriate HTTP status codes.
 
     ```python
-    async def handler(data):
+    def handler(data):
         try:
-            result = await process_data(data)
+            result = process_data(data)
             return ApiResponse(status_code=200, body=result)
         except ValueError as e:
             logger = Logger()
@@ -463,9 +463,9 @@ process.on('SIGINT', async () => {
 
 ```python
 try:
-    await asyncio.Event().wait()
+    threading.Event().wait()
 finally:
-    await iii.shutdown()
+    iii.shutdown()
 ```
 
       </Tab>
