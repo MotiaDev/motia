@@ -3,6 +3,8 @@
   "defaultOpen": false,
   "pages": [
     "use-functions-and-triggers",
+    "use-queues",
+    "dead-letter-queues",
     "expose-http-endpoint",
     "manage-state",
     "react-to-state-changes",
@@ -10,6 +12,7 @@
     "schedule-cron-task",
     "create-ephemeral-worker",
     "stream-realtime-data",
+    "create-custom-trigger-type",
     "configure-engine"
   ]
 }

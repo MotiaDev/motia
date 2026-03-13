@@ -28,7 +28,7 @@ iii.registerTrigger({
   config: { api_path: '/greet', http_method: 'POST' },
 })
 
-const result = await iii.trigger('greet', { name: 'world' })
+const result = await iii.trigger({ function_id: 'greet', payload: { name: 'world' } })
 ```
 
 ## API
@@ -38,8 +38,8 @@ const result = await iii.trigger('greet', { name: 'world' })
 | Initialize               | `registerWorker(url, options?)`                      | Create and connect to the engine. Returns an `ISdk` instance |
 | Register function        | `iii.registerFunction({ id }, handler)`              | Register a function that can be invoked by name              |
 | Register trigger         | `iii.registerTrigger({ type, function_id, config })` | Bind a trigger (HTTP, cron, queue, etc.) to a function       |
-| Invoke (await)           | `await iii.trigger(id, data, timeoutMs?)`            | Invoke a function and wait for the result                    |
-| Invoke (fire-and-forget) | `iii.triggerVoid(id, data)`                          | Invoke a function without waiting (fire-and-forget)          |
+| Invoke (await)           | `await iii.trigger({ function_id, payload })`       | Invoke a function and wait for the result                    |
+| Invoke (fire-and-forget) | `iii.trigger({ function_id, payload, action: TriggerAction.Void() })` | Invoke without waiting |
 
 ### Registering Functions
 
@@ -62,9 +62,13 @@ iii.registerTrigger({
 ### Invoking Functions
 
 ```javascript
-const result = await iii.trigger('orders.create', { item: 'widget' })
+import { registerWorker, TriggerAction } from 'iii-sdk'
 
-iii.triggerVoid('analytics.track', { event: 'page_view' })
+const iii = registerWorker('ws://localhost:49134')
+
+const result = await iii.trigger({ function_id: 'orders.create', payload: { item: 'widget' } })
+
+iii.trigger({ function_id: 'analytics.track', payload: { event: 'page_view' }, action: TriggerAction.Void() })
 ```
 
 ## Node Modules
@@ -75,6 +79,10 @@ iii.triggerVoid('analytics.track', { event: 'page_view' })
 | `iii-sdk/stream`    | Stream client for real-time state     |
 | `iii-sdk/state`     | State client for key-value operations |
 | `iii-sdk/telemetry` | OpenTelemetry integration             |
+
+## Removed methods
+
+`call`, `callVoid`, and `triggerVoid` have been removed. Use `trigger()` for all invocations. For fire-and-forget, use `trigger({ function_id, payload, action: TriggerAction.Void() })`.
 
 ## Resources
 

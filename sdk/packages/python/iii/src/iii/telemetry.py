@@ -94,7 +94,7 @@ def init_otel(
 
     ws_url = (
         cfg.engine_ws_url
-        or os.environ.get("III_BRIDGE_URL")
+        or os.environ.get("III_URL")
         or "ws://localhost:49134"
     )
     _connection = SharedEngineConnection(ws_url)
@@ -431,3 +431,168 @@ def current_span_id() -> str | None:
 def is_initialized() -> bool:
     """Return True if OTel has been successfully initialized."""
     return _initialized
+
+
+def get_logger() -> Any:
+    """Return the active OTel logger, or None if OTel has not been initialized."""
+    if not _initialized:
+        return None
+    try:
+        from opentelemetry import _logs
+        return _logs.get_logger("iii-python-sdk")
+    except ImportError:
+        return None
+
+
+async def with_span(
+    name: str,
+    fn: Any,
+    *,
+    kind: Any = None,
+    traceparent: str | None = None,
+) -> Any:
+    """Start a new span and run *fn(span)* within it.
+
+    If the tracer is not initialized, *fn* is called with a no-op span
+    that silently ignores attribute/event calls.
+
+    Args:
+        name: Span name.
+        fn: Async callable ``(span) -> T``.
+        kind: Optional ``SpanKind``. Defaults to ``INTERNAL``.
+        traceparent: Optional W3C traceparent to use as parent context.
+
+    Returns:
+        The value returned by *fn*.
+    """
+    tracer = get_tracer()
+    if tracer is None:
+        class _NoopSpan:
+            def set_attribute(self, *a: Any, **kw: Any) -> None: ...
+            def set_attributes(self, *a: Any, **kw: Any) -> None: ...
+            def add_event(self, *a: Any, **kw: Any) -> None: ...
+            def set_status(self, *a: Any, **kw: Any) -> None: ...
+            def record_exception(self, *a: Any, **kw: Any) -> None: ...
+            def end(self) -> None: ...
+            def is_recording(self) -> bool: return False
+            def get_span_context(self) -> Any: return None
+        return await fn(_NoopSpan())
+
+    try:
+        from opentelemetry import context as otel_ctx
+        from opentelemetry.propagate import extract as otel_extract
+        from opentelemetry.trace import SpanKind as _SpanKind
+        from opentelemetry.trace import StatusCode
+
+    except ImportError:
+        return await fn(None)
+
+    span_kind = kind if kind is not None else _SpanKind.INTERNAL
+    parent_context = otel_ctx.get_current()
+    if traceparent:
+        parent_context = otel_extract({"traceparent": traceparent})
+
+    with tracer.start_as_current_span(name, kind=span_kind, context=parent_context) as span:
+        try:
+            result = await fn(span)
+            span.set_status(StatusCode.OK)
+            return result
+        except Exception as exc:
+            span.set_status(StatusCode.ERROR, str(exc))
+            span.record_exception(exc)
+            raise
+
+
+def inject_traceparent() -> str | None:
+    """Inject the current trace context into a W3C traceparent header string."""
+    try:
+        from opentelemetry import context as otel_ctx
+        from opentelemetry.propagate import inject as otel_inject
+        carrier: dict[str, str] = {}
+        otel_inject(carrier, context=otel_ctx.get_current())
+        return carrier.get("traceparent")
+    except ImportError:
+        return None
+
+
+def extract_traceparent(traceparent: str) -> Any:
+    """Extract a trace context from a W3C traceparent header string."""
+    try:
+        from opentelemetry.propagate import extract as otel_extract
+        return otel_extract({"traceparent": traceparent})
+    except ImportError:
+        return None
+
+
+def inject_baggage() -> str | None:
+    """Inject the current baggage into a W3C baggage header string."""
+    try:
+        from opentelemetry import context as otel_ctx
+        from opentelemetry.propagate import inject as otel_inject
+        carrier: dict[str, str] = {}
+        otel_inject(carrier, context=otel_ctx.get_current())
+        return carrier.get("baggage")
+    except ImportError:
+        return None
+
+
+def extract_baggage(baggage: str) -> Any:
+    """Extract baggage from a W3C baggage header string."""
+    try:
+        from opentelemetry.propagate import extract as otel_extract
+        return otel_extract({"baggage": baggage})
+    except ImportError:
+        return None
+
+
+def extract_context(traceparent: str | None = None, baggage: str | None = None) -> Any:
+    """Extract both trace context and baggage from their respective headers."""
+    try:
+        from opentelemetry.propagate import extract as otel_extract
+        carrier: dict[str, str] = {}
+        if traceparent:
+            carrier["traceparent"] = traceparent
+        if baggage:
+            carrier["baggage"] = baggage
+        return otel_extract(carrier)
+    except ImportError:
+        return None
+
+
+def get_baggage_entry(key: str) -> str | None:
+    """Get a baggage entry value from the current context."""
+    try:
+        from opentelemetry import baggage as otel_baggage
+        val = otel_baggage.get_baggage(key)
+        return str(val) if val is not None else None
+    except ImportError:
+        return None
+
+
+def set_baggage_entry(key: str, value: str) -> Any:
+    """Set a baggage entry in the current context. Returns the new context."""
+    try:
+        from opentelemetry import baggage as otel_baggage
+        ctx = otel_baggage.set_baggage(key, value)
+        return ctx
+    except ImportError:
+        return None
+
+
+def remove_baggage_entry(key: str) -> Any:
+    """Remove a baggage entry from the current context. Returns the new context."""
+    try:
+        from opentelemetry import baggage as otel_baggage
+        return otel_baggage.remove_baggage(key)
+    except ImportError:
+        return None
+
+
+def get_all_baggage() -> dict[str, str]:
+    """Get all baggage entries from the current context."""
+    try:
+        from opentelemetry import baggage as otel_baggage
+        entries = otel_baggage.get_all()
+        return {k: str(v) for k, v in entries.items()} if entries else {}
+    except ImportError:
+        return {}

@@ -800,7 +800,7 @@ impl Engine {
                         Err(_) => { tracing::Span::current().record("otel.status_code", "ERROR"); }
                     }
                 }
-                .instrument(tracing::info_span!(parent: parent, "fire_trigger", function_id = %span_function_id, otel.status_code = tracing::field::Empty))
+                .instrument(tracing::info_span!(parent: parent, "trigger", otel.name = %format!("trigger {}", span_function_id), function_id = %span_function_id, otel.status_code = tracing::field::Empty))
             );
         }
     }

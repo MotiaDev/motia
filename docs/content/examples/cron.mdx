@@ -19,9 +19,9 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import {Logger, TriggerAction} from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = init(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'cron.periodic_job', description: 'Fires on schedule and enqueues work' },
@@ -29,9 +29,13 @@ iii.registerFunction(
     const logger = new Logger()
     logger.info('Periodic job fired')
 
-    iii.triggerVoid('enqueue', {
-      topic: 'job.tick',
-      data: { firedAt: new Date().toISOString(), message: 'Periodic job executed' },
+    iii.trigger({
+      function_id: 'enqueue',
+      payload: {
+        topic: 'job.tick',
+        data: { firedAt: new Date().toISOString(), message: 'Periodic job executed' },
+      },
+      action: TriggerAction.Void(),
     })
   },
 )
@@ -49,7 +53,7 @@ iii.registerTrigger({
 ```python
 import asyncio
 from datetime import datetime, timezone
-from iii import III, InitOptions
+from iii import III, InitOptions, TriggerAction
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="cron-worker"))
 
@@ -57,13 +61,18 @@ iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="cron-
 async def periodic_job(_data, ctx) -> None:
     logger.info("Periodic job fired")
 
-    iii.trigger_void("enqueue", {
-        "topic": "job.tick",
-        "data": {
-            "firedAt": datetime.now(timezone.utc).isoformat(),
-            "message": "Periodic job executed",
+    iii.trigger_void({
+        "function_id": "enqueue",
+        "payload": {
+            "topic": "job.tick",
+            "data": {
+                "firedAt": datetime.now(timezone.utc).isoformat(),
+                "message": "Periodic job executed",
+            },
         },
+        "action": TriggerAction.Void(),
     })
+
 
 
 iii.register_function("cron.periodic_job", lambda data: periodic_job(data, Logger()))
@@ -78,7 +87,7 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger};
+use iii_sdk::{III, Logger, TriggerRequest, TriggerAction};
 use serde_json::json;
 
 let iii = III::new("ws://127.0.0.1:49134");
@@ -87,13 +96,13 @@ iii.register_function("cron.periodic_job", |_input| async move {
     let logger = Logger();
     logger.info("Periodic job fired", None);
 
-    iii.trigger_void("enqueue", json!({
+    iii.trigger(TriggerRequest::new("enqueue", json!({
         "topic": "job.tick",
         "data": {
             "firedAt": chrono::Utc::now().to_rfc3339(),
             "message": "Periodic job executed",
         },
-    }))?;
+    })).action(TriggerAction::void())).await?;
 
     Ok(json!(null))
 });
@@ -180,7 +189,7 @@ iii.registerFunction(
       shipDate: string
       complete: boolean
       status: string
-    }[]>('state::list', { scope: 'orders' })
+    }[]>({ function_id: 'state::list', payload: { scope: 'orders' } })
 
     let swept = 0
 
@@ -188,14 +197,18 @@ iii.registerFunction(
       if (!order.complete && new Date() > new Date(order.shipDate)) {
         logger.warn('Order overdue', { orderId: order.id, shipDate: order.shipDate })
 
-        iii.triggerVoid('enqueue', {
-          topic: 'notification',
-          data: {
-            orderId: order.id,
-            templateId: 'order-audit-warning',
-            status: order.status,
-            shipDate: order.shipDate,
+        iii.trigger({
+          function_id: 'enqueue',
+          payload: {
+            topic: 'notification',
+            data: {
+              orderId: order.id,
+              templateId: 'order-audit-warning',
+              status: order.status,
+              shipDate: order.shipDate,
+            },
           },
+          action: TriggerAction.Void(),
         })
 
         swept++
@@ -221,7 +234,7 @@ from datetime import datetime, timezone
 
 
 async def orders_sweep(_data, ctx) -> None:
-    orders = await iii.trigger("state::list", {"scope": "orders"}) or []
+    orders = await iii.trigger({"function_id": "state::list", "payload": {"scope": "orders"}}) or []
     swept = 0
 
     for order in orders:
@@ -236,13 +249,17 @@ async def orders_sweep(_data, ctx) -> None:
         if not complete and datetime.now(timezone.utc) > ship_date:
             logger.warn("Order overdue", {"orderId": order.get("id")})
 
-            iii.trigger_void("enqueue", {
-                "topic": "notification",
-                "data": {
-                    "orderId": order.get("id"),
-                    "templateId": "order-audit-warning",
-                    "status": order.get("status"),
+            iii.trigger_void({
+                "function_id": "enqueue",
+                "payload": {
+                    "topic": "notification",
+                    "data": {
+                        "orderId": order.get("id"),
+                        "templateId": "order-audit-warning",
+                        "status": order.get("status"),
+                    },
                 },
+                "action": TriggerAction.Void(),
             })
             swept += 1
 
@@ -260,7 +277,7 @@ iii.register_trigger(type="cron", function_id="cron.orders_sweep", config={"expr
 iii.register_function("cron.orders_sweep", |_input| async move {
     let logger = Logger();
 
-    let orders_val = iii.trigger("state::list", json!({ "scope": "orders" })).await?;
+    let orders_val = iii.trigger(TriggerRequest::new("state::list", json!({ "scope": "orders" }))).await?;
     let orders = orders_val.as_array().cloned().unwrap_or_default();
     let mut swept = 0usize;
 
@@ -272,13 +289,13 @@ iii.register_function("cron.orders_sweep", |_input| async move {
             if !complete && chrono::Utc::now() > ship_date {
                 logger.warn("Order overdue", Some(json!({ "orderId": order["id"] })));
 
-                iii.trigger_void("enqueue", json!({
+                iii.trigger(TriggerRequest::new("enqueue", json!({
                     "topic": "notification",
                     "data": {
                         "orderId": order["id"],
                         "templateId": "order-audit-warning",
                     },
-                }))?;
+                })).action(TriggerAction::void())).await?;
 
                 swept += 1;
             }

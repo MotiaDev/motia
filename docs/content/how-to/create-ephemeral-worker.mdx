@@ -20,12 +20,12 @@ Connect to iii and register the `reports::generate` function handler to process 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="worker.ts"
-import { init, getContext } from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'reports::generate' }, async (req) => {
-  const { logger } = getContext()
+  const logger = new Logger()
   const reportId = req.body?.reportId ?? 'unknown'
   
   logger.info('Generating heavy report...', { reportId })
@@ -43,21 +43,20 @@ iii.registerFunction({ id: 'reports::generate' }, async (req) => {
 ```python title="worker.py"
 import asyncio
 import os
-from iii import III
-from iii.context import get_context
+from iii import III, Logger
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 async def generate_report(req):
-    ctx = get_context()
+    logger = Logger()
     report_id = req.get('body', {}).get('reportId', 'unknown')
-    
-    ctx.logger.info('Generating heavy report...', {'reportId': report_id})
-    
+
+    logger.info('Generating heavy report...', {'reportId': report_id})
+
     # ... perform resource-intensive work here ...
     await asyncio.sleep(5) # example 5 second delay
-    
-    ctx.logger.info('Report generated', {'reportId': report_id})
+
+    logger.info('Report generated', {'reportId': report_id})
     
     return {'status_code': 200, 'body': {'success': True, 'reportId': report_id}}
 
@@ -66,12 +65,12 @@ iii.register_function('reports::generate', generate_report)
 </Tab>
 <Tab value="Rust">
 ```rust title="worker.rs"
-use iii_sdk::{get_context, III};
+use iii_sdk::{get_context, III, TriggerRequest};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+    let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
     let iii = III::new(&url);
 
     iii.register_function("reports::generate", move |req| {
@@ -107,10 +106,10 @@ async function main() {
   console.log("Worker ready, triggering task...")
   
   // Trigger the task and await its completion
-  const result = await iii.trigger(
-    'reports::generate',
-    { body: { reportId: '123' } },
-  )
+  const result = await iii.trigger({
+    function_id: 'reports::generate',
+    payload: { body: { reportId: '123' } },
+  })
   
   console.log("Task completed", result.status_code, result.body)
   
@@ -131,7 +130,10 @@ async def main():
     print("Worker ready, triggering task...")
     
     # Trigger the task and await its completion
-    result = await iii.trigger('reports::generate', {'body': {'reportId': '123'}})
+    result = await iii.trigger({
+        'function_id': 'reports::generate',
+        'payload': {'body': {'reportId': '123'}},
+    })
     print(f"Task completed: status_code={result.get('status_code')} body={result.get('body')}")
     
     print("Task completed. Shutting down worker...")
@@ -148,7 +150,12 @@ asyncio.run(main())
     println!("Worker ready, triggering task...");
     
     // Trigger the task and await its completion
-    let result = iii.trigger("reports::generate", json!({ "body": { "reportId": "123" } })).await?;
+    let result = iii
+        .trigger(TriggerRequest::new(
+            "reports::generate",
+            json!({ "body": { "reportId": "123" } }),
+        ))
+        .await?;
     println!("Task completed: {}", result);
     
     println!("Task completed. Shutting down worker...");

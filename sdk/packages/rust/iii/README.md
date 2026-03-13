@@ -20,7 +20,7 @@ tokio = { version = "1", features = ["full"] }
 ## Hello World
 
 ```rust
-use iii_sdk::{register_worker, InitOptions};
+use iii_sdk::{register_worker, InitOptions, TriggerRequest};
 use serde_json::json;
 
 #[tokio::main]
@@ -54,14 +54,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 | Register function        | `iii.register_function(id, \|input\| ...)`   | Register a function that can be invoked by name        |
 | Register trigger         | `iii.register_trigger(type, fn_id, config)?` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
 | Invoke (await)           | `iii.trigger(TriggerRequest::new(id, data)).await?` | Invoke a function and wait for the result              |
-| Invoke (fire-and-forget) | `iii.trigger_void(id, data)?`                | Invoke a function without waiting (fire-and-forget)    |
+| Invoke (fire-and-forget) | `iii.trigger(TriggerRequest::new(id, data).action(TriggerAction::void())).await?` | Invoke a function without waiting (fire-and-forget)    |
 
-`register_worker()` spawns a background task that handles WebSocket communication and automatic reconnection. OpenTelemetry instrumentation is available when the `otel` feature is enabled.
+`register_worker()` spawns a background task that handles WebSocket communication, automatic reconnection, and OpenTelemetry instrumentation.
 
 ### Registering Functions
 
 ```rust
-iii.register_function("orders::create", |input| async move {
+iii.register_function("orders.create", |input| async move {
     let item = input["body"]["item"].as_str().unwrap_or("");
     Ok(json!({ "status_code": 201, "body": { "id": "123", "item": item } }))
 });
@@ -70,7 +70,7 @@ iii.register_function("orders::create", |input| async move {
 ### Registering Triggers
 
 ```rust
-iii.register_trigger("http", "orders::create", json!({
+iii.register_trigger("http", "orders.create", json!({
     "api_path": "/orders",
     "http_method": "POST"
 }))?;
@@ -79,14 +79,18 @@ iii.register_trigger("http", "orders::create", json!({
 ### Invoking Functions
 
 ```rust
-use iii_sdk::TriggerRequest;
+use iii_sdk::{TriggerRequest, TriggerAction};
 use serde_json::json;
 
 let result = iii
-    .trigger(TriggerRequest::new("orders::create", json!({ "body": { "item": "widget" } })))
+    .trigger(TriggerRequest::new("orders.create", json!({ "body": { "item": "widget" } })))
     .await?;
 
-iii.trigger_void("analytics::track", json!({ "event": "page_view" }))?;
+iii.trigger(
+    TriggerRequest::new("analytics.track", json!({ "event": "page_view" }))
+        .action(TriggerAction::void()),
+)
+.await?;
 ```
 
 ### Streams
@@ -122,6 +126,10 @@ iii-sdk = { version = "0.3", features = ["otel"] }
 | `iii_sdk`            | Core SDK (`III`, types)                             |
 | `iii_sdk::stream`    | Stream client (`Streams`, `UpdateBuilder`)          |
 | `iii_sdk::telemetry` | OpenTelemetry integration (requires `otel` feature) |
+
+## Deprecated
+
+`call`, `call_void`, and `trigger_void` have been removed. Use `trigger()` for all invocations. For fire-and-forget, use `trigger(TriggerRequest::new(fn_id, data).action(TriggerAction::void()))`.
 
 ## Resources
 

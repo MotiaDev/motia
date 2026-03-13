@@ -14,6 +14,11 @@ pub enum HttpMethod {
     Delete,
 }
 
+/// Authentication configuration for HTTP-invoked functions.
+///
+/// - `Hmac` -- HMAC signature verification using a shared secret.
+/// - `Bearer` -- Bearer token authentication.
+/// - `ApiKey` -- API key sent via a custom header.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum HttpAuthConfig {
@@ -30,6 +35,8 @@ pub enum HttpAuthConfig {
     },
 }
 
+/// Configuration for registering an HTTP-invoked function (Lambda, Cloudflare
+/// Workers, etc.) instead of a local handler.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpInvocationConfig {
     pub url: String,
@@ -47,14 +54,22 @@ fn default_http_method() -> HttpMethod {
     HttpMethod::Post
 }
 
+/// Routing action for [`TriggerRequest`]. Determines how the engine handles
+/// the invocation.
+///
+/// - `Enqueue` -- Routes through a named queue for async processing.
+/// - `Void` -- Fire-and-forget, no response.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum TriggerAction {
+    /// Routes the invocation through a named queue.
     Enqueue { queue: String },
+    /// Fire-and-forget routing.
     Void,
 }
 
 impl TriggerAction {
+    /// Create an enqueue action for the given queue name.
     pub fn enqueue(queue: &str) -> Self {
         TriggerAction::Enqueue {
             queue: queue.to_string(),
@@ -73,13 +88,12 @@ pub struct EnqueueResult {
 }
 
 /// Request object for `trigger()`. Matches the Node/Python SDK signature:
-/// `trigger({ function_id, payload, action?, timeout? })`
+/// `trigger({ function_id, payload, action?, timeout_ms? })`
 ///
 /// Build with the constructor or the builder-style methods:
-/// ```rust,no_run
+/// ```rust
 /// # use iii_sdk::protocol::{TriggerRequest, TriggerAction};
 /// # use serde_json::json;
-/// # use std::time::Duration;
 /// // Simple call
 /// TriggerRequest::new("my::function", json!({ "key": "value" }));
 ///
@@ -89,14 +103,14 @@ pub struct EnqueueResult {
 ///
 /// // With timeout
 /// TriggerRequest::new("my::function", json!({}))
-///     .timeout(Duration::from_secs(10));
+///     .timeout_ms(10_000);
 /// ```
 #[derive(Debug, Clone)]
 pub struct TriggerRequest {
     pub function_id: String,
     pub payload: Value,
     pub action: Option<TriggerAction>,
-    pub timeout: Option<std::time::Duration>,
+    pub timeout_ms: Option<u64>,
 }
 
 impl TriggerRequest {
@@ -105,7 +119,7 @@ impl TriggerRequest {
             function_id: function_id.into(),
             payload: serde_json::to_value(payload).unwrap_or(Value::Null),
             action: None,
-            timeout: None,
+            timeout_ms: None,
         }
     }
 
@@ -114,8 +128,14 @@ impl TriggerRequest {
         self
     }
 
+    pub fn timeout_ms(mut self, timeout_ms: u64) -> Self {
+        self.timeout_ms = Some(timeout_ms);
+        self
+    }
+
+    #[deprecated(since = "0.3.0", note = "Use timeout_ms(milliseconds) instead")]
     pub fn timeout(mut self, timeout: std::time::Duration) -> Self {
-        self.timeout = Some(timeout);
+        self.timeout_ms = Some(timeout.as_millis() as u64);
         self
     }
 }

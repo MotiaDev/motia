@@ -7,22 +7,29 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class HttpAuthHmac(BaseModel):
+    """HMAC signature verification using a shared secret."""
+
     type: Literal["hmac"] = "hmac"
     secret_key: str
 
 
 class HttpAuthBearer(BaseModel):
+    """Bearer token authentication."""
+
     type: Literal["bearer"] = "bearer"
     token_key: str
 
 
 class HttpAuthApiKey(BaseModel):
+    """API key sent via a custom header."""
+
     type: Literal["api_key"] = "api_key"
     header: str
     value_key: str
 
 
 HttpAuthConfig = HttpAuthHmac | HttpAuthBearer | HttpAuthApiKey
+"""Authentication configuration for HTTP-invoked functions."""
 
 
 class HttpInvocationConfig(BaseModel):
@@ -129,28 +136,43 @@ class RegisterFunctionMessage(BaseModel):
 
 
 class TriggerActionEnqueue(BaseModel):
+    """Routes the invocation through a named queue for async processing."""
+
     type: Literal["enqueue"] = "enqueue"
     queue: str
 
 
 class TriggerActionVoid(BaseModel):
+    """Fire-and-forget routing. No response is returned."""
+
     type: Literal["void"] = "void"
 
 
 TriggerAction = TriggerActionEnqueue | TriggerActionVoid
+"""Routing action for trigger requests."""
 
 
 class EnqueueResult(BaseModel):
+    """Result returned when a function is invoked with ``TriggerAction.Enqueue``."""
+
     messageReceiptId: str
+    """Unique receipt ID for the enqueued message."""
 
 
 class TriggerRequest(BaseModel):
-    """Request object for trigger() — matches the object form API."""
+    """Request object for ``trigger()``.
+
+    Attributes:
+        function_id: ID of the function to invoke.
+        payload: Payload to pass to the function.
+        action: Routing action. Omit for synchronous request/response.
+        timeout_ms: Override the default invocation timeout in milliseconds.
+    """
 
     function_id: str
     payload: Any = None
     action: TriggerActionEnqueue | TriggerActionVoid | None = None
-    timeout: float | None = None
+    timeout_ms: int | None = None
 
 
 class InvokeFunctionMessage(BaseModel):
@@ -236,6 +258,22 @@ class StreamChannelRef(BaseModel):
     access_key: str
     direction: Literal["read", "write"]
 
+
+class OtelLogEvent(BaseModel):
+    """OTEL log event received from the engine via ``on_log``."""
+
+    timestamp_unix_nano: int
+    observed_timestamp_unix_nano: int
+    severity_number: int
+    severity_text: str
+    body: str
+    attributes: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str | None = None
+    span_id: str | None = None
+    resource: dict[str, str] = Field(default_factory=dict)
+    service_name: str = ""
+    instrumentation_scope_name: str | None = None
+    instrumentation_scope_version: str | None = None
 
 IIIMessage = (
     RegisterFunctionMessage

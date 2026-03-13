@@ -50,7 +50,7 @@ use crate::telemetry;
 #[cfg(feature = "otel")]
 use crate::telemetry::types::OtelConfig;
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 
 /// Worker information returned by `engine::workers::list`
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -256,6 +256,9 @@ struct IIIInner {
     otel_config: Mutex<Option<OtelConfig>>,
 }
 
+/// WebSocket client for communication with the III Engine.
+///
+/// Create with [`III::new`] or [`register_worker`](crate::register_worker).
 #[derive(Clone)]
 pub struct III {
     inner: Arc<IIIInner>,
@@ -465,6 +468,27 @@ impl III {
         FunctionRef { id, unregister_fn }
     }
 
+    /// Register a function with the engine.
+    ///
+    /// Pass a closure/async fn for local execution, or an [`HttpInvocationConfig`]
+    /// for HTTP-invoked functions (Lambda, Cloudflare Workers, etc.).
+    ///
+    /// # Arguments
+    /// * `id` - Unique function identifier.
+    /// * `handler` - Async handler or HTTP invocation config.
+    ///
+    /// # Panics
+    /// Panics if `id` is empty or already registered.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use iii_sdk::III;
+    /// # use serde_json::{json, Value};
+    /// # let iii = III::new("ws://localhost:49134");
+    /// iii.register_function("greet", |input: Value| async move {
+    ///     Ok(json!({"message": format!("Hello, {}!", input["name"])}))
+    /// });
+    /// ```
     pub fn register_function<H: IntoFunctionHandler>(
         &self,
         id: impl Into<String>,
@@ -483,6 +507,7 @@ impl III {
         self.register_function_inner(message, handler)
     }
 
+    /// Register a function with a human-readable description.
     pub fn register_function_with_description<H: IntoFunctionHandler>(
         &self,
         id: impl Into<String>,
@@ -501,6 +526,7 @@ impl III {
         self.register_function_inner(message, handler)
     }
 
+    /// Register a function using a pre-built [`RegisterFunctionMessage`] for full control.
     pub fn register_function_with<H: IntoFunctionHandler>(
         &self,
         mut message: RegisterFunctionMessage,
@@ -568,6 +594,12 @@ impl III {
         let _ = self.send_message(message.to_message());
     }
 
+    /// Register a custom trigger type with the engine.
+    ///
+    /// # Arguments
+    /// * `id` - Unique trigger type identifier.
+    /// * `description` - Human-readable description.
+    /// * `handler` - Handler implementing [`TriggerHandler`].
     pub fn register_trigger_type<H>(
         &self,
         id: impl Into<String>,
@@ -592,6 +624,7 @@ impl III {
         let _ = self.send_message(message.to_message());
     }
 
+    /// Unregister a previously registered trigger type.
     pub fn unregister_trigger_type(&self, id: impl Into<String>) {
         let id = id.into();
         self.inner.trigger_types.lock_or_recover().remove(&id);
@@ -599,6 +632,25 @@ impl III {
         let _ = self.send_message(msg.to_message());
     }
 
+    /// Bind a trigger configuration to a registered function.
+    ///
+    /// # Arguments
+    /// * `trigger_type` - Trigger type (e.g. `"http"`, `"cron"`).
+    /// * `function_id` - ID of the function to invoke.
+    /// * `config` - Trigger-specific configuration (serializable).
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use iii_sdk::III;
+    /// # use serde_json::json;
+    /// # let iii = III::new("ws://localhost:49134");
+    /// let trigger = iii.register_trigger("http", "greet", json!({
+    ///     "api_path": "/greet", "http_method": "GET"
+    /// }))?;
+    /// // Later...
+    /// trigger.unregister();
+    /// # Ok::<(), iii_sdk::IIIError>(())
+    /// ```
     pub fn register_trigger(
         &self,
         trigger_type: impl Into<String>,
@@ -635,6 +687,26 @@ impl III {
         Ok(Trigger::new(unregister_fn))
     }
 
+    /// Invoke a remote function.
+    ///
+    /// The routing behavior depends on the `action` field of the request:
+    /// - No action: synchronous -- waits for the function to return.
+    /// - [`TriggerAction::Enqueue`] - async via named queue.
+    /// - [`TriggerAction::Void`] — fire-and-forget.
+    ///
+    /// # Examples
+    /// ```rust
+    /// # use iii_sdk::{III, TriggerRequest, TriggerAction};
+    /// # use serde_json::json;
+    /// # async fn example(iii: &III) -> Result<(), iii_sdk::IIIError> {
+    /// // Synchronous
+    /// let result = iii.trigger(TriggerRequest::new("greet", json!({"name": "World"}))).await?;
+    ///
+    /// // Fire-and-forget
+    /// iii.trigger(TriggerRequest::new("notify", json!({})).action(TriggerAction::void())).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn trigger(
         &self,
         request: impl Into<crate::protocol::TriggerRequest>,
@@ -656,7 +728,7 @@ impl III {
         }
 
         // Enqueue and default: use invocation_id to receive acknowledgement/result
-        let timeout = req.timeout.unwrap_or(DEFAULT_TIMEOUT);
+        let timeout = Duration::from_millis(req.timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS));
         let invocation_id = Uuid::new_v4();
         let (tx, rx) = oneshot::channel();
 
@@ -1472,10 +1544,7 @@ mod tests {
     async fn invoke_function_times_out_and_clears_pending() {
         let iii = III::new("ws://localhost:1234");
         let result = iii
-            .trigger(
-                TriggerRequest::new("functions.echo", json!({ "a": 1 }))
-                    .timeout(Duration::from_millis(10)),
-            )
+            .trigger(TriggerRequest::new("functions.echo", json!({ "a": 1 })).timeout_ms(10))
             .await;
 
         assert!(matches!(result, Err(IIIError::Timeout)));

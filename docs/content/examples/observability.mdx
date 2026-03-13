@@ -20,9 +20,9 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import {Logger, TriggerAction} from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
+const iii = init(process.env.III_URL ?? 'ws://localhost:49134', {
   otel: {
     enabled: true,
     serviceName: 'orders-service',
@@ -50,15 +50,20 @@ iii.registerFunction(
       traceId: currentTraceId(), // same traceId will appear in downstream logs
     })
 
-    iii.triggerVoid('state::set', {
-      scope: 'orders',
-      key: orderId,
-      data: { id: orderId, customerId, amount, items, status: 'created', createdAt: new Date().toISOString() },
+    iii.trigger({
+      function_id: 'state::set',
+      payload: {
+        scope: 'orders',
+        key: orderId,
+        value: { id: orderId, customerId, amount, items, status: 'created', createdAt: new Date().toISOString() },
+      },
+      action: TriggerAction.Void(),
     })
 
-    iii.triggerVoid('enqueue', {
-      topic: 'order.process',
-      data: { orderId, amount, customerId, items },
+    iii.trigger({
+      function_id: 'enqueue',
+      payload: { topic: 'order.process', data: { orderId, amount, customerId, items } },
+      action: TriggerAction.Void(),
     })
 
     return { status_code: 201, body: { orderId, status: 'processing' } }
@@ -78,7 +83,7 @@ iii.registerTrigger({
 ```python
 import asyncio
 from datetime import datetime, timezone
-from iii import III, InitOptions, ApiRequest, ApiResponse
+from iii import III, InitOptions, ApiRequest, ApiResponse, TriggerAction
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-service"))
 
@@ -100,21 +105,26 @@ async def create_order(req: ApiRequest, ctx) -> ApiResponse:
         "traceId": current_trace_id(),  # same traceId will appear in downstream logs
     })
 
-    iii.trigger_void("state::set", {
-        "scope": "orders",
-        "key": order_id,
-        "data": {
-            "id": order_id,
-            "customerId": customer_id,
-            "amount": amount,
-            "status": "created",
-            "createdAt": datetime.now(timezone.utc).isoformat(),
+    iii.trigger_void({
+        "function_id": "state::set",
+        "payload": {
+            "scope": "orders",
+            "key": order_id,
+            "value": {
+                "id": order_id,
+                "customerId": customer_id,
+                "amount": amount,
+                "status": "created",
+                "createdAt": datetime.now(timezone.utc).isoformat(),
+            },
         },
+        "action": TriggerAction.Void(),
     })
 
-    iii.trigger_void("enqueue", {
-        "topic": "order.process",
-        "data": {"orderId": order_id, "amount": amount, "customerId": customer_id},
+    iii.trigger_void({
+        "function_id": "enqueue",
+        "payload": {"topic": "order.process", "data": {"orderId": order_id, "amount": amount, "customerId": customer_id}},
+        "action": TriggerAction.Void(),
     })
 
     return ApiResponse(statusCode=201, body={"orderId": order_id, "status": "processing"})
@@ -133,7 +143,7 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger, types::ApiRequest};
+use iii_sdk::{III, Logger, TriggerRequest, TriggerAction, types::ApiRequest};
 use serde_json::json;
 
 iii.register_function("orders.create", |input| async move {
@@ -159,22 +169,22 @@ iii.register_function("orders.create", |input| async move {
         "traceId": current_trace_id(), // same traceId propagated to downstream handlers
     })));
 
-    iii.trigger_void("state::set", json!({
+    iii.trigger(TriggerRequest::new("state::set", json!({
         "scope": "orders",
         "key": order_id,
-        "data": {
+        "value": {
             "id": order_id,
             "customerId": customer_id,
             "amount": amount,
             "status": "created",
             "createdAt": chrono::Utc::now().to_rfc3339(),
         },
-    }))?;
+    })).action(TriggerAction::void())).await?;
 
-    iii.trigger_void("enqueue", json!({
+    iii.trigger(TriggerRequest::new("enqueue", json!({
         "topic": "order.process",
         "data": { "orderId": order_id, "amount": amount, "customerId": customer_id },
-    }))?;
+    })).action(TriggerAction::void())).await?;
 
     Ok(json!({ "status_code": 201, "body": { "orderId": order_id, "status": "processing" } }))
 });
@@ -202,15 +212,20 @@ iii.registerFunction(
 
     logger.info('Processing order', { orderId, amount, customerId, traceId: currentTraceId() })
 
-    iii.triggerVoid('state::set', {
-      scope: 'orders',
-      key: orderId,
-      data: { status: 'processed', processedAt: new Date().toISOString() },
+    iii.trigger({
+      function_id: 'state::set',
+      payload: {
+        scope: 'orders',
+        key: orderId,
+        value: { status: 'processed', processedAt: new Date().toISOString() },
+      },
+      action: TriggerAction.Void(),
     })
 
-    iii.triggerVoid('enqueue', {
-      topic: 'order.notify',
-      data: { orderId, customerId, amount, status: 'processed' },
+    iii.trigger({
+      function_id: 'enqueue',
+      payload: { topic: 'order.notify', data: { orderId, customerId, amount, status: 'processed' } },
+      action: TriggerAction.Void(),
     })
 
     logger.info('Order processed', { orderId, traceId: currentTraceId() })
@@ -239,18 +254,23 @@ async def process_order(data: dict, ctx) -> None:
         "traceId": current_trace_id(),
     })
 
-    iii.trigger_void("state::set", {
-        "scope": "orders",
-        "key": order_id,
-        "data": {
-            "status": "processed",
-            "processedAt": datetime.now(timezone.utc).isoformat(),
+    iii.trigger_void({
+        "function_id": "state::set",
+        "payload": {
+            "scope": "orders",
+            "key": order_id,
+            "value": {
+                "status": "processed",
+                "processedAt": datetime.now(timezone.utc).isoformat(),
+            },
         },
+        "action": TriggerAction.Void(),
     })
 
-    iii.trigger_void("enqueue", {
-        "topic": "order.notify",
-        "data": {"orderId": order_id, "customerId": customer_id, "amount": amount, "status": "processed"},
+    iii.trigger_void({
+        "function_id": "enqueue",
+        "payload": {"topic": "order.notify", "data": {"orderId": order_id, "customerId": customer_id, "amount": amount, "status": "processed"}},
+        "action": TriggerAction.Void(),
     })
 
     logger.info("Order processed", {"orderId": order_id, "traceId": current_trace_id()})
@@ -273,10 +293,10 @@ iii.register_function("order.process", |input| async move {
         "traceId": current_trace_id(),
     })));
 
-    iii.trigger_void("enqueue", json!({
+    iii.trigger(TriggerRequest::new("enqueue", json!({
         "topic": "order.notify",
         "data": { "orderId": order_id, "customerId": input["customerId"] },
-    }))?;
+    })).action(TriggerAction::void())).await?;
 
     logger.info("Order processed", Some(json!({ "orderId": order_id })));
     Ok(json!(null))

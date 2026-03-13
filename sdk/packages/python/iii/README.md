@@ -46,7 +46,7 @@ asyncio.run(main())
 | Register function        | `iii.register_function(id, handler)`              | Register a function that can be invoked by name        |
 | Register trigger         | `iii.register_trigger(type, function_id, config)` | Bind a trigger (HTTP, cron, queue, etc.) to a function |
 | Invoke (await)           | `await iii.trigger({"function_id": id, "payload": data})` | Invoke a function and wait for the result              |
-| Invoke (fire-and-forget) | `iii.trigger_void(id, data)`                      | Invoke a function without waiting (fire-and-forget)    |
+| Invoke (fire-and-forget) | `iii.trigger({"function_id": id, "payload": data, "action": TriggerAction.Void()})` | Invoke a function without waiting (fire-and-forget)    |
 
 `register_worker()` must be called inside an async context. It creates the SDK instance and auto-connects to the engine.
 
@@ -56,7 +56,7 @@ asyncio.run(main())
 async def create_order(data):
     return {"status_code": 201, "body": {"id": "123", "item": data["body"]["item"]}}
 
-iii.register_function("orders::create", create_order)
+iii.register_function("orders.create", create_order)
 ```
 
 ### Registering Triggers
@@ -64,7 +64,7 @@ iii.register_function("orders::create", create_order)
 ```python
 iii.register_trigger(
     type="http",
-    function_id="orders::create",
+    function_id="orders.create",
     config={"api_path": "/orders", "http_method": "POST"}
 )
 ```
@@ -72,9 +72,11 @@ iii.register_trigger(
 ### Invoking Functions
 
 ```python
-result = await iii.trigger({"function_id": "orders::create", "payload": {"body": {"item": "widget"}}})
+from iii import TriggerAction
 
-iii.trigger_void("analytics::track", {"event": "page_view"})
+result = await iii.trigger({"function_id": "orders.create", "payload": {"body": {"item": "widget"}}})
+
+iii.trigger({"function_id": "analytics.track", "payload": {"event": "page_view"}, "action": TriggerAction.Void()})
 ```
 
 ## Modules
@@ -104,6 +106,10 @@ mypy src
 ```bash
 ruff check src
 ```
+
+## Deprecated
+
+`call`, `call_void`, and `trigger_void` have been removed. Use `trigger()` for all invocations. For fire-and-forget, use `trigger({"function_id": ..., "payload": ..., "action": TriggerAction.Void()})`.
 
 ## Resources
 

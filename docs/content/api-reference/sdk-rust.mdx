@@ -3,285 +3,1446 @@ title: "Rust SDK"
 description: "API reference for the iii SDK for Rust."
 ---
 
+{/* AUTO-GENERATED FILE. Do not edit manually. Run the generate-api-docs pipeline. */}
+
 ## Installation
 
-```toml
-[dependencies]
-iii-sdk = "0.2"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-serde_json = "1"
-
-```
-
-Enable OpenTelemetry support with the `otel` feature:
-
-```toml
-[dependencies]
-iii-sdk = { version = "0.2", features = ["otel"] }
+```bash
+cargo add iii-sdk
 ```
 
 ## Initialization
 
-The Rust SDK requires an explicit `connect().await` call.
+The Rust SDK provides `III::new()` or `register_worker()`. Call `connect().await` to establish the WebSocket connection.
 
 ```rust
-use iii_sdk::{III, Logger};
-use serde_json::json;
+use iii_sdk::{III, InitOptions};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
-
-    // ... register functions and triggers
-
-    loop {
-        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-    }
-}
+let iii = III::new("ws://localhost:49134");
+iii.connect().await?;
 ```
+
+### register_worker
+
+Create and return a connected SDK instance.
+
+**Signature**
+
+```rust
+register_worker(address: &str, options: InitOptions) -> Result<III, IIIError>
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `address` | `&str` | Yes | WebSocket URL of the III engine. |
+| `options` | [`InitOptions`](#initoptions) | Yes | Configuration for worker metadata and OTel. |
+
+#### Returns
+
+| Type | Description |
+| --- | --- |
+| Result&lt;[`III`](#iii), [`IIIError`](#iiierror)&gt; | Connected SDK instance. |
 
 ## Methods
 
-### register_function
+### new
 
-<ResponseField name="register_function" type="fn(&self, id: impl Into&lt;String&gt;, handler: F)" required>
-  Registers a function. The handler receives `serde_json::Value` and returns `Result&lt;Value, IIIError&gt;`.
 
-  <AccordionGroup>
-    <Accordion iconName="Code" title="Example" description="">
-      ```rust
-      iii.register_function("greet", |input| async move {
-          let name = input["name"].as_str().unwrap_or("world");
-          Ok(json!({ "message": format!("Hello, {}!", name) }))
-      });
-      ```
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
 
-### register_function_with_description
+**Signature**
 
-<ResponseField name="register_function_with_description" type="fn(&self, id: impl Into&lt;String&gt;, description: impl Into&lt;String&gt;, handler: F)" required>
-  Same as `register_function` but attaches a human-readable description.
+```rust
+new
+```
 
-  <AccordionGroup>
-    <Accordion iconName="Code" title="Example" description="">
-      ```rust
-      iii.register_function_with_description(
-          "greet",
-          "Greets a user by name",
-          |input| async move {
-              let name = input["name"].as_str().unwrap_or("world");
-              Ok(json!({ "message": format!("Hello, {}!", name) }))
-          },
-      );
-      ```
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
+### write
 
-### register_function_with
 
-<ResponseField name="register_function_with" type="fn(&self, message: RegisterFunctionMessage, handler: F)" required>
-  Low-level registration with full control over the `RegisterFunctionMessage` fields (`id`, `description`, `request_format`, `response_format`, `metadata`).
-</ResponseField>
 
-### register_trigger
+**Signature**
 
-<ResponseField name="register_trigger" type="fn(&self, trigger_type: impl Into&lt;String&gt;, function_id: impl Into&lt;String&gt;, config: impl Serialize) => Result&lt;Trigger, IIIError&gt;" required>
-  Binds a trigger to a function. Returns a `Trigger` whose `unregister()` method removes the binding.
+```rust
+write
+```
 
-  <AccordionGroup>
-    <Accordion iconName="Code" title="Example" description="">
-      ```rust
-      iii.register_trigger("http", "greet", json!({
-          "api_path": "/greet",
-          "http_method": "GET",
-      }))?;
-      ```
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
+### send_message
 
-### trigger
 
-<ResponseField name="trigger" type="async fn(&self, function_id: &str, data: impl Serialize) => Result&lt;Value, IIIError&gt;" required>
-  Invokes a remote function with a 30-second default timeout.
 
-  <AccordionGroup>
-    <Accordion iconName="Code" title="Example" description="">
-      ```rust
-      let result = iii.trigger("enqueue", json!({
-          "topic": "user.created",
-          "data": {"user_id": "123"},
-      })).await?;
-      ```
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
+**Signature**
 
-### trigger_with_timeout
+```rust
+send_message
+```
 
-<ResponseField name="trigger_with_timeout" type="async fn(&self, function_id: &str, data: Value, timeout: Duration) => Result&lt;Value, IIIError&gt;" required>
-  Invokes a remote function with a custom timeout.
-</ResponseField>
+### close
 
-### trigger_void
 
-<ResponseField name="trigger_void" type="fn(&self, function_id: &str, data: impl Serialize) => Result&lt;(), IIIError&gt;" required>
-  Fire-and-forget invocation. Sends the message without waiting for a response.
-</ResponseField>
 
-<Callout type="warn" title="Deprecated methods">
-  `call`, `call_with_timeout`, and `call_void` are deprecated. Use `trigger`, `trigger_with_timeout`, and `trigger_void` instead.
-</Callout>
+**Signature**
+
+```rust
+close
+```
+
+### new
+
+
+
+**Signature**
+
+```rust
+new
+```
+
+### on_message
+
+Register a callback for text messages received on this channel.
+
+**Signature**
+
+```rust
+on_message
+```
+
+### next_binary
+
+Read the next binary chunk from the channel.
+Text messages are dispatched to registered callbacks.
+Returns `None` when the stream is closed.
+
+**Signature**
+
+```rust
+next_binary
+```
+
+### read_all
+
+Read the entire stream into a single `Vec<u8>`.
+
+**Signature**
+
+```rust
+read_all
+```
+
+### close
+
+
+
+**Signature**
+
+```rust
+close
+```
+
+### is_channel_ref
+
+Check if a JSON value looks like a StreamChannelRef.
+
+**Signature**
+
+```rust
+is_channel_ref
+```
+
+### extract_channel_refs
+
+Extract all channel references from a JSON value's top-level fields,
+returning the field path and the deserialized ref.
+
+**Signature**
+
+```rust
+extract_channel_refs
+```
+
+### with_context
+
+
+
+**Signature**
+
+```rust
+with_context
+```
+
+### get_context
+
+
+
+**Signature**
+
+```rust
+get_context
+```
+
+### unregister
+
+
+
+**Signature**
+
+```rust
+unregister
+```
+
+### new
+
+Create a new III with default worker metadata (auto-detected runtime, os, hostname)
+
+**Signature**
+
+```rust
+new
+```
+
+### register_worker
+
+Create and return a connected SDK instance. The WebSocket connection is
+established automatically in a background Tokio task.
+
+**Signature**
+
+```rust
+register_worker
+```
+
+#### Example
+
+```rust
+use iii_sdk::{register_worker, InitOptions};
+
+#[tokio::main]
+async fn main() {
+    let iii = register_worker("ws://localhost:49134", InitOptions::default()).unwrap();
+}
+```
+
+### with_metadata
+
+Create a new III with custom worker metadata
+
+**Signature**
+
+```rust
+with_metadata
+```
+
+### address
+
+Get the engine WebSocket address this client connects to.
+
+**Signature**
+
+```rust
+address
+```
+
+### set_metadata
+
+Set custom worker metadata (call before connect)
+
+**Signature**
+
+```rust
+set_metadata
+```
+
+### set_otel_config
+
+Set OpenTelemetry configuration (call before connect)
+
+**Signature**
+
+```rust
+set_otel_config
+```
+
+### connect
+
+
+
+**Signature**
+
+```rust
+connect
+```
+
+### shutdown
+
+Shutdown the III client.
+
+This stops the connection loop and sends a shutdown signal.
+If the `otel` feature is enabled, this will spawn a background task
+to flush telemetry data, but does NOT wait for it to complete.
+For guaranteed telemetry flush, use `shutdown_async()` instead.
+
+**Signature**
+
+```rust
+shutdown
+```
 
 ### shutdown_async
 
-<ResponseField name="shutdown_async" type="async fn(&self)" required>
-  Stops the connection loop and sends a shutdown signal. When the `otel` feature is enabled, flushes all pending spans, metrics, and logs before returning.
-</ResponseField>
+Shutdown the III client and flush all pending telemetry data.
+
+This method stops the connection loop and sends a shutdown signal.
+When the `otel` feature is enabled, it additionally awaits the
+OpenTelemetry flush, ensuring all spans, metrics, and logs are
+exported before returning.
+
+**Signature**
+
+```rust
+shutdown_async
+```
+
+### register_function
+
+Register a function with the engine.
+
+Pass a closure/async fn for local execution, or an [`HttpInvocationConfig`]
+for HTTP-invoked functions (Lambda, Cloudflare Workers, etc.).
+
+**Signature**
+
+```rust
+register_function
+```
+
+#### Example
+
+```rust
+# use iii_sdk::III;
+# use serde_json::{json, Value};
+# let iii = III::new("ws://localhost:49134");
+iii.register_function("greet", |input: Value| async move {
+    Ok(json!({"message": format!("Hello, {}!", input["name"])}))
+});
+```
+
+### register_function_with_description
+
+Register a function with a human-readable description.
+
+**Signature**
+
+```rust
+register_function_with_description
+```
+
+### register_function_with
+
+Register a function using a pre-built [`RegisterFunctionMessage`] for full control.
+
+**Signature**
+
+```rust
+register_function_with
+```
+
+### register_service
+
+
+
+**Signature**
+
+```rust
+register_service
+```
+
+### register_service_with_name
+
+
+
+**Signature**
+
+```rust
+register_service_with_name
+```
+
+### register_service_with_parent
+
+
+
+**Signature**
+
+```rust
+register_service_with_parent
+```
 
 ### register_trigger_type
 
-<ResponseField name="register_trigger_type" type="fn(&self, id: impl Into&lt;String&gt;, description: impl Into&lt;String&gt;, handler: H)" required>
-  Registers a custom trigger type. `H` must implement the `TriggerHandler` trait:
+Register a custom trigger type with the engine.
 
-  ```rust
-  #[async_trait]
-  pub trait TriggerHandler: Send + Sync {
-      async fn register_trigger(&self, config: TriggerConfig) -> Result<(), IIIError>;
-      async fn unregister_trigger(&self, config: TriggerConfig) -> Result<(), IIIError>;
-  }
-  ```
-</ResponseField>
+**Signature**
+
+```rust
+register_trigger_type
+```
 
 ### unregister_trigger_type
 
-<ResponseField name="unregister_trigger_type" type="fn(&self, id: impl Into&lt;String&gt;)" required>
-  Unregisters a trigger type by removing it from the local registry.
-</ResponseField>
+Unregister a previously registered trigger type.
+
+**Signature**
+
+```rust
+unregister_trigger_type
+```
+
+### register_trigger
+
+Bind a trigger configuration to a registered function.
+
+**Signature**
+
+```rust
+register_trigger
+```
+
+#### Example
+
+```rust
+# use iii_sdk::III;
+# use serde_json::json;
+# let iii = III::new("ws://localhost:49134");
+let trigger = iii.register_trigger("http", "greet", json!({
+    "api_path": "/greet", "http_method": "GET"
+}))?;
+// Later...
+trigger.unregister();
+# Ok::<(), iii_sdk::IIIError>(())
+```
+
+### trigger
+
+Invoke a remote function.
+
+The routing behavior depends on the `action` field of the request:
+- No action: synchronous -- waits for the function to return.
+- [`TriggerAction::Enqueue`] - async via named queue.
+- [`TriggerAction::Void`] — fire-and-forget.
+
+**Signature**
+
+```rust
+trigger
+```
+
+#### Example
+
+```rust
+# use iii_sdk::{III, TriggerRequest, TriggerAction};
+# use serde_json::json;
+# async fn example(iii: &III) -> Result<(), iii_sdk::IIIError> {
+// Synchronous
+let result = iii.trigger(TriggerRequest::new("greet", json!({"name": "World"}))).await?;
+
+// Fire-and-forget
+iii.trigger(TriggerRequest::new("notify", json!({})).action(TriggerAction::void())).await?;
+# Ok(())
+# }
+```
+
+### get_connection_state
+
+Get the current connection state.
+
+**Signature**
+
+```rust
+get_connection_state
+```
+
+### on_connection_state_change
+
+Register a callback to be notified of connection state changes.
+The callback is immediately invoked with the current state.
+Returns a guard that unsubscribes when dropped.
+
+**Signature**
+
+```rust
+on_connection_state_change
+```
+
+### list_functions
+
+List all registered functions from the engine
+
+**Signature**
+
+```rust
+list_functions
+```
 
 ### on_functions_available
 
-<ResponseField name="on_functions_available" type="fn(&self, callback: FunctionsAvailableCallback) => FunctionsAvailableGuard" required>
-  Subscribes to function availability events. Drop the returned `FunctionsAvailableGuard` to unsubscribe.
-</ResponseField>
+Subscribe to function availability events
+Returns a guard that will unsubscribe when dropped
 
-## Streams
-
-The Rust SDK provides atomic stream updates via the `Streams` helper:
+**Signature**
 
 ```rust
-use iii_sdk::{Streams, UpdateOp};
-use serde_json::json;
+on_functions_available
+```
 
-let streams = Streams::new(iii.clone());
+### list_workers
 
+List all connected workers from the engine
+
+**Signature**
+
+```rust
+list_workers
+```
+
+### list_triggers
+
+List all registered triggers from the engine
+
+**Signature**
+
+```rust
+list_triggers
+```
+
+### create_channel
+
+Create a streaming channel pair for worker-to-worker data transfer.
+
+Returns a `Channel` with writer, reader, and their serializable refs
+that can be passed as fields in invocation data to other functions.
+
+**Signature**
+
+```rust
+create_channel
+```
+
+### new
+
+
+
+**Signature**
+
+```rust
+new
+```
+
+### info
+
+
+
+**Signature**
+
+```rust
+info
+```
+
+### warn
+
+
+
+**Signature**
+
+```rust
+warn
+```
+
+### error
+
+
+
+**Signature**
+
+```rust
+error
+```
+
+### debug
+
+
+
+**Signature**
+
+```rust
+debug
+```
+
+### enqueue
+
+Create an enqueue action for the given queue name.
+
+**Signature**
+
+```rust
+enqueue
+```
+
+### void
+
+
+
+**Signature**
+
+```rust
+void
+```
+
+### new
+
+
+
+**Signature**
+
+```rust
+new
+```
+
+### action
+
+
+
+**Signature**
+
+```rust
+action
+```
+
+### timeout_ms
+
+
+
+**Signature**
+
+```rust
+timeout_ms
+```
+
+### timeout
+
+
+
+**Signature**
+
+```rust
+timeout
+```
+
+### to_message
+
+
+
+**Signature**
+
+```rust
+to_message
+```
+
+### to_message
+
+
+
+**Signature**
+
+```rust
+to_message
+```
+
+### to_message
+
+
+
+**Signature**
+
+```rust
+to_message
+```
+
+### to_message
+
+
+
+**Signature**
+
+```rust
+to_message
+```
+
+### to_message
+
+
+
+**Signature**
+
+```rust
+to_message
+```
+
+### to_message
+
+
+
+**Signature**
+
+```rust
+to_message
+```
+
+### new
+
+Create a new Streams instance with the given iii
+
+**Signature**
+
+```rust
+new
+```
+
+### update
+
+Perform an atomic update on a stream key
+
+All operations are applied atomically - either all succeed or none are applied.
+
+**Signature**
+
+```rust
+update
+```
+
+#### Example
+
+```rust
 let result = streams.update(
-    "my-stream::group-1::item-1",
+    "orders::user-123::order-456",
     vec![
-        UpdateOp::increment("counter", 1),
-        UpdateOp::set("status", json!("active")),
+        UpdateOp::increment("total", 100),
+        UpdateOp::set("status", "processing".into()),
     ],
 ).await?;
-
-println!("Old: {:?}, New: {:?}", result.old_value, result.new_value);
 ```
 
-### UpdateOp variants
+### increment
 
-| Constructor | Description |
-|---|---|
-| `UpdateOp::set(path, value)` | Set a field to a value |
-| `UpdateOp::increment(path, by)` | Increment a numeric field |
-| `UpdateOp::decrement(path, by)` | Decrement a numeric field |
-| `UpdateOp::remove(path)` | Remove a field |
-| `UpdateOp::merge(value)` | Deep-merge an object into the root |
-| `UpdateOp::merge_at(path, value)` | Deep-merge an object into a field |
+Atomically increment a numeric field
 
-You can also use the `UpdateBuilder` for a fluent API:
+Convenience method for a single increment operation.
+
+**Signature**
 
 ```rust
-use iii_sdk::UpdateBuilder;
-
-let ops = UpdateBuilder::new()
-    .increment("total", 50)
-    .set("status", json!("processing"))
-    .build();
-
-let result = streams.update("orders::user-1::order-1", ops).await?;
+increment
 ```
 
-## Error Handling
+#### Example
 
-All fallible operations return `Result<T, IIIError>`. Common variants:
+```rust
+streams.increment("counters::daily::page-views", "count", 1).await?;
+```
 
-| Variant | Description |
-|---|---|
-| `IIIError::NotConnected` | WebSocket is not open |
-| `IIIError::Timeout` | Invocation timed out |
-| `IIIError::Remote { code, message }` | Remote function returned an error |
-| `IIIError::Serde(err)` | JSON serialization failed |
-| `IIIError::Handler(String)` | Handler returned an error |
-| `IIIError::WebSocket(String)` | WebSocket transport error |
+### decrement
+
+Atomically decrement a numeric field
+
+Convenience method for a single decrement operation.
+
+**Signature**
+
+```rust
+decrement
+```
+
+### set_field
+
+Atomically set a field value
+
+Convenience method for a single set operation.
+
+**Signature**
+
+```rust
+set_field
+```
+
+#### Example
+
+```rust
+streams.set_field("users::active::user-1", "status", "online".into()).await?;
+```
+
+### remove_field
+
+Atomically remove a field
+
+Convenience method for a single remove operation.
+
+**Signature**
+
+```rust
+remove_field
+```
+
+### merge
+
+Atomically merge an object into the existing value
+
+Convenience method for a single merge operation.
+
+**Signature**
+
+```rust
+merge
+```
+
+#### Example
+
+```rust
+streams.merge(
+    "settings::user-1::preferences",
+    serde_json::json!({"theme": "dark", "language": "en"}),
+).await?;
+```
+
+### new
+
+Create a new UpdateBuilder
+
+**Signature**
+
+```rust
+new
+```
+
+### set
+
+Add a set operation
+
+**Signature**
+
+```rust
+set
+```
+
+### increment
+
+Add an increment operation
+
+**Signature**
+
+```rust
+increment
+```
+
+### decrement
+
+Add a decrement operation
+
+**Signature**
+
+```rust
+decrement
+```
+
+### remove
+
+Add a remove operation
+
+**Signature**
+
+```rust
+remove
+```
+
+### merge
+
+Add a merge operation
+
+**Signature**
+
+```rust
+merge
+```
+
+### build
+
+Build the list of operations
+
+**Signature**
+
+```rust
+build
+```
+
+### new
+
+Create a new shared connection and spawn the connection task
+
+**Signature**
+
+```rust
+new
+```
+
+### with_channel_capacity
+
+Create a new shared connection with a custom channel capacity
+
+**Signature**
+
+```rust
+with_channel_capacity
+```
+
+### send
+
+Send a message with the given prefix
+
+**Signature**
+
+```rust
+send
+```
+
+### state
+
+Get current connection state
+
+**Signature**
+
+```rust
+state
+```
+
+### flush
+
+Flush all pending messages through the WebSocket connection.
+
+Sends a flush request to the connection loop, which drains all buffered
+messages into the WebSocket. Returns once the drain is complete (or the
+connection loop has shut down).
+
+**Signature**
+
+```rust
+flush
+```
+
+### shutdown
+
+Shutdown the connection gracefully
+
+**Signature**
+
+```rust
+shutdown
+```
+
+### current_trace_id
+
+Get the current trace ID from the active span context
+
+**Signature**
+
+```rust
+current_trace_id
+```
+
+### current_span_id
+
+Get the current span ID from the active span context
+
+**Signature**
+
+```rust
+current_span_id
+```
+
+### inject_traceparent
+
+Inject current trace context into a W3C traceparent header string
+
+**Signature**
+
+```rust
+inject_traceparent
+```
+
+### extract_traceparent
+
+Extract trace context from a W3C traceparent header string
+
+**Signature**
+
+```rust
+extract_traceparent
+```
+
+### inject_baggage
+
+Inject current baggage into a W3C baggage header string
+
+**Signature**
+
+```rust
+inject_baggage
+```
+
+### extract_baggage
+
+Extract baggage from a W3C baggage header string
+
+**Signature**
+
+```rust
+extract_baggage
+```
+
+### extract_context
+
+Extract both trace context and baggage from their respective headers
+
+**Signature**
+
+```rust
+extract_context
+```
+
+### get_baggage_entry
+
+Get a baggage entry from the current context
+
+**Signature**
+
+```rust
+get_baggage_entry
+```
+
+### set_baggage_entry
+
+Set a baggage entry in the current context (returns new context)
+
+**Signature**
+
+```rust
+set_baggage_entry
+```
+
+### remove_baggage_entry
+
+Remove a baggage entry from the current context
+
+**Signature**
+
+```rust
+remove_baggage_entry
+```
+
+### get_all_baggage
+
+Get all baggage entries from the current context
+
+**Signature**
+
+```rust
+get_all_baggage
+```
+
+### execute_traced_request
+
+Execute a `reqwest::Request` inside an OTel CLIENT span.
+
+- Injects W3C traceparent into outgoing request headers via [`HeaderInjector`].
+- Records HTTP semantic convention attributes on the span.
+- Sets `ERROR` span status for HTTP responses with status >= 400.
+- Records exceptions for network-level errors.
+
+**Signature**
+
+```rust
+execute_traced_request
+```
+
+### system_time_to_nanos_string
+
+Convert a SystemTime to nanoseconds-since-epoch as a string.
+The engine accepts both string and number for timestamps (OtlpNumericString).
+
+**Signature**
+
+```rust
+system_time_to_nanos_string
+```
+
+### bytes_to_hex
+
+Convert a byte slice to a lowercase hex string.
+
+**Signature**
+
+```rust
+bytes_to_hex
+```
+
+### attr_value_to_json
+
+Convert an OTel attribute value to the OTLP JSON representation.
+Integer values are emitted as JSON numbers (not strings).
+
+**Signature**
+
+```rust
+attr_value_to_json
+```
+
+### attrs_to_json
+
+Convert a slice of KeyValue pairs to the OTLP JSON attribute list.
+
+**Signature**
+
+```rust
+attrs_to_json
+```
+
+### resource_attrs_to_json
+
+Convert resource key-value iterator to OTLP JSON attribute list.
+
+**Signature**
+
+```rust
+resource_attrs_to_json
+```
+
+### anyvalue_to_json
+
+Convert an OTel log `AnyValue` to the OTLP JSON representation.
+Used by the log exporter where attribute values are `AnyValue` instead of `Value`.
+
+**Signature**
+
+```rust
+anyvalue_to_json
+```
+
+### new
+
+
+
+**Signature**
+
+```rust
+new
+```
+
+### new
+
+
+
+**Signature**
+
+```rust
+new
+```
+
+### register_worker_gauges
+
+Register observable gauges for worker metrics with the given meter.
+
+Returns a handle that keeps the gauges alive. Drop it to stop reporting.
+
+**Signature**
+
+```rust
+register_worker_gauges
+```
+
+### new
+
+
+
+**Signature**
+
+```rust
+new
+```
+
+### effective_initial_delay_ms
+
+Returns initial_delay_ms, clamped to a minimum of 1ms to prevent division by zero.
+
+**Signature**
+
+```rust
+effective_initial_delay_ms
+```
+
+### new
+
+
+
+**Signature**
+
+```rust
+new
+```
+
+### collect_cached
+
+Collect a snapshot using a 500ms cache to avoid redundant sysinfo refreshes.
+
+Multiple gauge callbacks are invoked in quick succession during each
+metrics collection cycle. This method ensures `sysinfo` is refreshed
+at most once per 500ms window.
+
+**Signature**
+
+```rust
+collect_cached
+```
+
+### collect
+
+Collect a snapshot of current metrics
+
+**Signature**
+
+```rust
+collect
+```
+
+### init_otel
+
+Initialize OpenTelemetry with the given configuration.
+
+Sets up distributed tracing, optional metrics, and optional log export
+over a shared WebSocket connection to the III Engine.
+
+This should be called once at startup. Subsequent calls are no-ops.
+
+**Signature**
+
+```rust
+init_otel
+```
+
+### shutdown_otel
+
+Shutdown OpenTelemetry gracefully, flushing all pending data.
+
+The shutdown sequence is bounded by the configured `shutdown_timeout_ms`
+(default 10 seconds). If the timeout is exceeded, a warning is logged and
+the function returns without waiting further.
+
+**Signature**
+
+```rust
+shutdown_otel
+```
+
+### flush_otel
+
+Flush all pending telemetry data (spans, metrics, logs) through the connection.
+
+This forces the OTEL providers to export any buffered data and then drains
+the WebSocket connection's message queue. This is a no-op if OpenTelemetry
+has not been initialized.
+
+**Signature**
+
+```rust
+flush_otel
+```
+
+### with_span
+
+Execute a function within a new span, automatically handling errors and status.
+
+If OpenTelemetry is not initialized, the function is executed without tracing.
+
+**Signature**
+
+```rust
+with_span
+```
+
+### get_tracer
+
+Get a tracer instance for creating spans manually.
+
+**Signature**
+
+```rust
+get_tracer
+```
+
+### get_meter
+
+Get a meter instance for creating metrics.
+
+**Signature**
+
+```rust
+get_meter
+```
+
+### is_initialized
+
+Check whether OpenTelemetry has been initialized.
+
+**Signature**
+
+```rust
+is_initialized
+```
+
+### get_logger_provider
+
+Get a clone of the logger provider, if OTel has been initialized and logs are enabled.
+
+Returns `None` if OTel is not initialized or logs are disabled.
+This is used by the SDK logger to emit OTel LogRecords alongside the
+engine invoker calls.
+
+**Signature**
+
+```rust
+get_logger_provider
+```
+
+### unregister
+
+Remove this trigger from the engine.
+
+**Signature**
+
+```rust
+unregister
+```
+
+### new
+
+
+
+**Signature**
+
+```rust
+new
+```
+
+### new
+
+
+
+**Signature**
+
+```rust
+new
+```
+
+### root
+
+
+
+**Signature**
+
+```rust
+root
+```
+
+### set
+
+Create a Set operation
+
+**Signature**
+
+```rust
+set
+```
+
+### increment
+
+Create an Increment operation
+
+**Signature**
+
+```rust
+increment
+```
+
+### decrement
+
+Create a Decrement operation
+
+**Signature**
+
+```rust
+decrement
+```
+
+### remove
+
+Create a Remove operation
+
+**Signature**
+
+```rust
+remove
+```
+
+### merge
+
+Create a Merge operation at root level
+
+**Signature**
+
+```rust
+merge
+```
+
+### merge_at
+
+Create a Merge operation at a specific path
+
+**Signature**
+
+```rust
+merge_at
+```
 
 ## Types
 
-### Re-exports from `iii_sdk`
+[`IIIError`](#iiierror) · [`III`](#iii) · [`InitOptions`](#initoptions)
 
-```rust
-use iii_sdk::{
-    III,
-    Context, Logger, OTel context,
-    IIIError,
-    FunctionInfo, WorkerInfo, WorkerMetadata,
-    TriggerInfo,
-    Logger,
-    Trigger, TriggerConfig, TriggerHandler,
-    Streams, UpdateBuilder,
-    Value,  // re-export of serde_json::Value
-};
+### IIIError
 
-use iii_sdk::types::{
-    ApiRequest, ApiResponse,
-    FieldPath, StreamUpdateInput, UpdateOp, UpdateResult,
-};
+Errors returned by the III SDK.
 
-use iii_sdk::protocol::{
-    Message, RegisterFunctionMessage,
-    RegisterTriggerMessage, RegisterTriggerTypeMessage, ErrorBody,
-};
-```
+### III
 
-### OpenTelemetry (behind `otel` feature)
+WebSocket client for communication with the III Engine.
 
-```rust
-use iii_sdk::{
-    init_otel, shutdown_otel, flush_otel,
-    get_tracer, get_meter, is_initialized,
-    with_span, SpanKind, SpanStatus,
-    OtelConfig, ReconnectionConfig,
-};
+Create with [`III::new`] or [`register_worker`](crate::register_worker).
 
-use iii_sdk::{
-    current_trace_id, current_span_id,
-    inject_traceparent, inject_baggage,
-    extract_context, extract_traceparent, extract_baggage,
-    get_baggage_entry, set_baggage_entry, get_all_baggage,
-    remove_baggage_entry,
-};
-```
+### InitOptions
+
+Configuration options passed to [`register_worker`].
 
 ## Context
 
 ```rust
 use iii_sdk::Logger;
 
-let logger = Logger();
-logger.info("Processing started", None);
-logger.warn("Low memory", Some(json!({ "available_mb": 128 })));
+let logger = Logger::new(Some("my-function".to_string()));
+logger.info("Processing started");
 ```
 
-The `Logger()` function returns the current `Context` (with `logger`) from within a function handler. The logger sends log events to the engine via `engine::log::*` functions.
+The `Logger` struct emits OTel LogRecords when OTel is active, otherwise falls back to the `tracing` crate.

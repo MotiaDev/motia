@@ -4,17 +4,17 @@ import * as os from 'node:os'
 import { type Data, WebSocket } from 'ws'
 import { ChannelReader, ChannelWriter } from './channels'
 import {
-  type IIIConnectionState,
-  type IIIReconnectionConfig,
   DEFAULT_BRIDGE_RECONNECTION_CONFIG,
   DEFAULT_INVOCATION_TIMEOUT_MS,
   EngineFunctions,
   EngineTriggers,
+  type IIIConnectionState,
+  type IIIReconnectionConfig,
 } from './iii-constants'
 import {
-  type IIIMessage,
   type FunctionInfo,
   type HttpInvocationConfig,
+  type IIIMessage,
   type InvocationResultMessage,
   type InvokeFunctionMessage,
   MessageType,
@@ -22,44 +22,40 @@ import {
   type RegisterServiceMessage,
   type RegisterTriggerMessage,
   type RegisterTriggerTypeMessage,
+  type StreamChannelRef,
   type TriggerAction as TriggerActionType,
   type TriggerInfo,
   type TriggerRegistrationResultMessage,
   type TriggerRequest,
   type WorkerInfo,
   type WorkerRegisteredMessage,
-  type StreamChannelRef,
 } from './iii-types'
+import { registerWorkerGauges, stopWorkerGauges } from './otel-worker-gauges'
 import type { IStream } from './stream'
 import {
   extractContext,
   getLogger,
   getMeter,
   getTracer,
+  initOtel,
   injectBaggage,
   injectTraceparent,
-  initOtel,
-  shutdownOtel,
+  type OtelConfig,
   SeverityNumber,
+  shutdownOtel,
   SpanKind,
   withSpan,
-  type OtelConfig,
 } from './telemetry-system'
-import { registerWorkerGauges, stopWorkerGauges } from './otel-worker-gauges'
 import type { TriggerHandler } from './triggers'
 import type {
-  ISdk,
+  FunctionRef,
   FunctionsAvailableCallback,
   Invocation,
-  LogCallback,
-  LogConfig,
-  LogSeverityLevel,
-  OtelLogEvent,
+  ISdk,
   RemoteFunctionData,
   RemoteFunctionHandler,
   RemoteTriggerTypeData,
   Trigger,
-  FunctionRef,
 } from './types'
 import { isChannelRef } from './utils'
 
@@ -74,9 +70,7 @@ function getDefaultWorkerName(): string {
   return `${os.hostname()}:${process.pid}`
 }
 
-/** Callback type for connection state changes */
-export type ConnectionStateCallback = (state: IIIConnectionState) => void
-
+/** @internal */
 export type TelemetryOptions = {
   language?: string
   project_name?: string
@@ -84,17 +78,38 @@ export type TelemetryOptions = {
   amplitude_api_key?: string
 }
 
+/**
+ * Configuration options passed to {@link registerWorker}.
+ *
+ * @example
+ * ```typescript
+ * const iii = registerWorker('ws://localhost:49134', {
+ *   workerName: 'my-worker',
+ *   invocationTimeoutMs: 10000,
+ *   reconnectionConfig: { maxRetries: 5 },
+ * })
+ * ```
+ */
 export type InitOptions = {
+  /** Display name for this worker. Defaults to `hostname:pid`. */
   workerName?: string
+  /** Enable worker metrics via OpenTelemetry. Defaults to `true`. */
   enableMetricsReporting?: boolean
-  /** Default timeout for function invocations in milliseconds */
+  /** Default timeout for `trigger()` in milliseconds. Defaults to `30000`. */
   invocationTimeoutMs?: number
-  /** Configuration for WebSocket reconnection behavior */
+  /**
+   * WebSocket reconnection behavior.
+   *
+   * @see {@link IIIReconnectionConfig} for available fields and defaults.
+   */
   reconnectionConfig?: Partial<IIIReconnectionConfig>
-  /** OpenTelemetry configuration. OTel is initialized automatically by default.
+  /**
+   * OpenTelemetry configuration. OTel is initialized automatically by default.
    * Set `{ enabled: false }` or env `OTEL_ENABLED=false/0/no/off` to disable.
-   * The engineWsUrl is set automatically from the III address. */
+   * The `engineWsUrl` is set automatically from the III address.
+   */
   otel?: Omit<OtelConfig, 'engineWsUrl'>
+  /** @internal */
   telemetry?: TelemetryOptions
 }
 
@@ -108,9 +123,6 @@ class Sdk implements ISdk {
   private functionsAvailableCallbacks = new Set<FunctionsAvailableCallback>()
   private functionsAvailableTrigger?: Trigger
   private functionsAvailableFunctionPath?: string
-  private logCallbacks = new Map<LogCallback, LogConfig>()
-  private logTrigger?: Trigger
-  private logFunctionPath?: string
   private messagesToSend: Record<string, unknown>[] = []
   private workerName: string
   private workerId?: string
@@ -120,7 +132,6 @@ class Sdk implements ISdk {
   private reconnectionConfig: IIIReconnectionConfig
   private reconnectAttempt = 0
   private connectionState: IIIConnectionState = 'disconnected'
-  private stateCallbacks = new Set<ConnectionStateCallback>()
   private isShuttingDown = false
 
   constructor(
@@ -141,6 +152,26 @@ class Sdk implements ISdk {
     this.connect()
   }
 
+  /**
+   * Registers a custom trigger type with the engine. A trigger type defines
+   * how external events (HTTP, cron, queue, etc.) map to function invocations.
+   *
+   * @param triggerType - Trigger type registration input.
+   * @param triggerType.id - Unique trigger type identifier.
+   * @param triggerType.description - Human-readable description.
+   * @param handler - Handler with `registerTrigger` / `unregisterTrigger` callbacks.
+   *
+   * @example
+   * ```typescript
+   * iii.registerTriggerType(
+   *   { id: 'my-trigger', description: 'Custom trigger' },
+   *   {
+   *     async registerTrigger({ id, function_id, config }) { },
+   *     async unregisterTrigger({ id, function_id, config }) { },
+   *   },
+   * )
+   * ```
+   */
   registerTriggerType = <TConfig>(
     triggerType: Omit<RegisterTriggerTypeMessage, 'message_type'>,
     handler: TriggerHandler<TConfig>,
@@ -152,15 +183,38 @@ class Sdk implements ISdk {
     })
   }
 
-  on = (event: string, callback: (arg?: unknown) => void): void => {
-    this.ws?.on(event, callback)
-  }
-
+  /**
+   * Unregisters a previously registered trigger type.
+   *
+   * @param triggerType - The trigger type to unregister (must match the `id` used during registration).
+   */
   unregisterTriggerType = (triggerType: Omit<RegisterTriggerTypeMessage, 'message_type'>): void => {
     this.sendMessage(MessageType.UnregisterTriggerType, triggerType, true)
     this.triggerTypes.delete(triggerType.id)
   }
 
+  /**
+   * Binds a trigger configuration to a registered function. When the trigger
+   * fires, the engine invokes the target function.
+   *
+   * @param trigger - Trigger registration input.
+   * @param trigger.type - Trigger type (e.g. `http`, `queue`, `cron`).
+   * @param trigger.function_id - ID of the function to invoke.
+   * @param trigger.config - Trigger-specific configuration.
+   * @returns A {@link Trigger} handle with an `unregister()` method.
+   *
+   * @example
+   * ```typescript
+   * const trigger = iii.registerTrigger({
+   *   type: 'http',
+   *   function_id: 'greet',
+   *   config: { api_path: '/greet', http_method: 'GET' },
+   * })
+   *
+   * // Later...
+   * trigger.unregister()
+   * ```
+   */
   registerTrigger = (trigger: Omit<RegisterTriggerMessage, 'message_type' | 'id'>): Trigger => {
     const id = crypto.randomUUID()
     const fullTrigger: RegisterTriggerMessage = {
@@ -183,6 +237,29 @@ class Sdk implements ISdk {
     }
   }
 
+  /**
+   * Registers a function with the engine. The `id` is the unique identifier
+   * used by triggers and invocations.
+   *
+   * Pass a handler for local execution, or an {@link HttpInvocationConfig}
+   * for HTTP-invoked functions (Lambda, Cloudflare Workers, etc.).
+   *
+   * @param message - Function registration input.
+   * @param message.id - Unique function identifier.
+   * @param message.description - Human-readable description.
+   * @param handlerOrInvocation - Async handler or HTTP invocation config.
+   * @returns A {@link FunctionRef} with `id` and `unregister()`.
+   *
+   * @example
+   * ```typescript
+   * const fn = iii.registerFunction(
+   *   { id: 'greet', description: 'Greets a user' },
+   *   async (input: { name: string }) => {
+   *     return { message: `Hello, ${input.name}!` }
+   *   },
+   * )
+   * ```
+   */
   registerFunction = (
     message: Omit<RegisterFunctionMessage, 'message_type'>,
     handlerOrInvocation: RemoteFunctionHandler | HttpInvocationConfig,
@@ -251,11 +328,25 @@ class Sdk implements ISdk {
     this.services.set(message.id, { ...msg, message_type: MessageType.RegisterService })
   }
 
+  /**
+   * Creates a streaming channel pair for worker-to-worker data transfer.
+   * Returns a {@link Channel} with a local writer/reader and serializable refs
+   * that can be passed as fields in invocation data to other functions.
+   *
+   * @param bufferSize - Optional buffer size for the channel (default: 64).
+   * @returns A {@link Channel} with `writer`, `reader`, and their serializable refs.
+   *
+   * @example
+   * ```typescript
+   * const channel = await iii.createChannel()
+   * channel.writer.stream.write(Buffer.from('hello'))
+   * channel.writer.close()
+   * ```
+   */
   createChannel = async (bufferSize?: number): Promise<import('./types').Channel> => {
-    const result = await this.trigger<
-      { buffer_size?: number },
-      { writer: StreamChannelRef; reader: StreamChannelRef }
-    >({ function_id: 'engine::channels::create', payload: { buffer_size: bufferSize } })
+    const result = await this.trigger<{ buffer_size?: number }, { writer: StreamChannelRef; reader: StreamChannelRef }>(
+      { function_id: 'engine::channels::create', payload: { buffer_size: bufferSize } },
+    )
 
     return {
       writer: new ChannelWriter(this.address, result.writer),
@@ -265,9 +356,46 @@ class Sdk implements ISdk {
     }
   }
 
-  trigger = async <TInput, TOutput>(
-    request: TriggerRequest<TInput>,
-  ): Promise<TOutput> => {
+  /**
+   * Invokes a remote function. The routing behavior and return type depend
+   * on the `action` field of the request.
+   *
+   * | `action`                      | Behavior                                           | Return type              |
+   * |-------------------------------|----------------------------------------------------|-----------------------   |
+   * | _(none)_                      | Synchronous -- waits for the function to return     | `Promise<TOutput>`       |
+   * | `TriggerAction.Enqueue(...)` | Async via named queue -- engine acknowledges enqueue | `Promise<EnqueueResult>` |
+   * | `TriggerAction.Void()`       | Fire-and-forget -- no response                      | `Promise<undefined>`     |
+   *
+   * @param request - The trigger request.
+   * @param request.function_id - ID of the function to invoke.
+   * @param request.payload - Payload to pass to the function.
+   * @param request.action - Routing action. Omit for synchronous request/response.
+   * @param request.timeoutMs - Override the default invocation timeout.
+   * @returns The result of the function invocation.
+   *
+   * @example
+   * ```typescript
+   * import { TriggerAction } from 'iii-sdk'
+   *
+   * // Synchronous
+   * const result = await iii.trigger({ function_id: 'get-order', payload: { id: '123' } })
+   *
+   * // Enqueue
+   * const { messageReceiptId } = await iii.trigger({
+   *   function_id: 'payments::charge',
+   *   payload: { orderId: '123', amount: 49.99 },
+   *   action: TriggerAction.Enqueue({ queue: 'payment' }),
+   * })
+   *
+   * // Fire-and-forget
+   * iii.trigger({
+   *   function_id: 'notifications::send',
+   *   payload: { userId: '123' },
+   *   action: TriggerAction.Void(),
+   * })
+   * ```
+   */
+  trigger = async <TInput, TOutput>(request: TriggerRequest<TInput>): Promise<TOutput> => {
     const { function_id, payload, action, timeoutMs } = request
     const effectiveTimeout = timeoutMs ?? this.invocationTimeoutMs
 
@@ -322,6 +450,17 @@ class Sdk implements ISdk {
     })
   }
 
+  /**
+   * Lists all functions registered with the engine across all connected workers.
+   *
+   * @returns An array of {@link FunctionInfo} objects.
+   *
+   * @example
+   * ```typescript
+   * const functions = await iii.listFunctions()
+   * functions.forEach(fn => console.log(fn.function_id))
+   * ```
+   */
   listFunctions = async (): Promise<FunctionInfo[]> => {
     const result = await this.trigger<Record<string, never>, { functions: FunctionInfo[] }>({
       function_id: EngineFunctions.LIST_FUNCTIONS,
@@ -330,6 +469,11 @@ class Sdk implements ISdk {
     return result.functions
   }
 
+  /**
+   * Lists all connected workers.
+   *
+   * @returns An array of {@link WorkerInfo} objects.
+   */
   listWorkers = async (): Promise<WorkerInfo[]> => {
     const result = await this.trigger<Record<string, never>, { workers: WorkerInfo[] }>({
       function_id: EngineFunctions.LIST_WORKERS,
@@ -370,6 +514,29 @@ class Sdk implements ISdk {
     })
   }
 
+  /**
+   * Registers a custom stream implementation, overriding the engine default
+   * for the given stream name.
+   *
+   * Registers 5 of the 6 `IStream` methods (`get`, `set`, `delete`, `list`,
+   * `listGroups`). The `update` method is not registered -- atomic updates are
+   * handled by the engine's built-in stream update logic.
+   *
+   * @param streamName - Name of the stream.
+   * @param stream - Object implementing the {@link IStream} interface.
+   *
+   * @example
+   * ```typescript
+   * iii.createStream('my-stream', {
+   *   async get(input) { return null },
+   *   async set(input) { return null },
+   *   async delete(input) { return { old_value: undefined } },
+   *   async list(input) { return [] },
+   *   async listGroups(input) { return [] },
+   *   async update(input) { return null },
+   * })
+   * ```
+   */
   createStream = <TData>(streamName: string, stream: IStream<TData>): void => {
     this.registerFunction({ id: `stream::get(${streamName})` }, stream.get.bind(stream))
     this.registerFunction({ id: `stream::set(${streamName})` }, stream.set.bind(stream))
@@ -378,6 +545,23 @@ class Sdk implements ISdk {
     this.registerFunction({ id: `stream::list_groups(${streamName})` }, stream.listGroups.bind(stream))
   }
 
+  /**
+   * Subscribes to function availability events from the engine. The callback
+   * fires whenever the set of available functions changes.
+   *
+   * @param callback - Receives the current list of {@link FunctionInfo} objects.
+   * @returns An unsubscribe function.
+   *
+   * @example
+   * ```typescript
+   * const unsub = iii.onFunctionsAvailable((functions) => {
+   *   console.log('Available:', functions.map(f => f.function_id))
+   * })
+   *
+   * // Later...
+   * unsub()
+   * ```
+   */
   onFunctionsAvailable = (callback: FunctionsAvailableCallback): (() => void) => {
     this.functionsAvailableCallbacks.add(callback)
 
@@ -412,66 +596,6 @@ class Sdk implements ISdk {
     }
   }
 
-  onLog = (callback: LogCallback, config?: LogConfig): (() => void) => {
-    const effectiveConfig = config ?? { level: 'all' }
-    this.logCallbacks.set(callback, effectiveConfig)
-
-    if (!this.logTrigger) {
-      if (!this.logFunctionPath) {
-        this.logFunctionPath = `engine.on_log.${crypto.randomUUID()}`
-      }
-
-      const function_id = this.logFunctionPath
-      if (!this.functions.has(function_id)) {
-        this.registerFunction({ id: function_id }, async (log: OtelLogEvent) => {
-          this.logCallbacks.forEach((cfg, handler) => {
-            try {
-              const minSeverity = this.severityTextToNumber(cfg.level ?? 'all')
-              if (cfg.level === 'all' || log.severity_number >= minSeverity) {
-                handler(log)
-              }
-            } catch (error) {
-              this.logError('Log callback handler threw an exception', error)
-            }
-          })
-          return null
-        })
-      }
-
-      this.logTrigger = this.registerTrigger({
-        type: EngineTriggers.LOG,
-        function_id,
-        config: { level: 'all', severity_min: 0 },
-      })
-    }
-
-    return () => {
-      this.logCallbacks.delete(callback)
-      if (this.logCallbacks.size === 0 && this.logTrigger) {
-        this.logTrigger.unregister()
-        this.logTrigger = undefined
-      }
-    }
-  }
-
-  /**
-   * Get the current connection state.
-   */
-  getConnectionState = (): IIIConnectionState => {
-    return this.connectionState
-  }
-
-  /**
-   * Register a callback to be notified of connection state changes.
-   * @returns A function to unregister the callback
-   */
-  onConnectionStateChange = (callback: ConnectionStateCallback): (() => void) => {
-    this.stateCallbacks.add(callback)
-    // Immediately notify of current state
-    callback(this.connectionState)
-    return () => this.stateCallbacks.delete(callback)
-  }
-
   /**
    * Gracefully shutdown the iii, cleaning up all resources.
    */
@@ -502,9 +626,6 @@ class Sdk implements ISdk {
       this.ws = undefined
     }
 
-    // Clear callbacks
-    this.stateCallbacks.clear()
-
     this.setConnectionState('disconnected')
   }
 
@@ -513,13 +634,6 @@ class Sdk implements ISdk {
   private setConnectionState(state: IIIConnectionState): void {
     if (this.connectionState !== state) {
       this.connectionState = state
-      for (const callback of this.stateCallbacks) {
-        try {
-          callback(state)
-        } catch (error) {
-          this.logError('Error in connection state callback', error)
-        }
-      }
     }
   }
 
@@ -706,27 +820,6 @@ class Sdk implements ISdk {
     }
   }
 
-  private severityTextToNumber(level: LogSeverityLevel): number {
-    switch (level) {
-      case 'trace':
-        return 1
-      case 'debug':
-        return 5
-      case 'info':
-        return 9
-      case 'warn':
-        return 13
-      case 'error':
-        return 17
-      case 'fatal':
-        return 21
-      case 'all':
-        return 0
-      default:
-        return 0
-    }
-  }
-
   private onInvocationResult(invocation_id: string, result: unknown, error: unknown): void {
     const invocation = this.invocations.get(invocation_id)
 
@@ -884,11 +977,60 @@ class Sdk implements ISdk {
   }
 }
 
+/**
+ * Factory object that constructs routing actions for {@link ISdk.trigger}.
+ *
+ * @example
+ * ```typescript
+ * import { TriggerAction } from 'iii-sdk'
+ *
+ * // Enqueue to a named queue
+ * iii.trigger({
+ *   function_id: 'process',
+ *   payload: { data: 'hello' },
+ *   action: TriggerAction.Enqueue({ queue: 'jobs' }),
+ * })
+ *
+ * // Fire-and-forget
+ * iii.trigger({
+ *   function_id: 'notify',
+ *   payload: {},
+ *   action: TriggerAction.Void(),
+ * })
+ * ```
+ */
 export const TriggerAction = {
+  /**
+   * Routes the invocation through a named queue. The engine enqueues the job,
+   * acknowledges the caller with `{ messageReceiptId }`, and processes it
+   * asynchronously.
+   *
+   * @param opts - Queue routing options.
+   * @param opts.queue - Name of the target queue.
+   */
   Enqueue: (opts: { queue: string }): TriggerActionType => ({ type: 'enqueue', ...opts }),
+  /**
+   * Fire-and-forget routing. The engine forwards the invocation without
+   * waiting for a response or queuing the job.
+   */
   Void: (): TriggerActionType => ({ type: 'void' }),
 } as const
 
-
-export const registerWorker = (address: string, options?: InitOptions): ISdk =>
-  new Sdk(address, options)
+/**
+ * Creates and returns a connected SDK instance. The WebSocket connection is
+ * established automatically -- there is no separate `connect()` call.
+ *
+ * @param address - WebSocket URL of the III engine (e.g. `ws://localhost:49134`).
+ * @param options - Optional {@link InitOptions} for worker name, timeouts, reconnection, and OTel.
+ * @returns A connected {@link ISdk} instance.
+ *
+ * @example
+ * ```typescript
+ * import { registerWorker } from 'iii-sdk'
+ *
+ * const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134', {
+ *   workerName: 'my-worker',
+ * })
+ * ```
+ */
+export const registerWorker = (address: string, options?: InitOptions): ISdk => new Sdk(address, options)

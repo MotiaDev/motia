@@ -40,19 +40,22 @@ modules:
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="stream-writer.ts"
-import {Logger} from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'chat::send' }, async (input) => {
   const logger = new Logger()
   const messageId = crypto.randomUUID()
 
-  await iii.trigger('stream::set', {
-    stream_name: 'chat',
-    group_id: input.roomId,
-    item_id: messageId,
-    data: { text: input.text, author: input.author },
+  await iii.trigger({
+    function_id: 'stream::set',
+    payload: {
+      stream_name: 'chat',
+      group_id: input.roomId,
+      item_id: messageId,
+      data: { text: input.text, author: input.author },
+    },
   })
 
   logger.info('Message sent to stream', { messageId })
@@ -60,7 +63,10 @@ iii.registerFunction({ id: 'chat::send' }, async (input) => {
 })
 
 // Then call from another function or worker
-const { messageId } = await iii.trigger('chat::send', { roomId: 'room-123', text: 'Hello world', author: 'alice' })
+const { messageId } = await iii.trigger({
+  function_id: 'chat::send',
+  payload: { roomId: 'room-123', text: 'Hello world', author: 'alice' },
+})
 logger.info('Sent message', { messageId })
 ```
 </Tab>
@@ -73,17 +79,20 @@ import uuid
 from iii import III
 from iii import Logger
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 async def send_message(input):
     logger = Logger()
     message_id = str(uuid.uuid4())
 
-    await iii.trigger('stream::set', {
-        'stream_name': 'chat',
-        'group_id': input['roomId'],
-        'item_id': message_id,
-        'data': {'text': input['text'], 'author': input['author']},
+    await iii.trigger({
+        'function_id': 'stream::set',
+        'payload': {
+            'stream_name': 'chat',
+            'group_id': input['roomId'],
+            'item_id': message_id,
+            'data': {'text': input['text'], 'author': input['author']},
+        },
     })
 
     logger.info('Message sent to stream', {'messageId': message_id})
@@ -102,19 +111,22 @@ async def main():
 asyncio.run(main())
 
 # Then call from another function or worker
-result = await iii.trigger('chat::send', {'roomId': 'room-123', 'text': 'Hello world', 'author': 'alice'})
+result = await iii.trigger({
+    'function_id': 'chat::send',
+    'payload': {'roomId': 'room-123', 'text': 'Hello world', 'author': 'alice'},
+})
 print('Sent message:', result['messageId'])
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="stream_writer.rs"
-use iii_sdk::{Logger, III};
+use iii_sdk::{Logger, TriggerRequest, III, TriggerRequest};
 use serde_json::json;
 use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+    let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
     let iii = III::new(&url);
     iii.connect().await?;
 
@@ -128,12 +140,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let text = input["text"].as_str().unwrap_or("");
             let author = input["author"].as_str().unwrap_or("");
 
-            iii.trigger("stream::set", json!({
+            iii.trigger(TriggerRequest::new("stream::set", json!({
                 "stream_name": "chat",
                 "group_id": room_id,
                 "item_id": message_id,
                 "data": { "text": text, "author": author },
-            })).await?;
+            }))).await?;
 
             logger.info("Message sent to stream", Some(json!({ "messageId": message_id })));
             Ok(json!({ "messageId": message_id }))
@@ -145,7 +157,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 // Then call from another function or worker
-let result = iii.trigger("chat::send", json!({ "roomId": "room-123", "text": "Hello world", "author": "alice" })).await?;
+let result = iii
+    .trigger(TriggerRequest::new(
+        "chat::send",
+        json!({ "roomId": "room-123", "text": "Hello world", "author": "alice" }),
+    ))
+    .await?;
 println!("Sent message: {}", result["messageId"]);
 ```
 </Tab>
@@ -159,9 +176,9 @@ println!("Sent message: {}", result["messageId"]);
 iii.registerFunction({ id: 'chat::list' }, async (input) => {
   const logger = new Logger()
 
-  const messages = await iii.trigger('stream::list', {
-    stream_name: 'chat',
-    group_id: input.roomId,
+  const messages = await iii.trigger({
+    function_id: 'stream::list',
+    payload: { stream_name: 'chat', group_id: input.roomId },
   })
 
   logger.info('Messages retrieved', { count: messages.length })
@@ -169,7 +186,10 @@ iii.registerFunction({ id: 'chat::list' }, async (input) => {
 })
 
 // Then call from another function or worker
-const messages = await iii.trigger('chat::list', { roomId: 'room-123' })
+const messages = await iii.trigger({
+  function_id: 'chat::list',
+  payload: { roomId: 'room-123' },
+})
 logger.info('Messages', { messages })
 ```
 </Tab>
@@ -178,9 +198,9 @@ logger.info('Messages', { messages })
 async def list_messages(input):
     logger = Logger()
 
-    messages = await iii.trigger('stream::list', {
-        'stream_name': 'chat',
-        'group_id': input['roomId'],
+    messages = await iii.trigger({
+        'function_id': 'stream::list',
+        'payload': {'stream_name': 'chat', 'group_id': input['roomId']},
     })
 
     logger.info('Messages retrieved', {'count': len(messages)})
@@ -189,7 +209,10 @@ async def list_messages(input):
 iii.register_function('chat::list', list_messages)
 
 # Then call from another function or worker
-messages = await iii.trigger('chat::list', {'roomId': 'room-123'})
+messages = await iii.trigger({
+    'function_id': 'chat::list',
+    'payload': {'roomId': 'room-123'},
+})
 print('Messages:', messages)
 ```
 </Tab>
@@ -202,10 +225,12 @@ iii.register_function("chat::list", move |input| {
         let logger = Logger();
         let room_id = input["roomId"].as_str().unwrap_or("");
 
-        let messages = iii.trigger("stream::list", json!({
-            "stream_name": "chat",
-            "group_id": room_id,
-        })).await?;
+        let messages = iii
+            .trigger(TriggerRequest::new(
+                "stream::list",
+                json!({ "stream_name": "chat", "group_id": room_id }),
+            ))
+            .await?;
 
         logger.info("Messages retrieved", Some(json!({ "count": messages.as_array().map(|a| a.len()).unwrap_or(0) })));
         Ok(messages)
@@ -213,7 +238,9 @@ iii.register_function("chat::list", move |input| {
 });
 
 // Then call from another function or worker
-let messages = iii.trigger("chat::list", json!({ "roomId": "room-123" })).await?;
+let messages = iii
+    .trigger(TriggerRequest::new("chat::list", json!({ "roomId": "room-123" })))
+    .await?;
 println!("Messages: {:?}", messages);
 ```
 </Tab>

@@ -65,6 +65,11 @@ pub struct TracesListInput {
     /// Include internal engine traces (engine.* functions). Defaults to false.
     #[serde(default)]
     include_internal: Option<bool>,
+    /// Search across all spans in each trace, not just root spans.
+    /// When true and a `name` filter is set, traces are matched if ANY span
+    /// in the trace matches the name filter. Defaults to false.
+    #[serde(default)]
+    search_all_spans: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -605,6 +610,26 @@ impl OtelModule {
                 };
 
                 let include_internal = input.include_internal.unwrap_or(false);
+                let search_all = input.search_all_spans.unwrap_or(false);
+
+                // Pre-compute trace IDs that have any span matching the name filter
+                let name_matched_trace_ids: Option<std::collections::HashSet<String>> =
+                    if search_all {
+                        if let Some(ref name_filter) = input.name {
+                            let name_lower = name_filter.to_lowercase();
+                            Some(
+                                all_spans
+                                    .iter()
+                                    .filter(|s| s.name.to_lowercase().contains(&name_lower))
+                                    .map(|s| s.trace_id.clone())
+                                    .collect(),
+                            )
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
 
                 let mut filtered: Vec<_> = all_spans
                     .into_iter()
@@ -628,10 +653,20 @@ impl OtelModule {
                         {
                             return false;
                         }
-                        if let Some(ref n) = input.name
-                            && !s.name.to_lowercase().contains(&n.to_lowercase())
-                        {
-                            return false;
+                        if let Some(ref n) = input.name {
+                            if search_all {
+                                // When searching all spans, check if this root's trace_id was matched
+                                if let Some(ref matched_ids) = name_matched_trace_ids {
+                                    if !matched_ids.contains(&s.trace_id) {
+                                        return false;
+                                    }
+                                }
+                            } else {
+                                // Original behavior: filter root span name only
+                                if !s.name.to_lowercase().contains(&n.to_lowercase()) {
+                                    return false;
+                                }
+                            }
                         }
                         if let Some(ref st) = input.status
                             && !s.status.to_lowercase().contains(&st.to_lowercase())
@@ -3782,6 +3817,7 @@ mod tests {
                 sort_order: Some("asc".to_string()),
                 attributes: Some(vec![vec!["http.method".to_string(), "GET".to_string()]]),
                 include_internal: Some(false),
+                search_all_spans: None,
             })
             .await;
 

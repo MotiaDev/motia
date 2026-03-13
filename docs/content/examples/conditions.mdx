@@ -25,9 +25,9 @@ The condition function receives the full API request. If it returns `false`, the
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import {Logger, TriggerAction} from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = init(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'conditions::is_premium' },
@@ -60,7 +60,7 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-from iii import III, InitOptions, ApiRequest, ApiResponse
+from iii import III, InitOptions, ApiRequest, ApiResponse, TriggerAction
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-worker"))
 
@@ -97,7 +97,7 @@ iii.register_trigger(
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger};
+use iii_sdk::{III, Logger, TriggerRequest, TriggerAction};
 use serde_json::json;
 
 #[tokio::main]
@@ -151,9 +151,10 @@ iii.registerFunction(
     const logger = new Logger()
     logger.info('Processing high-value order', { amount: data.amount })
 
-    iii.triggerVoid('enqueue', {
-      topic: 'order.processed',
-      data: { ...data, processedAt: new Date().toISOString() },
+    iii.trigger({
+      function_id: 'enqueue',
+      payload: { topic: 'order.processed', data: { ...data, processedAt: new Date().toISOString() } },
+      action: TriggerAction.Void(),
     })
   },
 )
@@ -179,19 +180,19 @@ async def is_high_value(data) -> bool:
 
 
 async def orders_high_value(data: dict, ctx) -> None:
-    logger.info("Processing high-value order", {"amount": data.get("amount")})
+    amount = data.get("amount", 0)
+    logger.info("Processing high-value order", {"amount": amount})
 
-    # Silent skip
     if amount <= 1000:
         logger.info("Low-value order — skipping", {"amount": amount})
         return
 
-    logger.info("Processing high-value order", {"amount": amount})
-
-    iii.trigger_void("enqueue", {
-        "topic": "order.processed",
-        "data": {**data, "processedAt": datetime.now(timezone.utc).isoformat()},
+    iii.trigger_void({
+        "function_id": "enqueue",
+        "payload": {"topic": "order.processed", "data": {**data, "processedAt": datetime.now(timezone.utc).isoformat()}},
+        "action": TriggerAction.Void(),
     })
+
 
 
 iii.register_function("conditions::is_high_value", is_high_value)
@@ -218,10 +219,10 @@ iii.register_function("orders::high_value", |input| async move {
     let amount = input["amount"].as_f64().unwrap_or(0.0);
     logger.info("Processing high-value order", Some(json!({ "amount": amount })));
 
-    iii.trigger_void("enqueue", json!({
+    iii.trigger(TriggerRequest::new("enqueue", json!({
         "topic": "order.processed",
         "data": { "amount": amount, "processedAt": chrono::Utc::now().to_rfc3339() },
-    }))?;
+    })).action(TriggerAction::void())).await?;
 
     Ok(json!(null))
 });

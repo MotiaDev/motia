@@ -16,23 +16,27 @@ def reset_otel():
     # reset them so subsequent test files start with a clean slate.
     try:
         from iii.telemetry import shutdown_otel
+
         shutdown_otel()
     except Exception:
         pass
     try:
         import opentelemetry._logs._internal as _li
+
         _li._LOGGER_PROVIDER = None
         _li._LOGGER_PROVIDER_SET_ONCE._done = False
     except Exception:
         pass
     try:
         import opentelemetry.trace._internal as _ti
+
         _ti._TRACER_PROVIDER = None
         _ti._TRACER_PROVIDER_SET_ONCE._done = False
     except Exception:
         pass
     try:
         import opentelemetry.metrics._internal as _mi
+
         _mi._METER_PROVIDER = None
         _mi._METER_PROVIDER_SET_ONCE._done = False
     except Exception:
@@ -134,10 +138,7 @@ async def test_reconnect_replays_durable_state_once_per_connection(
         1 for ws in sockets for m in ws.sent if m.get("type") == "registerfunction" and m.get("id") == "demo.fn"
     )
     total_trigger = sum(
-        1
-        for ws in sockets
-        for m in ws.sent
-        if m.get("type") == "registertrigger" and m.get("function_id") == "demo.fn"
+        1 for ws in sockets for m in ws.sent if m.get("type") == "registertrigger" and m.get("function_id") == "demo.fn"
     )
 
     assert total_fn == 2

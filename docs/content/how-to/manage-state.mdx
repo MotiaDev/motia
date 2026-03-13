@@ -35,19 +35,23 @@ modules:
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="state-writer.ts"
-import {Logger} from 'iii-sdk'
+import { registerWorker, Logger , registerWorker} from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction({ id: 'users::create' }, async (input) => {
   const logger = new Logger()
   const userId = crypto.randomUUID()
   const user = { id: userId, name: input.name, email: input.email }
 
-  await iii.trigger('state::set', {
+  await iii.trigger({ function_id: 'state::set', payload: {
     scope: 'users',
     key: userId,
     value: user,
+  }})
+  await iii.trigger({
+    function_id: 'state::set',
+    payload: { scope: 'users', key: userId, value: user },
   })
 
   logger.info('User saved to state', { userId })
@@ -55,7 +59,10 @@ iii.registerFunction({ id: 'users::create' }, async (input) => {
 })
 
 // Then call from another function or worker
-const { userId } = await iii.trigger('users::create', { name: 'Alice', email: 'alice@example.com' })
+const { userId } = await iii.trigger({
+  function_id: 'users::create',
+  payload: { name: 'Alice', email: 'alice@example.com' },
+})
 logger.info('Created user', { userId })
 ```
 </Tab>
@@ -68,17 +75,16 @@ import uuid
 from iii import III
 from iii import Logger
 
-iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
+iii = III(os.environ.get('III_URL', 'ws://localhost:49134'))
 
 async def create_user(input):
     logger = Logger()
     user_id = str(uuid.uuid4())
     user = {'id': user_id, 'name': input['name'], 'email': input['email']}
 
-    await iii.trigger('state::set', {
-        'scope': 'users',
-        'key': user_id,
-        'value': user,
+    await iii.trigger({
+        'function_id': 'state::set',
+        'payload': {'scope': 'users', 'key': user_id, 'value': user},
     })
 
     logger.info('User saved to state', {'userId': user_id})
@@ -97,19 +103,22 @@ async def main():
 asyncio.run(main())
 
 # Then call from another function or worker
-result = await iii.trigger('users::create', {'name': 'Alice', 'email': 'alice@example.com'})
+result = await iii.trigger({
+    'function_id': 'users::create',
+    'payload': {'name': 'Alice', 'email': 'alice@example.com'},
+})
 print('Created user:', result['userId'])
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="state_writer.rs"
-use iii_sdk::{Logger, III};
+use iii_sdk::{Logger, TriggerRequest, III, TriggerRequest};
 use serde_json::json;
 use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let url = std::env::var("III_BRIDGE_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
+    let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
     let iii = III::new(&url);
     iii.connect().await?;
 
@@ -122,11 +131,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let name = input["name"].as_str().unwrap_or("");
             let email = input["email"].as_str().unwrap_or("");
 
-            iii.trigger("state::set", json!({
+            iii.trigger(TriggerRequest::new("state::set", json!({
                 "scope": "users",
                 "key": user_id,
                 "value": { "id": user_id, "name": name, "email": email },
-            })).await?;
+            }))).await?;
 
             logger.info("User saved to state", Some(json!({ "userId": user_id })));
             Ok(json!({ "userId": user_id }))
@@ -138,7 +147,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 // Then call from another function or worker
-let result = iii.trigger("users::create", json!({ "name": "Alice", "email": "alice@example.com" })).await?;
+let result = iii
+    .trigger(TriggerRequest::new(
+        "users::create",
+        json!({ "name": "Alice", "email": "alice@example.com" }),
+    ))
+    .await?;
 println!("Created user: {}", result["userId"]);
 ```
 </Tab>
@@ -152,9 +166,9 @@ println!("Created user: {}", result["userId"]);
 iii.registerFunction({ id: 'users::get' }, async (input) => {
   const logger = new Logger()
 
-  const user = await iii.trigger('state::get', {
-    scope: 'users',
-    key: input.userId,
+  const user = await iii.trigger({
+    function_id: 'state::get',
+    payload: { scope: 'users', key: input.userId },
   })
 
   logger.info('User retrieved', { userId: input.userId })
@@ -162,7 +176,10 @@ iii.registerFunction({ id: 'users::get' }, async (input) => {
 })
 
 // Then call from another function or worker
-const user = await iii.trigger('users::get', { userId: 'some-user-id' })
+const user = await iii.trigger({
+  function_id: 'users::get',
+  payload: { userId: 'some-user-id' },
+})
 logger.info('Retrieved user', user)
 ```
 </Tab>
@@ -171,9 +188,9 @@ logger.info('Retrieved user', user)
 async def get_user(input):
     logger = Logger()
 
-    user = await iii.trigger('state::get', {
-        'scope': 'users',
-        'key': input['userId'],
+    user = await iii.trigger({
+        'function_id': 'state::get',
+        'payload': {'scope': 'users', 'key': input['userId']},
     })
 
     logger.info('User retrieved', {'userId': input['userId']})
@@ -182,7 +199,10 @@ async def get_user(input):
 iii.register_function('users::get', get_user)
 
 # Then call from another function or worker
-user = await iii.trigger('users::get', {'userId': 'some-user-id'})
+user = await iii.trigger({
+    'function_id': 'users::get',
+    'payload': {'userId': 'some-user-id'},
+})
 print('Retrieved user:', user)
 ```
 </Tab>
@@ -195,10 +215,10 @@ iii.register_function("users::get", move |input| {
         let logger = Logger();
         let user_id = input["userId"].as_str().unwrap_or("");
 
-        let user = iii.trigger("state::get", json!({
+        let user = iii.trigger(TriggerRequest::new("state::get", json!({
             "scope": "users",
             "key": user_id,
-        })).await?;
+        }))).await?;
 
         logger.info("User retrieved", Some(json!({ "userId": user_id })));
         Ok(user)
@@ -206,7 +226,9 @@ iii.register_function("users::get", move |input| {
 });
 
 // Then call from another function or worker
-let user = iii.trigger("users::get", json!({ "userId": "some-user-id" })).await?;
+let user = iii
+    .trigger(TriggerRequest::new("users::get", json!({ "userId": "some-user-id" })))
+    .await?;
 println!("Retrieved user: {:?}", user);
 ```
 </Tab>
@@ -222,13 +244,16 @@ Use `state::update` with update operations for safe concurrent modifications:
 iii.registerFunction({ id: 'users::record-login' }, async (input) => {
   const logger = new Logger()
 
-  await iii.trigger('state::update', {
-    scope: 'users',
-    key: input.userId,
-    ops: [
-      { type: 'set', path: 'lastLogin', value: new Date().toISOString() },
-      { type: 'increment', path: 'loginCount', by: 1 },
-    ],
+  await iii.trigger({
+    function_id: 'state::update',
+    payload: {
+      scope: 'users',
+      key: input.userId,
+      ops: [
+        { type: 'set', path: 'lastLogin', value: new Date().toISOString() },
+        { type: 'increment', path: 'loginCount', by: 1 },
+      ],
+    },
   })
 
   logger.info('User login recorded', { userId: input.userId })
@@ -236,7 +261,10 @@ iii.registerFunction({ id: 'users::record-login' }, async (input) => {
 })
 
 // Then call from another function or worker
-await iii.trigger('users::record-login', { userId: 'some-user-id' })
+await iii.trigger({
+  function_id: 'users::record-login',
+  payload: { userId: 'some-user-id' },
+})
 logger.info('Login recorded')
 ```
 </Tab>
@@ -247,13 +275,16 @@ from datetime import datetime, timezone
 async def record_login(input):
     logger = Logger()
 
-    await iii.trigger('state::update', {
-        'scope': 'users',
-        'key': input['userId'],
-        'ops': [
-            {'type': 'set', 'path': 'lastLogin', 'value': datetime.now(timezone.utc).isoformat()},
-            {'type': 'increment', 'path': 'loginCount', 'by': 1},
-        ],
+    await iii.trigger({
+        'function_id': 'state::update',
+        'payload': {
+            'scope': 'users',
+            'key': input['userId'],
+            'ops': [
+                {'type': 'set', 'path': 'lastLogin', 'value': datetime.now(timezone.utc).isoformat()},
+                {'type': 'increment', 'path': 'loginCount', 'by': 1},
+            ],
+        },
     })
 
     logger.info('User login recorded', {'userId': input['userId']})
@@ -262,7 +293,10 @@ async def record_login(input):
 iii.register_function('users::record-login', record_login)
 
 # Then call from another function or worker
-await iii.trigger('users::record-login', {'userId': 'some-user-id'})
+await iii.trigger({
+    'function_id': 'users::record-login',
+    'payload': {'userId': 'some-user-id'},
+})
 print('Login recorded')
 ```
 </Tab>
@@ -275,14 +309,14 @@ iii.register_function("users::record-login", move |input| {
         let logger = Logger();
         let user_id = input["userId"].as_str().unwrap_or("");
 
-        iii.trigger("state::update", json!({
+        iii.trigger(TriggerRequest::new("state::update", json!({
             "scope": "users",
             "key": user_id,
             "ops": [
                 { "type": "set", "path": "lastLogin", "value": chrono::Utc::now().to_rfc3339() },
                 { "type": "increment", "path": "loginCount", "by": 1 },
             ],
-        })).await?;
+        }))).await?;
 
         logger.info("User login recorded", Some(json!({ "userId": user_id })));
         Ok(json!({ "updated": true }))
@@ -290,7 +324,12 @@ iii.register_function("users::record-login", move |input| {
 });
 
 // Then call from another function or worker
-iii.trigger("users::record-login", json!({ "userId": "some-user-id" })).await?;
+let _ = iii
+    .trigger(TriggerRequest::new(
+        "users::record-login",
+        json!({ "userId": "some-user-id" }),
+    ))
+    .await?;
 println!("Login recorded");
 ```
 </Tab>

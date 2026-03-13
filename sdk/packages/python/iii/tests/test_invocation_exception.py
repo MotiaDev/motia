@@ -1,7 +1,5 @@
 """Tests for exception recording on function invocation spans."""
 
-import asyncio
-
 import pytest
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -36,9 +34,7 @@ async def test_invoke_with_otel_context_records_exception_with_stacktrace():
             raise ValueError("test invocation error")
 
         with pytest.raises(_TraceContextError) as exc_info:
-            await client._invoke_with_otel_context(
-                failing_handler, {"key": "value"}, None, None
-            )
+            await client._invoke_with_otel_context(failing_handler, {"key": "value"}, None, None)
         assert isinstance(exc_info.value.__cause__, ValueError)
         assert "test invocation error" in str(exc_info.value.__cause__)
 
@@ -85,9 +81,7 @@ async def test_invoke_with_otel_context_success_no_exception():
         async def success_handler(data):
             return {"result": "ok"}
 
-        result, traceparent = await client._invoke_with_otel_context(
-            success_handler, {"key": "value"}, None, None
-        )
+        result, traceparent = await client._invoke_with_otel_context(success_handler, {"key": "value"}, None, None)
 
         assert result == {"result": "ok"}
 
