@@ -29,7 +29,7 @@ async def sum_function(data):
     b = data.get("b", 0)
     return {"sum": a + b}
 
-iii.register_function("math::sum", sum_function, description="Add two numbers")
+iii.register_function("math::sum", sum_function)
 
 result = await iii.trigger({"function_id": "math::sum", "payload": {"a": 2, "b": 3}})
 print(result)  # {"sum": 5}
@@ -117,7 +117,7 @@ iii = register_worker(
       async def greet(data):
           return {"message": f"Hello, {data['name']}!"}
 
-      iii.register_function("greet", greet, description="Greets a user")
+      iii.register_function("greet", greet)
       ```
     </Accordion>
   </AccordionGroup>

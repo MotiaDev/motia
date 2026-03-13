@@ -137,7 +137,6 @@ pip install iii-sdk
 ### Basic Usage
 
 ```python
-import asyncio
 from iii import InitOptions, ApiRequest, ApiResponse, register_worker
 
 iii = register_worker(
@@ -145,22 +144,19 @@ iii = register_worker(
     options=InitOptions(worker_name="my-worker"),
 )
 
-async def create_user(data):
+def create_user(data):
     logger = Logger()
     logger.info("Creating user")
     user = {"id": "123", **data}
     return {"status_code": 201, "body": user}
 
-iii.register_function("users::create", create_user, description="Create a user")
+iii.register_function({"id": "users::create"}, create_user)
 
-iii.register_trigger(
-    type="http",
-    function_id="users::create",
-    config={"api_path": "/users", "http_method": "POST"},
-)
-
-while True:
-    await asyncio.sleep(60)
+iii.register_trigger({
+    "type": "http",
+    "function_id": "users::create",
+    "config": {"api_path": "/users", "http_method": "POST"},
+})
 ```
 
 ### Key Components
