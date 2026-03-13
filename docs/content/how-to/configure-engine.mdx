@@ -58,6 +58,11 @@ modules:
           file_path: ./data/state_store
   - class: modules::queue::QueueModule
     config:
+      queue_configs:
+        default:
+          max_retries: 5
+          concurrency: 5
+          type: standard
       adapter:
         class: modules::queue::BuiltinQueueAdapter
         config:
@@ -91,6 +96,11 @@ modules:
           redis_url: ${REDIS_URL}
   - class: modules::queue::QueueModule
     config:
+      queue_configs:
+        default:
+          max_retries: 5
+          concurrency: 5
+          type: standard
       adapter:
         class: modules::queue::RabbitMQAdapter
         config:

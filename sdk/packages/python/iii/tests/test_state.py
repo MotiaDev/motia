@@ -1,0 +1,176 @@
+"""Integration tests for state operations."""
+
+import asyncio
+import time
+
+import pytest
+import pytest_asyncio
+
+from iii import III
+
+SCOPE = "test-scope-py"
+KEY = "test-item"
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def cleanup_state(iii_client: III):
+    await iii_client.trigger({"function_id": "state::delete", "payload": {"scope": SCOPE, "key": KEY}})
+    yield
+    await iii_client.trigger({"function_id": "state::delete", "payload": {"scope": SCOPE, "key": KEY}})
+
+
+@pytest.mark.asyncio
+async def test_state_set_new_item(iii_client: III):
+    """Setting a new state item returns old_value=null and new_value."""
+    test_data = {"name": "Test Item", "value": 42}
+
+    result = await iii_client.trigger({
+        "function_id": "state::set",
+        "payload": {"scope": SCOPE, "key": KEY, "value": test_data},
+    })
+
+    assert result is not None
+    assert result == {"old_value": None, "new_value": test_data}
+
+
+@pytest.mark.asyncio
+async def test_state_set_overwrite(iii_client: III):
+    """Overwriting a state item returns the old and new values."""
+    initial_data = {"value": 1}
+    updated_data = {"value": 2, "updated": True}
+
+    await iii_client.trigger({
+        "function_id": "state::set",
+        "payload": {"scope": SCOPE, "key": KEY, "value": initial_data},
+    })
+
+    result = await iii_client.trigger({
+        "function_id": "state::set",
+        "payload": {"scope": SCOPE, "key": KEY, "value": updated_data},
+    })
+
+    assert result["old_value"] == initial_data
+    assert result["new_value"] == updated_data
+
+
+@pytest.mark.asyncio
+async def test_state_get_existing_item(iii_client: III):
+    """Getting an existing state item returns its data."""
+    data = {"name": "Test", "value": 100}
+
+    await iii_client.trigger({
+        "function_id": "state::set",
+        "payload": {"scope": SCOPE, "key": KEY, "value": data},
+    })
+
+    result = await iii_client.trigger({
+        "function_id": "state::get",
+        "payload": {"scope": SCOPE, "key": KEY},
+    })
+
+    assert result == data
+
+
+@pytest.mark.asyncio
+async def test_state_get_non_existent_item(iii_client: III):
+    """Getting a non-existent state item returns None."""
+    result = await iii_client.trigger({
+        "function_id": "state::get",
+        "payload": {"scope": SCOPE, "key": "non-existent-item"},
+    })
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_state_delete_existing_item(iii_client: III):
+    """Deleting an existing state item removes it."""
+    await iii_client.trigger({
+        "function_id": "state::set",
+        "payload": {"scope": SCOPE, "key": KEY, "value": {"test": True}},
+    })
+    await iii_client.trigger({
+        "function_id": "state::delete",
+        "payload": {"scope": SCOPE, "key": KEY},
+    })
+
+    result = await iii_client.trigger({
+        "function_id": "state::get",
+        "payload": {"scope": SCOPE, "key": KEY},
+    })
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_state_delete_non_existent_item(iii_client: III):
+    """Deleting a non-existent state item does not raise an error."""
+    await iii_client.trigger({
+        "function_id": "state::delete",
+        "payload": {"scope": SCOPE, "key": "non-existent"},
+    })
+
+
+@pytest.mark.asyncio
+async def test_state_list_all_items_in_scope(iii_client: III):
+    """Listing state items in a scope returns all items set."""
+    scope = f"state-py-{int(time.time())}"
+    items = [
+        {"id": "state-item1", "value": 1},
+        {"id": "state-item2", "value": 2},
+        {"id": "state-item3", "value": 3},
+    ]
+
+    for item in items:
+        await iii_client.trigger({
+            "function_id": "state::set",
+            "payload": {"scope": scope, "key": item["id"], "value": item},
+        })
+
+    result = await iii_client.trigger({
+        "function_id": "state::list",
+        "payload": {"scope": scope},
+    })
+
+    assert isinstance(result, list)
+    assert len(result) >= len(items)
+    sorted_result = sorted(result, key=lambda x: x["id"])
+    sorted_items = sorted(items, key=lambda x: x["id"])
+    assert sorted_result == sorted_items
+
+
+@pytest.mark.asyncio
+async def test_reactive_state(iii_client: III):
+    """Registering a state trigger fires the handler when state is updated."""
+    data = {"name": "Test", "value": 100}
+    updated_data = {"name": "New Test Data", "value": 200}
+    reactive_result = {"called": False, "data": None}
+    received_event = asyncio.Event()
+
+    await iii_client.trigger({
+        "function_id": "state::set",
+        "payload": {"scope": SCOPE, "key": KEY, "value": data},
+    })
+
+    async def state_updated_handler(event):
+        if event.get("type") == "state" and event.get("event_type") == "state:updated":
+            reactive_result["data"] = event.get("new_value")
+            reactive_result["called"] = True
+            received_event.set()
+        return {}
+
+    fn = iii_client.register_function("test.state.py.updated", state_updated_handler)
+    trigger = iii_client.register_trigger("state", fn.id, {"scope": SCOPE, "key": KEY})
+
+    try:
+        await iii_client.trigger({
+            "function_id": "state::set",
+            "payload": {"scope": SCOPE, "key": KEY, "value": updated_data},
+        })
+
+        await asyncio.wait_for(received_event.wait(), timeout=5.0)
+
+        assert reactive_result["called"] is True
+        assert reactive_result["data"] == updated_data
+    finally:
+        trigger.unregister()
+        fn.unregister()

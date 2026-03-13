@@ -1218,11 +1218,14 @@ iii.register_trigger("http", "webhooks.github", json!({
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
+import { TriggerAction } from 'iii-sdk'
+
 const processFn = iii.registerFunction({ id: 'orders.process' }, async (order) => {
   await saveOrder(order)
-  iii.triggerVoid('enqueue', {
-    topic: 'order.processed',
-    data: order,
+  iii.trigger({
+    function_id: 'enqueue',
+    payload: { topic: 'order.processed', data: order },
+    action: TriggerAction.Void(),
   })
 })
 
@@ -1245,11 +1248,14 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
+from iii import TriggerAction
+
 async def process_order(order):
     await save_order(order)
-    iii.trigger_void('enqueue', {
-        'topic': 'order.processed',
-        'data': order,
+    await iii.trigger({
+        'function_id': 'enqueue',
+        'payload': {'topic': 'order.processed', 'data': order},
+        'action': TriggerAction.Void(),
     })
 
 process_fn = iii.register_function('orders.process', process_order)
@@ -1274,13 +1280,23 @@ iii.register_trigger(
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.register_function("orders.process", |order: Value| async move {
-    save_order(&order).await;
-    iii.trigger_void("enqueue", json!({
-        "topic": "order.processed",
-        "data": order,
-    }));
-    Ok(json!(null))
+use iii_sdk::{TriggerAction, TriggerRequest};
+
+let iii_clone = iii.clone();
+iii.register_function("orders.process", move |order: Value| {
+    let iii = iii_clone.clone();
+    async move {
+        save_order(&order).await;
+        iii.trigger(
+            TriggerRequest::new("enqueue", json!({
+                "topic": "order.processed",
+                "data": order,
+            }))
+            .action(TriggerAction::void()),
+        )
+        .await?;
+        Ok(json!(null))
+    }
 });
 
 iii.register_trigger("queue", "orders.process", json!({

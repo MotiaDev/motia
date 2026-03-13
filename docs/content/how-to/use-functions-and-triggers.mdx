@@ -37,7 +37,6 @@ iii.registerFunction(
   },
 );
 
-// Triggerable from any other function or worker
 await iii.trigger({ function_id: 'math::add', payload: { a: 2, b: 3 } });
 ```
 </Tab>
@@ -67,7 +66,7 @@ async def main():
 </Tab>
 <Tab value="Rust">
 ```rust title="math_add.rs"
-use iii_sdk::{Logger, TriggerRequest, III};
+use iii_sdk::{Logger, TriggerRequest, III, TriggerRequest};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -213,14 +212,15 @@ names, not raw secrets. The engine resolves them from its process environment at
 ## Ways to Trigger Functions
 
 As shown above functions can be triggered with `trigger({ function_id, payload })` but there are actually
-two ways to trigger them and a way to register additional Triggers that fire Functions
+three ways to trigger them and a way to register additional Triggers that fire Functions
 according to internal and external events.
 
 | Method | Returns | Use when |
 |--------|---------|----------|
 | `trigger({ function_id, payload })` | The function's result | You **need** the result |
 | `trigger({ function_id, payload, action: TriggerAction.Void() })` | Nothing | You **don't need** the result |
-| `registerTrigger(config)` | n/a | You need a function triggered as the result of another event such as: HTTP requests, Cron jobs, Queues, and State changes. |
+| `trigger({ function_id, payload, action: TriggerAction.Enqueue({ queue }) })` | `{ messageReceiptId }` | You want async processing with retries, concurrency control, and optional FIFO ordering |
+| `registerTrigger({ type, function_id, config })` | n/a | You need a function triggered as the result of another event such as: HTTP requests, Cron jobs, Queues, and State changes. |
 
 ### `trigger()` — Await the result
 
@@ -256,12 +256,12 @@ iii.register_function("math::calculate", |input| async move {
 </Tab>
 </Tabs>
 
-### `trigger()` with `TriggerAction.Void()` — Fire and forget
+### Fire-and-forget — `trigger` with `TriggerAction.Void()`
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="trigger-void.ts"
-import { TriggerAction } from 'iii-sdk';
+import { TriggerAction } from 'iii-sdk'
 
 iii.registerFunction({ id: 'math::calculate-async' }, async (input) => {
   iii.trigger({ function_id: 'math::add', payload: { a: input.a, b: input.b }, action: TriggerAction.Void() })
@@ -283,7 +283,68 @@ iii.register_function('math::calculate-async', calculate_async)
 use iii_sdk::{TriggerAction, TriggerRequest};
 
 iii.register_function("math::calculate-async", |input| async move {
-  iii.trigger(TriggerRequest::new("math::add", json!({"a": input["a"], "b": input["b"]})).action(TriggerAction::void())).await?;
+  iii.trigger(
+    TriggerRequest::new("math::add", json!({"a": input["a"], "b": input["b"]}))
+      .action(TriggerAction::void()),
+  ).await?;
+  Ok(serde_json::Value::Null)
+});
+```
+</Tab>
+</Tabs>
+
+### Enqueue — `trigger` with `TriggerAction.Enqueue({ queue })`
+
+Enqueue work to a named queue for async processing. The engine acknowledges with `{ messageReceiptId }` when the job is accepted. The target function receives the payload when a worker processes it. Requires queues defined in `iii-config.yaml` — see [Use Queues](/docs/how-to/use-queues).
+
+<Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
+<Tab value="Node / TypeScript">
+```typescript title="trigger-enqueue.ts"
+import { TriggerAction } from 'iii-sdk'
+
+iii.registerFunction({ id: 'orders::create' }, async (input) => {
+  const order = { id: crypto.randomUUID(), ...input }
+  const result = await iii.trigger({
+    function_id: 'orders::process-order',
+    payload: order,
+    action: TriggerAction.Enqueue({ queue: 'payment' }),
+  })
+  return { orderId: order.id, messageReceiptId: result.messageReceiptId }
+})
+```
+</Tab>
+<Tab value="Python">
+```python title="trigger_enqueue.py"
+import uuid
+from iii import TriggerAction
+
+async def create_order(input):
+  order = {"id": str(uuid.uuid4()), **input}
+  result = await iii.trigger({
+    'function_id': 'orders::process-order',
+    'payload': order,
+    'action': TriggerAction.Enqueue(queue='payment'),
+  })
+  return {'orderId': order['id'], 'messageReceiptId': result['messageReceiptId']}
+
+iii.register_function('orders::create', create_order)
+```
+</Tab>
+<Tab value="Rust">
+```rust title="trigger_enqueue.rs"
+use iii_sdk::{TriggerAction, TriggerRequest};
+
+let iii_clone = iii.clone();
+iii.register_function("orders::create", move |input| {
+  let iii = iii_clone.clone();
+  async move {
+    let order_id = uuid::Uuid::new_v4().to_string();
+    let order = json!({ "id": order_id, "items": input["items"], "total": input["total"] });
+    let result = iii.trigger(
+      TriggerRequest::new("orders::process-order", order).action(TriggerAction::enqueue("payment")),
+    ).await?;
+    Ok(json!({ "orderId": order_id, "messageReceiptId": result["messageReceiptId"] }))
+  }
 });
 ```
 </Tab>
@@ -518,7 +579,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 {/* TODO: Update this, enqueue is its entirely own thing */}
 
 {/* <Callout type="info" title="Queue uses enqueue">
-  Queue messaging uses `enqueue` — a built-in function, no trigger registration needed: `iii.trigger('enqueue', { topic: 'user.created', data: {...} })`. See the [Queue module](/docs/modules/module-queue) for details.
+  Queue messaging uses `enqueue` — a built-in function, no trigger registration needed:
+  Node `trigger({ function_id: 'enqueue', payload: { topic: 'user.created', data: {...} } })`,
+  Python `trigger({'function_id': 'enqueue', 'payload': {'topic': 'user.created', 'data': {...}}})`,
+  Rust `trigger(TriggerRequest::new("enqueue", json!({"topic": "user.created", "data": {...}})))`.
+  See the [Queue module](/docs/modules/module-queue) for details.
 </Callout> */}
 
 ## Trigger Types
@@ -587,16 +652,16 @@ Calling it removes the registration from the engine so the function or trigger s
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="unregister.ts"
-const fn = iii.registerFunction({ id: 'orders.create' }, async (input) => {
+const fn = iii.registerFunction({ id: 'orders::create' }, async (input) => {
   return { status_code: 201, body: { id: '123', item: input.body.item } }
 })
 
-const trigger = iii.registerTrigger('orders.create', 'http', {
-  method: 'POST',
-  path: '/orders',
+const trigger = iii.registerTrigger({
+  type: 'http',
+  function_id: 'orders::create',
+  config: { api_path: '/orders', http_method: 'POST' },
 })
 
-// Later, when no longer needed:
 fn.unregister()
 trigger.unregister()
 ```
@@ -606,32 +671,30 @@ trigger.unregister()
 async def create_order(data):
     return {"status_code": 201, "body": {"id": "123", "item": data["body"]["item"]}}
 
-fn_ref = iii.register_function("orders.create", create_order)
+fn_ref = iii.register_function("orders::create", create_order)
 
-trigger = iii.register_trigger("orders.create", "http", {
-    "method": "POST",
-    "path": "/orders",
+trigger = iii.register_trigger("http", "orders::create", {
+    "api_path": "/orders",
+    "http_method": "POST",
 })
 
-# Later, when no longer needed:
 fn_ref.unregister()
 trigger.unregister()
 ```
 </Tab>
 <Tab value="Rust">
 ```rust title="unregister.rs"
-let fn_ref = iii.register_function("orders.create", |input| async move {
+let fn_ref = iii.register_function("orders::create", |input| async move {
     let item = input["body"]["item"].as_str().unwrap_or("");
     Ok(json!({ "status_code": 201, "body": { "id": "123", "item": item } }))
 });
 
 let trigger = iii.register_trigger(
-    "orders.create",
     "http",
-    json!({ "method": "POST", "path": "/orders" }),
+    "orders::create",
+    json!({ "api_path": "/orders", "http_method": "POST" }),
 )?;
 
-// Later, when no longer needed:
 fn_ref.unregister();
 trigger.unregister();
 ```

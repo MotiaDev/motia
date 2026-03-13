@@ -150,7 +150,7 @@ class TriggerRequest(BaseModel):
     function_id: str
     payload: Any = None
     action: TriggerActionEnqueue | TriggerActionVoid | None = None
-    timeout: float | None = None
+    timeout_ms: int | None = None
 
 
 class InvokeFunctionMessage(BaseModel):

@@ -107,7 +107,7 @@ ruff check src
 
 ## Deprecated
 
-`call()` and `call_void()` are deprecated aliases for `trigger()` and `trigger_void()`. They still work but will be removed in a future release.
+`call`, `call_void`, and `trigger_void` have been removed. Use `trigger()` for all invocations. For fire-and-forget, use `trigger({"function_id": ..., "payload": ..., "action": TriggerAction.Void()})`.
 
 ## Resources
 

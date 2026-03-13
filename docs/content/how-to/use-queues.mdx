@@ -49,7 +49,7 @@ The `default` queue is used when no queue name is specified. You can add as many
 
 ### 2. Enqueue work via trigger action
 
-From any function, enqueue a job by calling `trigger()` with the `Enqueue` action and the target queue name. The enqueue operation is asynchronous — the caller does not wait for the job to be processed — but the SDK does await an acknowledgement from the engine confirming the job was accepted. The returned result contains `{ enqueued: true }` on success, or an `enqueue_error` if the queue was not found or FIFO validation failed.
+From any function, enqueue a job by calling `trigger()` with the `Enqueue` action and the target queue name. The enqueue operation is asynchronous — the caller does not wait for the job to be processed — but the SDK does await an acknowledgement from the engine confirming the job was accepted. The returned result contains `{ messageReceiptId: string }` on success, or an `enqueue_error` if the queue was not found or FIFO validation failed.
 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
@@ -63,7 +63,7 @@ iii.registerFunction({ id: 'orders::create' }, async (input) => {
   const order = { id: crypto.randomUUID(), ...input }
 
   // Enqueue to the 'payment' queue — process-order receives `order` as its input
-  iii.trigger({
+  await iii.trigger({
     function_id: 'orders::process-order',
     payload: order,
     action: TriggerAction.Enqueue({ queue: 'payment' }),
@@ -200,7 +200,7 @@ A worker can also enqueue further work, creating processing pipelines:
 iii.registerFunction({ id: 'orders::process-order' }, async (order) => {
   // ...charge the customer...
 
-  iii.trigger({
+  await iii.trigger({
     function_id: 'notifications::send',
     payload: { orderId: order.id, type: 'payment-confirmed' },
     action: TriggerAction.Enqueue({ queue: 'default' }),
@@ -395,7 +395,7 @@ println!("Order created: {}", result["orderId"]);
 | Action | Behavior | SDK Usage |
 |--------|----------|-----------|
 | _(none)_ | Direct call — waits for response | `trigger({ function_id: 'fn', payload: data })` |
-| `Enqueue` | Async via named queue — returns `{ enqueued: true }` or `enqueue_error` | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Enqueue({ queue: 'name' }) })` |
+| `Enqueue` | Async via named queue — returns `{ messageReceiptId: string }` or `enqueue_error` | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Enqueue({ queue: 'name' }) })` |
 | `Void` | Fire-and-forget, no queue | `trigger({ function_id: 'fn', payload: data, action: TriggerAction.Void() })` |
 
 ### SDK quick reference
@@ -408,7 +408,10 @@ import { registerWorker, TriggerAction } from 'iii-sdk'
 const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
 
 // Direct call (request/response)
-const result = await iii.trigger({ function_id: 'get-order', payload: { id: '123' } })
+const result = await iii.trigger({
+  function_id: 'get-order',
+  payload: { id: '123' },
+})
 
 // Enqueue to named queue (async, returns acknowledgement)
 await iii.trigger({
@@ -432,7 +435,10 @@ from iii import III, TriggerAction
 iii = III(os.environ.get('III_BRIDGE_URL', 'ws://localhost:49134'))
 
 # Direct call (request/response)
-result = await iii.trigger({"function_id": "get-order", "payload": {"id": "123"}})
+result = await iii.trigger({
+    "function_id": "get-order",
+    "payload": {"id": "123"},
+})
 
 # Enqueue to named queue (async, returns acknowledgement)
 await iii.trigger({
@@ -455,7 +461,9 @@ use iii_sdk::{III, TriggerAction, TriggerRequest};
 use serde_json::json;
 
 // Direct call (request/response)
-let result = iii.trigger(TriggerRequest::new("get-order", json!({ "id": "123" }))).await?;
+let result = iii
+    .trigger(TriggerRequest::new("get-order", json!({ "id": "123" })))
+    .await?;
 
 // Enqueue to named queue (async, returns acknowledgement)
 iii.trigger(
@@ -474,8 +482,8 @@ iii.trigger(
 
 ## Migrating from the old topic-based API
 
-<Callout title="Deprecation notice" type="warn">
-  The old topic-based API (`triggerVoid('enqueue', { topic, data })` and `registerTrigger({ type: 'queue', ... })`) still works but is deprecated. Migrate to Named Queues + Trigger Actions at your earliest convenience.
+<Callout title="Topic-based queues" type="info">
+  The topic-based API (`triggerVoid('enqueue', { topic, data })` and `registerTrigger({ type: 'queue', ... })`) remains valid. Named Queues + Trigger Actions offer config-driven retries, concurrency, and FIFO ordering.
 </Callout>
 
 ### Enqueue: before and after
