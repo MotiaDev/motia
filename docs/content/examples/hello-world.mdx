@@ -113,25 +113,31 @@ import os
 import random
 import string
 from datetime import datetime, timezone
+from iii import Logger
 
-def hello_api(req: ApiRequest, ctx) -> ApiResponse:
+def hello_api(data) -> ApiResponse:
+    logger = Logger()
+    req = ApiRequest(**data) if isinstance(data, dict) else data
     app_name = "III App"
     request_id = "".join(random.choices(string.ascii_lowercase + string.digits, k=7))
 
     logger.info("Hello API called", {"appName": app_name, "requestId": request_id})
 
-    iii.trigger("enqueue", {
-        "topic": "greet.process",
-        "data": {
-            "requestId": request_id,
-            "appName": app_name,
-            "greetingPrefix": os.environ.get("GREETING_PREFIX", "Hello"),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+    iii.trigger({
+        "function_id": "enqueue",
+        "payload": {
+            "topic": "greet.process",
+            "data": {
+                "requestId": request_id,
+                "appName": app_name,
+                "greetingPrefix": os.environ.get("GREETING_PREFIX", "Hello"),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
         },
     })
 
     return ApiResponse(
-        statusCode=200,
+        status_code=200,
         body={
             "message": "Hello request received! Processing in background.",
             "status": "processing",
@@ -139,10 +145,7 @@ def hello_api(req: ApiRequest, ctx) -> ApiResponse:
         },
     )
 
-iii.register_function("hello.api", lambda data: hello_api(
-    ApiRequest(**data) if isinstance(data, dict) else data,
-    Logger(),
-))
+iii.register_function({"id": "hello.api"}, hello_api)
 iii.register_trigger({
     "type": "http",
     "function_id": "hello.api",
@@ -244,8 +247,10 @@ iii.registerTrigger({
 
 ```python
 from datetime import datetime, timezone
+from iii import Logger
 
-def greet_process(data: dict, ctx) -> None:
+def greet_process(data: dict) -> None:
+    logger = Logger()
     request_id = data.get("requestId", "unknown")
     app_name = data.get("appName", "III App")
     greeting_prefix = data.get("greetingPrefix", "Hello")
@@ -255,19 +260,22 @@ def greet_process(data: dict, ctx) -> None:
 
     greeting = f"{greeting_prefix} {app_name}!"
 
-    iii.trigger("state::set", {
-        "scope": "greetings",
-        "key": request_id,
-        "data": {
-            "greeting": greeting,
-            "processedAt": datetime.now(timezone.utc).isoformat(),
-            "originalTimestamp": timestamp,
+    iii.trigger({
+        "function_id": "state::set",
+        "payload": {
+            "scope": "greetings",
+            "key": request_id,
+            "data": {
+                "greeting": greeting,
+                "processedAt": datetime.now(timezone.utc).isoformat(),
+                "originalTimestamp": timestamp,
+            },
         },
     })
 
     logger.info("Greeting processed", {"requestId": request_id, "greeting": greeting})
 
-iii.register_function("greet.process", lambda data: greet_process(data, Logger()))
+iii.register_function({"id": "greet.process"}, greet_process)
 iii.register_trigger({
     "type": "queue",
     "function_id": "greet.process",

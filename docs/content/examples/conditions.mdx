@@ -60,7 +60,7 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-from iii import III, InitOptions, ApiRequest, ApiResponse, TriggerAction
+from iii import III, InitOptions, ApiRequest, ApiResponse, Logger, TriggerAction
 
 iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-worker"))
 
@@ -68,16 +68,14 @@ def is_premium(data) -> bool:
     req = ApiRequest(**data) if isinstance(data, dict) else data
     return (req.body or {}).get("amount", 0) > 1000
 
-def orders_premium(data, ctx) -> ApiResponse:
+def orders_premium(data) -> ApiResponse:
+    logger = Logger()
     req = ApiRequest(**data) if isinstance(data, dict) else data
     logger.info("Processing premium order", {"amount": (req.body or {}).get("amount")})
-    return ApiResponse(statusCode=200, body={"message": "Premium order processed"})
+    return ApiResponse(status_code=200, body={"message": "Premium order processed"})
 
-def orders_premium_wrapper(data):
-    return orders_premium(data, Logger())
-
-iii.register_function("conditions::is_premium", is_premium)
-iii.register_function("orders::premium", orders_premium_wrapper)
+iii.register_function({"id": "conditions::is_premium"}, is_premium)
+iii.register_function({"id": "orders::premium"}, orders_premium)
 
 iii.register_trigger({
     "type": "http",
@@ -168,13 +166,15 @@ iii.registerTrigger({
 
 ```python
 from datetime import datetime, timezone
+from iii import Logger
 
 def is_high_value(data) -> bool:
     if isinstance(data, dict):
         return data.get("amount", 0) > 1000
     return False
 
-def orders_high_value(data: dict, ctx) -> None:
+def orders_high_value(data: dict) -> None:
+    logger = Logger()
     amount = data.get("amount", 0)
     logger.info("Processing high-value order", {"amount": amount})
 
@@ -189,8 +189,8 @@ def orders_high_value(data: dict, ctx) -> None:
     })
 
 
-iii.register_function("conditions::is_high_value", is_high_value)
-iii.register_function("orders::high_value", lambda data: orders_high_value(data, Logger()))
+iii.register_function({"id": "conditions::is_high_value"}, is_high_value)
+iii.register_function({"id": "orders::high_value"}, orders_high_value)
 
 iii.register_trigger({
     "type": "queue",
@@ -264,16 +264,19 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
+from iii import Logger
+
 def is_update(event) -> bool:
     if isinstance(event, dict):
         return event.get("event_type") == "updated"
     return False
 
-def orders_on_update(event: dict, ctx) -> None:
+def orders_on_update(event: dict) -> None:
+    logger = Logger()
     logger.info("Order updated", {"scope": event.get("scope"), "key": event.get("key")})
 
-iii.register_function("conditions::is_update", is_update)
-iii.register_function("orders::on_update", lambda data: orders_on_update(data, Logger()))
+iii.register_function({"id": "conditions::is_update"}, is_update)
+iii.register_function({"id": "orders::on_update"}, orders_on_update)
 
 iii.register_trigger({
     "type": "state",

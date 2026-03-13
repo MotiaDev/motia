@@ -199,15 +199,17 @@ iii.registerTrigger({
 ```python
 import random, string, time
 from datetime import datetime, timezone
-from iii import ApiRequest, ApiResponse, TriggerAction
+from iii import ApiRequest, ApiResponse, Logger, TriggerAction
 from .iii import iii
 
-def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
+def _create_todo(data) -> ApiResponse:
+    logger = Logger()
+    req = ApiRequest(**data) if isinstance(data, dict) else data
     description = req.body.get("description") if req.body else None
     due_date = req.body.get("dueDate") if req.body else None
 
     if not description:
-        return ApiResponse(statusCode=400, body={"error": "Description is required"})
+        return ApiResponse(status_code=400, body={"error": "Description is required"})
 
     suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=7))
     todo_id = f"todo-{int(time.time() * 1000)}-{suffix}"
@@ -231,11 +233,9 @@ def _create_todo(req: ApiRequest, ctx) -> ApiResponse:
     })
 
     logger.info("Todo created", {"todoId": todo_id})
-    return ApiResponse(statusCode=201, body=todo, headers={"Content-Type": "application/json"})
+    return ApiResponse(status_code=201, body=todo, headers={"Content-Type": "application/json"})
 
-iii.register_function("api.post.todo", lambda data: _create_todo(
-    ApiRequest(**data) if isinstance(data, dict) else data, Logger()
-))
+iii.register_function({"id": "api.post.todo"}, _create_todo)
 iii.register_trigger({
     "type": "http", "function_id": "api.post.todo",
     "config": {"api_path": "todo", "http_method": "POST", "description": "Create a new todo"},
@@ -343,7 +343,9 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
+def _update_todo(data) -> ApiResponse:
+    logger = Logger()
+    req = ApiRequest(**data) if isinstance(data, dict) else data
     todo_id = req.path_params.get("id") if req.path_params else None
 
     existing = iii.trigger({
@@ -352,7 +354,7 @@ def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
     }) if todo_id else None
 
     if not existing:
-        return ApiResponse(statusCode=404, body={"error": "Todo not found"})
+        return ApiResponse(status_code=404, body={"error": "Todo not found"})
 
     logger.info("Updating todo", {"todoId": todo_id})
 
@@ -363,11 +365,9 @@ def _update_todo(req: ApiRequest, ctx) -> ApiResponse:
     })
 
     logger.info("Todo updated", {"todoId": todo_id})
-    return ApiResponse(statusCode=200, body=updated, headers={"Content-Type": "application/json"})
+    return ApiResponse(status_code=200, body=updated, headers={"Content-Type": "application/json"})
 
-iii.register_function("api.put.todo", lambda data: _update_todo(
-    ApiRequest(**data) if isinstance(data, dict) else data, Logger()
-))
+iii.register_function({"id": "api.put.todo"}, _update_todo)
 iii.register_trigger({
     "type": "http", "function_id": "api.put.todo",
     "config": {"api_path": "todo/:id", "http_method": "PUT", "description": "Update a todo"},
@@ -456,11 +456,13 @@ iii.registerTrigger({
   <Tab value="Python">
 
 ```python
-def _delete_todo(req: ApiRequest, ctx) -> ApiResponse:
+def _delete_todo(data) -> ApiResponse:
+    logger = Logger()
+    req = ApiRequest(**data) if isinstance(data, dict) else data
     todo_id = req.body.get("todoId") if req.body else None
 
     if not todo_id:
-        return ApiResponse(statusCode=400, body={"error": "todoId is required"})
+        return ApiResponse(status_code=400, body={"error": "todoId is required"})
 
     logger.info("Deleting todo", {"todoId": todo_id})
 
@@ -471,11 +473,9 @@ def _delete_todo(req: ApiRequest, ctx) -> ApiResponse:
     })
 
     logger.info("Todo deleted", {"todoId": todo_id})
-    return ApiResponse(statusCode=200, body={"success": True}, headers={"Content-Type": "application/json"})
+    return ApiResponse(status_code=200, body={"success": True}, headers={"Content-Type": "application/json"})
 
-iii.register_function("api.delete.todo", lambda data: _delete_todo(
-    ApiRequest(**data) if isinstance(data, dict) else data, Logger()
-))
+iii.register_function({"id": "api.delete.todo"}, _delete_todo)
 iii.register_trigger({
     "type": "http", "function_id": "api.delete.todo",
     "config": {"api_path": "todo", "http_method": "DELETE", "description": "Delete a todo"},

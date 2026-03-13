@@ -23,7 +23,7 @@ const iii = registerWorker('ws://localhost:49134', {
 from iii import III
 
 iii = III('ws://localhost:49134')
-await iii.connect()
+iii.connect()
 ```
 </Tab>
 <Tab value="Rust">
@@ -102,20 +102,20 @@ iii.trigger({
 from iii import III, TriggerAction
 
 iii = III('ws://localhost:49134')
-await iii.connect()
+iii.connect()
 
-result = await iii.trigger({
+result = iii.trigger({
     'function_id': 'users::create',
     'payload': {'name': 'Alice'},
 })
 
-await iii.trigger({
+iii.trigger({
     'function_id': 'orders::process',
     'payload': {'orderId': '123'},
     'action': TriggerAction.Enqueue(queue='payment'),
 })
 
-await iii.trigger({
+iii.trigger({
     'function_id': 'notifications::send',
     'payload': {'to': 'alice@example.com'},
     'action': TriggerAction.Void(),
@@ -192,10 +192,10 @@ const ref = iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python
-async def create_user(data):
+def create_user(data):
     return {'id': str(uuid.uuid4()), 'name': data['name']}
 
-ref = iii.register_function('users::create', create_user)
+ref = iii.register_function({"id": "users::create"}, create_user)
 ```
 </Tab>
 <Tab value="Rust">
@@ -261,11 +261,11 @@ const trigger = iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-trigger = iii.register_trigger(
-    type='http',
-    function_id='users::create',
-    config={'api_path': '/users', 'http_method': 'POST'},
-)
+trigger = iii.register_trigger({
+    'type': 'http',
+    'function_id': 'users::create',
+    'config': {'api_path': '/users', 'http_method': 'POST'},
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -339,9 +339,8 @@ iii.registerTriggerType<WebhookConfig>(
 <Tab value="Python">
 ```python
 iii.register_trigger_type(
-    id='webhook',
-    description='External webhook trigger',
-    handler=WebhookHandler(),
+    {"id": "webhook", "description": "External webhook trigger"},
+    WebhookHandler(),
 )
 ```
 </Tab>
@@ -409,7 +408,7 @@ const functions = await iii.listFunctions()
 </Tab>
 <Tab value="Python">
 ```python
-functions = await iii.list_functions()
+functions = iii.list_functions()
 ```
 </Tab>
 <Tab value="Rust">
@@ -515,7 +514,7 @@ await iii.shutdown()
 </Tab>
 <Tab value="Python">
 ```python
-await iii.shutdown()
+iii.shutdown()
 ```
 </Tab>
 <Tab value="Rust">

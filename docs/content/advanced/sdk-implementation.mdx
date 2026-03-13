@@ -212,15 +212,15 @@ from iii import III
 from iii.stream import IStream, StreamGetInput, StreamSetInput, StreamDeleteInput, StreamListInput
 
 class MyStream(IStream):
-    def get(self, input: StreamGetInput):
+    async def get(self, input: StreamGetInput):
         ...
-    def set(self, input: StreamSetInput):
+    async def set(self, input: StreamSetInput):
         ...
-    def delete(self, input: StreamDeleteInput):
+    async def delete(self, input: StreamDeleteInput):
         ...
-    def list(self, input: StreamListInput):
+    async def list(self, input: StreamListInput):
         ...
-    def list_groups(self, input):
+    async def list_groups(self, input):
         ...
 
 iii.create_stream("my-stream", MyStream())

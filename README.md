@@ -72,28 +72,24 @@ pip install iii-sdk
 ```
 
 ```python
-import asyncio
-from iii import init, get_context
+from iii import register_worker, Logger
 
-async def main():
-    iii = init("ws://localhost:49134")
-    logger = get_context().logger
+iii = register_worker("ws://localhost:49134")
+logger = Logger()
 
-    async def add(data):
-        return {"sum": data["a"] + data["b"]}
+def add(data):
+    return {"sum": data["a"] + data["b"]}
 
-    iii.register_function("math.add", add)
+iii.register_function({"id": "math.add"}, add)
 
-    iii.register_trigger({
-        "type": "http",
-        "function_id": "math.add",
-        "config": {"api_path": "add", "http_method": "POST"}
-    })
+iii.register_trigger({
+    "type": "http",
+    "function_id": "math.add",
+    "config": {"api_path": "add", "http_method": "POST"}
+})
 
-    result = await iii.trigger({"function_id": "math.add", "payload": {"a": 1, "b": 2}})
-    logger.info("result", result)  # {"sum": 3}
-
-asyncio.run(main())
+result = iii.trigger({"function_id": "math.add", "payload": {"a": 1, "b": 2}})
+logger.info("result", result)  # {"sum": 3}
 ```
 
 </details>

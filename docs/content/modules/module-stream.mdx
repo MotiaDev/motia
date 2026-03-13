@@ -341,7 +341,7 @@ iii.registerFunction({ id: 'onAuth' }, (input) => ({
 def on_auth(input):
     return {'context': {'name': 'John Doe'}}
 
-iii.register_function('onAuth', on_auth)
+iii.register_function({'id': 'onAuth'}, on_auth)
 ```
 </Tab>
 <Tab value="Rust">
@@ -427,7 +427,7 @@ def on_join(input):
     print('Joined stream', input)
     return {}
 
-iii.register_function('onJoin', on_join)
+iii.register_function({'id': 'onJoin'}, on_join)
 iii.register_trigger({'type': 'stream:join', 'function_id': 'onJoin', 'config': {}})
 ```
 </Tab>
@@ -450,96 +450,126 @@ Streams organize data by `stream_name`, `group_id`, and `item_id`. Use for live 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
+import { TriggerAction } from 'iii-sdk'
+
 const iii = init('ws://localhost:49134')
 
-iii.triggerVoid('stream::set', {
-  stream_name: 'presence',
-  group_id: 'room-1',
-  item_id: 'user-123',
-  data: { name: 'Alice', online: true, lastSeen: new Date().toISOString() },
+iii.trigger({
+  function_id: 'stream::set',
+  payload: {
+    stream_name: 'presence',
+    group_id: 'room-1',
+    item_id: 'user-123',
+    data: { name: 'Alice', online: true, lastSeen: new Date().toISOString() },
+  },
+  action: TriggerAction.Void(),
 })
 
-const user = await iii.trigger('stream::get', {
-  stream_name: 'presence',
-  group_id: 'room-1',
-  item_id: 'user-123',
+const user = await iii.trigger({
+  function_id: 'stream::get',
+  payload: {
+    stream_name: 'presence',
+    group_id: 'room-1',
+    item_id: 'user-123',
+  },
 })
 
-const roomMembers = await iii.trigger('stream::list', {
-  stream_name: 'presence',
-  group_id: 'room-1',
+const roomMembers = await iii.trigger({
+  function_id: 'stream::list',
+  payload: {
+    stream_name: 'presence',
+    group_id: 'room-1',
+  },
 })
 
-iii.triggerVoid('stream::delete', {
-  stream_name: 'presence',
-  group_id: 'room-1',
-  item_id: 'user-123',
+iii.trigger({
+  function_id: 'stream::delete',
+  payload: {
+    stream_name: 'presence',
+    group_id: 'room-1',
+    item_id: 'user-123',
+  },
+  action: TriggerAction.Void(),
 })
 ```
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III
+from iii import III, TriggerAction
 
 iii = III('ws://localhost:49134')
 iii.connect()
 
-iii.trigger('stream::set', {
-    'stream_name': 'presence',
-    'group_id': 'room-1',
-    'item_id': 'user-123',
-    'data': {'name': 'Alice', 'online': True, 'lastSeen': '2026-01-01T00:00:00Z'},
+iii.trigger({
+    'function_id': 'stream::set',
+    'payload': {
+        'stream_name': 'presence',
+        'group_id': 'room-1',
+        'item_id': 'user-123',
+        'data': {'name': 'Alice', 'online': True, 'lastSeen': '2026-01-01T00:00:00Z'},
+    },
+    'action': TriggerAction.Void(),
 })
 
-user = iii.trigger('stream::get', {
-    'stream_name': 'presence',
-    'group_id': 'room-1',
-    'item_id': 'user-123',
+user = iii.trigger({
+    'function_id': 'stream::get',
+    'payload': {
+        'stream_name': 'presence',
+        'group_id': 'room-1',
+        'item_id': 'user-123',
+    },
 })
 
-room_members = iii.trigger('stream::list', {
-    'stream_name': 'presence',
-    'group_id': 'room-1',
+room_members = iii.trigger({
+    'function_id': 'stream::list',
+    'payload': {
+        'stream_name': 'presence',
+        'group_id': 'room-1',
+    },
 })
 
-iii.trigger('stream::delete', {
-    'stream_name': 'presence',
-    'group_id': 'room-1',
-    'item_id': 'user-123',
+iii.trigger({
+    'function_id': 'stream::delete',
+    'payload': {
+        'stream_name': 'presence',
+        'group_id': 'room-1',
+        'item_id': 'user-123',
+    },
+    'action': TriggerAction.Void(),
 })
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::III;
+use iii_sdk::{III, TriggerRequest, TriggerAction};
 use serde_json::json;
 
 let iii = III::new("ws://localhost:49134");
 iii.connect().await?;
 
-iii.trigger_void("stream::set", json!({
+iii.trigger(TriggerRequest::new("stream::set", json!({
     "stream_name": "presence",
     "group_id": "room-1",
     "item_id": "user-123",
     "data": { "name": "Alice", "online": true }
-}));
+})).action(TriggerAction::void())).await?;
 
-let user = iii.trigger("stream::get", json!({
+let user = iii.trigger(TriggerRequest::new("stream::get", json!({
     "stream_name": "presence",
     "group_id": "room-1",
     "item_id": "user-123"
-})).await?;
+}))).await?;
 
-let room_members = iii.trigger("stream::list", json!({
+let room_members = iii.trigger(TriggerRequest::new("stream::list", json!({
     "stream_name": "presence",
     "group_id": "room-1"
-})).await?;
+}))).await?;
 
-iii.trigger_void("stream::delete", json!({
+iii.trigger(TriggerRequest::new("stream::delete", json!({
     "stream_name": "presence",
     "group_id": "room-1",
     "item_id": "user-123"
-}));
+})).action(TriggerAction::void())).await?;
 ```
 </Tab>
 </Tabs>
@@ -585,7 +615,7 @@ def stream_auth(input):
         return {'context': {'userId': 'user-from-token'}}
     return {'context': None}
 
-iii.register_function('stream::auth', stream_auth)
+iii.register_function({'id': 'stream::auth'}, stream_auth)
 ```
 </Tab>
 <Tab value="Rust">
@@ -634,7 +664,7 @@ def on_join(input):
         print(f"User {context['userId']} joined {input['stream_name']}/{input['group_id']}/{input.get('id', '')}")
     return {}
 
-iii.register_function('onJoin', on_join)
+iii.register_function({'id': 'onJoin'}, on_join)
 iii.register_trigger({'type': 'stream:join', 'function_id': 'onJoin', 'config': {}})
 ```
 </Tab>
@@ -682,13 +712,13 @@ iii.registerTrigger({
 def require_context(input):
     return input.get('context', {}).get('userId') is not None
 
-iii.register_function('conditions::requireContext', require_context)
+iii.register_function({'id': 'conditions::requireContext'}, require_context)
 
 def on_join(input):
     print('User joined:', input.get('context', {}).get('userId'), input['stream_name'])
     return {}
 
-iii.register_function('onJoin', on_join)
+iii.register_function({'id': 'onJoin'}, on_join)
 iii.register_trigger({
     'type': 'stream:join',
     'function_id': 'onJoin',

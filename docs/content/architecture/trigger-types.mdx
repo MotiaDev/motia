@@ -187,7 +187,7 @@ async def handler(req: HttpRequest, response: HttpResponse):
     await response.writer.write(json.dumps({"ok": True}).encode("utf-8"))
     await response.writer.close_async()
 
-fn_ref = iii_client.register_function("api.example", handler)
+fn_ref = iii_client.register_function({"id": "api.example"}, handler)
 ```
 </Tab>
 <Tab value="Rust">
@@ -293,7 +293,7 @@ async def handler(req: HttpRequest, response: HttpResponse):
     await response.writer.write(pdf_data)
     await response.writer.close_async()
 
-fn_ref = iii_client.register_function("api.download.pdf", handler)
+fn_ref = iii_client.register_function({"id": "api.download.pdf"}, handler)
 iii_client.register_trigger({
     "type": "http",
     "function_id": "api.download.pdf",
@@ -431,7 +431,7 @@ async def handler(req: HttpRequest, response: HttpResponse):
 
     await response.writer.close_async()
 
-fn_ref = iii_client.register_function("api.events", handler)
+fn_ref = iii_client.register_function({"id": "api.events"}, handler)
 iii_client.register_trigger({
     "type": "http",
     "function_id": "api.events",
@@ -756,7 +756,7 @@ const fn = iii.registerFunction({ id: 'users.create' }, async (data) => {
 def create_user(data):
     return {'id': '123', **data}
 
-fn = iii.register_function('users.create', create_user)
+fn = iii.register_function({"id": "users.create"}, create_user)
 ```
 </Tab>
 <Tab value="Rust">
@@ -859,7 +859,7 @@ iii.registerTrigger({
 def notify(data):
     send_notification(data)
 
-fn = iii.register_function('users.notify', notify)
+fn = iii.register_function({"id": "users.notify"}, notify)
 
 iii.register_trigger({
     'type': 'http',
@@ -948,12 +948,12 @@ iii.registerTrigger({
 def require_verified(req):
     return req.get('headers', {}).get('x-verified') == 'true'
 
-condition_fn = iii.register_function('conditions::requireVerified', require_verified)
+condition_fn = iii.register_function({"id": "conditions::requireVerified"}, require_verified)
 
 def verified_only(req):
     return {'status_code': 200, 'body': {'message': 'Verified request'}}
 
-fn = iii.register_function('api::verifiedOnly', verified_only)
+fn = iii.register_function({"id": "api::verifiedOnly"}, verified_only)
 
 iii.register_trigger({
     'type': 'http',
@@ -1016,13 +1016,13 @@ iii.registerTrigger({
 def high_value(data):
     return (data.get('amount', 0)) > 1000
 
-condition_fn = iii.register_function('conditions::highValue', high_value)
+condition_fn = iii.register_function({"id": "conditions::highValue"}, high_value)
 
 def process_high_value(order):
     process_high_value_order(order)
     return {}
 
-fn = iii.register_function('orders::processHighValue', process_high_value)
+fn = iii.register_function({"id": "orders::processHighValue"}, process_high_value)
 
 iii.register_trigger({
     'type': 'queue',
@@ -1084,13 +1084,13 @@ iii.registerTrigger({
 def profile_changed(event):
     return event.get('event_type') == 'updated' and event.get('key') == 'profile'
 
-condition_fn = iii.register_function('conditions::profileChanged', profile_changed)
+condition_fn = iii.register_function({"id": "conditions::profileChanged"}, profile_changed)
 
 def on_profile_update(event):
     print('Profile updated:', event.get('new_value'))
     return {}
 
-fn = iii.register_function('state::onProfileUpdate', on_profile_update)
+fn = iii.register_function({"id": "state::onProfileUpdate"}, on_profile_update)
 
 iii.register_trigger({
     'type': 'state',
@@ -1190,7 +1190,7 @@ def github_webhook(req):
 
     return {'status_code': 200, 'body': {'received': True}}
 
-fn = iii.register_function('webhooks.github', github_webhook)
+fn = iii.register_function({"id": "webhooks.github"}, github_webhook)
 
 iii.register_trigger({
     'type': 'http',
@@ -1255,12 +1255,15 @@ iii.registerTrigger({
 ```python
 def process_order(order):
     save_order(order)
-    iii.trigger('enqueue', {
-        'topic': 'order.processed',
-        'data': order,
+    iii.trigger({
+        'function_id': 'enqueue',
+        'payload': {
+            'topic': 'order.processed',
+            'data': order,
+        },
     })
 
-process_fn = iii.register_function('orders.process', process_order)
+process_fn = iii.register_function({"id": "orders.process"}, process_order)
 
 iii.register_trigger({
     'type': 'queue',
@@ -1271,7 +1274,7 @@ iii.register_trigger({
 def send_confirmation(order):
     send_email(order['email'], 'Order confirmed')
 
-confirm_fn = iii.register_function('orders.sendConfirmation', send_confirmation)
+confirm_fn = iii.register_function({"id": "orders.sendConfirmation"}, send_confirmation)
 
 iii.register_trigger({
     'type': 'queue',
@@ -1332,7 +1335,7 @@ def cleanup():
     deleted = delete_old_records()
     logger.info(f'Deleted {deleted} old records')
 
-fn = iii.register_function('maintenance.cleanup', cleanup)
+fn = iii.register_function({"id": "maintenance.cleanup"}, cleanup)
 
 iii.register_trigger({
     'type': 'cron',
