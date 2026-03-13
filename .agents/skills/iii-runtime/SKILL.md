@@ -7,7 +7,7 @@ description: Use when deciding whether iii should own a workflow, adopting iii i
 
 Use this skill for `iii` adoption calls and for concrete worker / function / trigger work.
 
-`iii` is a centralized orchestration runtime built around three primitives:
+`iii` is a centralized orchestration runtime centered on these core building blocks:
 - `Function`
 - `Trigger`
 - `Worker`
