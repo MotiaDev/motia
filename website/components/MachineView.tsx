@@ -72,13 +72,13 @@ Platforms: AWS, Google Cloud, Azure, Cloudflare, Vercel, Fly.io, Docker, Kuberne
 
 ## TypeScript
 \`\`\`typescript
-import { registerWorker, getContext } from "iii-sdk"
+import { registerWorker, Logger } from "iii-sdk"
 const iii = registerWorker(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
 
 iii.registerFunction(
-  { id: "users.create" },
+  { id: "users::create" },
   async (input) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     logger.info("Creating user", { email: input.email })
     return { id: "123", email: input.email }
   }
@@ -86,40 +86,40 @@ iii.registerFunction(
 
 iii.registerTrigger({
   type: "http",
-  function_id: "users.create",
+  function_id: "users::create",
   config: { api_path: "users", http_method: "POST" }
 })
 \`\`\`
 
 ## Python
 \`\`\`python
-from iii import register_worker, get_context
+from iii import register_worker, Logger
 
 iii = register_worker(os.environ.get("III_BRIDGE_URL", "ws://localhost:49134"))
 
 async def create_user(input):
-    logger = get_context().logger
+    logger = Logger()
     logger.info("Creating user", { "email": input["email"] })
     return { "id": "123", "email": input["email"] }
 
-iii.register_function("users.create", create_user)
+iii.register_function("users::create", create_user)
 
 iii.register_trigger(
     "http",
-    "users.create",
+    "users::create",
     { "api_path": "users", "http_method": "POST" }
 )
 \`\`\`
 
 ## Rust
 \`\`\`rust
-use iii_sdk::{register_worker, InitOptions, get_context};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 
 let iii = register_worker("ws://localhost:49134", InitOptions::default())?;
 
-iii.register_function("users.create", |input| async move {
-    let logger = get_context().logger();
+iii.register_function("users::create", |input| async move {
+    let logger = Logger::new();
     let email = input["email"].as_str().unwrap_or("");
     logger.info(&format!("Creating user: {}", email));
     Ok(json!({ "id": "123", "email": email }))
@@ -127,7 +127,7 @@ iii.register_function("users.create", |input| async move {
 
 iii.register_trigger(Trigger {
     trigger_type: "http".into(),
-    function_id: "users.create".into(),
+    function_id: "users::create".into(),
     config: json!({ "api_path": "users", "http_method": "POST" }),
 });
 \`\`\`
@@ -139,7 +139,7 @@ iii.register_trigger(Trigger {
 - iii.trigger({ function_id, payload, action: TriggerAction.Void() }) — fire-and-forget
 - iii.listFunctions() — discover all available functions
 - iii.onFunctionsAvailable(callback) — subscribe to topology changes
-- getContext().logger — auto-injected logger with traceId correlation
+- new Logger() — structured logger with traceId correlation
 
 ## Built-in System Functions
 - state::get / state::set — { scope, key, value }
@@ -201,14 +201,14 @@ Compatible agents: Claude Code, Cursor, Gemini, Codex, Windsurf, Trae, Amp, Roo,
 
 ## 1. AI Agent with Tools — ReAct loop with tool calling
 \`\`\`typescript
-import { registerWorker, getContext } from "iii-sdk"
+import { registerWorker, Logger, TriggerAction } from "iii-sdk"
 const iii = registerWorker(process.env.III_BRIDGE_URL ?? "ws://localhost:49134")
-const { logger } = getContext()
+const logger = new Logger()
 
 const tools = await iii.listFunctions()
 
 iii.registerFunction(
-  { id: "agent.research" },
+  { id: "agent::research" },
   async ({ query }) => {
     const response = await callLLM(query, { tools })
     while (response.toolCall) {
@@ -226,17 +226,17 @@ iii.registerFunction(
 
 ## 2. Multi-Agent Network — Researcher → Analyzer → Writer pipeline
 \`\`\`typescript
-iii.registerFunction({ id: "agents.researcher" }, async ({ topic }) => {
+iii.registerFunction({ id: "agents::researcher" }, async ({ topic }) => {
   const sources = await iii.trigger({ function_id: "tools::webSearch", payload: { query: topic } })
   return iii.trigger({ function_id: "agents::analyzer", payload: { sources, topic } })
 })
 
-iii.registerFunction({ id: "agents.analyzer" }, async ({ sources, topic }) => {
+iii.registerFunction({ id: "agents::analyzer" }, async ({ sources, topic }) => {
   const insights = await callLLM("Analyze these sources", { sources })
   return iii.trigger({ function_id: "agents::writer", payload: { insights, topic } })
 })
 
-iii.registerFunction({ id: "agents.writer" }, async ({ insights, topic }) => {
+iii.registerFunction({ id: "agents::writer" }, async ({ insights, topic }) => {
   const draft = await callLLM("Write a report", { insights })
   await iii.trigger({ function_id: "state::set", payload: {
     scope: "reports", key: topic, value: draft
@@ -248,8 +248,8 @@ iii.registerFunction({ id: "agents.writer" }, async ({ insights, topic }) => {
 
 ## 3. Durable Workflows — Checkpoint/resume patterns
 \`\`\`typescript
-iii.registerFunction({ id: "orders.process" }, async ({ orderId }) => {
-  const { logger } = getContext()
+iii.registerFunction({ id: "orders::process" }, async ({ orderId }) => {
+  const logger = new Logger()
   const step = await iii.trigger({ function_id: "state::get", payload: {
     scope: orderId, key: "step"
   } }) ?? 0
@@ -274,27 +274,27 @@ iii.registerFunction({ id: "orders.process" }, async ({ orderId }) => {
 
 ## 4. Polyglot Workers — TS + Python + Rust as one system
 \`\`\`typescript
-iii.registerFunction({ id: "api.users" }, async (req) => {
+iii.registerFunction({ id: "api::users" }, async (req) => {
   const user = await db.createUser(req)
   iii.trigger({ function_id: "publish", payload: { topic: "user.created", data: user }, action: TriggerAction.Void() })
   return user
 })
 
 iii.registerTrigger({
-  type: "http", function_id: "api.users",
+  type: "http", function_id: "api::users",
   config: { api_path: "users", http_method: "POST" }
 })
 
 iii.registerTrigger({
-  type: "subscribe", function_id: "ml.onboarding",
+  type: "subscribe", function_id: "ml::onboarding",
   config: { topic: "user.created" }
 })
 \`\`\`
 
 ## 5. Real-Time Streaming — Chat with auto-summarization
 \`\`\`typescript
-iii.registerFunction({ id: "chat.send" }, async ({ roomId, message }) => {
-  const { logger } = getContext()
+iii.registerFunction({ id: "chat::send" }, async ({ roomId, message }) => {
+  const logger = new Logger()
   await iii.trigger({ function_id: "stream::set", payload: {
     stream_name: "chat", group_id: roomId,
     item_id: crypto.randomUUID(), data: message
@@ -314,8 +314,8 @@ iii.registerFunction({ id: "chat.send" }, async ({ roomId, message }) => {
 
 ## 6. Deep Research Agent — Iterative multi-step research with memory
 \`\`\`typescript
-iii.registerFunction({ id: "research.deep" }, async ({ question, depth = 3 }) => {
-  const { logger } = getContext()
+iii.registerFunction({ id: "research::deep" }, async ({ question, depth = 3 }) => {
+  const logger = new Logger()
   let context: string[] = []
   for (let i = 0; i < depth; i++) {
     const subQueries = await callLLM("Break into sub-questions", { question, context })
@@ -336,7 +336,7 @@ iii.registerFunction({ id: "research.deep" }, async ({ question, depth = 3 }) =>
 ## 7. Event-Driven Pipelines — user.created → parallel CRM + analytics + ML + email
 \`\`\`typescript
 iii.registerFunction({ id: "pipeline::onUserCreated" }, async ({ user }) => {
-  const { logger } = getContext()
+  const logger = new Logger()
   await Promise.all([
     iii.trigger({ function_id: "crm::syncContact", payload: { user } }),
     iii.trigger({ function_id: "analytics::track", payload: { event: "signup", user } }),
@@ -359,8 +359,8 @@ iii.registerTrigger({
 
 ## 8. Scheduled Intelligence — Cron + AI anomaly detection
 \`\`\`typescript
-iii.registerFunction({ id: "monitor.anomalies" }, async () => {
-  const { logger } = getContext()
+iii.registerFunction({ id: "monitor::anomalies" }, async () => {
+  const logger = new Logger()
   const metrics = await iii.trigger({ function_id: "metrics::getLast24h", payload: {} })
   const baseline = await iii.trigger({ function_id: "state::get", payload: {
     scope: "monitor", key: "baseline"
@@ -382,7 +382,7 @@ iii.registerFunction({ id: "monitor.anomalies" }, async () => {
 })
 
 iii.registerTrigger({
-  type: "cron", function_id: "monitor.anomalies",
+  type: "cron", function_id: "monitor::anomalies",
   config: { pattern: "*/15 * * * *" }
 })
 \`\`\``}</pre>
@@ -429,7 +429,7 @@ Stream data between workers in real-time. Process infinite sequences without buf
 
 ## Complete Observability — Auto-injected tracing
 Every invocation carries a trace ID. Logs and metrics flow automatically.
-  const { logger } = getContext()
+  const logger = new Logger()
   logger.info("Processing", { orderId })
 
 ## Event Bus — Pub/sub between workers
