@@ -186,7 +186,7 @@ def hello(data):
     name = data.get('name', 'World')
     return {'message': f'Hello, {name}!'}
 
-iii.register_function('greet::hello', hello)
+iii.register_function({"id": "greet::hello"}, hello)
 
 iii.register_trigger({
     'type': 'http',
