@@ -39,17 +39,20 @@ iii.registerFunction({ id: 'cleanup::expired-sessions' }, async () => {
 <Tab value="Python">
 ```python title="cron_task.py"
 import os
-from iii import register_worker, Logger
 
-iii = register_worker(os.environ.get('III_URL', 'ws://localhost:49134'))
+from iii import Logger, register_worker
 
-async def cleanup_sessions(_):
+iii = register_worker(os.environ.get("III_URL", "ws://localhost:49134"))
+
+
+def cleanup_sessions(_):
     logger = Logger()
     # ...cleanup logic here...
-    logger.info('Cleanup ran')
-    return {'deleted': 0}
+    logger.info("Cleanup ran")
+    return {"deleted": 0}
 
-iii.register_function('cleanup::expired-sessions', cleanup_sessions)
+
+iii.register_function({"id": "cleanup::expired-sessions"}, cleanup_sessions)
 ```
 </Tab>
 <Tab value="Rust">
@@ -91,11 +94,11 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="cron_trigger.py"
-iii.register_trigger(
-    type="cron",
-    function_id="cleanup::expired-sessions",
-    config={"expression": "* * * * * * *"},  # runs every second
-)
+iii.register_trigger({
+    "type": "cron",
+    "function_id": "cleanup::expired-sessions",
+    "config": {"expression": "* * * * * * *"},  # runs every second
+})
 ```
 </Tab>
 <Tab value="Rust">

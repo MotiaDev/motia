@@ -42,9 +42,10 @@ iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python title="conditions_functions.py"
-from iii import III
+from iii import register_worker
 
-iii = III("ws://localhost:49134")
+iii = register_worker("ws://localhost:49134")
+
 
 # condition
 def is_high_value(event):
@@ -52,18 +53,15 @@ def is_high_value(event):
         return False
     return (event.get("new_value") or {}).get("amount", 0) >= 1000
 
+
 # handler
 def process_high_value(event):
-    amount = 0
-    if isinstance(event, dict):
-        amount = (event.get("new_value") or {}).get("amount", 0)
-    return ApiResponse(statusCode=200, body={
-        "processed": True,
-        "amount": amount,
-    })
+    amount = (event.get("new_value") or {}).get("amount", 0) if isinstance(event, dict) else 0
+    return {"status_code": 200, "body": {"processed": True, "amount": amount}}
 
-iii.register_function("conditions::is-high-value", is_high_value)
-iii.register_function("orders::process-high-value", process_high_value)
+
+iii.register_function({"id": "conditions::is-high-value"}, is_high_value)
+iii.register_function({"id": "orders::process-high-value"}, process_high_value)
 ```
 </Tab>
 <Tab value="Rust">

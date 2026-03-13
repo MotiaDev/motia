@@ -44,17 +44,20 @@ iii.registerFunction({ id: 'orders::on-status-change' }, async (event) => {
 <Tab value="Python">
 ```python title="state_watcher.py"
 import os
-from iii import register_worker, Logger
 
-iii = register_worker(os.environ.get('III_URL', 'ws://localhost:49134'))
+from iii import Logger, register_worker
 
-async def on_status_change(event):
+iii = register_worker(os.environ.get("III_URL", "ws://localhost:49134"))
+
+
+def on_status_change(event):
     logger = Logger()
-    logger.info('Order status changed', {'key': event['key'], 'new_value': event['new_value']})
+    logger.info("Order status changed", {"key": event["key"], "new_value": event["new_value"]})
     # ...react to the change here...
-    return {'handled': True}
+    return {"handled": True}
 
-iii.register_function('orders::on-status-change', on_status_change)
+
+iii.register_function({"id": "orders::on-status-change"}, on_status_change)
 ```
 </Tab>
 <Tab value="Rust">
@@ -109,19 +112,19 @@ await iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python title="state_trigger.py"
-await iii.register_trigger(
-    type="state",
-    function_id="orders::on-status-change",
-    config={"scope": "orders", "key": "status"},
-)
+iii.register_trigger({
+    "type": "state",
+    "function_id": "orders::on-status-change",
+    "config": {"scope": "orders", "key": "status"},
+})
 
 # Then run iii.trigger() from another function or worker to trigger the state change
-await iii.trigger({
-    'function_id': 'state::set',
-    'payload': {
-        'scope': 'orders',
-        'key': 'status',
-        'value': {'orderId': 'order-123', 'status': 'shipped'},
+iii.trigger({
+    "function_id": "state::set",
+    "payload": {
+        "scope": "orders",
+        "key": "status",
+        "value": {"orderId": "order-123", "status": "shipped"},
     },
 })
 ```

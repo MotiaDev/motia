@@ -53,21 +53,24 @@ iii.registerFunction({ id: 'users::create' }, async (req) => {
 </Tab>
 <Tab value="Python">
 ```python title="http_endpoint.py"
-import uuid
 import os
-from iii import register_worker, Logger
+import uuid
 
-iii = register_worker(os.environ.get('III_URL', 'ws://localhost:49134'))
+from iii import Logger, register_worker
 
-async def create_user(req):
+iii = register_worker(os.environ.get("III_URL", "ws://localhost:49134"))
+
+
+def create_user(req):
     logger = Logger()
-    name = req['body']['name']
-    email = req['body']['email']
-    user = {'id': str(uuid.uuid4()), 'name': name, 'email': email}
-    logger.info('User created', {'userId': user['id']})
-    return {'status_code': 201, 'body': user}
+    name = req["body"]["name"]
+    email = req["body"]["email"]
+    user = {"id": str(uuid.uuid4()), "name": name, "email": email}
+    logger.info("User created", {"userId": user["id"]})
+    return {"status_code": 201, "body": user}
 
-iii.register_function('users::create', create_user)
+
+iii.register_function({"id": "users::create"}, create_user)
 ```
 </Tab>
 <Tab value="Rust">
@@ -116,11 +119,11 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python title="http_trigger.py"
-iii.register_trigger(
-    type="http",
-    function_id="users::create",
-    config={"api_path": "/users", "http_method": "POST"},
-)
+iii.register_trigger({
+    "type": "http",
+    "function_id": "users::create",
+    "config": {"api_path": "/users", "http_method": "POST"},
+})
 ```
 </Tab>
 <Tab value="Rust">
