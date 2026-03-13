@@ -23,7 +23,7 @@ One config file. One process. Everything discoverable. Think of it the way React
 | ------------- | ------------ |
 | **Function**  | A unit of work. It receives input and optionally returns output. It can exist anywhere: locally, in the cloud, on serverless, or as a third-party HTTP endpoint. |
 | **Trigger**   | What causes a Function to run - explicitly from code, or automatically from an event source. Examples: HTTP route, cron schedule, queue topic, state change, stream event. |
-| **Discovery** | Functions and triggers register and deregister themselves without configuration. Once discovered, they are available across the entire backend. |
+| **Worker**    | The runtime that connects your functions and triggers to the engine. Workers register and deregister themselves without configuration. Once connected, their functions are available across the entire backend. |
 
 ## Quick Start
 
