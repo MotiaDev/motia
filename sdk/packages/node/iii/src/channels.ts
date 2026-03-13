@@ -2,6 +2,23 @@ import { Readable, Writable } from 'node:stream'
 import { WebSocket } from 'ws'
 import type { StreamChannelRef } from './iii-types'
 
+/**
+ * Write end of a streaming channel. Provides both a Node.js `Writable` stream
+ * and a `sendMessage` method for sending structured text messages.
+ *
+ * @example
+ * ```typescript
+ * const channel = await iii.createChannel()
+ *
+ * // Stream binary data
+ * channel.writer.stream.write(Buffer.from('hello'))
+ * channel.writer.stream.end()
+ *
+ * // Or send text messages
+ * channel.writer.sendMessage(JSON.stringify({ type: 'event', data: 'test' }))
+ * channel.writer.close()
+ * ```
+ */
 export class ChannelWriter {
   private static readonly FRAME_SIZE = 64 * 1024
   private ws: WebSocket | null = null
@@ -10,6 +27,7 @@ export class ChannelWriter {
     data: Buffer | string
     callback: (err?: Error | null) => void
   }[] = []
+  /** Node.js Writable stream for binary data. */
   public readonly stream: Writable
   private readonly url: string
 
@@ -63,6 +81,7 @@ export class ChannelWriter {
     })
   }
 
+  /** Send a text message through the channel. */
   sendMessage(msg: string): void {
     this.ensureConnected()
     this.sendRaw(msg, (err) => {
@@ -70,6 +89,7 @@ export class ChannelWriter {
     })
   }
 
+  /** Close the channel writer. */
   close(): void {
     if (!this.ws) return
     if (this.wsReady) {
@@ -110,10 +130,26 @@ export class ChannelWriter {
   }
 }
 
+/**
+ * Read end of a streaming channel. Provides both a Node.js `Readable` stream
+ * for binary data and an `onMessage` callback for structured text messages.
+ *
+ * @example
+ * ```typescript
+ * const channel = await iii.createChannel()
+ *
+ * // Stream binary data
+ * channel.reader.stream.on('data', (chunk) => console.log(chunk))
+ *
+ * // Or receive text messages
+ * channel.reader.onMessage((msg) => console.log('Got:', msg))
+ * ```
+ */
 export class ChannelReader {
   private ws: WebSocket | null = null
   private connected = false
   private readonly messageCallbacks: Array<(msg: string) => void> = []
+  /** Node.js Readable stream for binary data. */
   public readonly stream: Readable
   private readonly url: string
 
@@ -168,6 +204,7 @@ export class ChannelReader {
     })
   }
 
+  /** Register a callback to receive text messages from the channel. */
   onMessage(callback: (msg: string) => void): void {
     this.messageCallbacks.push(callback)
   }

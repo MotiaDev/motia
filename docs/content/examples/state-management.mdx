@@ -23,7 +23,7 @@ graph LR
 ```typescript
 import {Logger, TriggerAction} from 'iii-sdk'
 
-const iii = init(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134')
+const iii = init(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'users.update_status', description: 'Update user status in state' },

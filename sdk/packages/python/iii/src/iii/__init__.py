@@ -18,6 +18,7 @@ from .iii_types import (
     FunctionInfo,
     HttpAuthConfig,
     HttpInvocationConfig,
+    OtelLogEvent,
     StreamChannelRef,
     TriggerActionEnqueue,
     TriggerActionVoid,
@@ -27,12 +28,26 @@ from .iii_types import (
     WorkerStatus,
 )
 from .logger import Logger
+from .otel_worker_gauges import register_worker_gauges, stop_worker_gauges
+from .state import (
+    IState,
+    StateDeleteInput,
+    StateDeleteResult,
+    StateEventData,
+    StateEventType,
+    StateGetInput,
+    StateListInput,
+    StateSetInput,
+    StateSetResult,
+    StateUpdateInput,
+    StateUpdateResult,
+)
 from .stream import (
-    DeleteResult,
     IStream,
     StreamAuthInput,
     StreamAuthResult,
     StreamDeleteInput,
+    StreamDeleteResult,
     StreamGetInput,
     StreamJoinLeaveEvent,
     StreamJoinResult,
@@ -52,11 +67,22 @@ from .stream import (
 from .telemetry import (
     current_span_id,
     current_trace_id,
+    extract_baggage,
+    extract_context,
+    extract_traceparent,
+    get_all_baggage,
+    get_baggage_entry,
+    get_logger,
     get_meter,
     get_tracer,
     init_otel,
+    inject_baggage,
+    inject_traceparent,
     is_initialized,
+    remove_baggage_entry,
+    set_baggage_entry,
     shutdown_otel,
+    with_span,
 )
 from .telemetry_types import OtelConfig
 from .types import (
@@ -69,10 +95,32 @@ from .types import (
     RemoteFunctionHandler,
 )
 from .utils import http, is_channel_ref
+from .worker_metrics import WorkerMetrics, WorkerMetricsCollector
 
 
 def register_worker(address: str, options: InitOptions | None = None) -> III:
-    """Create an III client and auto-start its connection task."""
+    """Create an III client and auto-start its connection task.
+
+    The WebSocket connection is established automatically. Must be called
+    inside an async context with an active event loop.
+
+    Args:
+        address: WebSocket URL of the III engine (e.g. ``ws://localhost:49134``).
+        options: Optional configuration for worker name, timeouts, reconnection, and OTel.
+
+    Returns:
+        A connected III client instance.
+
+    Raises:
+        RuntimeError: If no active asyncio event loop is found.
+
+    Examples:
+        >>> import asyncio
+        >>> from iii import register_worker
+        >>> async def main():
+        ...     iii = register_worker('ws://localhost:49134', InitOptions(worker_name='my-worker'))
+        >>> asyncio.run(main())
+    """
     client = III(address, options)
 
     try:
@@ -151,7 +199,7 @@ __all__ = [
     "StreamSetResult",
     "StreamUpdateInput",
     "StreamUpdateResult",
-    "DeleteResult",
+    "StreamDeleteResult",
     "UpdateDecrement",
     "UpdateIncrement",
     "UpdateMerge",
@@ -161,15 +209,47 @@ __all__ = [
     # Callbacks
     "FunctionsAvailableCallback",
     "RemoteFunctionHandler",
+    # State types
+    "IState",
+    "StateGetInput",
+    "StateSetInput",
+    "StateDeleteInput",
+    "StateListInput",
+    "StateUpdateInput",
+    "StateSetResult",
+    "StateUpdateResult",
+    "StateDeleteResult",
+    "DeleteResult",
+    "StateEventType",
+    "StateEventData",
+    # Log event types
+    "OtelLogEvent",
     # Telemetry
     "OtelConfig",
     "init_otel",
     "shutdown_otel",
     "get_tracer",
     "get_meter",
+    "get_logger",
     "current_trace_id",
     "current_span_id",
     "is_initialized",
+    "with_span",
+    # Telemetry context/baggage helpers
+    "inject_traceparent",
+    "extract_traceparent",
+    "inject_baggage",
+    "extract_baggage",
+    "extract_context",
+    "get_baggage_entry",
+    "set_baggage_entry",
+    "remove_baggage_entry",
+    "get_all_baggage",
+    # Worker metrics
+    "WorkerMetrics",
+    "WorkerMetricsCollector",
+    "register_worker_gauges",
+    "stop_worker_gauges",
     # Utility
     "configure_logging",
 ]

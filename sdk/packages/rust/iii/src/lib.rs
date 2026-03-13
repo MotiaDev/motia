@@ -35,13 +35,45 @@ pub use types::{
 
 pub use serde_json::Value;
 
+/// Configuration options passed to [`register_worker`].
+///
+/// # Examples
+/// ```rust
+/// use iii_sdk::{register_worker, InitOptions};
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let iii = register_worker("ws://localhost:49134", InitOptions::default()).unwrap();
+/// }
+/// ```
 #[derive(Debug, Clone, Default)]
 pub struct InitOptions {
+    /// Custom worker metadata. Auto-detected if `None`.
     pub metadata: Option<WorkerMetadata>,
+    /// OpenTelemetry configuration. Requires the `otel` feature.
     #[cfg(feature = "otel")]
     pub otel: Option<crate::telemetry::types::OtelConfig>,
 }
 
+/// Create and return a connected SDK instance. The WebSocket connection is
+/// established automatically in a background Tokio task.
+///
+/// # Arguments
+/// * `address` - WebSocket URL of the III engine (e.g. `ws://localhost:49134`).
+/// * `options` - Configuration for worker metadata and OTel.
+///
+/// # Errors
+/// Returns [`IIIError::Runtime`] if no active Tokio runtime is found.
+///
+/// # Examples
+/// ```rust
+/// use iii_sdk::{register_worker, InitOptions};
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let iii = register_worker("ws://localhost:49134", InitOptions::default()).unwrap();
+/// }
+/// ```
 pub fn register_worker(address: &str, options: InitOptions) -> Result<III, IIIError> {
     let InitOptions {
         metadata,

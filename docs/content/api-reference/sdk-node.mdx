@@ -3,6 +3,8 @@ title: "Node.js SDK"
 description: "API reference for the iii SDK for Node.js / TypeScript."
 ---
 
+{/* AUTO-GENERATED FILE. Do not edit manually. Run the generate-api-docs pipeline. */}
+
 ## Installation
 
 ```bash
@@ -16,330 +18,367 @@ The Node.js SDK exports `registerWorker` that creates a connected SDK instance. 
 ```typescript
 import { registerWorker } from 'iii-sdk'
 
-const iii = registerWorker(process.env.III_BRIDGE_URL ?? 'ws://localhost:49134', {
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134', {
   workerName: 'my-worker',
 })
 ```
 
-<ResponseField name="registerWorker" type="(address: string, options?: InitOptions) => ISdk" required>
-  Creates and returns a connected SDK instance.
+### registerWorker
 
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="InitOptions" description="">
-      <ResponseField name="workerName" type="string">
-        Display name for this worker. Defaults to `hostname:pid`.
-      </ResponseField>
-      <ResponseField name="invocationTimeoutMs" type="number">
-        Default timeout for `trigger()` in milliseconds. Defaults to `30000`.
-      </ResponseField>
-      <ResponseField name="enableMetricsReporting" type="boolean">
-        Enable worker metrics via OpenTelemetry. Defaults to `true`.
-      </ResponseField>
-      <ResponseField name="reconnectionConfig" type="Partial&lt;IIIReconnectionConfig&gt;">
-        WebSocket reconnection behavior.
+Creates and returns a connected SDK instance. The WebSocket connection is
+established automatically -- there is no separate `connect()` call.
 
-        <Expandable title="IIIReconnectionConfig">
-          <ResponseField name="initialDelayMs" type="number">
-            Starting delay in milliseconds. Default `1000`.
-          </ResponseField>
-          <ResponseField name="maxDelayMs" type="number">
-            Maximum delay cap in milliseconds. Default `30000`.
-          </ResponseField>
-          <ResponseField name="backoffMultiplier" type="number">
-            Exponential backoff multiplier. Default `2`.
-          </ResponseField>
-          <ResponseField name="jitterFactor" type="number">
-            Random jitter factor (0–1). Default `0.3`.
-          </ResponseField>
-          <ResponseField name="maxRetries" type="number">
-            Maximum retry attempts. `-1` for infinite. Default `-1`.
-          </ResponseField>
-        </Expandable>
-      </ResponseField>
-      <ResponseField name="otel" type="Omit&lt;OtelConfig, 'engineWsUrl'&gt;">
-        OpenTelemetry configuration. Enabled by default. Set `{ enabled: false }` or env `OTEL_ENABLED=false` to disable.
-      </ResponseField>
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
+**Signature**
+
+```typescript
+registerWorker(address: string, options: InitOptions) => ISdk
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `address` | `string` | Yes | WebSocket URL of the III engine (e.g. `ws://localhost:49134`). |
+| `options` | [`InitOptions`](#initoptions) | Yes | Optional InitOptions for worker name, timeouts, reconnection, and OTel. |
+
+#### Example
+
+```typescript
+import { registerWorker } from 'iii-sdk'
+
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134', {
+  workerName: 'my-worker',
+})
+```
 
 ## Methods
 
-### registerFunction
+### createChannel
 
-<ResponseField name="registerFunction" type="(func: RegisterFunctionInput, handler: RemoteFunctionHandler) => FunctionRef" required>
-  Registers a function with the engine. The `id` is the unique identifier used by triggers and invocations.
+Creates a streaming channel pair for worker-to-worker data transfer.
+Returns a Channel with a local writer/reader and serializable refs that
+can be passed as fields in the invocation data to other functions.
 
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="func" type="RegisterFunctionInput" required>
-        <Expandable title="RegisterFunctionInput">
-          <ResponseField name="id" type="string" required>
-            Unique function identifier.
-          </ResponseField>
-          <ResponseField name="description" type="string">
-            Human-readable description.
-          </ResponseField>
-        </Expandable>
-      </ResponseField>
-      <ResponseField name="handler" type="(data: TInput) => Promise&lt;TOutput&gt;" required>
-        Async function that processes the invocation payload.
-      </ResponseField>
-    </Accordion>
-    <Accordion iconName="ArrowUpRight" title="Returns" description="">
-      <ResponseField name="FunctionRef" type="FunctionRef">
-        ```typescript
-        type FunctionRef = {
-          id: string
-          unregister: () => void
-        }
-        ```
-      </ResponseField>
-    </Accordion>
-    <Accordion iconName="Code" title="Example" description="">
-      ```typescript
-      const fn = iii.registerFunction(
-        { id: 'greet', description: 'Greets a user' },
-        async (input: { name: string }) => {
-          return { message: `Hello, ${input.name}!` }
-        },
-      )
-      ```
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
+**Signature**
 
-### registerTrigger
+```typescript
+createChannel(bufferSize: number) => Promise<Channel>
+```
 
-<ResponseField name="registerTrigger" type="(trigger: RegisterTriggerInput) => Trigger" required>
-  Binds a trigger configuration to a registered function.
+#### Parameters
 
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="trigger" type="RegisterTriggerInput" required>
-        <Expandable title="RegisterTriggerInput">
-          <ResponseField name="type" type="string" required>
-            Trigger type (e.g. `http`, `queue`, `cron`).
-          </ResponseField>
-          <ResponseField name="function_id" type="string" required>
-            ID of the function to invoke.
-          </ResponseField>
-          <ResponseField name="config" type="unknown" required>
-            Trigger-specific configuration.
-          </ResponseField>
-        </Expandable>
-      </ResponseField>
-    </Accordion>
-    <Accordion iconName="ArrowUpRight" title="Returns" description="">
-      <ResponseField name="Trigger" type="Trigger">
-        ```typescript
-        type Trigger = {
-          unregister(): void
-        }
-        ```
-      </ResponseField>
-    </Accordion>
-    <Accordion iconName="Code" title="Example" description="">
-      ```typescript
-      iii.registerTrigger({
-        type: 'http',
-        function_id: 'greet',
-        config: { api_path: '/greet', http_method: 'GET' },
-      })
-      ```
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `bufferSize` | `number` | Yes | Optional buffer size for the channel (default: 64) |
 
-### trigger
+#### Example
 
-<ResponseField name="trigger" type="&lt;TInput, TOutput&gt;(request: TriggerRequest&lt;TInput&gt;) => Promise&lt;TOutput&gt;" required>
-  Invokes a remote function. The routing behavior and return type depend on the `action` field of the request.
+```typescript
+const channel = await iii.createChannel()
 
-  | `action` | Behavior | Return type |
-  |----------|----------|-------------|
-  | _(none)_ | Synchronous — waits for the function to return | `Promise<TOutput>` |
-  | `TriggerAction.Enqueue(...)` | Async via named queue — engine acknowledges enqueue | `Promise<EnqueueResult>` |
-  | `TriggerAction.Void()` | Fire-and-forget — no response | `Promise<undefined>` |
+// Pass the writer ref to another function
+await iii.trigger({
+  function_id: 'stream-producer',
+  payload: { outputChannel: channel.writerRef },
+})
 
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="request" type="TriggerRequest&lt;TInput&gt;" required>
-        <Expandable title="TriggerRequest">
-          <ResponseField name="function_id" type="string" required>
-            ID of the function to invoke.
-          </ResponseField>
-          <ResponseField name="payload" type="TInput" required>
-            Payload to pass to the function.
-          </ResponseField>
-          <ResponseField name="action" type="TriggerAction">
-            Routing action. Omit for synchronous request/response. Use `TriggerAction.Enqueue(...)` for async queue delivery or `TriggerAction.Void()` for fire-and-forget.
-          </ResponseField>
-          <ResponseField name="timeoutMs" type="number">
-            Override the default invocation timeout for synchronous calls.
-          </ResponseField>
-        </Expandable>
-      </ResponseField>
-    </Accordion>
-    <Accordion iconName="ArrowUpRight" title="Returns" description="">
-      <ResponseField name="result" type="Promise&lt;TOutput&gt;">
-        For synchronous calls: the value returned by the remote function. For enqueue calls, `TOutput` resolves to `EnqueueResult` (`{ messageReceiptId: string }`). For void calls, `TOutput` resolves to `undefined`.
-      </ResponseField>
-    </Accordion>
-    <Accordion iconName="Code" title="Example" description="">
-      ```typescript
-      import { TriggerAction } from 'iii-sdk'
-
-      // Synchronous — wait for function result
-      const result = await iii.trigger({ function_id: 'get-order', payload: { id: '123' } })
-
-      // Enqueue to named queue — returns { messageReceiptId }
-      const { messageReceiptId } = await iii.trigger({
-        function_id: 'payments::charge',
-        payload: { orderId: '123', amount: 49.99 },
-        action: TriggerAction.Enqueue({ queue: 'payment' }),
-      })
-
-      // Fire-and-forget
-      iii.trigger({
-        function_id: 'notifications::send',
-        payload: { userId: '123' },
-        action: TriggerAction.Void(),
-      })
-      ```
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
-
-### TriggerAction
-
-A factory object that constructs routing actions for `trigger()`. Import from `iii-sdk`.
-
-<ResponseField name="TriggerAction.Enqueue" type="({ queue: string }) => TriggerAction" required>
-  Routes the invocation through a named queue. The engine enqueues the job, acknowledges the caller with `{ messageReceiptId }`, and processes it asynchronously. Returns an error if the queue name is not found in config or if FIFO validation fails.
-</ResponseField>
-
-<ResponseField name="TriggerAction.Void" type="() => TriggerAction" required>
-  Fire-and-forget routing. The engine forwards the invocation without waiting for a response or queuing the job. No acknowledgement is returned.
-</ResponseField>
+// Read data locally
+channel.reader.onMessage((msg) => {
+  console.log('Received:', msg)
+})
+```
 
 ### createStream
 
-<ResponseField name="createStream" type="&lt;TData&gt;(streamName: string, stream: IStream&lt;TData&gt;) => void" required>
-  Registers a custom stream implementation, overriding the engine default for the given stream name.
+Creates a new stream implementation.
 
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="streamName" type="string" required>
-        Name of the stream.
-      </ResponseField>
-      <ResponseField name="stream" type="IStream&lt;TData&gt;" required>
-        Object implementing `get`, `set`, `delete`, `list`, `listGroups`, and `update`.
-      </ResponseField>
-    </Accordion>
-  </AccordionGroup>
+This overrides the default stream implementation.
 
-  <Callout type="info" title="Note">
-    In the Node SDK, `createStream` registers only 5 of the 6 `IStream` methods (`get`, `set`, `delete`, `list`, `listGroups`). The `update` method is **not** registered by `createStream` — atomic updates are handled by the engine's built-in stream update logic.
-  </Callout>
-</ResponseField>
+**Signature**
 
-### onFunctionsAvailable
+```typescript
+createStream(streamName: string, stream: IStream<TData>) => void
+```
 
-<ResponseField name="onFunctionsAvailable" type="(callback: FunctionsAvailableCallback) => () => void" required>
-  Subscribes to function availability events from the engine. Returns an unsubscribe function.
-</ResponseField>
+#### Parameters
 
-### onLog
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `streamName` | `string` | Yes | The name of the stream |
+| `stream` | [`IStream`](#istream)&lt;TData&gt; | Yes | The stream implementation |
 
-<ResponseField name="onLog" type="(callback: LogCallback, config?: LogConfig) => () => void" required>
-  Subscribes to OTEL log events from the engine. Returns an unsubscribe function.
+#### Example
 
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="LogConfig" description="">
-      <ResponseField name="level" type="LogSeverityLevel">
-        Minimum severity: `trace`, `debug`, `info`, `warn`, `error`, `fatal`, or `all`. Default `all`.
-      </ResponseField>
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
+```typescript
+const redisStream: IStream<UserSession> = {
+  async get({ group_id, item_id }) {
+    return JSON.parse(await redis.get(`${group_id}:${item_id}`) ?? 'null')
+  },
+  async set({ group_id, item_id, data }) {
+    const old = await this.get({ stream_name: 'sessions', group_id, item_id })
+    await redis.set(`${group_id}:${item_id}`, JSON.stringify(data))
+    return { old_value: old ?? undefined, new_value: data }
+  },
+  async delete({ group_id, item_id }) {
+    const old = await this.get({ stream_name: 'sessions', group_id, item_id })
+    await redis.del(`${group_id}:${item_id}`)
+    return { old_value: old ?? undefined }
+  },
+  async list({ group_id }) { return [] },
+  async listGroups() { return [] },
+  async update({ group_id, item_id, ops }) { return { new_value: {} } },
+}
+
+iii.createStream('sessions', redisStream)
+```
 
 ### listFunctions
 
-<ResponseField name="listFunctions" type="() => Promise&lt;FunctionInfo[]&gt;" required>
-  Lists all functions registered with the engine.
-</ResponseField>
+Lists all registered functions.
 
-### listWorkers
+**Signature**
 
-<ResponseField name="listWorkers" type="() => Promise&lt;WorkerInfo[]&gt;" required>
-  Lists all connected workers.
-</ResponseField>
+```typescript
+listFunctions() => Promise<FunctionInfo[]>
+```
 
-### getConnectionState
+#### Example
 
-<ResponseField name="getConnectionState" type="() => IIIConnectionState" required>
-  Returns the current WebSocket connection state: `disconnected`, `connecting`, `connected`, `reconnecting`, or `failed`.
-</ResponseField>
+```typescript
+const functions = await iii.listFunctions()
+for (const fn of functions) {
+  console.log(`${fn.function_id}: ${fn.description}`)
+}
+```
 
-### onConnectionStateChange
+### listTriggers
 
-<ResponseField name="onConnectionStateChange" type="(callback: ConnectionStateCallback) => () => void" required>
-  Subscribes to connection state changes. The callback fires immediately with the current state, then on each transition. Returns an unsubscribe function.
-</ResponseField>
+Lists all registered triggers.
 
-### shutdown
+**Signature**
 
-<ResponseField name="shutdown" type="() => Promise&lt;void&gt;" required>
-  Gracefully shuts down the SDK: flushes telemetry, rejects pending invocations, and closes the WebSocket.
-</ResponseField>
+```typescript
+listTriggers(includeInternal: boolean) => Promise<TriggerInfo[]>
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `includeInternal` | `boolean` | Yes | Whether to include internal triggers (default: false) |
+
+### onFunctionsAvailable
+
+Registers a callback to receive the current functions list
+when the engine announces changes.
+
+**Signature**
+
+```typescript
+onFunctionsAvailable(callback: FunctionsAvailableCallback) => () => void
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `callback` | [`FunctionsAvailableCallback`](#functionsavailablecallback) | Yes | - |
+
+#### Example
+
+```typescript
+const unsubscribe = iii.onFunctionsAvailable((functions) => {
+  console.log(`${functions.length} functions available:`)
+  for (const fn of functions) {
+    console.log(`  - ${fn.function_id}`)
+  }
+})
+
+// Later, stop listening
+unsubscribe()
+```
+
+### registerFunction
+
+
+
+**Signature**
+
+```typescript
+registerFunction(func: RegisterFunctionInput, handler: RemoteFunctionHandler) => FunctionRef
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `func` | [`RegisterFunctionInput`](#registerfunctioninput) | Yes | - |
+| `handler` | [`RemoteFunctionHandler`](#remotefunctionhandler) | Yes | - |
+
+### registerService
+
+Registers a new service.
+
+**Signature**
+
+```typescript
+registerService(message: RegisterServiceInput) => void
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | [`RegisterServiceInput`](#registerserviceinput) | Yes | The service to register |
+
+### registerTrigger
+
+Registers a new trigger. A trigger is a way to invoke a function when a certain event occurs.
+
+**Signature**
+
+```typescript
+registerTrigger(trigger: RegisterTriggerInput) => Trigger
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `trigger` | [`RegisterTriggerInput`](#registertriggerinput) | Yes | The trigger to register |
+
+#### Example
+
+```typescript
+const trigger = iii.registerTrigger({
+  type: 'cron',
+  function_id: 'my-service::process-batch',
+  config: { schedule: '*/5 * * * *' },
+})
+
+// Later, remove the trigger
+trigger.unregister()
+```
 
 ### registerTriggerType
 
-<ResponseField name="registerTriggerType" type="&lt;TConfig&gt;(triggerType: RegisterTriggerTypeInput, handler: TriggerHandler&lt;TConfig&gt;) => void" required>
-  Registers a custom trigger type with the engine.
+Registers a new trigger type. A trigger type is a way to invoke a function when a certain event occurs.
 
-  <AccordionGroup>
-    <Accordion iconName="Settings" title="Parameters" description="">
-      <ResponseField name="triggerType" type="RegisterTriggerTypeInput" required>
-        <Expandable title="RegisterTriggerTypeInput">
-          <ResponseField name="id" type="string" required>
-            Unique trigger type identifier.
-          </ResponseField>
-          <ResponseField name="description" type="string" required>
-            Human-readable description.
-          </ResponseField>
-        </Expandable>
-      </ResponseField>
-      <ResponseField name="handler" type="TriggerHandler&lt;TConfig&gt;" required>
-        ```typescript
-        type TriggerHandler<TConfig> = {
-          registerTrigger(config: TriggerConfig<TConfig>): Promise<void>
-          unregisterTrigger(config: TriggerConfig<TConfig>): Promise<void>
-        }
-        ```
+**Signature**
 
-        <Expandable title="TriggerConfig">
-          <ResponseField name="id" type="string" required>
-            Trigger instance ID.
-          </ResponseField>
-          <ResponseField name="function_id" type="string" required>
-            Function to invoke when the trigger fires.
-          </ResponseField>
-          <ResponseField name="config" type="TConfig" required>
-            Trigger-specific configuration.
-          </ResponseField>
-        </Expandable>
-      </ResponseField>
-    </Accordion>
-  </AccordionGroup>
-</ResponseField>
+```typescript
+registerTriggerType(triggerType: RegisterTriggerTypeInput, handler: TriggerHandler<TConfig>) => void
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `triggerType` | [`RegisterTriggerTypeInput`](#registertriggertypeinput) | Yes | The trigger type to register |
+| `handler` | [`TriggerHandler`](#triggerhandler)&lt;TConfig&gt; | Yes | The handler for the trigger type |
+
+#### Example
+
+```typescript
+type CronConfig = { schedule: string }
+
+iii.registerTriggerType<CronConfig>(
+  { id: 'cron', description: 'Fires on a cron schedule' },
+  {
+    async registerTrigger({ id, function_id, config }) {
+      startCronJob(id, config.schedule, () =>
+        iii.trigger({ function_id, payload: {} }),
+      )
+    },
+    async unregisterTrigger({ id }) {
+      stopCronJob(id)
+    },
+  },
+)
+```
+
+### shutdown
+
+Gracefully shutdown the iii, cleaning up all resources.
+
+**Signature**
+
+```typescript
+shutdown() => Promise<void>
+```
+
+#### Example
+
+```typescript
+process.on('SIGTERM', async () => {
+  await iii.shutdown()
+  process.exit(0)
+})
+```
+
+### trigger
+
+Invokes a function using a request object.
+
+**Signature**
+
+```typescript
+trigger(request: TriggerRequest<TInput>) => Promise<TOutput>
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `request` | [`TriggerRequest`](#triggerrequest)&lt;TInput&gt; | Yes | The trigger request containing function_id, payload, and optional action/timeout |
+
+#### Example
+
+```typescript
+// Synchronous invocation
+const result = await iii.trigger<{ name: string }, { message: string }>({
+  function_id: 'greet',
+  payload: { name: 'World' },
+  timeoutMs: 5000,
+})
+console.log(result.message) // "Hello, World!"
+
+// Fire-and-forget
+await iii.trigger({
+  function_id: 'send-email',
+  payload: { to: 'user@example.com' },
+  action: TriggerAction.Void(),
+})
+
+// Enqueue for async processing
+const receipt = await iii.trigger({
+  function_id: 'process-order',
+  payload: { orderId: '123' },
+  action: TriggerAction.Enqueue({ queue: 'orders' }),
+})
+```
 
 ### unregisterTriggerType
 
-<ResponseField name="unregisterTriggerType" type="(triggerType: RegisterTriggerTypeInput) => void" required>
-  Unregisters a previously registered trigger type.
-</ResponseField>
+Unregisters a trigger type.
+
+**Signature**
+
+```typescript
+unregisterTriggerType(triggerType: RegisterTriggerTypeInput) => void
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `triggerType` | [`RegisterTriggerTypeInput`](#registertriggertypeinput) | Yes | The trigger type to unregister |
+
+#### Example
+
+```typescript
+iii.unregisterTriggerType({ id: 'cron', description: 'Fires on a cron schedule' })
+```
 
 ## Subpath Exports
 
@@ -347,63 +386,348 @@ The `iii-sdk` package provides additional entry points:
 
 | Import path | Contents |
 |---|---|
-| `iii-sdk` | `registerWorker`, `Logger`, `OTel context`, `ISdk`, `ApiRequest`, `ApiResponse`, `TriggerAction`, `TriggerRequest`, `EnqueueResult` |
-| `iii-sdk/stream` | `IStream` and all stream types (`StreamGetInput`, `StreamSetInput`, `UpdateOp`, etc.) |
-| `iii-sdk/state` | State management types |
-| `iii-sdk/telemetry` | OpenTelemetry utilities (`initOtel`, `getTracer`, `getMeter`, `withSpan`, etc.) |
+| `iii-sdk` | `MessageType`, `ChannelReader`, `ChannelWriter`, `Logger`, `ISdk`, `ApiRequest`, `ApiResponse`, `Channel`, `EnqueueResult`, `FunctionRef`, etc. |
+| `iii-sdk/stream` | `IStream`, `StreamAuthInput`, `StreamAuthResult`, `StreamJoinLeaveEvent`, `StreamJoinResult`, `DeleteResult`, `StreamContext`, `StreamDeleteInput`, `StreamGetInput`, `StreamListGroupsInput`, etc. |
+| `iii-sdk/state` | `StateEventType`, `IState`, `StateEventData`, `DeleteResult`, `StateDeleteInput`, `StateDeleteResult`, `StateGetInput`, `StateListInput`, `StateSetInput`, `StateSetResult`, etc. |
+| `iii-sdk/telemetry` | `WorkerMetricsCollector`, `IIIReconnectionConfig`, `OtelConfig`, `ReconnectionConfig`, `WorkerGaugesOptions`, `WorkerMetricsCollectorOptions`, `FunctionInfo`, `FunctionsAvailableCallback`, `IIIConnectionState`, `OtelLogEvent`, etc. |
 
 ## Types
 
+[`MessageType`](#messagetype) · [`ChannelReader`](#channelreader) · [`ChannelWriter`](#channelwriter) · [`Channel`](#channel) · [`FunctionRef`](#functionref) · [`HttpAuthConfig`](#httpauthconfig) · [`HttpInvocationConfig`](#httpinvocationconfig) · [`InitOptions`](#initoptions) · [`RegisterFunctionInput`](#registerfunctioninput) · [`RegisterFunctionMessage`](#registerfunctionmessage) · [`RegisterServiceInput`](#registerserviceinput) · [`RegisterTriggerInput`](#registertriggerinput) · [`RegisterTriggerMessage`](#registertriggermessage) · [`RegisterTriggerTypeInput`](#registertriggertypeinput) · [`RegisterTriggerTypeMessage`](#registertriggertypemessage) · [`RemoteFunctionHandler`](#remotefunctionhandler) · [`StreamChannelRef`](#streamchannelref) · [`Trigger`](#trigger) · [`TriggerHandler`](#triggerhandler) · [`TriggerInfo`](#triggerinfo) · [`TriggerRequest`](#triggerrequest) · [`IStream`](#istream) · [`DeleteResult`](#deleteresult) · [`StreamSetResult`](#streamsetresult) · [`StreamUpdateResult`](#streamupdateresult) · [`DeleteResult`](#deleteresult) · [`IIIReconnectionConfig`](#iiireconnectionconfig) · [`OtelConfig`](#otelconfig) · [`ReconnectionConfig`](#reconnectionconfig) · [`FunctionInfo`](#functioninfo) · [`FunctionsAvailableCallback`](#functionsavailablecallback) · [`RegisterFunctionFormat`](#registerfunctionformat)
+
+### MessageType
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `InvocationResult` | `"invocationresult"` | Yes | - |
+| `InvokeFunction` | `"invokefunction"` | Yes | - |
+| `RegisterFunction` | `"registerfunction"` | Yes | - |
+| `RegisterService` | `"registerservice"` | Yes | - |
+| `RegisterTrigger` | `"registertrigger"` | Yes | - |
+| `RegisterTriggerType` | `"registertriggertype"` | Yes | - |
+| `TriggerRegistrationResult` | `"triggerregistrationresult"` | Yes | - |
+| `UnregisterFunction` | `"unregisterfunction"` | Yes | - |
+| `UnregisterTrigger` | `"unregistertrigger"` | Yes | - |
+| `UnregisterTriggerType` | `"unregistertriggertype"` | Yes | - |
+| `WorkerRegistered` | `"workerregistered"` | Yes | - |
+
+### ChannelReader
+
+Read end of a streaming channel. Provides both a Node.js `Readable` stream
+for binary data and an `onMessage` callback for structured text messages.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `stream` | `Readable` | Yes | Node.js Readable stream for binary data. |
+
+### ChannelWriter
+
+Write end of a streaming channel. Provides both a Node.js `Writable` stream
+and a `sendMessage` method for sending structured text messages.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `stream` | `Writable` | Yes | Node.js Writable stream for binary data. |
+
+### Channel
+
+A streaming channel pair for worker-to-worker data transfer. Created via
+ISdk.createChannel.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `reader` | [`ChannelReader`](#channelreader) | Yes | Reader end of the channel. |
+| `readerRef` | [`StreamChannelRef`](#streamchannelref) | Yes | Serializable reference to the reader (can be sent to other workers). |
+| `writer` | [`ChannelWriter`](#channelwriter) | Yes | Writer end of the channel. |
+| `writerRef` | [`StreamChannelRef`](#streamchannelref) | Yes | Serializable reference to the writer (can be sent to other workers). |
+
+### FunctionRef
+
+Handle returned by ISdk.registerFunction. Contains the function's
+`id` and an `unregister()` method.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `string` | Yes | The unique function identifier. |
+| `unregister` | `() => void` | Yes | Removes this function from the engine. |
+
+### HttpAuthConfig
+
+Authentication configuration for HTTP-invoked functions.
+
+- `hmac` -- HMAC signature verification using a shared secret.
+- `bearer` -- Bearer token authentication.
+- `api_key` -- API key sent via a custom header.
+
 ```typescript
-type TriggerRequest<TInput = unknown> = {
-  function_id: string
-  payload: TInput
-  action?: TriggerAction
-  timeoutMs?: number
-}
-
-type EnqueueResult = {
-  messageReceiptId: string
-}
-
-type ApiRequest<TBody = unknown> = {
-  path_params: Record<string, string>
-  query_params: Record<string, string | string[]>
-  body: TBody
-  headers: Record<string, string | string[]>
-  method: string
-}
-
-type ApiResponse<
-  TStatus extends number = number,
-  TBody = string | Buffer | Record<string, unknown>,
-> = {
-  status_code: TStatus
-  headers?: Record<string, string>
-  body: TBody
-}
-
-type FunctionRef = {
-  id: string
-  unregister: () => void
-}
-
-type Trigger = {
-  unregister(): void
-}
-
-type IIIConnectionState =
-  | 'disconnected'
-  | 'connecting'
-  | 'connected'
-  | 'reconnecting'
-  | 'failed'
+type HttpAuthConfig = unknown | unknown | unknown
 ```
+
+### HttpInvocationConfig
+
+Configuration for registering an HTTP-invoked function (Lambda, Cloudflare
+Workers, etc.) instead of a local handler.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `auth` | [`HttpAuthConfig`](#httpauthconfig) | No | Authentication configuration. |
+| `headers` | `Record<string, string>` | No | Custom headers to send with the request. |
+| `method` | `"GET" \| "POST" \| "PUT" \| "PATCH" \| "DELETE"` | No | HTTP method. Defaults to `POST`. |
+| `timeout_ms` | `number` | No | Timeout in milliseconds. |
+| `url` | `string` | Yes | URL to invoke. |
+
+### InitOptions
+
+Configuration options passed to registerWorker.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enableMetricsReporting` | `boolean` | No | Enable worker metrics via OpenTelemetry. Defaults to `true`. |
+| `invocationTimeoutMs` | `number` | No | Default timeout for `trigger()` in milliseconds. Defaults to `30000`. |
+| `otel` | Omit&lt;[`OtelConfig`](#otelconfig), "engineWsUrl"&gt; | No | OpenTelemetry configuration. OTel is initialized automatically by default.<br />Set `\{ enabled: false \}` or env `OTEL_ENABLED=false/0/no/off` to disable.<br />The `engineWsUrl` is set automatically from the III address. |
+| `reconnectionConfig` | Partial&lt;[`IIIReconnectionConfig`](#iiireconnectionconfig)&gt; | No | WebSocket reconnection behavior. |
+| `workerName` | `string` | No | Display name for this worker. Defaults to `hostname:pid`. |
+
+### RegisterFunctionInput
+
+```typescript
+type RegisterFunctionInput = Omit<RegisterFunctionMessage, "message_type">
+```
+
+### RegisterFunctionMessage
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `description` | `string` | No | The description of the function |
+| `id` | `string` | Yes | The path of the function (use :: for namespacing, e.g. external::my_lambda) |
+| `invocation` | [`HttpInvocationConfig`](#httpinvocationconfig) | No | HTTP invocation config for external HTTP functions (Lambda, Cloudflare Workers, etc.) |
+| `message_type` | [`MessageType`](#messagetype).RegisterFunction | Yes | - |
+| `metadata` | `Record<string, unknown>` | No | - |
+| `request_format` | [`RegisterFunctionFormat`](#registerfunctionformat) | No | The request format of the function |
+| `response_format` | [`RegisterFunctionFormat`](#registerfunctionformat) | No | The response format of the function |
+
+### RegisterServiceInput
+
+```typescript
+type RegisterServiceInput = Omit<RegisterServiceMessage, "message_type">
+```
+
+### RegisterTriggerInput
+
+```typescript
+type RegisterTriggerInput = Omit<RegisterTriggerMessage, "message_type" | "id">
+```
+
+### RegisterTriggerMessage
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `config` | `unknown` | Yes | - |
+| `function_id` | `string` | Yes | - |
+| `id` | `string` | Yes | - |
+| `message_type` | [`MessageType`](#messagetype).RegisterTrigger | Yes | - |
+| `type` | `string` | Yes | - |
+
+### RegisterTriggerTypeInput
+
+```typescript
+type RegisterTriggerTypeInput = Omit<RegisterTriggerTypeMessage, "message_type">
+```
+
+### RegisterTriggerTypeMessage
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `description` | `string` | Yes | - |
+| `id` | `string` | Yes | - |
+| `message_type` | [`MessageType`](#messagetype).RegisterTriggerType | Yes | - |
+
+### RemoteFunctionHandler
+
+Async function handler for a registered function. Receives the invocation
+payload and returns the result.
+
+```typescript
+type RemoteFunctionHandler = (data: TInput) => Promise<TOutput>
+```
+
+### StreamChannelRef
+
+Serializable reference to one end of a streaming channel. Can be included
+in invocation payloads to pass channel endpoints between workers.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `access_key` | `string` | Yes | Access key for authentication. |
+| `channel_id` | `string` | Yes | Unique channel identifier. |
+| `direction` | `"read" \| "write"` | Yes | Whether this ref is for reading or writing. |
+
+### Trigger
+
+Handle returned by ISdk.registerTrigger. Use `unregister()` to
+remove the trigger from the engine.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `unregister` | `void` | Yes | Removes this trigger from the engine. |
+
+### TriggerHandler
+
+Handler interface for custom trigger types. Passed to
+`ISdk.registerTriggerType`.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `registerTrigger` | `Promise<void>` | Yes | Called when a trigger instance is registered. |
+| `unregisterTrigger` | `Promise<void>` | Yes | Called when a trigger instance is unregistered. |
+
+### TriggerInfo
+
+Information about a registered trigger.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `config` | `unknown` | No | Trigger-specific configuration. |
+| `function_id` | `string` | Yes | ID of the function this trigger is bound to. |
+| `id` | `string` | Yes | Unique trigger identifier. |
+| `trigger_type` | `string` | Yes | Type of the trigger (e.g. `http`, `cron`, `queue`). |
+
+### TriggerRequest
+
+Request object passed to ISdk.trigger.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `action` | `TriggerAction` | No | Routing action. Omit for synchronous request/response. |
+| `function_id` | `string` | Yes | ID of the function to invoke. |
+| `payload` | `TInput` | Yes | Payload to pass to the function. |
+| `timeoutMs` | `number` | No | Override the default invocation timeout in milliseconds. |
+
+### IStream
+
+Interface for custom stream implementations. Passed to `ISdk.createStream`
+to override the engine's built-in stream storage.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `delete` | Promise&lt;[`DeleteResult`](#deleteresult)&gt; | Yes | Delete a stream item. |
+| `get` | `Promise<TData \| null>` | Yes | Retrieve a single item by group and item ID. |
+| `list` | `Promise<TData[]>` | Yes | List all items in a group. |
+| `listGroups` | `Promise<string[]>` | Yes | List all group IDs in a stream. |
+| `set` | Promise&lt;[`StreamSetResult`](#streamsetresult)&lt;TData&gt; \| null&gt; | Yes | Set (create or overwrite) a stream item. |
+| `update` | Promise&lt;[`StreamUpdateResult`](#streamupdateresult)&lt;TData&gt; \| null&gt; | Yes | Apply atomic update operations to a stream item. |
+
+### DeleteResult
+
+Result of a stream delete operation.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `old_value` | `any` | No | Previous value (if it existed). |
+
+### StreamSetResult
+
+Result of a stream set operation.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `new_value` | `TData` | Yes | New value that was stored. |
+| `old_value` | `TData` | No | Previous value (if it existed). |
+
+### StreamUpdateResult
+
+Result of a stream update operation.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `new_value` | `TData` | Yes | New value after the update. |
+| `old_value` | `TData` | No | Previous value (if it existed). |
+
+### DeleteResult
+
+Result of a state delete operation.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `old_value` | `any` | No | Previous value (if it existed). |
+
+### IIIReconnectionConfig
+
+Configuration for WebSocket reconnection behavior
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `backoffMultiplier` | `number` | Yes | Exponential backoff multiplier (default: 2) |
+| `initialDelayMs` | `number` | Yes | Starting delay in milliseconds (default: 1000ms) |
+| `jitterFactor` | `number` | Yes | Random jitter factor 0-1 (default: 0.3) |
+| `maxDelayMs` | `number` | Yes | Maximum delay cap in milliseconds (default: 30000ms) |
+| `maxRetries` | `number` | Yes | Maximum retry attempts, -1 for infinite (default: -1) |
+
+### OtelConfig
+
+Configuration for OpenTelemetry initialization.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | No | Whether OpenTelemetry export is enabled. Defaults to true. Set to false or OTEL_ENABLED=false/0/no/off to disable. |
+| `engineWsUrl` | `string` | No | III Engine WebSocket URL. Defaults to III_URL or "ws://localhost:49134". |
+| `fetchInstrumentationEnabled` | `boolean` | No | Whether to auto-instrument globalThis.fetch calls. Defaults to true. Works on Node.js, Bun, and Deno. Set to false to disable. |
+| `instrumentations` | `Instrumentation<InstrumentationConfig>[]` | No | OpenTelemetry instrumentations to register (e.g., PrismaInstrumentation). |
+| `logsBatchSize` | `number` | No | Maximum number of log records exported per batch. Defaults to 1. |
+| `logsFlushIntervalMs` | `number` | No | Log processor flush delay in milliseconds. Defaults to 100ms. |
+| `metricsEnabled` | `boolean` | No | Whether OpenTelemetry metrics export is enabled. Defaults to true. Set to false or OTEL_METRICS_ENABLED=false/0/no/off to disable. |
+| `metricsExportIntervalMs` | `number` | No | Metrics export interval in milliseconds. Defaults to 60000 (60 seconds). |
+| `reconnectionConfig` | Partial&lt;[`ReconnectionConfig`](#reconnectionconfig)&gt; | No | Optional reconnection configuration for the WebSocket connection. |
+| `serviceInstanceId` | `string` | No | The service instance ID to report. Defaults to SERVICE_INSTANCE_ID env var or auto-generated UUID. |
+| `serviceName` | `string` | No | The service name to report. Defaults to OTEL_SERVICE_NAME or "iii-node". |
+| `serviceNamespace` | `string` | No | The service namespace to report. Defaults to SERVICE_NAMESPACE env var. |
+| `serviceVersion` | `string` | No | The service version to report. Defaults to SERVICE_VERSION env var or "unknown". |
+
+### ReconnectionConfig
+
+Configuration for WebSocket reconnection behavior
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `backoffMultiplier` | `number` | Yes | Exponential backoff multiplier (default: 2) |
+| `initialDelayMs` | `number` | Yes | Starting delay in milliseconds (default: 1000ms) |
+| `jitterFactor` | `number` | Yes | Random jitter factor 0-1 (default: 0.3) |
+| `maxDelayMs` | `number` | Yes | Maximum delay cap in milliseconds (default: 30000ms) |
+| `maxRetries` | `number` | Yes | Maximum retry attempts, -1 for infinite (default: -1) |
+
+### FunctionInfo
+
+Metadata about a registered function, returned by `ISdk.listFunctions`.
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `description` | `string` | No | Human-readable description. |
+| `function_id` | `string` | Yes | Unique function identifier. |
+| `metadata` | `Record<string, unknown>` | No | Arbitrary metadata attached to the function. |
+| `request_format` | [`RegisterFunctionFormat`](#registerfunctionformat) | No | Schema describing expected request format. |
+| `response_format` | [`RegisterFunctionFormat`](#registerfunctionformat) | No | Schema describing expected response format. |
+
+### FunctionsAvailableCallback
+
+```typescript
+type FunctionsAvailableCallback = (functions: FunctionInfo[]) => void
+```
+
+### RegisterFunctionFormat
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `body` | [`RegisterFunctionFormat`](#registerfunctionformat)[] | No | The body of the parameter |
+| `description` | `string` | No | The description of the parameter |
+| `items` | [`RegisterFunctionFormat`](#registerfunctionformat) | No | The items of the parameter |
+| `name` | `string` | Yes | - |
+| `required` | `boolean` | No | Whether the parameter is required |
+| `type` | `"string" \| "number" \| "boolean" \| "object" \| "array" \| "null" \| "map"` | Yes | The type of the parameter |
 
 ## Context
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import { Logger } from 'iii-sdk'
 
 const logger = new Logger()
 logger.info('Processing started')

@@ -78,7 +78,7 @@ impl Module for BridgeClientModule {
         let url = config
             .url
             .clone()
-            .or_else(|| std::env::var("III_BRIDGE_URL").ok())
+            .or_else(|| std::env::var("III_URL").ok())
             .unwrap_or_else(|| "ws://0.0.0.0:49134".to_string());
 
         let bridge = III::new(&url);
@@ -408,7 +408,7 @@ mod tests {
     #[tokio::test]
     async fn bridge_client_create_register_initialize_and_handlers_work() {
         unsafe {
-            std::env::remove_var("III_BRIDGE_URL");
+            std::env::remove_var("III_URL");
         }
 
         let created = BridgeClientModule::create(Arc::new(Engine::new()), None)

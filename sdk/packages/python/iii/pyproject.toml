@@ -43,6 +43,7 @@ dev = [
     "ruff>=0.2",
     "opentelemetry-api>=1.25",
     "opentelemetry-sdk>=1.25",
+    "griffe>=1.0",
 ]
 
 [tool.hatch.build.targets.wheel]
