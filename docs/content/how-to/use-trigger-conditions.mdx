@@ -66,13 +66,12 @@ iii.register_function({"id": "orders::process-high-value"}, process_high_value)
 </Tab>
 <Tab value="Rust">
 ```rust title="conditions_functions.rs"
-use iii_sdk::III;
+use iii_sdk::{InitOptions, register_worker};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
+    let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default())?;
 
     // condition
     iii.register_function("conditions::is-high-value", |input| async move {
