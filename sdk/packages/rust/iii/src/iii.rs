@@ -356,41 +356,33 @@ impl III {
         *self.inner.otel_config.lock_or_recover() = Some(config);
     }
 
-    pub async fn connect(&self) -> Result<(), IIIError> {
+    pub(crate) fn connect(&self) {
         if self.inner.started.swap(true, Ordering::SeqCst) {
-            return Ok(());
+            return;
         }
 
         let receiver = self.inner.receiver.lock_or_recover().take();
-        let Some(rx) = receiver else {
-            return Ok(());
-        };
+        let Some(rx) = receiver else { return };
+
+        self.inner.running.store(true, Ordering::SeqCst);
 
         let iii = self.clone();
-
         tokio::spawn(async move {
-            iii.inner.running.store(true, Ordering::SeqCst);
             iii.run_connection(rx).await;
         });
 
-        // Initialize OpenTelemetry if configured.
-        // NOTE: This runs after the connection spawn, so the first few function
-        // invocations may not carry tracing context. The global tracer returns a
-        // no-op until initialization completes, so no panics occur — traces
-        // simply won't appear for those early calls.
         #[cfg(feature = "otel")]
         {
             let config = self.inner.otel_config.lock_or_recover().take();
             if let Some(mut config) = config {
-                // Default engine_ws_url to the III address if not set
                 if config.engine_ws_url.is_none() {
                     config.engine_ws_url = Some(self.inner.address.clone());
                 }
-                telemetry::init_otel(config).await;
+                tokio::spawn(async move {
+                    telemetry::init_otel(config).await;
+                });
             }
         }
-
-        Ok(())
     }
 
     /// Shutdown the III client.
@@ -700,10 +692,20 @@ impl III {
     /// # use serde_json::json;
     /// # async fn example(iii: &III) -> Result<(), iii_sdk::IIIError> {
     /// // Synchronous
-    /// let result = iii.trigger(TriggerRequest::new("greet", json!({"name": "World"}))).await?;
+    /// let result = iii.trigger(TriggerRequest {
+    ///     function_id: "greet".to_string(),
+    ///     payload: json!({"name": "World"}),
+    ///     action: None,
+    ///     timeout_ms: None,
+    /// }).await?;
     ///
     /// // Fire-and-forget
-    /// iii.trigger(TriggerRequest::new("notify", json!({})).action(TriggerAction::void())).await?;
+    /// iii.trigger(TriggerRequest {
+    ///     function_id: "notify".to_string(),
+    ///     payload: json!({}),
+    ///     action: Some(TriggerAction::void()),
+    ///     timeout_ms: None,
+    /// }).await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -807,10 +809,12 @@ impl III {
     /// List all registered functions from the engine
     pub async fn list_functions(&self) -> Result<Vec<FunctionInfo>, IIIError> {
         let result = self
-            .trigger(TriggerRequest::new(
-                "engine::functions::list",
-                serde_json::json!({}),
-            ))
+            .trigger(TriggerRequest {
+                function_id: "engine::functions::list".to_string(),
+                payload: serde_json::json!({}),
+                action: None,
+                timeout_ms: None,
+            })
             .await?;
 
         let functions = result
@@ -905,10 +909,12 @@ impl III {
     /// List all connected workers from the engine
     pub async fn list_workers(&self) -> Result<Vec<WorkerInfo>, IIIError> {
         let result = self
-            .trigger(TriggerRequest::new(
-                "engine::workers::list",
-                serde_json::json!({}),
-            ))
+            .trigger(TriggerRequest {
+                function_id: "engine::workers::list".to_string(),
+                payload: serde_json::json!({}),
+                action: None,
+                timeout_ms: None,
+            })
             .await?;
 
         let workers = result
@@ -925,10 +931,12 @@ impl III {
         include_internal: bool,
     ) -> Result<Vec<TriggerInfo>, IIIError> {
         let result = self
-            .trigger(TriggerRequest::new(
-                "engine::triggers::list",
-                serde_json::json!({ "include_internal": include_internal }),
-            ))
+            .trigger(TriggerRequest {
+                function_id: "engine::triggers::list".to_string(),
+                payload: serde_json::json!({ "include_internal": include_internal }),
+                action: None,
+                timeout_ms: None,
+            })
             .await?;
 
         let triggers = result
@@ -945,10 +953,12 @@ impl III {
     /// that can be passed as fields in invocation data to other functions.
     pub async fn create_channel(&self, buffer_size: Option<usize>) -> Result<Channel, IIIError> {
         let result = self
-            .trigger(TriggerRequest::new(
-                "engine::channels::create",
-                serde_json::json!({ "buffer_size": buffer_size }),
-            ))
+            .trigger(TriggerRequest {
+                function_id: "engine::channels::create".to_string(),
+                payload: serde_json::json!({ "buffer_size": buffer_size }),
+                action: None,
+                timeout_ms: None,
+            })
             .await?;
 
         let writer_ref: StreamChannelRef = serde_json::from_value(
@@ -1544,7 +1554,12 @@ mod tests {
     async fn invoke_function_times_out_and_clears_pending() {
         let iii = III::new("ws://localhost:1234");
         let result = iii
-            .trigger(TriggerRequest::new("functions.echo", json!({ "a": 1 })).timeout_ms(10))
+            .trigger(TriggerRequest {
+                function_id: "functions.echo".to_string(),
+                payload: json!({ "a": 1 }),
+                action: None,
+                timeout_ms: Some(10),
+            })
             .await;
 
         assert!(matches!(result, Err(IIIError::Timeout)));

@@ -2,28 +2,19 @@
 //!
 //! Requires a running III engine. Set III_URL or use ws://localhost:49134 default.
 
+mod common;
+
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
-use iii_sdk::{III, IIIError};
-
-fn engine_ws_url() -> String {
-    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
-}
-
-/// Helper to wait for function registration propagation.
-async fn settle() {
-    tokio::time::sleep(Duration::from_millis(300)).await;
-}
+use iii_sdk::{IIIError, TriggerRequest};
 
 #[tokio::test]
 async fn stream_data_from_sender_to_processor() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let iii_for_processor = iii.clone();
     iii.register_function("test.data.processor.rs", move |input: Value| {
@@ -90,13 +81,15 @@ async fn stream_data_from_sender_to_processor() {
                 .map_err(|e| IIIError::Handler(e.to_string()))?;
 
             let result = iii
-                .trigger(iii_sdk::TriggerRequest::new(
-                    "test.data.processor.rs",
-                    json!({
+                .trigger(TriggerRequest {
+                    function_id: "test.data.processor.rs".to_string(),
+                    payload: json!({
                         "label": "metrics-batch",
                         "reader": channel.reader_ref,
                     }),
-                ))
+                    action: None,
+                    timeout_ms: None,
+                })
                 .await
                 .map_err(|e| IIIError::Handler(e.to_string()))?;
 
@@ -104,7 +97,7 @@ async fn stream_data_from_sender_to_processor() {
         }
     });
 
-    settle().await;
+    common::settle().await;
 
     let records = json!([
         {"name": "cpu_usage", "value": 72},
@@ -115,10 +108,12 @@ async fn stream_data_from_sender_to_processor() {
     ]);
 
     let result = iii
-        .trigger(iii_sdk::TriggerRequest::new(
-            "test.data.sender.rs",
-            json!({"records": records}),
-        ))
+        .trigger(TriggerRequest {
+            function_id: "test.data.sender.rs".to_string(),
+            payload: json!({"records": records}),
+            action: None,
+            timeout_ms: None,
+        })
         .await
         .expect("call failed");
 
@@ -144,15 +139,11 @@ async fn stream_data_from_sender_to_processor() {
     assert!((stats["average"] - 513.4).abs() < 0.01);
     assert_eq!(stats["min"], 12.0);
     assert_eq!(stats["max"], 2048.0);
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn bidirectional_streaming() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let iii_for_worker = iii.clone();
     iii.register_function("test.stream.worker.rs", move |input: Value| {
@@ -285,13 +276,15 @@ async fn bidirectional_streaming() {
                 let reader_ref = input_channel.reader_ref.clone();
                 let writer_ref = output_channel.writer_ref.clone();
                 tokio::spawn(async move {
-                    iii.trigger(iii_sdk::TriggerRequest::new(
-                        "test.stream.worker.rs",
-                        json!({
+                    iii.trigger(TriggerRequest {
+                        function_id: "test.stream.worker.rs".to_string(),
+                        payload: json!({
                             "reader": reader_ref,
                             "writer": writer_ref,
                         }),
-                    ))
+                        action: None,
+                        timeout_ms: None,
+                    })
                     .await
                 })
             };
@@ -325,18 +318,20 @@ async fn bidirectional_streaming() {
         }
     });
 
-    settle().await;
+    common::settle().await;
 
     let text = "The quick brown fox jumps over the lazy dog and then runs around the park";
 
     let result = iii
-        .trigger(iii_sdk::TriggerRequest::new(
-            "test.stream.coordinator.rs",
-            json!({
+        .trigger(TriggerRequest {
+            function_id: "test.stream.coordinator.rs".to_string(),
+            payload: json!({
                 "text": text,
                 "chunkSize": 10,
             }),
-        ))
+            action: None,
+            timeout_ms: None,
+        })
         .await
         .expect("call failed");
 
@@ -359,6 +354,4 @@ async fn bidirectional_streaming() {
     assert_eq!(words, &["The", "quick", "brown", "fox", "jumps"]);
 
     assert_eq!(result["workerResult"]["status"], "done");
-
-    iii.shutdown_async().await;
 }

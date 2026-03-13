@@ -2,6 +2,8 @@
 //!
 //! Requires a running III engine. Set III_URL or use ws://localhost:49134 default.
 
+mod common;
+
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -9,14 +11,6 @@ use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
 use iii_sdk::{III, TriggerRequest};
-
-fn engine_ws_url() -> String {
-    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
-}
-
-async fn settle() {
-    tokio::time::sleep(Duration::from_millis(300)).await;
-}
 
 const SCOPE: &str = "test-scope-rs";
 
@@ -30,177 +24,176 @@ fn unique_key(test_name: &str) -> String {
 
 async fn delete_state(iii: &III, key: &str) {
     let _ = iii
-        .trigger(TriggerRequest::new(
-            "state::delete",
-            json!({"scope": SCOPE, "key": key}),
-        ))
+        .trigger(TriggerRequest {
+            function_id: "state::delete".to_string(),
+            payload: json!({"scope": SCOPE, "key": key}),
+            action: None,
+            timeout_ms: None,
+        })
         .await;
 }
 
 #[tokio::test]
 async fn state_set_new_item() {
     let key = unique_key("set-new");
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
-    delete_state(&iii, &key).await;
+    let iii = common::shared_iii();
+    delete_state(iii, &key).await;
 
     let test_data = json!({"name": "Test Item", "value": 42});
 
     let result = iii
-        .trigger(TriggerRequest::new(
-            "state::set",
-            json!({"scope": SCOPE, "key": key, "value": test_data}),
-        ))
+        .trigger(TriggerRequest {
+            function_id: "state::set".to_string(),
+            payload: json!({"scope": SCOPE, "key": key, "value": test_data}),
+            action: None,
+            timeout_ms: None,
+        })
         .await
         .expect("state::set");
 
     assert_eq!(result["old_value"], Value::Null);
     assert_eq!(result["new_value"], test_data);
 
-    delete_state(&iii, &key).await;
-    iii.shutdown_async().await;
+    delete_state(iii, &key).await;
 }
 
 #[tokio::test]
 async fn state_set_overwrite() {
     let key = unique_key("set-overwrite");
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
-    delete_state(&iii, &key).await;
+    let iii = common::shared_iii();
+    delete_state(iii, &key).await;
 
     let initial_data = json!({"value": 1});
     let updated_data = json!({"value": 2, "updated": true});
 
-    iii.trigger(TriggerRequest::new(
-        "state::set",
-        json!({"scope": SCOPE, "key": key, "value": initial_data}),
-    ))
+    iii.trigger(TriggerRequest {
+        function_id: "state::set".to_string(),
+        payload: json!({"scope": SCOPE, "key": key, "value": initial_data}),
+        action: None,
+        timeout_ms: None,
+    })
     .await
     .expect("state::set initial");
 
     let result = iii
-        .trigger(TriggerRequest::new(
-            "state::set",
-            json!({"scope": SCOPE, "key": key, "value": updated_data}),
-        ))
+        .trigger(TriggerRequest {
+            function_id: "state::set".to_string(),
+            payload: json!({"scope": SCOPE, "key": key, "value": updated_data}),
+            action: None,
+            timeout_ms: None,
+        })
         .await
         .expect("state::set overwrite");
 
     assert_eq!(result["old_value"], initial_data);
     assert_eq!(result["new_value"], updated_data);
 
-    delete_state(&iii, &key).await;
-    iii.shutdown_async().await;
+    delete_state(iii, &key).await;
 }
 
 #[tokio::test]
 async fn state_get_existing_item() {
     let key = unique_key("get-existing");
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
-    delete_state(&iii, &key).await;
+    let iii = common::shared_iii();
+    delete_state(iii, &key).await;
 
     let data = json!({"name": "Test", "value": 100});
 
-    iii.trigger(TriggerRequest::new(
-        "state::set",
-        json!({"scope": SCOPE, "key": key, "value": data}),
-    ))
+    iii.trigger(TriggerRequest {
+        function_id: "state::set".to_string(),
+        payload: json!({"scope": SCOPE, "key": key, "value": data}),
+        action: None,
+        timeout_ms: None,
+    })
     .await
     .expect("state::set");
 
     let result = iii
-        .trigger(TriggerRequest::new(
-            "state::get",
-            json!({"scope": SCOPE, "key": key}),
-        ))
+        .trigger(TriggerRequest {
+            function_id: "state::get".to_string(),
+            payload: json!({"scope": SCOPE, "key": key}),
+            action: None,
+            timeout_ms: None,
+        })
         .await
         .expect("state::get");
 
     assert_eq!(result, data);
 
-    delete_state(&iii, &key).await;
-    iii.shutdown_async().await;
+    delete_state(iii, &key).await;
 }
 
 #[tokio::test]
 async fn state_get_non_existent_item() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let result = iii
-        .trigger(TriggerRequest::new(
-            "state::get",
-            json!({"scope": SCOPE, "key": "non-existent-item"}),
-        ))
+        .trigger(TriggerRequest {
+            function_id: "state::get".to_string(),
+            payload: json!({"scope": SCOPE, "key": "non-existent-item"}),
+            action: None,
+            timeout_ms: None,
+        })
         .await
         .expect("state::get non-existent");
 
     assert!(result.is_null());
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn state_delete_existing_item() {
     let key = unique_key("delete-existing");
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
-    delete_state(&iii, &key).await;
+    let iii = common::shared_iii();
+    delete_state(iii, &key).await;
 
-    iii.trigger(TriggerRequest::new(
-        "state::set",
-        json!({"scope": SCOPE, "key": key, "value": {"test": true}}),
-    ))
+    iii.trigger(TriggerRequest {
+        function_id: "state::set".to_string(),
+        payload: json!({"scope": SCOPE, "key": key, "value": {"test": true}}),
+        action: None,
+        timeout_ms: None,
+    })
     .await
     .expect("state::set");
 
-    iii.trigger(TriggerRequest::new(
-        "state::delete",
-        json!({"scope": SCOPE, "key": key}),
-    ))
+    iii.trigger(TriggerRequest {
+        function_id: "state::delete".to_string(),
+        payload: json!({"scope": SCOPE, "key": key}),
+        action: None,
+        timeout_ms: None,
+    })
     .await
     .expect("state::delete");
 
     let result = iii
-        .trigger(TriggerRequest::new(
-            "state::get",
-            json!({"scope": SCOPE, "key": key}),
-        ))
+        .trigger(TriggerRequest {
+            function_id: "state::get".to_string(),
+            payload: json!({"scope": SCOPE, "key": key}),
+            action: None,
+            timeout_ms: None,
+        })
         .await
         .expect("state::get after delete");
 
     assert!(result.is_null());
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn state_delete_non_existent_item() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
-    iii.trigger(TriggerRequest::new(
-        "state::delete",
-        json!({"scope": SCOPE, "key": "non-existent"}),
-    ))
+    iii.trigger(TriggerRequest {
+        function_id: "state::delete".to_string(),
+        payload: json!({"scope": SCOPE, "key": "non-existent"}),
+        action: None,
+        timeout_ms: None,
+    })
     .await
     .expect("state::delete non-existent should not error");
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn state_list_all_items_in_scope() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let scope = format!(
         "state-rs-{}",
@@ -246,25 +239,23 @@ async fn state_list_all_items_in_scope() {
     items_sorted.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
 
     assert_eq!(result_sorted, items_sorted);
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn reactive_state() {
     let key = unique_key("reactive");
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
-    delete_state(&iii, &key).await;
+    let iii = common::shared_iii();
+    delete_state(iii, &key).await;
 
     let data = json!({"name": "Test", "value": 100});
     let updated_data = json!({"name": "New Test Data", "value": 200});
 
-    iii.trigger(TriggerRequest::new(
-        "state::set",
-        json!({"scope": SCOPE, "key": key, "value": data}),
-    ))
+    iii.trigger(TriggerRequest {
+        function_id: "state::set".to_string(),
+        payload: json!({"scope": SCOPE, "key": key, "value": data}),
+        action: None,
+        timeout_ms: None,
+    })
     .await
     .expect("state::set initial");
 
@@ -292,14 +283,14 @@ async fn reactive_state() {
         )
         .expect("register state trigger");
 
-    // Poll: re-trigger state::set each attempt until the handler fires.
-    // Trigger registration is async so the first few sets may not be observed.
     let expected = Some(json!({"name": "New Test Data", "value": 200}));
     for attempt in 0..100 {
-        iii.trigger(TriggerRequest::new(
-            "state::set",
-            json!({"scope": SCOPE, "key": key, "value": updated_data}),
-        ))
+        iii.trigger(TriggerRequest {
+            function_id: "state::set".to_string(),
+            payload: json!({"scope": SCOPE, "key": key, "value": updated_data}),
+            action: None,
+            timeout_ms: None,
+        })
         .await
         .expect("state::set updated");
 
@@ -318,6 +309,5 @@ async fn reactive_state() {
 
     trigger.unregister();
     fn_ref.unregister();
-    delete_state(&iii, &key).await;
-    iii.shutdown_async().await;
+    delete_state(iii, &key).await;
 }

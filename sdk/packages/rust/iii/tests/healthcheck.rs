@@ -2,30 +2,14 @@
 //!
 //! Requires a running III engine. Set III_URL and III_HTTP_URL, or use localhost defaults.
 
+mod common;
+
 use std::time::Duration;
 
 use serde_json::{Value, json};
 
-use iii_sdk::III;
-
-fn engine_ws_url() -> String {
-    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
-}
-
-fn engine_http_url() -> String {
-    std::env::var("III_HTTP_URL").unwrap_or_else(|_| "http://localhost:3199".to_string())
-}
-
-async fn settle() {
-    tokio::time::sleep(Duration::from_millis(300)).await;
-}
-
-fn http_client() -> reqwest::Client {
-    reqwest::Client::new()
-}
-
 async fn get_health_status(http_url: &str) -> u16 {
-    http_client()
+    common::http_client()
         .get(format!("{http_url}/health"))
         .send()
         .await
@@ -35,9 +19,7 @@ async fn get_health_status(http_url: &str) -> u16 {
 
 #[tokio::test]
 async fn register_healthcheck_function_and_trigger() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let fn_ref = iii.register_function("test.healthcheck.rs", |_input: Value| async move {
         Ok(json!({
@@ -50,7 +32,7 @@ async fn register_healthcheck_function_and_trigger() {
         }))
     });
 
-    let status_before = get_health_status(&engine_http_url()).await;
+    let status_before = get_health_status(&common::engine_http_url()).await;
     assert_eq!(
         status_before, 404,
         "expected 404 before trigger registration"
@@ -70,8 +52,8 @@ async fn register_healthcheck_function_and_trigger() {
 
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
     loop {
-        let resp = http_client()
-            .get(format!("{}/health", engine_http_url()))
+        let resp = common::http_client()
+            .get(format!("{}/health", common::engine_http_url()))
             .send()
             .await
             .expect("request failed");
@@ -93,11 +75,11 @@ async fn register_healthcheck_function_and_trigger() {
     fn_ref.unregister();
     trigger.unregister();
 
-    settle().await;
+    common::settle().await;
 
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
     loop {
-        let status_after = get_health_status(&engine_http_url()).await;
+        let status_after = get_health_status(&common::engine_http_url()).await;
         if status_after == 404 {
             break;
         }
@@ -106,6 +88,4 @@ async fn register_healthcheck_function_and_trigger() {
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
-
-    iii.shutdown_async().await;
 }

@@ -1,23 +1,9 @@
 //! Integration tests for the queue system via SDK.
 //!
-//! Requires a running III engine with queue module configured:
-//! ```yaml
-//! modules:
-//!   - class: modules::queue::QueueModule
-//!     config:
-//!       queue_configs:
-//!         default:
-//!           max_retries: 3
-//!           concurrency: 5
-//!           type: standard
-//!         payment:
-//!           max_retries: 5
-//!           concurrency: 2
-//!           type: fifo
-//!           message_group_field: transaction_id
-//! ```
-//!
+//! Requires a running III engine with queue module configured.
 //! Set III_URL or use ws://localhost:49134 default.
+
+mod common;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -25,22 +11,11 @@ use std::time::Duration;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
-use iii_sdk::{III, IIIError, TriggerAction, TriggerRequest};
-
-fn engine_ws_url() -> String {
-    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
-}
-
-/// Helper to wait for function registration propagation.
-async fn settle() {
-    tokio::time::sleep(Duration::from_millis(300)).await;
-}
+use iii_sdk::{IIIError, TriggerAction, TriggerRequest};
 
 #[tokio::test]
 async fn enqueue_returns_acknowledgement() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let received = Arc::new(Mutex::new(Vec::new()));
     let received_clone = received.clone();
@@ -51,12 +26,16 @@ async fn enqueue_returns_acknowledgement() {
             Ok(json!({ "processed": true }))
         }
     });
-    settle().await;
+    common::settle().await;
 
     let result = iii
         .trigger(
-            TriggerRequest::new("test.queue.echo.rs", json!({"msg": "hello"}))
-                .action(TriggerAction::enqueue("default")),
+            TriggerRequest {
+                function_id: "test.queue.echo.rs".to_string(),
+                payload: json!({"msg": "hello"}),
+                action: Some(TriggerAction::enqueue("default")),
+                timeout_ms: None,
+            },
         )
         .await
         .expect("enqueue should succeed");
@@ -66,26 +45,25 @@ async fn enqueue_returns_acknowledgement() {
         "enqueue should return a messageReceiptId"
     );
 
-    // Wait for consumer to process
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     let msgs = received.lock().await;
     assert_eq!(msgs.len(), 1);
     assert_eq!(msgs[0]["msg"], "hello");
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn enqueue_to_unknown_queue_returns_error() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let result = iii
         .trigger(
-            TriggerRequest::new("test.queue.unknown.rs", json!({"msg": "hello"}))
-                .action(TriggerAction::enqueue("nonexistent_queue")),
+            TriggerRequest {
+                function_id: "test.queue.unknown.rs".to_string(),
+                payload: json!({"msg": "hello"}),
+                action: Some(TriggerAction::enqueue("nonexistent_queue")),
+                timeout_ms: None,
+            }
         )
         .await;
 
@@ -100,15 +78,11 @@ async fn enqueue_to_unknown_queue_returns_error() {
         Err(other) => panic!("expected IIIError::Remote with enqueue_error code, got: {other:?}"),
         Ok(val) => panic!("expected error, got success: {val}"),
     }
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn enqueue_fifo_with_valid_group_field() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let received = Arc::new(Mutex::new(Vec::new()));
     let received_clone = received.clone();
@@ -119,18 +93,19 @@ async fn enqueue_fifo_with_valid_group_field() {
             Ok(json!({ "processed": true }))
         }
     });
-    settle().await;
+    common::settle().await;
 
     let result = iii
         .trigger(
-            TriggerRequest::new(
-                "test.queue.fifo.rs",
-                json!({
+            TriggerRequest {
+                function_id: "test.queue.fifo.rs".to_string(),
+                payload: json!({
                     "transaction_id": "txn-001",
                     "amount": 99.99
                 }),
-            )
-            .action(TriggerAction::enqueue("payment")),
+                action: Some(TriggerAction::enqueue("payment")),
+                timeout_ms: None,
+            },
         )
         .await
         .expect("enqueue to fifo should succeed");
@@ -140,32 +115,28 @@ async fn enqueue_fifo_with_valid_group_field() {
         "enqueue should return a messageReceiptId"
     );
 
-    // Wait for consumer to process
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     let msgs = received.lock().await;
     assert_eq!(msgs.len(), 1);
     assert_eq!(msgs[0]["transaction_id"], "txn-001");
     assert_eq!(msgs[0]["amount"], 99.99);
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn enqueue_fifo_missing_group_field_returns_error() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let result = iii
         .trigger(
-            TriggerRequest::new(
-                "test.queue.fifo.nofield.rs",
-                json!({
+            TriggerRequest {
+                function_id: "test.queue.fifo.nofield.rs".to_string(),
+                payload: json!({
                     "amount": 50.00
                 }),
-            )
-            .action(TriggerAction::enqueue("payment")),
+                action: Some(TriggerAction::enqueue("payment")),
+                timeout_ms: None,
+            },
         )
         .await;
 
@@ -183,15 +154,11 @@ async fn enqueue_fifo_missing_group_field_returns_error() {
         Err(other) => panic!("expected IIIError::Remote with enqueue_error code, got: {other:?}"),
         Ok(val) => panic!("expected error for missing group field, got success: {val}"),
     }
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn void_returns_null_immediately() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let call_count = Arc::new(Mutex::new(0u32));
     let count_clone = call_count.clone();
@@ -202,32 +169,31 @@ async fn void_returns_null_immediately() {
             Ok(json!({ "done": true }))
         }
     });
-    settle().await;
+    common::settle().await;
 
     let result = iii
         .trigger(
-            TriggerRequest::new("test.queue.void.rs", json!({"fire": "forget"}))
-                .action(TriggerAction::void()),
+            TriggerRequest {
+                function_id: "test.queue.void.rs".to_string(),
+                payload: json!({"fire": "forget"}),
+                action: Some(TriggerAction::void()),
+                timeout_ms: None,
+            },
         )
         .await
         .expect("void should succeed");
 
     assert_eq!(result, Value::Null, "void should return null immediately");
 
-    // Wait for the function to be invoked by the engine
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     let count = *call_count.lock().await;
     assert_eq!(count, 1, "function should have been called exactly once");
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn enqueue_multiple_messages_all_processed() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let received = Arc::new(Mutex::new(Vec::new()));
     let received_clone = received.clone();
@@ -238,15 +204,17 @@ async fn enqueue_multiple_messages_all_processed() {
             Ok(json!({ "processed": true }))
         }
     });
-    settle().await;
+    common::settle().await;
 
     let message_count = 5;
     for i in 0..message_count {
         let result = iii
-            .trigger(
-                TriggerRequest::new("test.queue.multi.rs", json!({ "index": i }))
-                    .action(TriggerAction::enqueue("default")),
-            )
+            .trigger(TriggerRequest {
+                function_id: "test.queue.multi.rs".to_string(),
+                payload: json!({ "index": i }),
+                action: Some(TriggerAction::enqueue("default")),
+                timeout_ms: None,
+            })
             .await
             .unwrap_or_else(|_| panic!("enqueue message {i} should succeed"));
 
@@ -256,7 +224,6 @@ async fn enqueue_multiple_messages_all_processed() {
         );
     }
 
-    // Wait for consumer to process all messages
     tokio::time::sleep(Duration::from_secs(3)).await;
 
     let msgs = received.lock().await;
@@ -267,22 +234,16 @@ async fn enqueue_multiple_messages_all_processed() {
         msgs.len()
     );
 
-    // Verify all indices were received (order may vary for standard queue)
     let mut indices: Vec<i64> = msgs.iter().filter_map(|m| m["index"].as_i64()).collect();
     indices.sort();
     let expected: Vec<i64> = (0..message_count as i64).collect();
     assert_eq!(indices, expected, "all message indices should be present");
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn chained_enqueue() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
-    // Track what function B receives
     let b_received = Arc::new(Mutex::new(Vec::new()));
     let b_received_clone = b_received.clone();
     iii.register_function("test.queue.chain.b.rs", move |input: Value| {
@@ -293,7 +254,6 @@ async fn chained_enqueue() {
         }
     });
 
-    // Track what function A receives, and have it enqueue to B
     let a_received = Arc::new(Mutex::new(Vec::new()));
     let a_received_clone = a_received.clone();
     let iii_for_a = iii.clone();
@@ -303,29 +263,28 @@ async fn chained_enqueue() {
         async move {
             a_received.lock().await.push(input.clone());
 
-            // Chain: function A enqueues work to function B
             let label = input["label"].as_str().unwrap_or("unknown").to_string();
-            iii.trigger(
-                TriggerRequest::new(
-                    "test.queue.chain.b.rs",
-                    json!({ "from_a": true, "label": label }),
-                )
-                .action(TriggerAction::enqueue("default")),
-            )
+            iii.trigger(TriggerRequest {
+                function_id: "test.queue.chain.b.rs".to_string(),
+                payload: json!({ "from_a": true, "label": label }),
+                action: Some(TriggerAction::enqueue("default")),
+                timeout_ms: None,
+            })
             .await
             .map_err(|e| IIIError::Handler(e.to_string()))?;
 
             Ok(json!({ "step": "a_done" }))
         }
     });
-    settle().await;
+    common::settle().await;
 
-    // Enqueue to function A
     let result = iii
-        .trigger(
-            TriggerRequest::new("test.queue.chain.a.rs", json!({ "label": "chained-work" }))
-                .action(TriggerAction::enqueue("default")),
-        )
+        .trigger(TriggerRequest {
+            function_id: "test.queue.chain.a.rs".to_string(),
+            payload: json!({ "label": "chained-work" }),
+            action: Some(TriggerAction::enqueue("default")),
+            timeout_ms: None,
+        })
         .await
         .expect("enqueue to chain A should succeed");
 
@@ -334,7 +293,6 @@ async fn chained_enqueue() {
         "enqueue should return a messageReceiptId"
     );
 
-    // Wait for both A and B to process (A processes, then enqueues to B, then B processes)
     tokio::time::sleep(Duration::from_secs(4)).await;
 
     let a_msgs = a_received.lock().await;
@@ -345,6 +303,4 @@ async fn chained_enqueue() {
     assert_eq!(b_msgs.len(), 1, "function B should have been called once");
     assert_eq!(b_msgs[0]["from_a"], true);
     assert_eq!(b_msgs[0]["label"], "chained-work");
-
-    iii.shutdown_async().await;
 }

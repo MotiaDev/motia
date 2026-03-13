@@ -7,7 +7,7 @@
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use iii_sdk::{III, IIIError};
+use iii_sdk::{III, IIIError, InitOptions, TriggerAction, TriggerRequest, register_worker};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -81,7 +81,7 @@ impl Module for BridgeClientModule {
             .or_else(|| std::env::var("III_URL").ok())
             .unwrap_or_else(|| "ws://0.0.0.0:49134".to_string());
 
-        let bridge = III::new(&url);
+        let bridge = register_worker(&url, InitOptions::default());
 
         Ok(Box::new(Self {
             engine,
@@ -122,10 +122,12 @@ impl Module for BridgeClientModule {
                         .unwrap_or_else(|| Duration::from_secs(30));
 
                     match bridge
-                        .trigger(
-                            iii_sdk::TriggerRequest::new(&invoke.function_id, invoke.data)
-                                .timeout(timeout),
-                        )
+                        .trigger(TriggerRequest {
+                            function_id: invoke.function_id,
+                            payload: invoke.data,
+                            action: None,
+                            timeout_ms: Some(timeout.as_millis() as u64),
+                        })
                         .await
                     {
                         Ok(result) => FunctionResult::Success(Some(result)),
@@ -167,10 +169,12 @@ impl Module for BridgeClientModule {
                     };
 
                     if let Err(err) = bridge
-                        .trigger(
-                            iii_sdk::TriggerRequest::new(&invoke.function_id, invoke.data)
-                                .action(iii_sdk::TriggerAction::void()),
-                        )
+                        .trigger(TriggerRequest {
+                            function_id: invoke.function_id,
+                            payload: invoke.data,
+                            action: Some(TriggerAction::void()),
+                            timeout_ms: None,
+                        })
                         .await
                     {
                         tracing::error!(error = ?err, "Bridge fire-and-forget failed");
@@ -209,10 +213,12 @@ impl Module for BridgeClientModule {
                             .unwrap_or_else(|| Duration::from_secs(30));
 
                         match bridge
-                            .trigger(
-                                iii_sdk::TriggerRequest::new(&remote_function, input)
-                                    .timeout(timeout),
-                            )
+                            .trigger(TriggerRequest {
+                                function_id: remote_function,
+                                payload: input,
+                                action: None,
+                                timeout_ms: Some(timeout.as_millis() as u64),
+                            })
                             .await
                         {
                             Ok(result) => FunctionResult::Success(Some(result)),
@@ -232,11 +238,6 @@ impl Module for BridgeClientModule {
     }
 
     async fn initialize(&self) -> anyhow::Result<()> {
-        self.bridge
-            .connect()
-            .await
-            .map_err(|err| anyhow::anyhow!(err.to_string()))?;
-
         if let Some(service_id) = &self.config.service_id {
             let name = self
                 .config
@@ -297,7 +298,7 @@ mod tests {
     fn build_module(config: BridgeClientConfig) -> BridgeClientModule {
         BridgeClientModule {
             engine: Arc::new(Engine::new()),
-            bridge: III::new("ws://127.0.0.1:9"),
+            bridge: register_worker("ws://127.0.0.1:9", InitOptions::default()),
             config,
         }
     }

@@ -7,7 +7,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use iii_sdk::{III, IIIError, Trigger};
+use iii_sdk::{III, IIIError, InitOptions, Trigger, TriggerAction, TriggerRequest, register_worker};
 use serde_json::Value;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -71,11 +71,7 @@ impl BridgeAdapter {
     pub async fn new(engine: Arc<Engine>, bridge_url: String) -> anyhow::Result<Self> {
         tracing::info!(bridge_url = %bridge_url, "Connecting to bridge");
 
-        let bridge = Arc::new(III::new(&bridge_url));
-        bridge
-            .connect()
-            .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let bridge = Arc::new(register_worker(&bridge_url, InitOptions::default()));
 
         Ok(Self {
             engine,
@@ -139,10 +135,12 @@ impl QueueAdapter for BridgeAdapter {
             Self::build_enqueue_payload(topic, data, traceparent.as_deref(), baggage.as_deref());
         if let Err(e) = self
             .bridge
-            .trigger(
-                iii_sdk::TriggerRequest::new(Self::ENQUEUE_FUNCTION_ID, input)
-                    .action(iii_sdk::TriggerAction::void()),
-            )
+            .trigger(TriggerRequest {
+                function_id: Self::ENQUEUE_FUNCTION_ID.to_string(),
+                payload: input,
+                action: Some(iii_sdk::TriggerAction::void()),
+                timeout_ms: None,
+            })
             .await
         {
             tracing::error!(error = %e, topic = %topic, "Failed to enqueue message via bridge");
@@ -317,10 +315,12 @@ impl QueueAdapter for BridgeAdapter {
     ) {
         if let Err(e) = self
             .bridge
-            .trigger(
-                iii_sdk::TriggerRequest::new(function_id, data)
-                    .action(iii_sdk::TriggerAction::enqueue(queue_name)),
-            )
+            .trigger(TriggerRequest {
+                function_id: function_id.to_string(),
+                payload: data,
+                action: Some(TriggerAction::enqueue(queue_name)),
+                timeout_ms: None,
+            })
             .await
         {
             tracing::error!(error = %e, queue = %queue_name, function_id = %function_id, "Failed to enqueue via bridge");

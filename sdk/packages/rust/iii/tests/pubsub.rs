@@ -2,21 +2,15 @@
 //!
 //! Requires a running III engine. Set III_URL or use ws://localhost:49134 default.
 
+mod common;
+
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
-use iii_sdk::{III, TriggerRequest};
-
-fn engine_ws_url() -> String {
-    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
-}
-
-async fn settle() {
-    tokio::time::sleep(Duration::from_millis(300)).await;
-}
+use iii_sdk::TriggerRequest;
 
 fn unique_topic(prefix: &str) -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -29,9 +23,7 @@ fn unique_topic(prefix: &str) -> String {
 
 #[tokio::test]
 async fn subscribe_and_receive_published_messages() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let topic = unique_topic("test_topic");
     let received = Arc::new(Mutex::new(Vec::new()));
@@ -56,12 +48,14 @@ async fn subscribe_and_receive_published_messages() {
         .register_trigger("subscribe", &fn_id, json!({"topic": topic}))
         .expect("register trigger");
 
-    settle().await;
+    common::settle().await;
 
-    iii.trigger(TriggerRequest::new(
-        "publish",
-        json!({"topic": topic, "data": {"message": "Hello PubSub!"}}),
-    ))
+    iii.trigger(TriggerRequest {
+        function_id: "publish".to_string(),
+        payload: json!({"topic": topic, "data": {"message": "Hello PubSub!"}}),
+        action: None,
+        timeout_ms: None,
+    })
     .await
     .expect("publish");
 
@@ -76,14 +70,11 @@ async fn subscribe_and_receive_published_messages() {
 
     fn_ref.unregister();
     trigger.unregister();
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn topic_isolation() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let topic_a = unique_topic("topic_a");
     let topic_b = unique_topic("topic_b");
@@ -126,12 +117,14 @@ async fn topic_isolation() {
         .register_trigger("subscribe", &fn_id_b, json!({"topic": topic_b}))
         .expect("register trigger b");
 
-    settle().await;
+    common::settle().await;
 
-    iii.trigger(TriggerRequest::new(
-        "publish",
-        json!({"topic": topic_a, "data": {"for": "a"}}),
-    ))
+    iii.trigger(TriggerRequest {
+        function_id: "publish".to_string(),
+        payload: json!({"topic": topic_a, "data": {"for": "a"}}),
+        action: None,
+        timeout_ms: None,
+    })
     .await
     .expect("publish to topic_a");
 
@@ -149,5 +142,4 @@ async fn topic_isolation() {
     fn_b.unregister();
     trigger_a.unregister();
     trigger_b.unregister();
-    iii.shutdown_async().await;
 }

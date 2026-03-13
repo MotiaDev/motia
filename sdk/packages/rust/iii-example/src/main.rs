@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             otel: Some(OtelConfig::default()),
             ..Default::default()
         },
-    )?;
+    );
 
     // Register HTTP fetch API handlers (GET & POST http-fetch with OTel instrumentation)
     http_example::setup(&iii);
@@ -47,10 +47,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let result = iii
-        .trigger(TriggerRequest::new(
-            "example.echo",
-            json!({ "message": "hello" }),
-        ))
+        .trigger(TriggerRequest {
+            function_id: "example.echo".to_string(),
+            payload: json!({ "message": "hello" }),
+            action: None,
+            timeout_ms: None,
+        })
         .await?;
     println!("Echo result: {result}");
 

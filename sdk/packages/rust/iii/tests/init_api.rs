@@ -1,19 +1,8 @@
-use iii_sdk::{IIIError, InitOptions, register_worker};
-
-#[test]
-fn register_worker_without_runtime_returns_runtime_error() {
-    match register_worker("ws://127.0.0.1:49134", InitOptions::default()) {
-        Err(IIIError::Runtime(_)) => {}
-        Err(other) => panic!("expected Runtime error, got {other:?}"),
-        Ok(_) => panic!("expected register_worker to fail without Tokio runtime"),
-    }
-}
+use iii_sdk::{InitOptions, register_worker};
 
 #[tokio::test]
 async fn init_with_runtime_returns_sdk_instance() {
-    let client = register_worker("ws://127.0.0.1:49134", InitOptions::default())
-        .expect("register_worker should succeed inside Tokio runtime");
-
+    let client = register_worker("ws://127.0.0.1:49134", InitOptions::default());
     // API should remain usable immediately after register_worker()
     client.register_function("test.echo", |input| async move { Ok(input) });
 }

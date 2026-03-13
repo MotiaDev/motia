@@ -2,23 +2,17 @@
 //!
 //! Requires a running III engine. Set III_URL and III_HTTP_URL, or use localhost:49134 defaults.
 
+mod common;
+
+use std::{path::PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
-use iii_sdk::{III, IIIError};
-
-fn engine_ws_url() -> String {
-    std::env::var("III_URL").unwrap_or_else(|_| "ws://localhost:49134".to_string())
-}
-
-fn engine_http_url() -> String {
-    std::env::var("III_HTTP_URL").unwrap_or_else(|_| "http://localhost:3199".to_string())
-}
-
-use std::path::PathBuf;
+use iii_sdk::IIIError;
+use tokio::time::sleep;
 
 fn test_pdf_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -32,19 +26,9 @@ fn test_pdf_path() -> PathBuf {
         .join("handbook.pdf")
 }
 
-async fn settle() {
-    tokio::time::sleep(Duration::from_millis(300)).await;
-}
-
-fn http_client() -> reqwest::Client {
-    reqwest::Client::new()
-}
-
 #[tokio::test]
 async fn get_endpoint() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     iii.register_function("test.api.get.rs", |_input: Value| async move {
         Ok(json!({
@@ -53,7 +37,7 @@ async fn get_endpoint() {
         }))
     });
 
-    let _trigger = iii
+    iii
         .register_trigger(
             "http",
             "test.api.get.rs",
@@ -64,10 +48,12 @@ async fn get_endpoint() {
         )
         .expect("register trigger");
 
-    settle().await;
+    common::settle().await;
 
-    let resp = http_client()
-        .get(format!("{}/test/rs/hello", engine_http_url()))
+    sleep(Duration::from_millis(500)).await;
+
+    let resp = common::http_client()
+        .get(format!("{}/test/rs/hello", common::engine_http_url()))
         .send()
         .await
         .expect("request failed");
@@ -75,15 +61,11 @@ async fn get_endpoint() {
     assert_eq!(resp.status().as_u16(), 200);
     let data: Value = resp.json().await.expect("json parse");
     assert_eq!(data["message"], "Hello from GET");
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn post_endpoint_with_body() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     iii.register_function("test.api.post.rs", |input: Value| async move {
         let body = input.get("body").cloned().unwrap_or(Value::Null);
@@ -104,10 +86,11 @@ async fn post_endpoint_with_body() {
         )
         .expect("register trigger");
 
-    settle().await;
+    common::settle().await;
+    sleep(Duration::from_millis(500)).await;
 
-    let resp = http_client()
-        .post(format!("{}/test/rs/items", engine_http_url()))
+    let resp = common::http_client()
+        .post(format!("{}/test/rs/items", common::engine_http_url()))
         .json(&json!({"name": "test item", "value": 123}))
         .send()
         .await
@@ -117,15 +100,11 @@ async fn post_endpoint_with_body() {
     let data: Value = resp.json().await.expect("json parse");
     assert_eq!(data["created"], true);
     assert_eq!(data["received"]["name"], "test item");
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn path_parameters() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     iii.register_function("test.api.getbyid.rs", |input: Value| async move {
         let id = input
@@ -148,10 +127,14 @@ async fn path_parameters() {
         )
         .expect("register trigger");
 
-    settle().await;
+    common::settle().await;
+    sleep(Duration::from_millis(500)).await;
 
-    let resp = http_client()
-        .get(format!("{}/test/rs/items/abc123", engine_http_url()))
+    let resp = common::http_client()
+        .get(format!(
+            "{}/test/rs/items/abc123",
+            common::engine_http_url()
+        ))
         .send()
         .await
         .expect("request failed");
@@ -159,15 +142,11 @@ async fn path_parameters() {
     assert_eq!(resp.status().as_u16(), 200);
     let data: Value = resp.json().await.expect("json parse");
     assert_eq!(data["id"], "abc123");
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn query_parameters() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     iii.register_function("test.api.search.rs", |input: Value| async move {
         let qp = input.get("query_params").cloned().unwrap_or(json!({}));
@@ -187,12 +166,13 @@ async fn query_parameters() {
         )
         .expect("register trigger");
 
-    settle().await;
+    common::settle().await;
+    sleep(Duration::from_millis(500)).await;
 
-    let resp = http_client()
+    let resp = common::http_client()
         .get(format!(
             "{}/test/rs/search?q=hello&limit=10",
-            engine_http_url()
+            common::engine_http_url()
         ))
         .send()
         .await
@@ -202,15 +182,11 @@ async fn query_parameters() {
     let data: Value = resp.json().await.expect("json parse");
     assert_eq!(data["query"], "hello");
     assert_eq!(data["limit"], "10");
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn custom_status_code() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     iii.register_function("test.api.notfound.rs", |_input: Value| async move {
         Ok(json!({"status_code": 404, "body": {"error": "Not found"}}))
@@ -227,10 +203,11 @@ async fn custom_status_code() {
         )
         .expect("register trigger");
 
-    settle().await;
+    common::settle().await;
+    sleep(Duration::from_millis(500)).await;
 
-    let resp = http_client()
-        .get(format!("{}/test/rs/missing", engine_http_url()))
+    let resp = common::http_client()
+        .get(format!("{}/test/rs/missing", common::engine_http_url()))
         .send()
         .await
         .expect("request failed");
@@ -238,8 +215,6 @@ async fn custom_status_code() {
     assert_eq!(resp.status().as_u16(), 404);
     let data: Value = resp.json().await.expect("json parse");
     assert_eq!(data, json!({"error": "Not found"}));
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
@@ -253,9 +228,7 @@ async fn download_pdf_streaming() {
 
     let original_pdf = std::fs::read(&pdf_path).expect("read pdf");
 
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let pdf_data = original_pdf.clone();
     let iii_for_handler = iii.clone();
@@ -316,10 +289,14 @@ async fn download_pdf_streaming() {
         )
         .expect("register trigger");
 
-    settle().await;
+    common::settle().await;
+    sleep(Duration::from_millis(500)).await;
 
-    let resp = http_client()
-        .get(format!("{}/test/rs/download/pdf", engine_http_url()))
+    let resp = common::http_client()
+        .get(format!(
+            "{}/test/rs/download/pdf",
+            common::engine_http_url()
+        ))
         .send()
         .await
         .expect("request failed");
@@ -335,8 +312,6 @@ async fn download_pdf_streaming() {
     let downloaded = resp.bytes().await.expect("read body");
     assert_eq!(downloaded.len(), original_pdf.len());
     assert_eq!(downloaded.as_ref(), original_pdf.as_slice());
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
@@ -350,9 +325,7 @@ async fn upload_pdf_streaming() {
 
     let original_pdf = std::fs::read(&pdf_path).expect("read pdf");
 
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let received: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
     let received_clone = received.clone();
@@ -435,10 +408,11 @@ async fn upload_pdf_streaming() {
         )
         .expect("register trigger");
 
-    settle().await;
+    common::settle().await;
+    sleep(Duration::from_millis(500)).await;
 
-    let resp = http_client()
-        .post(format!("{}/test/rs/upload/pdf", engine_http_url()))
+    let resp = common::http_client()
+        .post(format!("{}/test/rs/upload/pdf", common::engine_http_url()))
         .header("content-type", "application/octet-stream")
         .body(original_pdf.clone())
         .send()
@@ -452,15 +426,11 @@ async fn upload_pdf_streaming() {
     let recv = received.lock().await;
     assert_eq!(recv.len(), original_pdf.len());
     assert_eq!(recv.as_slice(), original_pdf.as_slice());
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn sse_streaming() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let events = vec![
         json!({"id": "1", "type": "message", "data": "Hello, world!"}),
@@ -543,10 +513,11 @@ async fn sse_streaming() {
         )
         .expect("register trigger");
 
-    settle().await;
+    common::settle().await;
+    sleep(Duration::from_millis(500)).await;
 
-    let resp = http_client()
-        .get(format!("{}/test/rs/sse", engine_http_url()))
+    let resp = common::http_client()
+        .get(format!("{}/test/rs/sse", common::engine_http_url()))
         .send()
         .await
         .expect("request failed");
@@ -589,15 +560,11 @@ async fn sse_streaming() {
         assert_eq!(received_events[i].1, event["type"].as_str().unwrap());
         assert_eq!(received_events[i].2, event["data"].as_str().unwrap());
     }
-
-    iii.shutdown_async().await;
 }
 
 #[tokio::test]
 async fn urlencoded_form_data() {
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let iii_for_handler = iii.clone();
     iii.register_function("test.api.form.urlencoded.rs", move |input: Value| {
@@ -692,10 +659,14 @@ async fn urlencoded_form_data() {
         )
         .expect("register trigger");
 
-    settle().await;
+    common::settle().await;
+    sleep(Duration::from_millis(500)).await;
 
-    let resp = http_client()
-        .post(format!("{}/test/rs/form/urlencoded", engine_http_url()))
+    let resp = common::http_client()
+        .post(format!(
+            "{}/test/rs/form/urlencoded",
+            common::engine_http_url()
+        ))
         .header("content-type", "application/x-www-form-urlencoded")
         .body("name=John+Doe&email=john%40example.com&age=30")
         .send()
@@ -707,8 +678,6 @@ async fn urlencoded_form_data() {
     assert_eq!(data["name"], "John Doe");
     assert_eq!(data["email"], "john@example.com");
     assert_eq!(data["age"], "30");
-
-    iii.shutdown_async().await;
 }
 
 fn urlencoding_decode(s: &str) -> String {
@@ -741,9 +710,7 @@ async fn multipart_form_data() {
 
     let original_pdf = std::fs::read(&pdf_path).expect("read pdf");
 
-    let iii = III::new(&engine_ws_url());
-    iii.connect().await.expect("failed to connect");
-    settle().await;
+    let iii = common::shared_iii();
 
     let iii_for_handler = iii.clone();
     iii.register_function("test.api.form.multipart.rs", move |input: Value| {
@@ -842,7 +809,8 @@ async fn multipart_form_data() {
         )
         .expect("register trigger");
 
-    settle().await;
+    common::settle().await;
+    sleep(Duration::from_millis(500)).await;
 
     let form = reqwest::multipart::Form::new()
         .text("title", "Test Document")
@@ -855,8 +823,11 @@ async fn multipart_form_data() {
                 .expect("mime"),
         );
 
-    let resp = http_client()
-        .post(format!("{}/test/rs/form/multipart", engine_http_url()))
+    let resp = common::http_client()
+        .post(format!(
+            "{}/test/rs/form/multipart",
+            common::engine_http_url()
+        ))
         .multipart(form)
         .send()
         .await
@@ -869,6 +840,4 @@ async fn multipart_form_data() {
     assert!(data["has_description"].as_bool().unwrap_or(false));
     assert!(data["has_filename"].as_bool().unwrap_or(false));
     assert!(data["body_size"].as_u64().unwrap_or(0) > original_pdf.len() as u64);
-
-    iii.shutdown_async().await;
 }
