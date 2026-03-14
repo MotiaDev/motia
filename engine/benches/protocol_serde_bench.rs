@@ -65,7 +65,6 @@ fn build_messages() -> Vec<(&'static str, Message)> {
                 error: Some(ErrorBody {
                     code: "timeout".to_string(),
                     message: "Function execution timed out after 30s".to_string(),
-                    stacktrace: None,
                 }),
                 traceparent: None,
                 baggage: None,
