@@ -33,7 +33,7 @@ async fn enqueue_returns_acknowledgement() {
             TriggerRequest {
                 function_id: "test.queue.echo.rs".to_string(),
                 payload: json!({"msg": "hello"}),
-                action: Some(TriggerAction::enqueue("default")),
+                action: Some(TriggerAction::Enqueue { queue: "default".to_string() }),
                 timeout_ms: None,
             },
         )
@@ -61,7 +61,7 @@ async fn enqueue_to_unknown_queue_returns_error() {
             TriggerRequest {
                 function_id: "test.queue.unknown.rs".to_string(),
                 payload: json!({"msg": "hello"}),
-                action: Some(TriggerAction::enqueue("nonexistent_queue")),
+                action: Some(TriggerAction::Enqueue { queue: "nonexistent_queue".to_string() }),
                 timeout_ms: None,
             }
         )
@@ -103,7 +103,7 @@ async fn enqueue_fifo_with_valid_group_field() {
                     "transaction_id": "txn-001",
                     "amount": 99.99
                 }),
-                action: Some(TriggerAction::enqueue("payment")),
+                action: Some(TriggerAction::Enqueue { queue: "payment".to_string() }),
                 timeout_ms: None,
             },
         )
@@ -134,7 +134,7 @@ async fn enqueue_fifo_missing_group_field_returns_error() {
                 payload: json!({
                     "amount": 50.00
                 }),
-                action: Some(TriggerAction::enqueue("payment")),
+                action: Some(TriggerAction::Enqueue { queue: "payment".to_string() }),
                 timeout_ms: None,
             },
         )
@@ -176,7 +176,7 @@ async fn void_returns_null_immediately() {
             TriggerRequest {
                 function_id: "test.queue.void.rs".to_string(),
                 payload: json!({"fire": "forget"}),
-                action: Some(TriggerAction::void()),
+                action: Some(TriggerAction::Void),
                 timeout_ms: None,
             },
         )
@@ -212,7 +212,7 @@ async fn enqueue_multiple_messages_all_processed() {
             .trigger(TriggerRequest {
                 function_id: "test.queue.multi.rs".to_string(),
                 payload: json!({ "index": i }),
-                action: Some(TriggerAction::enqueue("default")),
+                action: Some(TriggerAction::Enqueue { queue: "default".to_string() }),
                 timeout_ms: None,
             })
             .await
@@ -267,7 +267,7 @@ async fn chained_enqueue() {
             iii.trigger(TriggerRequest {
                 function_id: "test.queue.chain.b.rs".to_string(),
                 payload: json!({ "from_a": true, "label": label }),
-                action: Some(TriggerAction::enqueue("default")),
+                action: Some(TriggerAction::Enqueue { queue: "default".to_string() }),
                 timeout_ms: None,
             })
             .await
@@ -282,7 +282,7 @@ async fn chained_enqueue() {
         .trigger(TriggerRequest {
             function_id: "test.queue.chain.a.rs".to_string(),
             payload: json!({ "label": "chained-work" }),
-            action: Some(TriggerAction::enqueue("default")),
+            action: Some(TriggerAction::Enqueue { queue: "default".to_string() }),
             timeout_ms: None,
         })
         .await

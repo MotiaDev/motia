@@ -105,11 +105,11 @@ export function parseRustdoc(jsonPath: string): SdkDoc {
       importExample: 'use iii_sdk::{register_worker, InitOptions};',
     },
     initialization: {
-      description: 'The Rust SDK provides `III::new()` or `register_worker()`. Call `connect().await` to establish the WebSocket connection.',
-      example: `use iii_sdk::{III, InitOptions};\n\nlet iii = III::new("ws://localhost:49134");\niii.connect().await?;`,
+      description: 'The Rust SDK provides `register_worker()` to create a connected SDK instance. The WebSocket connection is established automatically.',
+      example: `use iii_sdk::{register_worker, InitOptions};\n\nlet iii = register_worker("ws://localhost:49134", InitOptions::default());`,
       entryPoint: {
         name: 'register_worker',
-        signature: '(address: &str, options: InitOptions) -> Result<III, IIIError>',
+        signature: '(address: &str, options: InitOptions) -> III',
         description: 'Create and return a connected SDK instance.',
         params: [
           { name: 'address', type: '&str', description: 'WebSocket URL of the III engine.', required: true },

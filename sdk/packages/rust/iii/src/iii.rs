@@ -33,9 +33,7 @@ const SDK_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 use crate::{
     channels::{ChannelReader, ChannelWriter, StreamChannelRef},
-    context::{Context, with_context},
     error::IIIError,
-    logger::Logger,
     protocol::{
         ErrorBody, HttpInvocationConfig, Message, RegisterFunctionMessage, RegisterServiceMessage,
         RegisterTriggerMessage, RegisterTriggerTypeMessage, TriggerAction, TriggerRequest,
@@ -217,19 +215,8 @@ where
     F: Fn(Value) -> Fut + Send + Sync + 'static,
     Fut: std::future::Future<Output = Result<Value, IIIError>> + Send + 'static,
 {
-    fn into_parts(self, message: &mut RegisterFunctionMessage) -> Option<RemoteFunctionHandler> {
-        let function_id = message.id.clone();
-        let user_handler = Arc::new(move |input: Value| Box::pin(self(input)));
-        let wrapped: RemoteFunctionHandler = Arc::new(move |input: Value| {
-            let function_id = function_id.clone();
-            let user_handler = user_handler.clone();
-            Box::pin(async move {
-                let logger = Logger::new(Some(function_id));
-                let context = Context { logger, span: None };
-                with_context(context, || user_handler(input)).await
-            })
-        });
-        Some(wrapped)
+    fn into_parts(self, _message: &mut RegisterFunctionMessage) -> Option<RemoteFunctionHandler> {
+        Some(Arc::new(move |input: Value| Box::pin(self(input))))
     }
 }
 
@@ -258,7 +245,7 @@ struct IIIInner {
 
 /// WebSocket client for communication with the III Engine.
 ///
-/// Create with [`III::new`] or [`register_worker`](crate::register_worker).
+/// Create with [`register_worker`](crate::register_worker).
 #[derive(Clone)]
 pub struct III {
     inner: Arc<IIIInner>,
@@ -473,10 +460,10 @@ impl III {
     /// Panics if `id` is empty or already registered.
     ///
     /// # Examples
-    /// ```rust
-    /// # use iii_sdk::III;
-    /// # use serde_json::{json, Value};
-    /// # let iii = III::new("ws://localhost:49134");
+    /// ```rust,no_run
+    /// use iii_sdk::{register_worker, InitOptions};
+    /// use serde_json::{json, Value};
+    /// let iii = register_worker("ws://localhost:49134", InitOptions::default());
     /// iii.register_function("greet", |input: Value| async move {
     ///     Ok(json!({"message": format!("Hello, {}!", input["name"])}))
     /// });
@@ -703,9 +690,18 @@ impl III {
     /// iii.trigger(TriggerRequest {
     ///     function_id: "notify".to_string(),
     ///     payload: json!({}),
-    ///     action: Some(TriggerAction::void()),
+    ///     action: Some(TriggerAction::Void),
     ///     timeout_ms: None,
     /// }).await?;
+    /// 
+    /// // Enqueue
+    /// let receipt = iii.trigger(TriggerRequest {
+    ///     function_id: "enqueue".to_string(),
+    ///     payload: json!({"topic": "test"}),
+    ///     action: Some(TriggerAction::Enqueue { queue: "test".to_string() }),
+    ///     timeout_ms: None,
+    /// }).await?;
+    /// 
     /// # Ok(())
     /// # }
     /// ```
@@ -1498,11 +1494,11 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::protocol::{HttpInvocationConfig, HttpMethod};
+    use crate::{InitOptions, protocol::{HttpInvocationConfig, HttpMethod}, register_worker};
 
-    #[test]
-    fn register_trigger_unregister_removes_entry() {
-        let iii = III::new("ws://localhost:1234");
+    #[tokio::test]
+    async fn register_trigger_unregister_removes_entry() {
+        let iii = register_worker("ws://localhost:1234", InitOptions::default());
         let trigger = iii
             .register_trigger("demo", "functions.echo", json!({ "foo": "bar" }))
             .unwrap();
@@ -1514,9 +1510,9 @@ mod tests {
         assert_eq!(iii.inner.triggers.lock().unwrap().len(), 0);
     }
 
-    #[test]
-    fn register_function_with_http_config_stores_and_unregister_removes() {
-        let iii = III::new("ws://localhost:1234");
+    #[tokio::test]
+    async fn register_function_with_http_config_stores_and_unregister_removes() {
+        let iii = register_worker("ws://localhost:1234", InitOptions::default());
         let config = HttpInvocationConfig {
             url: "https://example.com/invoke".to_string(),
             method: HttpMethod::Post,
@@ -1535,10 +1531,10 @@ mod tests {
         assert_eq!(iii.inner.functions.lock().unwrap().len(), 0);
     }
 
-    #[test]
+    #[tokio::test]
     #[should_panic(expected = "id is required")]
-    fn register_function_rejects_empty_id() {
-        let iii = III::new("ws://localhost:1234");
+    async fn register_function_rejects_empty_id() {
+        let iii = register_worker("ws://localhost:1234", InitOptions::default());
         let config = HttpInvocationConfig {
             url: "https://example.com/invoke".to_string(),
             method: HttpMethod::Post,
@@ -1552,7 +1548,7 @@ mod tests {
 
     #[tokio::test]
     async fn invoke_function_times_out_and_clears_pending() {
-        let iii = III::new("ws://localhost:1234");
+        let iii = register_worker("ws://localhost:1234", InitOptions::default());
         let result = iii
             .trigger(TriggerRequest {
                 function_id: "functions.echo".to_string(),

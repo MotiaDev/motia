@@ -32,13 +32,11 @@ fn json_value_to_anyvalue(v: &Value) -> AnyValue {
 
 #[derive(Clone, Default)]
 pub struct Logger {
-    function_name: String,
 }
 
 impl Logger {
-    pub fn new(function_name: Option<String>) -> Self {
+    pub fn new() -> Self {
         Self {
-            function_name: function_name.unwrap_or_default(),
         }
     }
 
@@ -58,9 +56,6 @@ impl Logger {
         record.set_severity_number(severity);
         record.set_body(message.to_string().into());
 
-        if !self.function_name.is_empty() {
-            record.add_attribute("function_name", self.function_name.clone());
-        }
         if let Some(d) = data {
             record.add_attribute("log.data", json_value_to_anyvalue(d));
         }
@@ -89,7 +84,7 @@ impl Logger {
         if self.emit_otel(message, Severity::Info, data.as_ref()) {
             return;
         }
-        tracing::info!(function = %self.function_name, message = %message);
+        tracing::info!(message = %message);
     }
 
     #[cfg_attr(not(feature = "otel"), allow(unused_variables))]
@@ -98,7 +93,7 @@ impl Logger {
         if self.emit_otel(message, Severity::Warn, data.as_ref()) {
             return;
         }
-        tracing::warn!(function = %self.function_name, message = %message);
+        tracing::warn!(message = %message);
     }
 
     #[cfg_attr(not(feature = "otel"), allow(unused_variables))]
@@ -107,7 +102,7 @@ impl Logger {
         if self.emit_otel(message, Severity::Error, data.as_ref()) {
             return;
         }
-        tracing::error!(function = %self.function_name, message = %message);
+        tracing::error!(message = %message);
     }
 
     #[cfg_attr(not(feature = "otel"), allow(unused_variables))]
@@ -116,23 +111,6 @@ impl Logger {
         if self.emit_otel(message, Severity::Debug, data.as_ref()) {
             return;
         }
-        tracing::debug!(function = %self.function_name, message = %message);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn logger_uses_function_name() {
-        let logger = Logger::new(Some("my-function".to_string()));
-        assert_eq!(logger.function_name, "my-function");
-    }
-
-    #[test]
-    fn logger_default_function_name() {
-        let logger = Logger::new(None);
-        assert_eq!(logger.function_name, "");
+        tracing::debug!(message = %message);
     }
 }

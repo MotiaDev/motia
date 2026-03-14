@@ -1,5 +1,4 @@
 pub mod channels;
-pub mod context;
 pub mod error;
 pub mod iii;
 pub mod logger;
@@ -14,7 +13,6 @@ pub use channels::{
     ChannelDirection, ChannelItem, ChannelReader, ChannelWriter, StreamChannelRef,
     extract_channel_refs, is_channel_ref,
 };
-pub use context::{Context, get_context, with_context};
 pub use error::IIIError;
 pub use iii::{
     ConnectionStateCallback, ConnectionStateGuard, FunctionInfo, FunctionRef,

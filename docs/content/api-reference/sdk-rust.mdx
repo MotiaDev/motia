@@ -13,13 +13,12 @@ cargo add iii-sdk
 
 ## Initialization
 
-The Rust SDK provides `III::new()` or `register_worker()`. Call `connect().await` to establish the WebSocket connection.
+The Rust SDK provides `register_worker()` to create a connected SDK instance. The WebSocket connection is established automatically.
 
 ```rust
-use iii_sdk::{III, InitOptions};
+use iii_sdk::{register_worker, InitOptions};
 
-let iii = III::new("ws://localhost:49134");
-iii.connect().await?;
+let iii = register_worker("ws://localhost:49134", InitOptions::default());
 ```
 
 ### register_worker
@@ -29,7 +28,7 @@ Create and return a connected SDK instance.
 **Signature**
 
 ```rust
-register_worker(address: &str, options: InitOptions) -> Result<III, IIIError>
+register_worker(address: &str, options: InitOptions) -> III
 ```
 
 #### Parameters
@@ -160,26 +159,6 @@ returning the field path and the deserialized ref.
 extract_channel_refs
 ```
 
-### with_context
-
-
-
-**Signature**
-
-```rust
-with_context
-```
-
-### get_context
-
-
-
-**Signature**
-
-```rust
-get_context
-```
-
 ### unregister
 
 
@@ -188,16 +167,6 @@ get_context
 
 ```rust
 unregister
-```
-
-### new
-
-Create a new III with default worker metadata (auto-detected runtime, os, hostname)
-
-**Signature**
-
-```rust
-new
 ```
 
 ### register_worker
@@ -218,8 +187,18 @@ use iii_sdk::{register_worker, InitOptions};
 
 #[tokio::main]
 async fn main() {
-    let iii = register_worker("ws://localhost:49134", InitOptions::default()).unwrap();
+    let iii = register_worker("ws://localhost:49134", InitOptions::default());
 }
+```
+
+### new
+
+Create a new III with default worker metadata (auto-detected runtime, os, hostname)
+
+**Signature**
+
+```rust
+new
 ```
 
 ### with_metadata
@@ -260,16 +239,6 @@ Set OpenTelemetry configuration (call before connect)
 
 ```rust
 set_otel_config
-```
-
-### connect
-
-
-
-**Signature**
-
-```rust
-connect
 ```
 
 ### shutdown
@@ -318,9 +287,9 @@ register_function
 #### Example
 
 ```rust
-# use iii_sdk::III;
-# use serde_json::{json, Value};
-# let iii = III::new("ws://localhost:49134");
+use iii_sdk::{register_worker, InitOptions};
+use serde_json::{json, Value};
+let iii = register_worker("ws://localhost:49134", InitOptions::default());
 iii.register_function("greet", |input: Value| async move {
     Ok(json!({"message": format!("Hello, {}!", input["name"])}))
 });
@@ -442,10 +411,29 @@ trigger
 # use serde_json::json;
 # async fn example(iii: &III) -> Result<(), iii_sdk::IIIError> {
 // Synchronous
-let result = iii.trigger(TriggerRequest::new("greet", json!({"name": "World"}))).await?;
+let result = iii.trigger(TriggerRequest {
+    function_id: "greet".to_string(),
+    payload: json!({"name": "World"}),
+    action: None,
+    timeout_ms: None,
+}).await?;
 
 // Fire-and-forget
-iii.trigger(TriggerRequest::new("notify", json!({})).action(TriggerAction::void())).await?;
+iii.trigger(TriggerRequest {
+    function_id: "notify".to_string(),
+    payload: json!({}),
+    action: Some(TriggerAction::Void),
+    timeout_ms: None,
+}).await?;
+ 
+// Enqueue
+let receipt = iii.trigger(TriggerRequest {
+    function_id: "enqueue".to_string(),
+    payload: json!({"topic": "test"}),
+    action: Some(TriggerAction::Enqueue { queue: "test".to_string() }),
+    timeout_ms: None,
+}).await?;
+ 
 # Ok(())
 # }
 ```
@@ -574,66 +562,6 @@ error
 
 ```rust
 debug
-```
-
-### enqueue
-
-Create an enqueue action for the given queue name.
-
-**Signature**
-
-```rust
-enqueue
-```
-
-### void
-
-
-
-**Signature**
-
-```rust
-void
-```
-
-### new
-
-
-
-**Signature**
-
-```rust
-new
-```
-
-### action
-
-
-
-**Signature**
-
-```rust
-action
-```
-
-### timeout_ms
-
-
-
-**Signature**
-
-```rust
-timeout_ms
-```
-
-### timeout
-
-
-
-**Signature**
-
-```rust
-timeout
 ```
 
 ### to_message
@@ -1430,7 +1358,7 @@ Errors returned by the III SDK.
 
 WebSocket client for communication with the III Engine.
 
-Create with [`III::new`] or [`register_worker`](crate::register_worker).
+Create with [`register_worker`](crate::register_worker).
 
 ### InitOptions
 

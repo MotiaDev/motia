@@ -68,18 +68,6 @@ pub enum TriggerAction {
     Void,
 }
 
-impl TriggerAction {
-    /// Create an enqueue action for the given queue name.
-    pub fn enqueue(queue: &str) -> Self {
-        TriggerAction::Enqueue {
-            queue: queue.to_string(),
-        }
-    }
-    pub fn void() -> Self {
-        TriggerAction::Void
-    }
-}
-
 /// Result returned by the engine when a message is successfully enqueued.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnqueueResult {
@@ -105,7 +93,7 @@ pub struct EnqueueResult {
 /// TriggerRequest {
 ///     function_id: "my::function".to_string(),
 ///     payload: json!({}),
-///     action: Some(TriggerAction::enqueue("payments")),
+///     action: Some(TriggerAction::Enqueue { queue: "payments".to_string() }),
 ///     timeout_ms: None,
 /// };
 /// ```
