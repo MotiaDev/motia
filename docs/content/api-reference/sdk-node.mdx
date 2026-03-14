@@ -484,7 +484,7 @@ Configuration options passed to registerWorker.
 | --- | --- | --- | --- |
 | `enableMetricsReporting` | `boolean` | No | Enable worker metrics via OpenTelemetry. Defaults to `true`. |
 | `invocationTimeoutMs` | `number` | No | Default timeout for `trigger()` in milliseconds. Defaults to `30000`. |
-| `otel` | Omit&lt;[`OtelConfig`](#otelconfig), "engineWsUrl"&gt; | No | OpenTelemetry configuration. OTel is initialized automatically by default.<br />Set `\{ enabled: false \}` or env `OTEL_ENABLED=false/0/no/off` to disable.<br />The `engineWsUrl` is set automatically from the III address. |
+| `otel` | Omit&lt;[`OtelConfig`](#otelconfig), "engineWsUrl"&gt; | No | OpenTelemetry configuration. OTel is initialized automatically by default.<br />Set `{ enabled: false }` or env `OTEL_ENABLED=false/0/no/off` to disable.<br />The `engineWsUrl` is set automatically from the III address. |
 | `reconnectionConfig` | Partial&lt;[`IIIReconnectionConfig`](#iiireconnectionconfig)&gt; | No | WebSocket reconnection behavior. |
 | `workerName` | `string` | No | Display name for this worker. Defaults to `hostname:pid`. |
 

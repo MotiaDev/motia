@@ -8,9 +8,10 @@ const LANG_MAP: Record<string, string> = {
 }
 
 function escapeMdxText(value: string): string {
-  return value
-    .replace(/\{/g, '\\{')
-    .replace(/\}/g, '\\}')
+  return value.replace(/`[^`]*`|[{}]/g, (match) => {
+    if (match.startsWith('`')) return match
+    return match === '{' ? '\\{' : '\\}'
+  })
 }
 
 function formatMethodSignature(method: FunctionDoc): string {
