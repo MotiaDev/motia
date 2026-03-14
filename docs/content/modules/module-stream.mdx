@@ -495,10 +495,9 @@ iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III, TriggerAction
+from iii import register_worker, TriggerAction
 
-iii = III('ws://localhost:49134')
-iii.connect()
+iii = register_worker('ws://localhost:49134')
 
 iii.trigger({
     'function_id': 'stream::set',

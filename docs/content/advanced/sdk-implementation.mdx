@@ -208,8 +208,10 @@ iii.register_trigger({
 Register a custom stream by implementing the `IStream` abstract class:
 
 ```python
-from iii import III
+from iii import register_worker
 from iii.stream import IStream, StreamGetInput, StreamSetInput, StreamDeleteInput, StreamListInput
+
+iii = register_worker('ws://localhost:49134')
 
 class MyStream(IStream):
     async def get(self, input: StreamGetInput):

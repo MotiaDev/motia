@@ -179,8 +179,9 @@ iii.registerTrigger({
 ### Python
 
 ```python
-from iii import III
-iii = III('ws://localhost:49134')
+from iii import register_worker
+
+iii = register_worker('ws://localhost:49134')
 
 def hello(data):
     name = data.get('name', 'World')
@@ -196,8 +197,6 @@ iii.register_trigger({
         'http_method': 'GET',
     },
 })
-
-iii.connect()
 ```
 
 ## Best Practices

@@ -32,9 +32,9 @@ const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 ```python
 # worker.py
-from iii import III, InitOptions, ApiRequest, ApiResponse
+from iii import register_worker, InitOptions, ApiRequest, ApiResponse
 
-iii = III(
+iii = register_worker(
     address="ws://localhost:49134",
     options=InitOptions(worker_name="hello-worker"),
 )
@@ -324,10 +324,10 @@ iii.register_trigger("queue", "greet.process", json!({
   </Tab>
 </Tabs>
 
-## Connect and run
+## Keep the worker alive
 
-<Callout title="Node.js connects automatically" type="info">
-  The Node SDK establishes the WebSocket connection when you call `init()`. There is no separate `connect()` method. Keep the process alive so the worker stays registered.
+<Callout title="Connection is automatic" type="info">
+  The Node and Python SDKs establish the WebSocket connection automatically. Keep the process alive so the worker stays registered.
 </Callout>
 
 <Tabs groupId="language" persist items={['Node / TypeScript', 'Python', 'Rust']}>
@@ -344,7 +344,6 @@ await new Promise(() => {})
 ```python
 import time
 def main() -> None:
-    iii.connect()
     while True:
         time.sleep(60)
 ```
@@ -353,7 +352,7 @@ def main() -> None:
   <Tab value="Rust">
 
 ```rust
-// Already in the main() above — connect then event loop
+// connect() then keep the event loop alive
 iii.connect().await?;
 loop {
     tokio::time::sleep(std::time::Duration::from_secs(60)).await;

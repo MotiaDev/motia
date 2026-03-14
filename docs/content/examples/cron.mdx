@@ -52,9 +52,9 @@ iii.registerTrigger({
 
 ```python
 from datetime import datetime, timezone
-from iii import III, InitOptions, Logger, TriggerAction
+from iii import register_worker, InitOptions, Logger, TriggerAction
 
-iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="cron-worker"))
+iii = register_worker(address="ws://localhost:49134", options=InitOptions(worker_name="cron-worker"))
 
 def periodic_job(_data) -> None:
     logger = Logger()

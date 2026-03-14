@@ -82,9 +82,9 @@ iii.registerTrigger({
 
 ```python
 from datetime import datetime, timezone
-from iii import III, InitOptions, ApiRequest, ApiResponse, Logger, TriggerAction, current_trace_id
+from iii import register_worker, InitOptions, ApiRequest, ApiResponse, Logger, TriggerAction, current_trace_id
 
-iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="orders-service"))
+iii = register_worker(address="ws://localhost:49134", options=InitOptions(worker_name="orders-service"))
 
 def create_order(data) -> ApiResponse:
     logger = Logger()

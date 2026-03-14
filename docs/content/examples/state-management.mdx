@@ -62,9 +62,9 @@ iii.registerTrigger({
 
 ```python
 from datetime import datetime, timezone
-from iii import III, InitOptions, ApiRequest, ApiResponse, Logger, TriggerAction
+from iii import register_worker, InitOptions, ApiRequest, ApiResponse, Logger, TriggerAction
 
-iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="state-worker"))
+iii = register_worker(address="ws://localhost:49134", options=InitOptions(worker_name="state-worker"))
 
 def update_user_status(data) -> ApiResponse:
     logger = Logger()
