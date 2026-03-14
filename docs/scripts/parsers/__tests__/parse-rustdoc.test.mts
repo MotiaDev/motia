@@ -1233,7 +1233,69 @@ describe('parseRustdocData - metadata', () => {
     })
   })
 
-  it('includes context section', () => {
+  it('extracts logger section from Logger struct', () => {
+    const rootId = 1000
+    const index: Record<string, any> = {}
+
+    const infoMethodId = id()
+    const loggerImplId = id()
+    const loggerStructId = id()
+    const loggerReExportId = id()
+
+    index[infoMethodId] = makeItem({
+      id: infoMethodId,
+      name: 'info',
+      docs: 'Log an info-level message.\n\n# Arguments\n\n* `message` - Human-readable log message.\n* `data` - Structured context.',
+      inner: {
+        function: {
+          sig: {
+            inputs: [
+              ['self', { borrowed_ref: { type: { generic: 'Self' } } }],
+              ['message', { primitive: 'str' }],
+              ['data', { resolved_path: { path: 'Option', args: { angle_bracketed: { args: [{ type: { resolved_path: { path: 'Value', id: 99, args: null } } }] } } } }],
+            ],
+            output: null,
+          },
+          header: { is_async: false },
+        },
+      },
+    })
+
+    index[loggerImplId] = makeItem({
+      id: loggerImplId,
+      name: null,
+      inner: { impl: { trait: null, items: [infoMethodId] } },
+    })
+
+    index[loggerStructId] = makeItem({
+      id: loggerStructId,
+      name: 'Logger',
+      docs: 'Structured logger that emits logs as OpenTelemetry LogRecords.',
+      inner: { struct: { kind: { plain: { fields: [] } }, impls: [loggerImplId] } },
+    })
+
+    index[loggerReExportId] = makeItem({
+      id: loggerReExportId,
+      name: 'Logger',
+      inner: { use: { id: loggerStructId, name: 'Logger' } },
+    })
+
+    index[rootId] = makeItem({
+      id: rootId,
+      name: 'iii_sdk',
+      inner: { module: { items: [loggerReExportId] } },
+    })
+
+    const data = { root: rootId, format_version: 56, paths: {}, index }
+    const doc = parseRustdocData(data)
+
+    expect(doc.loggerSection).toBeDefined()
+    expect(doc.loggerSection!.description).toContain('OpenTelemetry')
+    expect(doc.loggerSection!.methods.length).toBeGreaterThan(0)
+    expect(doc.loggerSection!.methods[0].name).toBe('info')
+  })
+
+  it('returns undefined loggerSection when no Logger struct', () => {
     const rootId = 1000
     const index: Record<string, any> = {}
     index[rootId] = makeItem({
@@ -1245,8 +1307,7 @@ describe('parseRustdocData - metadata', () => {
     const data = { root: rootId, format_version: 56, paths: {}, index }
     const doc = parseRustdocData(data)
 
-    expect(doc.contextSection).toContain('Logger')
-    expect(doc.contextSection).toContain('logger.info')
+    expect(doc.loggerSection).toBeUndefined()
   })
 })
 

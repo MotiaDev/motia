@@ -13,41 +13,13 @@ cargo add iii-sdk
 
 ## Initialization
 
-The Rust SDK provides `register_worker()` to create a connected SDK instance. The WebSocket connection is established automatically.
+Create and return a connected SDK instance. The WebSocket connection is
+established automatically in a background Tokio task.
 
 ```rust
 use iii_sdk::{register_worker, InitOptions};
 
 let iii = register_worker("ws://localhost:49134", InitOptions::default());
-```
-
-### register_worker
-
-Create and return a connected SDK instance. The WebSocket connection is
-established automatically in a background Tokio task.
-
-**Signature**
-
-```rust
-register_worker(address: &str, options: InitOptions) -> III
-```
-
-#### Parameters
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `address` | `&str` | Yes | WebSocket URL of the III engine (e.g. `ws://localhost:49134`). |
-| `options` | [`InitOptions`](#initoptions) | Yes | Configuration for worker metadata and OTel. |
-
-#### Example
-
-```rust
-use iii_sdk::{register_worker, InitOptions};
-
-#[tokio::main]
-async fn main() {
-    let iii = register_worker("ws://localhost:49134", InitOptions::default());
-}
 ```
 
 ## Methods
@@ -240,7 +212,7 @@ iii.trigger(TriggerRequest {
     action: Some(TriggerAction::Void),
     timeout_ms: None,
 }).await?;
- 
+
 // Enqueue
 let receipt = iii.trigger(TriggerRequest {
     function_id: "enqueue".to_string(),
@@ -331,6 +303,112 @@ async create_channel(buffer_size: Option<usize>) -> Result<Channel, IIIError>
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `buffer_size` | `Option<usize>` | No | - |
+
+## Logger
+
+Structured logger that emits logs as OpenTelemetry LogRecords.
+
+Every log call automatically captures the active trace and span context,
+correlating your logs with distributed traces without any manual wiring.
+When OTel is not initialized, Logger gracefully falls back to the `tracing`
+crate.
+
+Pass structured data as the second argument to any log method. Using a
+`serde_json::Value` object of key-value pairs (instead of string
+interpolation) lets you filter, aggregate, and build dashboards in your
+observability backend.
+
+### info
+
+Log an info-level message.
+
+**Signature**
+
+```rust
+info(message: &str, data: Option<Value>)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | `&str` | Yes | Human-readable log message. |
+| `data` | `Option<Value>` | No | Structured context attached as OTel log attributes. Use `serde_json::json!` objects to enable filtering and aggregation in your observability backend (e.g. Grafana, Datadog, New Relic). |
+
+#### Example
+
+```rust
+logger.info("Order processed", Some(json!({ "order_id": "ord_123", "status": "completed" })));
+```
+
+### warn
+
+Log a warning-level message.
+
+**Signature**
+
+```rust
+warn(message: &str, data: Option<Value>)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | `&str` | Yes | Human-readable log message. |
+| `data` | `Option<Value>` | No | Structured context attached as OTel log attributes. Use `serde_json::json!` objects to enable filtering and aggregation in your observability backend (e.g. Grafana, Datadog, New Relic). |
+
+#### Example
+
+```rust
+logger.warn("Retry attempt", Some(json!({ "attempt": 3, "max_retries": 5, "endpoint": "/api/charge" })));
+```
+
+### error
+
+Log an error-level message.
+
+**Signature**
+
+```rust
+error(message: &str, data: Option<Value>)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | `&str` | Yes | Human-readable log message. |
+| `data` | `Option<Value>` | No | Structured context attached as OTel log attributes. Use `serde_json::json!` objects to enable filtering and aggregation in your observability backend (e.g. Grafana, Datadog, New Relic). |
+
+#### Example
+
+```rust
+logger.error("Payment failed", Some(json!({ "order_id": "ord_123", "gateway": "stripe", "error_code": "card_declined" })));
+```
+
+### debug
+
+Log a debug-level message.
+
+**Signature**
+
+```rust
+debug(message: &str, data: Option<Value>)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | `&str` | Yes | Human-readable log message. |
+| `data` | `Option<Value>` | No | Structured context attached as OTel log attributes. Use `serde_json::json!` objects to enable filtering and aggregation in your observability backend (e.g. Grafana, Datadog, New Relic). |
+
+#### Example
+
+```rust
+logger.debug("Cache lookup", Some(json!({ "key": "user:42", "hit": false })));
+```
 
 ## Types
 
@@ -607,14 +685,3 @@ Configuration for WebSocket reconnection behavior
 | `max_retries` | `Option<u64>` | No | - |
 | `max_pending_messages` | `usize` | Yes | Maximum messages preserved across reconnects. Messages beyond this limit<br />are dropped to prevent delivering stale data after a long disconnect.<br />This is intentionally smaller than `OtelConfig::channel_capacity` (the<br />in-flight buffer between exporters and the WebSocket loop). |
 | `effective_initial_delay_ms` | `fn() -> u64` | Yes | Returns initial_delay_ms, clamped to a minimum of 1ms to prevent division by zero. |
-
-## Context
-
-```rust
-use iii_sdk::Logger;
-
-let logger = Logger::new(Some("my-function".to_string()));
-logger.info("Processing started");
-```
-
-The `Logger` struct emits OTel LogRecords when OTel is active, otherwise falls back to the `tracing` crate.

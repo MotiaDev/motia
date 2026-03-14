@@ -63,10 +63,7 @@ pub struct InitOptions {
 /// ```rust,no_run
 /// use iii_sdk::{register_worker, InitOptions};
 ///
-/// #[tokio::main]
-/// async fn main() {
-///     let iii = register_worker("ws://localhost:49134", InitOptions::default());
-/// }
+/// let iii = register_worker("ws://localhost:49134", InitOptions::default());
 /// ```
 pub fn register_worker(address: &str, options: InitOptions) -> III {
     let InitOptions {

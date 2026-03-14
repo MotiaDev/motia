@@ -13,15 +13,13 @@ function minimalDoc(overrides: Partial<SdkDoc> = {}): SdkDoc {
       importExample: 'use test;',
     },
     initialization: {
-      description: 'Test init.',
-      example: 'let x = 1;',
       entryPoint: {
         name: 'init',
         signature: 'init()',
-        description: '',
+        description: 'Test init.',
         params: [],
         returns: { type: '', description: '' },
-        examples: [],
+        examples: ['let x = 1;'],
       },
     },
     methods: [],
@@ -110,15 +108,13 @@ describe('renderSdkMdx - description brace escaping', () => {
   it('does not escape braces inside backtick spans in initialization description', () => {
     const doc = minimalDoc({
       initialization: {
-        description: 'Call `init({ key: "value" })` to start.',
-        example: 'let x = 1;',
         entryPoint: {
           name: 'init',
           signature: 'init()',
-          description: '',
+          description: 'Call `init({ key: "value" })` to start.',
           params: [],
           returns: { type: '', description: '' },
-          examples: [],
+          examples: ['let x = 1;'],
         },
       },
     })
