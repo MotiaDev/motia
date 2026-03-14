@@ -458,7 +458,11 @@ error(message: str, data: Any = None)
 #### Example
 
 ```python
-    >>> logger.error('Payment failed', {'order_id': 'ord_123', 'gateway': 'stripe', 'error_code': 'card_declined'})
+    >>> logger.error('Payment failed', {
+    ...     'order_id': 'ord_123',
+    ...     'gateway': 'stripe',
+    ...     'error_code': 'card_declined',
+    ... })
 ```
 
 ### info

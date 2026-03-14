@@ -163,7 +163,11 @@ class Logger:
                 Datadog, New Relic).
 
         Examples:
-            >>> logger.error('Payment failed', {'order_id': 'ord_123', 'gateway': 'stripe', 'error_code': 'card_declined'})
+            >>> logger.error('Payment failed', {
+            ...     'order_id': 'ord_123',
+            ...     'gateway': 'stripe',
+            ...     'error_code': 'card_declined',
+            ... })
         """
         self._emit("error", message, data)
 
