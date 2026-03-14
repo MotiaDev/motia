@@ -46,7 +46,7 @@ def wait_for_registration(bridge, function_id: str, timeout: float = 5.0) -> Non
 @pytest.fixture
 def bridge() -> Generator:
     bridge_instance = III(TEST_ENGINE_URL)
-    bridge_instance.connect()
+    bridge_instance._wait_until_connected()
     time.sleep(0.1)
     yield bridge_instance
     bridge_instance.shutdown()

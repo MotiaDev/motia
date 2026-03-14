@@ -120,7 +120,7 @@ def generate_index(step_files: list[str], stream_files: list[str]) -> str:
             "    iii = get_instance()",
             "    import signal",
             "    import threading",
-            "    iii.connect()",
+            "    iii._wait_until_connected()",
             "    stop = threading.Event()",
             "    signal.signal(signal.SIGINT, lambda *_: stop.set())",
             "    signal.signal(signal.SIGTERM, lambda *_: stop.set())",
@@ -227,7 +227,7 @@ def main() -> None:
             from .iii import get_instance
 
             iii = get_instance()
-            iii.connect()
+            iii._wait_until_connected()
             log.info("Connected. Waiting for events...")
 
             stop_event = threading.Event()
@@ -264,7 +264,7 @@ def main() -> None:
             from .iii import get_instance
 
             iii = get_instance()
-            iii.connect()
+            iii._wait_until_connected()
             log.info("Connected. Waiting for events...")
 
             stop_event = threading.Event()
