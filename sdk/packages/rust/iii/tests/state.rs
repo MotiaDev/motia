@@ -10,7 +10,7 @@ use std::time::Duration;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
-use iii_sdk::{III, TriggerRequest};
+use iii_sdk::{III, RegisterFunctionMessage, RegisterTriggerInput, TriggerRequest};
 
 const SCOPE: &str = "test-scope-rs";
 
@@ -262,25 +262,35 @@ async fn reactive_state() {
     let reactive_data: Arc<Mutex<Option<Value>>> = Arc::new(Mutex::new(None));
     let reactive_data_clone = reactive_data.clone();
 
-    let fn_ref = iii.register_function("test.state.rs.updated", move |event: Value| {
-        let reactive_data = reactive_data_clone.clone();
-        async move {
-            if event.get("type").and_then(|v| v.as_str()) == Some("state")
-                && event.get("event_type").and_then(|v| v.as_str()) == Some("state:updated")
-            {
-                *reactive_data.lock().await = event.get("new_value").cloned();
+    let fn_ref = iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.state.rs.updated".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        move |event: Value| {
+            let reactive_data = reactive_data_clone.clone();
+            async move {
+                if event.get("type").and_then(|v| v.as_str()) == Some("state")
+                    && event.get("event_type").and_then(|v| v.as_str()) == Some("state:updated")
+                {
+                    *reactive_data.lock().await = event.get("new_value").cloned();
+                }
+                Ok(json!({}))
             }
-            Ok(json!({}))
-        }
-    });
+        },
+    );
 
     let key_clone = key.clone();
     let trigger = iii
-        .register_trigger(
-            "state",
-            &fn_ref.id,
-            json!({"scope": SCOPE, "key": key_clone}),
-        )
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "state".to_string(),
+            function_id: fn_ref.id.clone(),
+            config: json!({"scope": SCOPE, "key": key_clone}),
+        })
         .expect("register state trigger");
 
     let expected = Some(json!({"name": "New Test Data", "value": 200}));

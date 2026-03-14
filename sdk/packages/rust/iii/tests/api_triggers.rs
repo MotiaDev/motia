@@ -11,7 +11,7 @@ use std::time::Duration;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
-use iii_sdk::IIIError;
+use iii_sdk::{IIIError, RegisterFunctionMessage, RegisterTriggerInput};
 use tokio::time::sleep;
 
 fn test_pdf_path() -> PathBuf {
@@ -30,7 +30,16 @@ fn test_pdf_path() -> PathBuf {
 async fn get_endpoint() {
     let iii = common::shared_iii();
 
-    iii.register_function("test.api.get.rs", |_input: Value| async move {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.api.get.rs".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |_input: Value| async move {
         Ok(json!({
             "status_code": 200,
             "body": {"message": "Hello from GET"},
@@ -38,14 +47,14 @@ async fn get_endpoint() {
     });
 
     iii
-        .register_trigger(
-            "http",
-            "test.api.get.rs",
-            json!({
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "http".to_string(),
+            function_id: "test.api.get.rs".to_string(),
+            config: json!({
                 "api_path": "test/rs/hello",
                 "http_method": "GET",
             }),
-        )
+        })
         .expect("register trigger");
 
     common::settle().await;
@@ -67,7 +76,16 @@ async fn get_endpoint() {
 async fn post_endpoint_with_body() {
     let iii = common::shared_iii();
 
-    iii.register_function("test.api.post.rs", |input: Value| async move {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.api.post.rs".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |input: Value| async move {
         let body = input.get("body").cloned().unwrap_or(Value::Null);
         Ok(json!({
             "status_code": 201,
@@ -76,14 +94,14 @@ async fn post_endpoint_with_body() {
     });
 
     let _trigger = iii
-        .register_trigger(
-            "http",
-            "test.api.post.rs",
-            json!({
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "http".to_string(),
+            function_id: "test.api.post.rs".to_string(),
+            config: json!({
                 "api_path": "test/rs/items",
                 "http_method": "POST",
             }),
-        )
+        })
         .expect("register trigger");
 
     common::settle().await;
@@ -106,7 +124,16 @@ async fn post_endpoint_with_body() {
 async fn path_parameters() {
     let iii = common::shared_iii();
 
-    iii.register_function("test.api.getbyid.rs", |input: Value| async move {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.api.getbyid.rs".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |input: Value| async move {
         let id = input
             .get("path_params")
             .and_then(|p| p.get("id"))
@@ -117,14 +144,14 @@ async fn path_parameters() {
     });
 
     let _trigger = iii
-        .register_trigger(
-            "http",
-            "test.api.getbyid.rs",
-            json!({
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "http".to_string(),
+            function_id: "test.api.getbyid.rs".to_string(),
+            config: json!({
                 "api_path": "test/rs/items/:id",
                 "http_method": "GET",
             }),
-        )
+        })
         .expect("register trigger");
 
     common::settle().await;
@@ -148,7 +175,16 @@ async fn path_parameters() {
 async fn query_parameters() {
     let iii = common::shared_iii();
 
-    iii.register_function("test.api.search.rs", |input: Value| async move {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.api.search.rs".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |input: Value| async move {
         let qp = input.get("query_params").cloned().unwrap_or(json!({}));
         let q = qp.get("q").and_then(|v| v.as_str()).unwrap_or_default();
         let limit = qp.get("limit").and_then(|v| v.as_str()).unwrap_or_default();
@@ -156,14 +192,14 @@ async fn query_parameters() {
     });
 
     let _trigger = iii
-        .register_trigger(
-            "http",
-            "test.api.search.rs",
-            json!({
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "http".to_string(),
+            function_id: "test.api.search.rs".to_string(),
+            config: json!({
                 "api_path": "test/rs/search",
                 "http_method": "GET",
             }),
-        )
+        })
         .expect("register trigger");
 
     common::settle().await;
@@ -188,19 +224,28 @@ async fn query_parameters() {
 async fn custom_status_code() {
     let iii = common::shared_iii();
 
-    iii.register_function("test.api.notfound.rs", |_input: Value| async move {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.api.notfound.rs".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |_input: Value| async move {
         Ok(json!({"status_code": 404, "body": {"error": "Not found"}}))
     });
 
     let _trigger = iii
-        .register_trigger(
-            "http",
-            "test.api.notfound.rs",
-            json!({
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "http".to_string(),
+            function_id: "test.api.notfound.rs".to_string(),
+            config: json!({
                 "api_path": "test/rs/missing",
                 "http_method": "GET",
             }),
-        )
+        })
         .expect("register trigger");
 
     common::settle().await;
@@ -232,7 +277,16 @@ async fn download_pdf_streaming() {
 
     let pdf_data = original_pdf.clone();
     let iii_for_handler = iii.clone();
-    iii.register_function("test.api.download.pdf.rs", move |input: Value| {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.api.download.pdf.rs".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        move |input: Value| {
         let iii = iii_for_handler.clone();
         let pdf_data = pdf_data.clone();
         async move {
@@ -279,14 +333,14 @@ async fn download_pdf_streaming() {
     });
 
     let _trigger = iii
-        .register_trigger(
-            "http",
-            "test.api.download.pdf.rs",
-            json!({
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "http".to_string(),
+            function_id: "test.api.download.pdf.rs".to_string(),
+            config: json!({
                 "api_path": "test/rs/download/pdf",
                 "http_method": "GET",
             }),
-        )
+        })
         .expect("register trigger");
 
     common::settle().await;
@@ -331,7 +385,16 @@ async fn upload_pdf_streaming() {
     let received_clone = received.clone();
 
     let iii_for_handler = iii.clone();
-    iii.register_function("test.api.upload.pdf.rs", move |input: Value| {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.api.upload.pdf.rs".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        move |input: Value| {
         let iii = iii_for_handler.clone();
         let received = received_clone.clone();
         async move {
@@ -398,14 +461,14 @@ async fn upload_pdf_streaming() {
     });
 
     let _trigger = iii
-        .register_trigger(
-            "http",
-            "test.api.upload.pdf.rs",
-            json!({
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "http".to_string(),
+            function_id: "test.api.upload.pdf.rs".to_string(),
+            config: json!({
                 "api_path": "test/rs/upload/pdf",
                 "http_method": "POST",
             }),
-        )
+        })
         .expect("register trigger");
 
     common::settle().await;
@@ -441,7 +504,16 @@ async fn sse_streaming() {
 
     let events_clone = events.clone();
     let iii_for_handler = iii.clone();
-    iii.register_function("test.api.sse.rs", move |input: Value| {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.api.sse.rs".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        move |input: Value| {
         let iii = iii_for_handler.clone();
         let events = events_clone.clone();
         async move {
@@ -503,14 +575,14 @@ async fn sse_streaming() {
     });
 
     let _trigger = iii
-        .register_trigger(
-            "http",
-            "test.api.sse.rs",
-            json!({
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "http".to_string(),
+            function_id: "test.api.sse.rs".to_string(),
+            config: json!({
                 "api_path": "test/rs/sse",
                 "http_method": "GET",
             }),
-        )
+        })
         .expect("register trigger");
 
     common::settle().await;
@@ -567,7 +639,16 @@ async fn urlencoded_form_data() {
     let iii = common::shared_iii();
 
     let iii_for_handler = iii.clone();
-    iii.register_function("test.api.form.urlencoded.rs", move |input: Value| {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.api.form.urlencoded.rs".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        move |input: Value| {
         let iii = iii_for_handler.clone();
         async move {
             let refs = iii_sdk::extract_channel_refs(&input);
@@ -649,14 +730,14 @@ async fn urlencoded_form_data() {
     });
 
     let _trigger = iii
-        .register_trigger(
-            "http",
-            "test.api.form.urlencoded.rs",
-            json!({
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "http".to_string(),
+            function_id: "test.api.form.urlencoded.rs".to_string(),
+            config: json!({
                 "api_path": "test/rs/form/urlencoded",
                 "http_method": "POST",
             }),
-        )
+        })
         .expect("register trigger");
 
     common::settle().await;
@@ -713,7 +794,16 @@ async fn multipart_form_data() {
     let iii = common::shared_iii();
 
     let iii_for_handler = iii.clone();
-    iii.register_function("test.api.form.multipart.rs", move |input: Value| {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.api.form.multipart.rs".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        move |input: Value| {
         let iii = iii_for_handler.clone();
         async move {
             let refs = iii_sdk::extract_channel_refs(&input);
@@ -799,14 +889,14 @@ async fn multipart_form_data() {
     });
 
     let _trigger = iii
-        .register_trigger(
-            "http",
-            "test.api.form.multipart.rs",
-            json!({
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "http".to_string(),
+            function_id: "test.api.form.multipart.rs".to_string(),
+            config: json!({
                 "api_path": "test/rs/form/multipart",
                 "http_method": "POST",
             }),
-        )
+        })
         .expect("register trigger");
 
     common::settle().await;

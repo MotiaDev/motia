@@ -7,7 +7,10 @@
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use iii_sdk::{III, IIIError, InitOptions, TriggerAction, TriggerRequest, register_worker};
+use iii_sdk::{
+    III, IIIError, InitOptions, RegisterFunctionMessage, RegisterServiceMessage, TriggerAction,
+    TriggerRequest, register_worker,
+};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -172,7 +175,7 @@ impl Module for BridgeClientModule {
                         .trigger(TriggerRequest {
                             function_id: invoke.function_id,
                             payload: invoke.data,
-                            action: Some(TriggerAction::void()),
+                            action: Some(TriggerAction::Void),
                             timeout_ms: None,
                         })
                         .await
@@ -244,8 +247,12 @@ impl Module for BridgeClientModule {
                 .service_name
                 .clone()
                 .unwrap_or_else(|| service_id.clone());
-            self.bridge
-                .register_service_with_name(service_id.clone(), name, None);
+            self.bridge.register_service(RegisterServiceMessage {
+                id: service_id.clone(),
+                name,
+                description: None,
+                parent_service_id: None,
+            });
         }
 
         for expose in &self.config.expose {
@@ -257,20 +264,30 @@ impl Module for BridgeClientModule {
                 .clone()
                 .unwrap_or_else(|| local_function.clone());
 
-            bridge.register_function(remote_function, move |input| {
-                let engine = engine.clone();
-                let local_function = local_function.clone();
-                async move {
-                    match engine.call(&local_function, input).await {
-                        Ok(result) => Ok(result.unwrap_or(Value::Null)),
-                        Err(err) => Err(IIIError::Remote {
-                            code: err.code,
-                            message: err.message,
-                            stacktrace: err.stacktrace,
-                        }),
+            bridge.register_function(
+                RegisterFunctionMessage {
+                    id: remote_function,
+                    description: None,
+                    request_format: None,
+                    response_format: None,
+                    metadata: None,
+                    invocation: None,
+                },
+                move |input| {
+                    let engine = engine.clone();
+                    let local_function = local_function.clone();
+                    async move {
+                        match engine.call(&local_function, input).await {
+                            Ok(result) => Ok(result.unwrap_or(Value::Null)),
+                            Err(err) => Err(IIIError::Remote {
+                                code: err.code,
+                                message: err.message,
+                                stacktrace: err.stacktrace,
+                            }),
+                        }
                     }
-                }
-            });
+                },
+            );
         }
 
         Ok(())

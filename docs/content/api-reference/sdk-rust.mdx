@@ -92,115 +92,52 @@ for HTTP-invoked functions (Lambda, Cloudflare Workers, etc.).
 **Signature**
 
 ```rust
-register_function(id: impl Into<String>, handler: H) -> FunctionRef
+register_function(message: RegisterFunctionMessage, handler: H) -> FunctionRef
 ```
 
 #### Parameters
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | `impl Into<String>` | Yes | Unique function identifier. |
+| `message` | [`RegisterFunctionMessage`](#registerfunctionmessage) | Yes | Function registration message with id and optional metadata. |
 | `handler` | `H` | Yes | Async handler or HTTP invocation config. |
 
 #### Example
 
 ```rust
-use iii_sdk::{register_worker, InitOptions};
+use iii_sdk::{register_worker, InitOptions, RegisterFunctionMessage};
 use serde_json::{json, Value};
 let iii = register_worker("ws://localhost:49134", InitOptions::default());
-iii.register_function("greet", |input: Value| async move {
-    Ok(json!({"message": format!("Hello, {}!", input["name"])}))
-});
+iii.register_function(
+    RegisterFunctionMessage {
+        id: "greet".to_string(),
+        description: None,
+        request_format: None,
+        response_format: None,
+        metadata: None,
+        invocation: None,
+    },
+    |input: Value| async move {
+        Ok(json!({"message": format!("Hello, {}!", input["name"])}))
+    },
+);
 ```
-
-### register_function_with_description
-
-Register a function with a human-readable description.
-
-**Signature**
-
-```rust
-register_function_with_description(id: impl Into<String>, description: impl Into<String>, handler: H) -> FunctionRef
-```
-
-#### Parameters
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `id` | `impl Into<String>` | Yes | - |
-| `description` | `impl Into<String>` | Yes | - |
-| `handler` | `H` | Yes | - |
-
-### register_function_with
-
-Register a function using a pre-built [`RegisterFunctionMessage`] for full control.
-
-**Signature**
-
-```rust
-register_function_with(message: RegisterFunctionMessage, handler: H) -> FunctionRef
-```
-
-#### Parameters
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `message` | [`RegisterFunctionMessage`](#registerfunctionmessage) | Yes | - |
-| `handler` | `H` | Yes | - |
 
 ### register_service
 
-
+Register a service with the engine.
 
 **Signature**
 
 ```rust
-register_service(id: impl Into<String>, description: Option<String>)
+register_service(message: RegisterServiceMessage)
 ```
 
 #### Parameters
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | `impl Into<String>` | Yes | - |
-| `description` | `Option<String>` | No | - |
-
-### register_service_with_name
-
-
-
-**Signature**
-
-```rust
-register_service_with_name(id: impl Into<String>, name: impl Into<String>, description: Option<String>)
-```
-
-#### Parameters
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `id` | `impl Into<String>` | Yes | - |
-| `name` | `impl Into<String>` | Yes | - |
-| `description` | `Option<String>` | No | - |
-
-### register_service_with_parent
-
-
-
-**Signature**
-
-```rust
-register_service_with_parent(id: impl Into<String>, name: Option<String>, description: Option<String>, parent_service_id: Option<String>)
-```
-
-#### Parameters
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `id` | `impl Into<String>` | Yes | - |
-| `name` | `Option<String>` | No | - |
-| `description` | `Option<String>` | No | - |
-| `parent_service_id` | `Option<String>` | No | - |
+| `message` | [`RegisterServiceMessage`](#registerservicemessage) | Yes | Service registration message with id, name, and optional metadata. |
 
 ### register_trigger_type
 
@@ -243,23 +180,23 @@ Bind a trigger configuration to a registered function.
 **Signature**
 
 ```rust
-register_trigger(trigger_type: impl Into<String>, function_id: impl Into<String>, config: impl serde::Serialize) -> Result<Trigger, IIIError>
+register_trigger(input: RegisterTriggerInput) -> Result<Trigger, IIIError>
 ```
 
 #### Parameters
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `trigger_type` | `impl Into<String>` | Yes | Trigger type (e.g. `"http"`, `"cron"`). |
-| `function_id` | `impl Into<String>` | Yes | ID of the function to invoke. |
-| `config` | `impl serde::Serialize` | Yes | Trigger-specific configuration (serializable). |
+| `input` | `RegisterTriggerInput` | Yes | Trigger registration input with trigger_type, function_id, and config. |
 
 #### Example
 
 ```rust
-let trigger = iii.register_trigger("http", "greet", json!({
-    "api_path": "/greet", "http_method": "GET"
-}))?;
+let trigger = iii.register_trigger(RegisterTriggerInput {
+    trigger_type: "http".to_string(),
+    function_id: "greet".to_string(),
+    config: json!({ "api_path": "/greet", "http_method": "GET" }),
+})?;
 // Later...
 trigger.unregister();
 ```
@@ -322,24 +259,6 @@ Get the current connection state.
 ```rust
 get_connection_state() -> IIIConnectionState
 ```
-
-### on_connection_state_change
-
-Register a callback to be notified of connection state changes.
-The callback is immediately invoked with the current state.
-Returns a guard that unsubscribes when dropped.
-
-**Signature**
-
-```rust
-on_connection_state_change(callback: F) -> ConnectionStateGuard
-```
-
-#### Parameters
-
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `callback` | `F` | Yes | - |
 
 ### list_functions
 
@@ -415,7 +334,7 @@ async create_channel(buffer_size: Option<usize>) -> Result<Channel, IIIError>
 
 ## Types
 
-[`InitOptions`](#initoptions) · [`IIIError`](#iiierror) · [`IIIConnectionState`](#iiiconnectionstate) · [`TriggerRequest`](#triggerrequest) · [`TriggerAction`](#triggeraction) · [`HttpInvocationConfig`](#httpinvocationconfig) · [`HttpAuthConfig`](#httpauthconfig) · [`HttpMethod`](#httpmethod) · [`Channel`](#channel) · [`ChannelReader`](#channelreader) · [`ChannelWriter`](#channelwriter) · [`ChannelDirection`](#channeldirection) · [`StreamChannelRef`](#streamchannelref) · [`FunctionInfo`](#functioninfo) · [`FunctionRef`](#functionref) · [`TriggerInfo`](#triggerinfo) · [`WorkerInfo`](#workerinfo) · [`WorkerMetadata`](#workermetadata) · [`Trigger`](#trigger) · [`RegisterFunctionMessage`](#registerfunctionmessage) · [`OtelConfig`](#otelconfig) · [`ReconnectionConfig`](#reconnectionconfig)
+[`InitOptions`](#initoptions) · [`IIIError`](#iiierror) · [`IIIConnectionState`](#iiiconnectionstate) · [`TriggerRequest`](#triggerrequest) · [`TriggerAction`](#triggeraction) · [`HttpInvocationConfig`](#httpinvocationconfig) · [`HttpAuthConfig`](#httpauthconfig) · [`HttpMethod`](#httpmethod) · [`Channel`](#channel) · [`ChannelReader`](#channelreader) · [`ChannelWriter`](#channelwriter) · [`ChannelDirection`](#channeldirection) · [`StreamChannelRef`](#streamchannelref) · [`FunctionInfo`](#functioninfo) · [`FunctionRef`](#functionref) · [`TriggerInfo`](#triggerinfo) · [`WorkerInfo`](#workerinfo) · [`WorkerMetadata`](#workermetadata) · [`Trigger`](#trigger) · [`RegisterFunctionMessage`](#registerfunctionmessage) · [`RegisterServiceMessage`](#registerservicemessage) · [`OtelConfig`](#otelconfig) · [`ReconnectionConfig`](#reconnectionconfig)
 
 ### InitOptions
 
@@ -641,6 +560,16 @@ Call [`unregister`](Trigger::unregister) to remove the trigger from the engine.
 | `response_format` | `Option<Value>` | No | - |
 | `metadata` | `Option<Value>` | No | - |
 | `invocation` | Option&lt;[`HttpInvocationConfig`](#httpinvocationconfig)&gt; | No | - |
+| `to_message` | `fn() -> Message` | Yes | - |
+
+### RegisterServiceMessage
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `id` | `String` | Yes | - |
+| `name` | `String` | Yes | - |
+| `description` | `Option<String>` | No | - |
+| `parent_service_id` | `Option<String>` | No | - |
 | `to_message` | `fn() -> Message` | Yes | - |
 
 ### OtelConfig

@@ -10,7 +10,7 @@ use std::time::Duration;
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 
-use iii_sdk::{FunctionInfo, TriggerAction, TriggerRequest};
+use iii_sdk::{FunctionInfo, RegisterFunctionMessage, TriggerAction, TriggerRequest};
 
 #[tokio::test]
 async fn connect_successfully() {
@@ -28,13 +28,23 @@ async fn register_and_invoke_function() {
     let received = Arc::new(Mutex::new(Vec::new()));
     let received_clone = received.clone();
 
-    let fn_ref = iii.register_function("test.bridge.rs.echo", move |input: Value| {
-        let received = received_clone.clone();
-        async move {
-            received.lock().await.push(input.clone());
-            Ok(json!({ "echoed": input }))
-        }
-    });
+    let fn_ref = iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.bridge.rs.echo".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        move |input: Value| {
+            let received = received_clone.clone();
+            async move {
+                received.lock().await.push(input.clone());
+                Ok(json!({ "echoed": input }))
+            }
+        },
+    );
 
     common::settle().await;
 
@@ -63,17 +73,27 @@ async fn invoke_function_fire_and_forget() {
     let (tx, rx) = tokio::sync::oneshot::channel::<()>();
     let tx = Arc::new(Mutex::new(Some(tx)));
 
-    let fn_ref = iii.register_function("test.bridge.rs.receiver", move |input: Value| {
-        let received = received_clone.clone();
-        let tx = tx.clone();
-        async move {
-            received.lock().await.push(input);
-            if let Some(sender) = tx.lock().await.take() {
-                let _ = sender.send(());
+    let fn_ref = iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.bridge.rs.receiver".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        move |input: Value| {
+            let received = received_clone.clone();
+            let tx = tx.clone();
+            async move {
+                received.lock().await.push(input);
+                if let Some(sender) = tx.lock().await.take() {
+                    let _ = sender.send(());
+                }
+                Ok(json!({}))
             }
-            Ok(json!({}))
-        }
-    });
+        },
+    );
 
     common::settle().await;
 
@@ -103,12 +123,28 @@ async fn invoke_function_fire_and_forget() {
 async fn list_registered_functions() {
     let iii = common::shared_iii();
 
-    let fn1 = iii.register_function("test.bridge.rs.list.func1", |_: Value| async move {
-        Ok(json!({}))
-    });
-    let fn2 = iii.register_function("test.bridge.rs.list.func2", |_: Value| async move {
-        Ok(json!({}))
-    });
+    let fn1 = iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.bridge.rs.list.func1".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |_: Value| async move { Ok(json!({})) },
+    );
+    let fn2 = iii.register_function(
+        RegisterFunctionMessage {
+            id: "test.bridge.rs.list.func2".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |_: Value| async move { Ok(json!({})) },
+    );
 
     common::settle().await;
 

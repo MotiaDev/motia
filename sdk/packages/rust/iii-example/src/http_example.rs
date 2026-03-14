@@ -1,13 +1,24 @@
-use iii_sdk::{ApiRequest, ApiResponse, III, IIIError, execute_traced_request, Logger};
+use iii_sdk::{
+    ApiRequest, ApiResponse, III, IIIError, Logger, RegisterFunctionMessage, RegisterTriggerInput,
+    execute_traced_request,
+};
 use serde_json::json;
 
 pub fn setup(iii: &III) {
     let client = reqwest::Client::new();
     
 
-    // GET http-fetch — fetch a todo from JSONPlaceholder (demonstrates OTel fetch instrumentation)
     let get_client = client.clone();
-    iii.register_function("api::get::http::rust::fetch", move |_input| {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "api::get::http::rust::fetch".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        move |_input| {
         let client = get_client.clone();
         let logger = Logger::new();
 
@@ -42,23 +53,32 @@ pub fn setup(iii: &III) {
 
             Ok(serde_json::to_value(api_response)?)
         }
-    });
+    },
+    );
 
-    iii.register_trigger(
-        "http",
-        "api::get::http::rust::fetch",
-        json!({
+    iii.register_trigger(RegisterTriggerInput {
+        trigger_type: "http".to_string(),
+        function_id: "api::get::http::rust::fetch".to_string(),
+        config: json!({
             "api_path": "http-fetch",
             "http_method": "GET",
             "description": "Fetch a todo from JSONPlaceholder (demonstrates OTel fetch instrumentation)",
             "metadata": { "tags": ["http-example"] }
         }),
-    )
+    })
     .expect("failed to register GET http-fetch trigger");
 
-    // POST http-fetch — post to httpbin (demonstrates request body size in OTel spans)
     let post_client = client.clone();
-    iii.register_function("api::post::http::rust::fetch", move |input| {
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "api::post::http::rust::fetch".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        move |input| {
         let client = post_client.clone();
         async move {
             let logger = Logger::new();
@@ -102,17 +122,18 @@ pub fn setup(iii: &III) {
 
             Ok(serde_json::to_value(api_response)?)
         }
-    });
+    },
+    );
 
-    iii.register_trigger(
-        "http",
-        "api::post::http::rust::fetch",
-        json!({
+    iii.register_trigger(RegisterTriggerInput {
+        trigger_type: "http".to_string(),
+        function_id: "api::post::http::rust::fetch".to_string(),
+        config: json!({
             "api_path": "http-fetch",
             "http_method": "POST",
             "description": "POST to httpbin (demonstrates request body size in OTel spans)",
             "metadata": { "tags": ["http-example"] }
         }),
-    )
+    })
     .expect("failed to register POST http-fetch trigger");
 }

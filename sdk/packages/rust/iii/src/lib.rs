@@ -15,15 +15,14 @@ pub use channels::{
 };
 pub use error::IIIError;
 pub use iii::{
-    ConnectionStateCallback, ConnectionStateGuard, FunctionInfo, FunctionRef,
-    FunctionsAvailableGuard, III, IIIConnectionState, IntoFunctionHandler, TriggerInfo, WorkerInfo,
-    WorkerMetadata,
+    FunctionInfo, FunctionRef, FunctionsAvailableGuard, III, IIIConnectionState,
+    IntoFunctionHandler, TriggerInfo, WorkerInfo, WorkerMetadata,
 };
 pub use logger::Logger;
 pub use protocol::{
     EnqueueResult, ErrorBody, FunctionMessage, HttpAuthConfig, HttpInvocationConfig, HttpMethod,
-    Message, RegisterFunctionMessage, RegisterServiceMessage, RegisterTriggerMessage,
-    RegisterTriggerTypeMessage, TriggerAction, TriggerRequest,
+    Message, RegisterFunctionMessage, RegisterServiceMessage, RegisterTriggerInput,
+    RegisterTriggerMessage, RegisterTriggerTypeMessage, TriggerAction, TriggerRequest,
 };
 pub use stream::{Streams, UpdateBuilder};
 pub use triggers::{Trigger, TriggerConfig, TriggerHandler};

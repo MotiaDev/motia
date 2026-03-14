@@ -36,8 +36,8 @@ use crate::{
     error::IIIError,
     protocol::{
         ErrorBody, HttpInvocationConfig, Message, RegisterFunctionMessage, RegisterServiceMessage,
-        RegisterTriggerMessage, RegisterTriggerTypeMessage, TriggerAction, TriggerRequest,
-        UnregisterTriggerMessage, UnregisterTriggerTypeMessage,
+        RegisterTriggerInput, RegisterTriggerMessage, RegisterTriggerTypeMessage, TriggerAction,
+        TriggerRequest, UnregisterTriggerMessage, UnregisterTriggerTypeMessage,
     },
     triggers::{Trigger, TriggerConfig, TriggerHandler},
     types::{Channel, RemoteFunctionData, RemoteFunctionHandler, RemoteTriggerTypeData},
@@ -181,9 +181,6 @@ pub enum IIIConnectionState {
     Failed,
 }
 
-/// Callback function type for connection state change events
-pub type ConnectionStateCallback = Arc<dyn Fn(IIIConnectionState) + Send + Sync>;
-
 /// Callback function type for functions available events
 pub type FunctionsAvailableCallback = Arc<dyn Fn(Vec<FunctionInfo>) + Send + Sync>;
 
@@ -233,8 +230,6 @@ struct IIIInner {
     services: Mutex<HashMap<String, RegisterServiceMessage>>,
     worker_metadata: Mutex<Option<WorkerMetadata>>,
     connection_state: Mutex<IIIConnectionState>,
-    connection_state_callbacks: Mutex<HashMap<usize, ConnectionStateCallback>>,
-    connection_state_callback_counter: AtomicUsize,
     functions_available_callbacks: Mutex<HashMap<usize, FunctionsAvailableCallback>>,
     functions_available_callback_counter: AtomicUsize,
     functions_available_function_id: Mutex<Option<String>>,
@@ -275,22 +270,6 @@ impl Drop for FunctionsAvailableGuard {
     }
 }
 
-/// Guard that unsubscribes from connection state change events when dropped
-pub struct ConnectionStateGuard {
-    iii: III,
-    callback_id: usize,
-}
-
-impl Drop for ConnectionStateGuard {
-    fn drop(&mut self) {
-        self.iii
-            .inner
-            .connection_state_callbacks
-            .lock_or_recover()
-            .remove(&self.callback_id);
-    }
-}
-
 impl III {
     /// Create a new III with default worker metadata (auto-detected runtime, os, hostname)
     pub fn new(address: &str) -> Self {
@@ -313,8 +292,6 @@ impl III {
             services: Mutex::new(HashMap::new()),
             worker_metadata: Mutex::new(Some(metadata)),
             connection_state: Mutex::new(IIIConnectionState::Disconnected),
-            connection_state_callbacks: Mutex::new(HashMap::new()),
-            connection_state_callback_counter: AtomicUsize::new(0),
             functions_available_callbacks: Mutex::new(HashMap::new()),
             functions_available_callback_counter: AtomicUsize::new(0),
             functions_available_function_id: Mutex::new(None),
@@ -453,7 +430,7 @@ impl III {
     /// for HTTP-invoked functions (Lambda, Cloudflare Workers, etc.).
     ///
     /// # Arguments
-    /// * `id` - Unique function identifier.
+    /// * `message` - Function registration message with id and optional metadata.
     /// * `handler` - Async handler or HTTP invocation config.
     ///
     /// # Panics
@@ -461,52 +438,24 @@ impl III {
     ///
     /// # Examples
     /// ```rust,no_run
-    /// use iii_sdk::{register_worker, InitOptions};
+    /// use iii_sdk::{register_worker, InitOptions, RegisterFunctionMessage};
     /// use serde_json::{json, Value};
     /// let iii = register_worker("ws://localhost:49134", InitOptions::default());
-    /// iii.register_function("greet", |input: Value| async move {
-    ///     Ok(json!({"message": format!("Hello, {}!", input["name"])}))
-    /// });
+    /// iii.register_function(
+    ///     RegisterFunctionMessage {
+    ///         id: "greet".to_string(),
+    ///         description: None,
+    ///         request_format: None,
+    ///         response_format: None,
+    ///         metadata: None,
+    ///         invocation: None,
+    ///     },
+    ///     |input: Value| async move {
+    ///         Ok(json!({"message": format!("Hello, {}!", input["name"])}))
+    ///     },
+    /// );
     /// ```
     pub fn register_function<H: IntoFunctionHandler>(
-        &self,
-        id: impl Into<String>,
-        handler: H,
-    ) -> FunctionRef {
-        let id = id.into();
-        let mut message = RegisterFunctionMessage {
-            id: id.clone(),
-            description: None,
-            request_format: None,
-            response_format: None,
-            metadata: None,
-            invocation: None,
-        };
-        let handler = handler.into_parts(&mut message);
-        self.register_function_inner(message, handler)
-    }
-
-    /// Register a function with a human-readable description.
-    pub fn register_function_with_description<H: IntoFunctionHandler>(
-        &self,
-        id: impl Into<String>,
-        description: impl Into<String>,
-        handler: H,
-    ) -> FunctionRef {
-        let mut message = RegisterFunctionMessage {
-            id: id.into(),
-            description: Some(description.into()),
-            request_format: None,
-            response_format: None,
-            metadata: None,
-            invocation: None,
-        };
-        let handler = handler.into_parts(&mut message);
-        self.register_function_inner(message, handler)
-    }
-
-    /// Register a function using a pre-built [`RegisterFunctionMessage`] for full control.
-    pub fn register_function_with<H: IntoFunctionHandler>(
         &self,
         mut message: RegisterFunctionMessage,
         handler: H,
@@ -515,57 +464,11 @@ impl III {
         self.register_function_inner(message, handler)
     }
 
-    pub fn register_service(&self, id: impl Into<String>, description: Option<String>) {
-        let id = id.into();
-        let message = RegisterServiceMessage {
-            id: id.clone(),
-            name: id,
-            description,
-            parent_service_id: None,
-        };
-
-        self.inner
-            .services
-            .lock_or_recover()
-            .insert(message.id.clone(), message.clone());
-        let _ = self.send_message(message.to_message());
-    }
-
-    pub fn register_service_with_name(
-        &self,
-        id: impl Into<String>,
-        name: impl Into<String>,
-        description: Option<String>,
-    ) {
-        let message = RegisterServiceMessage {
-            id: id.into(),
-            name: name.into(),
-            description,
-            parent_service_id: None,
-        };
-
-        self.inner
-            .services
-            .lock_or_recover()
-            .insert(message.id.clone(), message.clone());
-        let _ = self.send_message(message.to_message());
-    }
-
-    pub fn register_service_with_parent(
-        &self,
-        id: impl Into<String>,
-        name: Option<String>,
-        description: Option<String>,
-        parent_service_id: Option<String>,
-    ) {
-        let id = id.into();
-        let message = RegisterServiceMessage {
-            name: name.unwrap_or_else(|| id.clone()),
-            id,
-            description,
-            parent_service_id,
-        };
-
+    /// Register a service with the engine.
+    ///
+    /// # Arguments
+    /// * `message` - Service registration message with id, name, and optional metadata.
+    pub fn register_service(&self, message: RegisterServiceMessage) {
         self.inner
             .services
             .lock_or_recover()
@@ -614,35 +517,32 @@ impl III {
     /// Bind a trigger configuration to a registered function.
     ///
     /// # Arguments
-    /// * `trigger_type` - Trigger type (e.g. `"http"`, `"cron"`).
-    /// * `function_id` - ID of the function to invoke.
-    /// * `config` - Trigger-specific configuration (serializable).
+    /// * `input` - Trigger registration input with trigger_type, function_id, and config.
     ///
     /// # Examples
     /// ```rust
-    /// # use iii_sdk::III;
+    /// # use iii_sdk::{III, RegisterTriggerInput};
     /// # use serde_json::json;
     /// # let iii = III::new("ws://localhost:49134");
-    /// let trigger = iii.register_trigger("http", "greet", json!({
-    ///     "api_path": "/greet", "http_method": "GET"
-    /// }))?;
+    /// let trigger = iii.register_trigger(RegisterTriggerInput {
+    ///     trigger_type: "http".to_string(),
+    ///     function_id: "greet".to_string(),
+    ///     config: json!({ "api_path": "/greet", "http_method": "GET" }),
+    /// })?;
     /// // Later...
     /// trigger.unregister();
     /// # Ok::<(), iii_sdk::IIIError>(())
     /// ```
     pub fn register_trigger(
         &self,
-        trigger_type: impl Into<String>,
-        function_id: impl Into<String>,
-        config: impl serde::Serialize,
+        input: RegisterTriggerInput,
     ) -> Result<Trigger, IIIError> {
         let id = Uuid::new_v4().to_string();
-        let config = serde_json::to_value(config)?;
         let message = RegisterTriggerMessage {
             id: id.clone(),
-            trigger_type: trigger_type.into(),
-            function_id: function_id.into(),
-            config,
+            trigger_type: input.trigger_type,
+            function_id: input.function_id,
+            config: input.config,
         };
 
         self.inner
@@ -759,47 +659,12 @@ impl III {
         *self.inner.connection_state.lock_or_recover()
     }
 
-    /// Register a callback to be notified of connection state changes.
-    /// The callback is immediately invoked with the current state.
-    /// Returns a guard that unsubscribes when dropped.
-    pub fn on_connection_state_change<F>(&self, callback: F) -> ConnectionStateGuard
-    where
-        F: Fn(IIIConnectionState) + Send + Sync + 'static,
-    {
-        let callback = Arc::new(callback);
-        let callback_id = self
-            .inner
-            .connection_state_callback_counter
-            .fetch_add(1, Ordering::Relaxed);
-
-        let current_state = {
-            let mut cbs = self.inner.connection_state_callbacks.lock_or_recover();
-            cbs.insert(callback_id, callback.clone());
-            *self.inner.connection_state.lock_or_recover()
-        };
-
-        callback(current_state);
-
-        ConnectionStateGuard {
-            iii: self.clone(),
-            callback_id,
-        }
-    }
-
     fn set_connection_state(&self, state: IIIConnectionState) {
-        let snapshot: Vec<Arc<dyn Fn(IIIConnectionState) + Send + Sync>> = {
-            let mut current = self.inner.connection_state.lock_or_recover();
-            if *current == state {
-                return;
-            }
-            *current = state;
-            let cbs = self.inner.connection_state_callbacks.lock_or_recover();
-            cbs.values().cloned().collect()
-        };
-
-        for callback in &snapshot {
-            callback(state);
+        let mut current = self.inner.connection_state.lock_or_recover();
+        if *current == state {
+            return;
         }
+        *current = state;
     }
 
     /// List all registered functions from the engine
@@ -861,32 +726,41 @@ impl III {
                 .contains_key(&function_id);
             if !function_exists {
                 let iii = self.clone();
-                self.register_function(function_id.clone(), move |input: Value| {
-                    let iii = iii.clone();
-                    async move {
-                        // Extract functions from trigger payload
-                        let functions = input
-                            .get("functions")
-                            .and_then(|v| {
-                                serde_json::from_value::<Vec<FunctionInfo>>(v.clone()).ok()
-                            })
-                            .unwrap_or_default();
+                self.register_function(
+                    RegisterFunctionMessage {
+                        id: function_id.clone(),
+                        description: None,
+                        request_format: None,
+                        response_format: None,
+                        metadata: None,
+                        invocation: None,
+                    },
+                    move |input: Value| {
+                        let iii = iii.clone();
+                        async move {
+                            let functions = input
+                                .get("functions")
+                                .and_then(|v| {
+                                    serde_json::from_value::<Vec<FunctionInfo>>(v.clone()).ok()
+                                })
+                                .unwrap_or_default();
 
-                        let callbacks = iii.inner.functions_available_callbacks.lock_or_recover();
-                        for cb in callbacks.values() {
-                            cb(functions.clone());
+                            let callbacks =
+                                iii.inner.functions_available_callbacks.lock_or_recover();
+                            for cb in callbacks.values() {
+                                cb(functions.clone());
+                            }
+                            Ok(Value::Null)
                         }
-                        Ok(Value::Null)
-                    }
-                });
+                    },
+                );
             }
 
-            // Register trigger
-            match self.register_trigger(
-                "engine::functions-available",
+            match self.register_trigger(RegisterTriggerInput {
+                trigger_type: "engine::functions-available".to_string(),
                 function_id,
-                serde_json::json!({}),
-            ) {
+                config: serde_json::json!({}),
+            }) {
                 Ok(trigger) => {
                     *trigger_guard = Some(trigger);
                 }
@@ -1494,13 +1368,21 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::{InitOptions, protocol::{HttpInvocationConfig, HttpMethod}, register_worker};
+    use crate::{
+        InitOptions,
+        protocol::{HttpInvocationConfig, HttpMethod, RegisterTriggerInput},
+        register_worker,
+    };
 
     #[tokio::test]
     async fn register_trigger_unregister_removes_entry() {
         let iii = register_worker("ws://localhost:1234", InitOptions::default());
         let trigger = iii
-            .register_trigger("demo", "functions.echo", json!({ "foo": "bar" }))
+            .register_trigger(RegisterTriggerInput {
+                trigger_type: "demo".to_string(),
+                function_id: "functions.echo".to_string(),
+                config: json!({ "foo": "bar" }),
+            })
             .unwrap();
 
         assert_eq!(iii.inner.triggers.lock().unwrap().len(), 1);
@@ -1521,7 +1403,17 @@ mod tests {
             auth: None,
         };
 
-        let func_ref = iii.register_function("external::my_lambda", config);
+        let func_ref = iii.register_function(
+            RegisterFunctionMessage {
+                id: "external::my_lambda".to_string(),
+                description: None,
+                request_format: None,
+                response_format: None,
+                metadata: None,
+                invocation: None,
+            },
+            config,
+        );
 
         assert_eq!(func_ref.id, "external::my_lambda");
         assert_eq!(iii.inner.functions.lock().unwrap().len(), 1);
@@ -1543,7 +1435,17 @@ mod tests {
             auth: None,
         };
 
-        iii.register_function("", config);
+        iii.register_function(
+            RegisterFunctionMessage {
+                id: "".to_string(),
+                description: None,
+                request_format: None,
+                response_format: None,
+                metadata: None,
+                invocation: None,
+            },
+            config,
+        );
     }
 
     #[tokio::test]

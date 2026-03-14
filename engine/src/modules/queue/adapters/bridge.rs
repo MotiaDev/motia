@@ -7,7 +7,10 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use iii_sdk::{III, IIIError, InitOptions, Trigger, TriggerAction, TriggerRequest, register_worker};
+use iii_sdk::{
+    III, IIIError, InitOptions, RegisterFunctionMessage, RegisterTriggerInput, Trigger,
+    TriggerAction, TriggerRequest, register_worker,
+};
 use serde_json::Value;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -138,7 +141,7 @@ impl QueueAdapter for BridgeAdapter {
             .trigger(TriggerRequest {
                 function_id: Self::ENQUEUE_FUNCTION_ID.to_string(),
                 payload: input,
-                action: Some(iii_sdk::TriggerAction::void()),
+                action: Some(TriggerAction::Void),
                 timeout_ms: None,
             })
             .await
@@ -176,8 +179,16 @@ impl QueueAdapter for BridgeAdapter {
         let function_id_owned = function_id.to_string();
         let condition_function_id_owned = condition_function_id.clone();
         let topic_owned = topic.to_string();
-        self.bridge
-            .register_function(handler_path.clone(), move |data: Value| {
+        self.bridge.register_function(
+            RegisterFunctionMessage {
+                id: handler_path.clone(),
+                description: None,
+                request_format: None,
+                response_format: None,
+                metadata: None,
+                invocation: None,
+            },
+            move |data: Value| {
                 let engine = Arc::clone(&engine);
                 let function_id = function_id_owned.clone();
                 let condition_function_id = condition_function_id_owned.clone();
@@ -251,13 +262,14 @@ impl QueueAdapter for BridgeAdapter {
                     .instrument(span)
                     .await
                 }
-            });
+            },
+        );
 
-        let trigger = match self.bridge.register_trigger(
-            "queue",
-            handler_path.clone(),
-            serde_json::json!({ "topic": topic }),
-        ) {
+        let trigger = match self.bridge.register_trigger(RegisterTriggerInput {
+            trigger_type: "queue".to_string(),
+            function_id: handler_path.clone(),
+            config: serde_json::json!({ "topic": topic }),
+        }) {
             Ok(t) => t,
             Err(e) => {
                 tracing::error!(
@@ -318,7 +330,7 @@ impl QueueAdapter for BridgeAdapter {
             .trigger(TriggerRequest {
                 function_id: function_id.to_string(),
                 payload: data,
-                action: Some(TriggerAction::enqueue(queue_name)),
+                action: Some(TriggerAction::Enqueue { queue: queue_name.to_string() }),
                 timeout_ms: None,
             })
             .await

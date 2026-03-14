@@ -11,7 +11,9 @@ use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
-use iii_sdk::{HttpInvocationConfig, HttpMethod, TriggerRequest};
+use iii_sdk::{
+    HttpInvocationConfig, HttpMethod, RegisterFunctionMessage, RegisterTriggerInput, TriggerRequest,
+};
 
 fn unique_function_id(prefix: &str) -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -136,7 +138,14 @@ async fn delivers_queue_events_to_external_http_function() {
     let payload = json!({"hello": "world", "count": 1});
 
     let http_fn = iii.register_function(
-        &function_id,
+        RegisterFunctionMessage {
+            id: function_id.clone(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
         HttpInvocationConfig {
             url: probe.url(),
             method: HttpMethod::Post,
@@ -148,7 +157,11 @@ async fn delivers_queue_events_to_external_http_function() {
     common::settle().await;
 
     let _trigger = iii
-        .register_trigger("queue", &function_id, json!({"topic": topic}))
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "queue".to_string(),
+            function_id: function_id.clone(),
+            config: json!({"topic": topic}),
+        })
         .expect("register trigger");
     common::settle().await;
 
@@ -183,7 +196,14 @@ async fn registers_and_unregisters_external_http_function() {
     let function_id = unique_function_id("test::http_external::reg_unreg::rs");
 
     let http_fn = iii.register_function(
-        &function_id,
+        RegisterFunctionMessage {
+            id: function_id.clone(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
         HttpInvocationConfig {
             url: probe.url(),
             method: HttpMethod::Post,
@@ -224,7 +244,14 @@ async fn delivers_events_with_custom_headers() {
     custom_headers.insert("x-another".to_string(), "123".to_string());
 
     let http_fn = iii.register_function(
-        &function_id,
+        RegisterFunctionMessage {
+            id: function_id.clone(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
         HttpInvocationConfig {
             url: probe.url(),
             method: HttpMethod::Post,
@@ -236,7 +263,11 @@ async fn delivers_events_with_custom_headers() {
     common::settle().await;
 
     let _trigger = iii
-        .register_trigger("queue", &function_id, json!({"topic": topic}))
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "queue".to_string(),
+            function_id: function_id.clone(),
+            config: json!({"topic": topic}),
+        })
         .expect("register trigger");
     common::settle().await;
 
@@ -282,7 +313,14 @@ async fn delivers_events_to_multiple_external_functions() {
     let payload_b = json!({"source": "topic-b", "value": 2});
 
     let http_fn_a = iii.register_function(
-        &function_id_a,
+        RegisterFunctionMessage {
+            id: function_id_a.clone(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
         HttpInvocationConfig {
             url: probe_a.url(),
             method: HttpMethod::Post,
@@ -292,7 +330,14 @@ async fn delivers_events_to_multiple_external_functions() {
         },
     );
     let http_fn_b = iii.register_function(
-        &function_id_b,
+        RegisterFunctionMessage {
+            id: function_id_b.clone(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
         HttpInvocationConfig {
             url: probe_b.url(),
             method: HttpMethod::Post,
@@ -304,10 +349,18 @@ async fn delivers_events_to_multiple_external_functions() {
     common::settle().await;
 
     let _trigger_a = iii
-        .register_trigger("queue", &function_id_a, json!({"topic": topic_a}))
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "queue".to_string(),
+            function_id: function_id_a.clone(),
+            config: json!({"topic": topic_a}),
+        })
         .expect("register trigger a");
     let _trigger_b = iii
-        .register_trigger("queue", &function_id_b, json!({"topic": topic_b}))
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "queue".to_string(),
+            function_id: function_id_b.clone(),
+            config: json!({"topic": topic_b}),
+        })
         .expect("register trigger b");
     common::settle().await;
 
@@ -357,7 +410,14 @@ async fn stops_delivering_events_after_unregister() {
     let payload_after = json!({"phase": "after-unregister"});
 
     let http_fn = iii.register_function(
-        &function_id,
+        RegisterFunctionMessage {
+            id: function_id.clone(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
         HttpInvocationConfig {
             url: probe.url(),
             method: HttpMethod::Post,
@@ -369,7 +429,11 @@ async fn stops_delivering_events_after_unregister() {
     common::settle().await;
 
     let trigger = iii
-        .register_trigger("queue", &function_id, json!({"topic": topic}))
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "queue".to_string(),
+            function_id: function_id.clone(),
+            config: json!({"topic": topic}),
+        })
         .expect("register trigger");
     common::settle().await;
 
@@ -424,7 +488,14 @@ async fn delivers_events_using_put_method() {
     let payload = json!({"method_test": "put", "value": 42});
 
     let http_fn = iii.register_function(
-        &function_id,
+        RegisterFunctionMessage {
+            id: function_id.clone(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
         HttpInvocationConfig {
             url: probe.url(),
             method: HttpMethod::Put,
@@ -436,7 +507,11 @@ async fn delivers_events_using_put_method() {
     common::settle().await;
 
     let _trigger = iii
-        .register_trigger("queue", &function_id, json!({"topic": topic}))
+        .register_trigger(RegisterTriggerInput {
+            trigger_type: "queue".to_string(),
+            function_id: function_id.clone(),
+            config: json!({"topic": topic}),
+        })
         .expect("register trigger");
     common::settle().await;
 
