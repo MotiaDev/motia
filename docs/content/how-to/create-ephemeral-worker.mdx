@@ -68,32 +68,40 @@ iii.register_function({"id": "reports::generate"}, generate_report)
 </Tab>
 <Tab value="Rust">
 ```rust title="worker.rs"
-use iii_sdk::{get_context, register_worker, InitOptions, TriggerRequest};
+use iii_sdk::{Logger, RegisterFunctionMessage, TriggerRequest, register_worker, InitOptions};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = register_worker(&url, InitOptions::default())?;
+    let iii = register_worker(&url, InitOptions::default());
 
-    iii.register_function("reports::generate", move |req| {
-        async move {
-            let ctx = get_context();
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "reports::generate".into(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |req| async move {
+            let logger = Logger::new();
             let report_id = req["body"]["reportId"].as_str().unwrap_or("unknown");
-            
-            ctx.logger.info("Generating heavy report...", Some(json!({ "reportId": report_id })));
-            
+
+            logger.info("Generating heavy report...", Some(json!({ "reportId": report_id })));
+
             // ... perform resource-intensive work here ...
             tokio::time::sleep(std::time::Duration::from_secs(5)).await; // example 5 second delay
-            
-            ctx.logger.info("Report generated", Some(json!({ "reportId": report_id })));
-            
+
+            logger.info("Report generated", Some(json!({ "reportId": report_id })));
+
             Ok(json!({
                 "status_code": 200,
                 "body": { "success": true, "reportId": report_id }
             }))
-        }
-    });
+        },
+    );
 ```
 </Tab>
 </Tabs>
@@ -146,21 +154,23 @@ iii.shutdown()
 <Tab value="Rust">
 ```rust title="worker.rs"
     println!("Worker ready, triggering task...");
-    
+
     // Trigger the task and await its completion
     let result = iii
-        .trigger(TriggerRequest::new(
-            "reports::generate",
-            json!({ "body": { "reportId": "123" } }),
-        ))
+        .trigger(TriggerRequest {
+            function_id: "reports::generate".into(),
+            payload: json!({ "body": { "reportId": "123" } }),
+            action: None,
+            timeout_ms: None,
+        })
         .await?;
     println!("Task completed: {}", result);
-    
+
     println!("Task completed. Shutting down worker...");
-    
+
     // Cleanly close the WebSocket connection
-    iii.shutdown_async().await;
-    
+    iii.shutdown();
+
     Ok(())
 }
 ```

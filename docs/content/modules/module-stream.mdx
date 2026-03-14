@@ -348,7 +348,7 @@ iii.register_function({'id': 'onAuth'}, on_auth)
 ```rust
 iii.register_function("onAuth", |_input| async move {
     Ok(json!({ "context": { "name": "John Doe" } }))
-})?;
+});
 ```
 </Tab>
 </Tabs>
@@ -436,7 +436,7 @@ iii.register_trigger({'type': 'stream:join', 'function_id': 'onJoin', 'config': 
 iii.register_function("onJoin", |input| async move {
     println!("Joined stream: {:?}", input);
     Ok(json!({}))
-})?;
+});
 
 iii.register_trigger("stream:join", "onJoin", json!({}))?;
 ```
@@ -450,9 +450,9 @@ Streams organize data by `stream_name`, `group_id`, and `item_id`. Use for live 
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-import { TriggerAction } from 'iii-sdk'
+import { registerWorker, TriggerAction } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = registerWorker('ws://localhost:49134')
 
 iii.trigger({
   function_id: 'stream::set',
@@ -540,11 +540,10 @@ iii.trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{III, TriggerRequest, TriggerAction};
+use iii_sdk::{register_worker, InitOptions, TriggerRequest, TriggerAction};
 use serde_json::json;
 
-let iii = III::new("ws://localhost:49134");
-iii.connect().await?;
+let iii = register_worker("ws://localhost:49134", InitOptions::default());
 
 iii.trigger(TriggerRequest::new("stream::set", json!({
     "stream_name": "presence",
@@ -630,7 +629,7 @@ iii.register_function("stream::auth", |input| async move {
         Some(_) => Ok(json!({ "context": { "userId": "user-from-token" } })),
         None => Ok(json!({ "context": null })),
     }
-})?;
+});
 ```
 </Tab>
 </Tabs>
@@ -677,7 +676,7 @@ iii.register_function("onJoin", |input| async move {
         println!("User {} joined {}/{}/{}", user_id, stream, group, item);
     }
     Ok(json!({}))
-})?;
+});
 
 iii.register_trigger("stream:join", "onJoin", json!({}))?;
 ```
@@ -733,14 +732,14 @@ iii.register_function("conditions::requireContext", |input| async move {
         .and_then(|c| c.get("userId"))
         .is_some();
     Ok(json!(has_user))
-})?;
+});
 
 iii.register_function("onJoin", |input| async move {
     let user_id = input.get("context").and_then(|c| c.get("userId")).and_then(|u| u.as_str()).unwrap_or("");
     let stream = input["stream_name"].as_str().unwrap_or("");
     println!("User joined: {} {}", user_id, stream);
     Ok(json!({}))
-})?;
+});
 
 iii.register_trigger("stream:join", "onJoin", json!({
     "condition_function_id": "conditions::requireContext"

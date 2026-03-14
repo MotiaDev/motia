@@ -75,7 +75,7 @@ iii.register_function({"id": "users::create"}, create_user)
 </Tab>
 <Tab value="Rust">
 ```rust title="http_endpoint.rs"
-use iii_sdk::{register_worker, InitOptions, Logger};
+use iii_sdk::{register_worker, InitOptions, RegisterFunctionMessage, Logger};
 use serde_json::json;
 use tokio::signal;
 
@@ -84,17 +84,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
     let iii = register_worker(&url, InitOptions::default())?;
 
-    iii.register_function("users::create", |req| async move {
-        let logger = Logger();
-        let name = req["body"]["name"].as_str().unwrap_or("");
-        let email = req["body"]["email"].as_str().unwrap_or("");
-        let user_id = uuid::Uuid::new_v4().to_string();
-        logger.info("User created", Some(json!({ "userId": user_id })));
-        Ok(json!({
-            "status_code": 201,
-            "body": { "id": user_id, "name": name, "email": email }
-        }))
-    });
+    iii.register_function(
+        RegisterFunctionMessage { id: "users::create".into(), ..Default::default() },
+        |req| async move {
+            let logger = Logger::new(Some("users::create".to_string()));
+            let name = req["body"]["name"].as_str().unwrap_or("");
+            let email = req["body"]["email"].as_str().unwrap_or("");
+            let user_id = uuid::Uuid::new_v4().to_string();
+            logger.info("User created", Some(json!({ "userId": user_id })));
+            Ok(json!({
+                "status_code": 201,
+                "body": { "id": user_id, "name": name, "email": email }
+            }))
+        },
+    );
 
     println!("HTTP endpoint ready on POST /users");
     signal::ctrl_c().await?;
@@ -128,11 +131,11 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust title="http_trigger.rs"
-iii.register_trigger(
-    "http",
-    "users::create",
-    json!({ "api_path": "/users", "http_method": "POST" }),
-)?;
+iii.register_trigger(RegisterTriggerInput {
+    trigger_type: "http".into(),
+    function_id: "users::create".into(),
+    config: json!({ "api_path": "/users", "http_method": "POST" }),
+})?;
 ```
 </Tab>
 </Tabs>

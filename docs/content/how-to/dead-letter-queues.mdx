@@ -54,21 +54,34 @@ iii.register_function(
 </Tab>
 <Tab value="Rust">
 ```rust title="payment_processor.rs"
-use iii_sdk::{register_worker, InitOptions, HttpInvocationConfig, HttpMethod};
+use iii_sdk::{
+    register_worker, InitOptions, RegisterFunctionMessage,
+    HttpInvocationConfig, HttpMethod,
+};
 use std::collections::HashMap;
 
 let iii = register_worker(
     &std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string()),
     InitOptions::default(),
-)?;
+);
 
-iii.register_function("payments::charge", HttpInvocationConfig {
-    url: "https://api.payments.example.com/charge".to_string(),
-    method: HttpMethod::Post,
-    timeout_ms: Some(5000),
-    headers: HashMap::new(),
-    auth: None,
-});
+iii.register_function(
+    RegisterFunctionMessage {
+        id: "payments::charge".into(),
+        description: None,
+        request_format: None,
+        response_format: None,
+        metadata: None,
+        invocation: None,
+    },
+    HttpInvocationConfig {
+        url: "https://api.payments.example.com/charge".to_string(),
+        method: HttpMethod::Post,
+        timeout_ms: Some(5000),
+        headers: HashMap::new(),
+        auth: None,
+    },
+);
 ```
 </Tab>
 </Tabs>
@@ -122,13 +135,17 @@ iii.trigger({
 use iii_sdk::{TriggerAction, TriggerRequest};
 use serde_json::json;
 
-iii.trigger(
-    TriggerRequest::new("payments::charge", json!({
+iii.trigger(TriggerRequest {
+    function_id: "payments::charge".into(),
+    payload: json!({
         "orderId": order["id"],
         "amount": order["total"],
-    }))
-    .action(TriggerAction::enqueue("payment")),
-)
+    }),
+    action: Some(TriggerAction::Enqueue {
+        queue: "payment".into(),
+    }),
+    timeout_ms: None,
+})
 .await?;
 ```
 </Tab>

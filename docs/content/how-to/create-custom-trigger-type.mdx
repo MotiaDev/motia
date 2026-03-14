@@ -55,8 +55,7 @@ import os
 
 from aiohttp import web
 
-from iii import register_worker
-from iii.triggers import TriggerConfig, TriggerHandler
+from iii import register_worker, TriggerConfig, TriggerHandler
 
 iii_client = register_worker(os.environ.get("III_URL", "ws://localhost:49134"))
 
@@ -158,7 +157,7 @@ use tokio::sync::Mutex;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = register_worker(&url, InitOptions::default())?;
+    let iii = register_worker(&url, InitOptions::default());
 
     let handler = WebhookHandler {
         routes: Arc::new(Mutex::new(HashMap::new())),
@@ -201,8 +200,7 @@ iii.registerTrigger({
 ```python title="github_webhook.py"
 import os
 
-from iii import register_worker
-from iii.logger import Logger
+from iii import register_worker, Logger
 
 iii = register_worker(os.environ.get("III_URL", "ws://localhost:49134"))
 
@@ -224,26 +222,36 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust title="github_webhook.rs"
-use iii_sdk::{get_context, register_worker, InitOptions};
+use iii_sdk::{register_worker, InitOptions, Logger, RegisterFunctionMessage, RegisterTriggerInput};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = register_worker(&url, InitOptions::default())?;
+    let iii = register_worker(&url, InitOptions::default());
 
-    iii.register_function("github::push", |payload| async move {
-        let ctx = get_context();
-        let repo = payload["repository"]["full_name"].as_str().unwrap_or("unknown");
-        ctx.logger.info("Push event received", Some(json!({ "repo": repo })));
-        Ok(json!({ "ok": true }))
-    });
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "github::push".into(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |payload| async move {
+            let logger = Logger::new();
+            let repo = payload["repository"]["full_name"].as_str().unwrap_or("unknown");
+            logger.info("Push event received", Some(json!({ "repo": repo })));
+            Ok(json!({ "ok": true }))
+        },
+    );
 
-    iii.register_trigger(
-        "webhook",
-        "github::push",
-        json!({ "path": "/hooks/github" }),
-    )?;
+    iii.register_trigger(RegisterTriggerInput {
+        trigger_type: "webhook".into(),
+        function_id: "github::push".into(),
+        config: json!({ "path": "/hooks/github" }),
+    })?;
 
     tokio::signal::ctrl_c().await?;
     Ok(())

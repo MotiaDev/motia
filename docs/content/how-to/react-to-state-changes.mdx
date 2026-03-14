@@ -62,21 +62,31 @@ iii.register_function({"id": "orders::on-status-change"}, on_status_change)
 </Tab>
 <Tab value="Rust">
 ```rust title="state_watcher.rs"
-use iii_sdk::{register_worker, InitOptions, Logger};
+use iii_sdk::{register_worker, InitOptions, Logger, RegisterFunctionMessage};
 use serde_json::json;
 use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = register_worker(&url, InitOptions::default())?;
+    let iii = register_worker(&url, InitOptions::default());
 
-    iii.register_function("orders::on-status-change", |event| async move {
-        let logger = Logger();
-        logger.info("Order status changed", Some(json!({ "key": event["key"], "new_value": event["new_value"] })));
-        // ...react to the change here...
-        Ok(json!({ "handled": true }))
-    });
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "orders::on-status-change".into(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |event| async move {
+            let logger = Logger::new();
+            logger.info("Order status changed", Some(json!({ "key": event["key"], "new_value": event["new_value"] })));
+            // ...react to the change here...
+            Ok(json!({ "handled": true }))
+        },
+    );
 
     println!("Watching orders/status for changes");
     signal::ctrl_c().await?;
@@ -131,21 +141,26 @@ iii.trigger({
 </Tab>
 <Tab value="Rust">
 ```rust title="state_trigger.rs"
-use iii_sdk::TriggerRequest;
+use iii_sdk::{RegisterTriggerInput, TriggerRequest};
 use serde_json::json;
 
-iii.register_trigger(
-    "state",
-    "orders::on-status-change",
-    json!({ "scope": "orders", "key": "status" }),
-).await?;
+iii.register_trigger(RegisterTriggerInput {
+    trigger_type: "state".into(),
+    function_id: "orders::on-status-change".into(),
+    config: json!({ "scope": "orders", "key": "status" }),
+})?;
 
 // Then run iii.trigger() from another function or worker to trigger the state change
-iii.trigger(TriggerRequest::new("state::set", json!({
-    "scope": "orders",
-    "key": "status",
-    "value": { "orderId": "order-123", "status": "shipped" },
-}))).await?;
+iii.trigger(TriggerRequest {
+    function_id: "state::set".into(),
+    payload: json!({
+        "scope": "orders",
+        "key": "status",
+        "value": { "orderId": "order-123", "status": "shipped" },
+    }),
+    action: None,
+    timeout_ms: None,
+}).await?;
 ```
 </Tab>
 </Tabs>

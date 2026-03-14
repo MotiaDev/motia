@@ -66,28 +66,48 @@ iii.register_function({"id": "orders::process-high-value"}, process_high_value)
 </Tab>
 <Tab value="Rust">
 ```rust title="conditions_functions.rs"
-use iii_sdk::{register_worker, InitOptions};
+use iii_sdk::{register_worker, InitOptions, RegisterFunctionMessage};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = register_worker(&url, InitOptions::default())?;
+    let iii = register_worker(&url, InitOptions::default());
 
     // condition
-    iii.register_function("conditions::is-high-value", |input| async move {
-        let amount = input["new_value"]["amount"].as_f64().unwrap_or(0.0);
-        Ok(json!(amount >= 1000.0))
-    });
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "conditions::is-high-value".into(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |input| async move {
+            let amount = input["new_value"]["amount"].as_f64().unwrap_or(0.0);
+            Ok(json!(amount >= 1000.0))
+        },
+    );
 
     // handler
-    iii.register_function("orders::process-high-value", |input| async move {
-        let amount = input["new_value"]["amount"].as_f64().unwrap_or(0.0);
-        Ok(json!({
-            "status_code": 200,
-            "body": { "processed": true, "amount": amount }
-        }))
-    });
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "orders::process-high-value".into(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        |input| async move {
+            let amount = input["new_value"]["amount"].as_f64().unwrap_or(0.0);
+            Ok(json!({
+                "status_code": 200,
+                "body": { "processed": true, "amount": amount }
+            }))
+        },
+    );
 
     Ok(())
 }
@@ -130,11 +150,15 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust title="state_trigger_with_condition.rs"
-iii.register_trigger("state", "orders::process-high-value", json!({
-    "scope": "orders",
-    "key": "status",
-    "condition_function_id": "conditions::is-high-value"
-}))?;
+iii.register_trigger(RegisterTriggerInput {
+    trigger_type: "state".into(),
+    function_id: "orders::process-high-value".into(),
+    config: json!({
+        "scope": "orders",
+        "key": "status",
+        "condition_function_id": "conditions::is-high-value"
+    }),
+})?;
 ```
 </Tab>
 </Tabs>

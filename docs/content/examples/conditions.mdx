@@ -25,9 +25,9 @@ The condition function receives the full API request. If it returns `false`, the
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger, TriggerAction} from 'iii-sdk'
+import { registerWorker, Logger, TriggerAction } from 'iii-sdk'
 
-const iii = init(process.env.III_URL ?? 'ws://localhost:49134')
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 
 iii.registerFunction(
   { id: 'conditions::is_premium' },
@@ -92,13 +92,12 @@ iii.register_trigger({
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger, TriggerRequest, TriggerAction};
+use iii_sdk::{register_worker, InitOptions, Logger, TriggerRequest, TriggerAction};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
+    let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default());
 
     iii.register_function("conditions::is_premium", |input| async move {
         let amount = input["body"]["amount"].as_f64().unwrap_or(0.0);
@@ -146,7 +145,7 @@ iii.registerFunction(
     const logger = new Logger()
     logger.info('Processing high-value order', { amount: data.amount })
 
-    iii.trigger({
+    await iii.trigger({
       function_id: 'enqueue',
       payload: { topic: 'order.processed', data: { ...data, processedAt: new Date().toISOString() } },
       action: TriggerAction.Void(),

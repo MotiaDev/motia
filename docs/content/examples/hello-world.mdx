@@ -22,9 +22,9 @@ Every iii worker starts by initialising the SDK and connecting to the engine.
 
 ```typescript
 // worker.ts
-import {Logger} from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
+const iii = await registerWorker(process.env.III_URL ?? 'ws://localhost:49134')
 ```
 
   </Tab>
@@ -45,13 +45,12 @@ iii = register_worker(
 
 ```rust
 // main.rs
-use iii_sdk::{III, Logger};
+use iii_sdk::{register_worker, InitOptions, Logger};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let iii = III::new("ws://127.0.0.1:49134");
-    iii.connect().await?;
+    let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default());
     // ... register functions
     loop { tokio::time::sleep(std::time::Duration::from_secs(60)).await; }
 }
@@ -68,7 +67,7 @@ Registers a function and binds it to an HTTP trigger. Returns immediately after 
   <Tab value="Node / TypeScript">
 
 ```typescript
-iii.registerFunction(
+await iii.registerFunction(
   { id: 'hello::api', description: 'Receives hello request' },
   async (req: ApiRequest) => {
     const logger = new Logger()
@@ -77,7 +76,7 @@ iii.registerFunction(
 
     logger.info('Hello API called', { appName, requestId })
 
-    iii.trigger({
+    await iii.trigger({
       function_id: 'greet::process',
       payload: {
         requestId,
@@ -99,7 +98,7 @@ iii.registerFunction(
   },
 )
 
-iii.registerTrigger({
+await iii.registerTrigger({
   type: 'http',
   function_id: 'hello::api',
   config: { api_path: 'hello', http_method: 'GET' },
@@ -158,7 +157,7 @@ iii.register_trigger({
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger, TriggerAction, TriggerRequest, types::ApiRequest};
+use iii_sdk::{Logger, TriggerAction, TriggerRequest, types::ApiRequest};
 
 iii.register_function("hello::api", |input| async move {
     let logger = Logger();
@@ -208,7 +207,7 @@ Consumes the event, builds the greeting, and persists it to state.
   <Tab value="Node / TypeScript">
 
 ```typescript
-iii.registerFunction(
+await iii.registerFunction(
   { id: 'greet::process', description: 'Processes greeting in background' },
   async (data) => {
     const logger = new Logger()
@@ -223,7 +222,7 @@ iii.registerFunction(
 
     const greeting = `${greetingPrefix} ${appName}!`
 
-    iii.trigger({
+    await iii.trigger({
       function_id: 'state::set',
       payload: {
         scope: 'greetings',
@@ -355,8 +354,7 @@ def main() -> None:
   <Tab value="Rust">
 
 ```rust
-// Already in the main() above — connect then event loop
-iii.connect().await?;
+// Already in the main() above — register_worker auto-connects
 loop {
     tokio::time::sleep(std::time::Duration::from_secs(60)).await;
 }

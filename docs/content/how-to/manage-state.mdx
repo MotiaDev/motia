@@ -89,34 +89,49 @@ print("Created user:", result["userId"])
 </Tab>
 <Tab value="Rust">
 ```rust title="state_writer.rs"
-use iii_sdk::{register_worker, InitOptions, Logger, TriggerRequest};
+use iii_sdk::{register_worker, InitOptions, Logger, RegisterFunctionMessage, TriggerRequest};
 use serde_json::json;
 use tokio::signal;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = std::env::var("III_URL").unwrap_or_else(|_| "ws://127.0.0.1:49134".to_string());
-    let iii = register_worker(&url, InitOptions::default())?;
+    let iii = register_worker(&url, InitOptions::default());
 
     let iii_clone = iii.clone();
-    iii.register_function("users::create", move |input| {
-        let iii = iii_clone.clone();
-        async move {
-            let logger = Logger();
-            let user_id = uuid::Uuid::new_v4().to_string();
-            let name = input["name"].as_str().unwrap_or("");
-            let email = input["email"].as_str().unwrap_or("");
+    iii.register_function(
+        RegisterFunctionMessage {
+            id: "users::create".to_string(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+            invocation: None,
+        },
+        move |input| {
+            let iii = iii_clone.clone();
+            async move {
+                let logger = Logger::new();
+                let user_id = uuid::Uuid::new_v4().to_string();
+                let name = input["name"].as_str().unwrap_or("");
+                let email = input["email"].as_str().unwrap_or("");
 
-            iii.trigger(TriggerRequest::new("state::set", json!({
-                "scope": "users",
-                "key": user_id,
-                "value": { "id": user_id, "name": name, "email": email },
-            }))).await?;
+                iii.trigger(TriggerRequest {
+                    function_id: "state::set".into(),
+                    payload: json!({
+                        "scope": "users",
+                        "key": user_id,
+                        "value": { "id": user_id, "name": name, "email": email },
+                    }),
+                    action: None,
+                    timeout_ms: None,
+                }).await?;
 
-            logger.info("User saved to state", Some(json!({ "userId": user_id })));
-            Ok(json!({ "userId": user_id }))
-        }
-    });
+                logger.info("User saved to state", Some(json!({ "userId": user_id })));
+                Ok(json!({ "userId": user_id }))
+            }
+        },
+    );
 
     signal::ctrl_c().await?;
     Ok(())
@@ -124,10 +139,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 // Then call from another function or worker
 let result = iii
-    .trigger(TriggerRequest::new(
-        "users::create",
-        json!({ "name": "Alice", "email": "alice@example.com" }),
-    ))
+    .trigger(TriggerRequest {
+        function_id: "users::create".into(),
+        payload: json!({ "name": "Alice", "email": "alice@example.com" }),
+        action: None,
+        timeout_ms: None,
+    })
     .await?;
 println!("Created user: {}", result["userId"]);
 ```
@@ -186,25 +203,45 @@ print("Retrieved user:", user)
 <Tab value="Rust">
 ```rust title="state_reader.rs"
 let iii_clone = iii.clone();
-iii.register_function("users::get", move |input| {
-    let iii = iii_clone.clone();
-    async move {
-        let logger = Logger();
-        let user_id = input["userId"].as_str().unwrap_or("");
+iii.register_function(
+    RegisterFunctionMessage {
+        id: "users::get".to_string(),
+        description: None,
+        request_format: None,
+        response_format: None,
+        metadata: None,
+        invocation: None,
+    },
+    move |input| {
+        let iii = iii_clone.clone();
+        async move {
+            let logger = Logger::new();
+            let user_id = input["userId"].as_str().unwrap_or("");
 
-        let user = iii.trigger(TriggerRequest::new("state::get", json!({
-            "scope": "users",
-            "key": user_id,
-        }))).await?;
+            let user = iii.trigger(TriggerRequest {
+                function_id: "state::get".into(),
+                payload: json!({
+                    "scope": "users",
+                    "key": user_id,
+                }),
+                action: None,
+                timeout_ms: None,
+            }).await?;
 
-        logger.info("User retrieved", Some(json!({ "userId": user_id })));
-        Ok(user)
-    }
-});
+            logger.info("User retrieved", Some(json!({ "userId": user_id })));
+            Ok(user)
+        }
+    },
+);
 
 // Then call from another function or worker
 let user = iii
-    .trigger(TriggerRequest::new("users::get", json!({ "userId": "some-user-id" })))
+    .trigger(TriggerRequest {
+        function_id: "users::get".into(),
+        payload: json!({ "userId": "some-user-id" }),
+        action: None,
+        timeout_ms: None,
+    })
     .await?;
 println!("Retrieved user: {:?}", user);
 ```
@@ -282,32 +319,49 @@ print("Login recorded")
 <Tab value="Rust">
 ```rust title="state_update.rs"
 let iii_clone = iii.clone();
-iii.register_function("users::record-login", move |input| {
-    let iii = iii_clone.clone();
-    async move {
-        let logger = Logger();
-        let user_id = input["userId"].as_str().unwrap_or("");
+iii.register_function(
+    RegisterFunctionMessage {
+        id: "users::record-login".to_string(),
+        description: None,
+        request_format: None,
+        response_format: None,
+        metadata: None,
+        invocation: None,
+    },
+    move |input| {
+        let iii = iii_clone.clone();
+        async move {
+            let logger = Logger::new();
+            let user_id = input["userId"].as_str().unwrap_or("");
 
-        iii.trigger(TriggerRequest::new("state::update", json!({
-            "scope": "users",
-            "key": user_id,
-            "ops": [
-                { "type": "set", "path": "lastLogin", "value": chrono::Utc::now().to_rfc3339() },
-                { "type": "increment", "path": "loginCount", "by": 1 },
-            ],
-        }))).await?;
+            iii.trigger(TriggerRequest {
+                function_id: "state::update".into(),
+                payload: json!({
+                    "scope": "users",
+                    "key": user_id,
+                    "ops": [
+                        { "type": "set", "path": "lastLogin", "value": chrono::Utc::now().to_rfc3339() },
+                        { "type": "increment", "path": "loginCount", "by": 1 },
+                    ],
+                }),
+                action: None,
+                timeout_ms: None,
+            }).await?;
 
-        logger.info("User login recorded", Some(json!({ "userId": user_id })));
-        Ok(json!({ "updated": true }))
-    }
-});
+            logger.info("User login recorded", Some(json!({ "userId": user_id })));
+            Ok(json!({ "updated": true }))
+        }
+    },
+);
 
 // Then call from another function or worker
 let _ = iii
-    .trigger(TriggerRequest::new(
-        "users::record-login",
-        json!({ "userId": "some-user-id" }),
-    ))
+    .trigger(TriggerRequest {
+        function_id: "users::record-login".into(),
+        payload: json!({ "userId": "some-user-id" }),
+        action: None,
+        timeout_ms: None,
+    })
     .await?;
 println!("Login recorded");
 ```

@@ -20,9 +20,9 @@ graph LR
   <Tab value="Node / TypeScript">
 
 ```typescript
-import {Logger, TriggerAction} from 'iii-sdk'
+import {registerWorker, Logger, TriggerAction} from 'iii-sdk'
 
-const iii = init(process.env.III_URL ?? 'ws://localhost:49134', {
+const iii = registerWorker(process.env.III_URL ?? 'ws://localhost:49134', {
   otel: {
     enabled: true,
     serviceName: 'orders-service',
@@ -50,7 +50,7 @@ iii.registerFunction(
       traceId: currentTraceId(), // same traceId will appear in downstream logs
     })
 
-    iii.trigger({
+    await iii.trigger({
       function_id: 'state::set',
       payload: {
         scope: 'orders',
@@ -60,7 +60,7 @@ iii.registerFunction(
       action: TriggerAction.Void(),
     })
 
-    iii.trigger({
+    await iii.trigger({
       function_id: 'enqueue',
       payload: { topic: 'order.process', data: { orderId, amount, customerId, items } },
       action: TriggerAction.Void(),
@@ -140,8 +140,10 @@ iii.register_trigger({
   <Tab value="Rust">
 
 ```rust
-use iii_sdk::{III, Logger, TriggerRequest, TriggerAction, types::ApiRequest};
+use iii_sdk::{register_worker, InitOptions, Logger, TriggerRequest, TriggerAction, types::ApiRequest};
 use serde_json::json;
+
+let iii = register_worker("ws://localhost:49134", InitOptions::default());
 
 iii.register_function("orders.create", |input| async move {
     let logger = Logger();
@@ -209,7 +211,7 @@ iii.registerFunction(
 
     logger.info('Processing order', { orderId, amount, customerId, traceId: currentTraceId() })
 
-    iii.trigger({
+    await iii.trigger({
       function_id: 'state::set',
       payload: {
         scope: 'orders',
@@ -219,7 +221,7 @@ iii.registerFunction(
       action: TriggerAction.Void(),
     })
 
-    iii.trigger({
+    await iii.trigger({
       function_id: 'enqueue',
       payload: { topic: 'order.notify', data: { orderId, customerId, amount, status: 'processed' } },
       action: TriggerAction.Void(),
@@ -393,8 +395,8 @@ iii.register_trigger("queue", "order.notify", json!({ "topic": "order.notify" })
   <Tab value="Node / TypeScript">
 
 ```typescript
-// Pass otel config to init()
-const iii = init('ws://localhost:49134', {
+// Pass otel config to registerWorker()
+const iii = registerWorker('ws://localhost:49134', {
   otel: {
     enabled: true,
     serviceName: 'my-service',
@@ -415,7 +417,9 @@ The iii SDK exports traces and metrics automatically via the engine's OpenTeleme
 
 ```python
 # OTel is handled by the engine — just pass the worker name in InitOptions
-iii = III(address="ws://localhost:49134", options=InitOptions(worker_name="my-service"))
+from iii import register_worker, InitOptions, Logger, current_trace_id
+
+iii = register_worker(address="ws://localhost:49134", options=InitOptions(worker_name="my-service"))
 
 # Traces are automatically correlated via current_trace_id()
 # Access trace_id in any handler:
@@ -433,11 +437,13 @@ iii-sdk = { version = "0.1", features = ["telemetry"] }
 ```
 
 ```rust
+use iii_sdk::{register_worker, InitOptions, Logger};
+use serde_json::json;
+
 // Initialize OTLP before connecting
 iii_sdk::telemetry::init_otlp("my-service").await?;
 
-let iii = III::new("ws://127.0.0.1:49134");
-iii.connect().await?;
+let iii = register_worker("ws://127.0.0.1:49134", InitOptions::default());
 
 // current_trace_id() is available in every handler
 let logger = Logger();
