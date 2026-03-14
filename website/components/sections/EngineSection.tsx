@@ -81,13 +81,13 @@ const concepts = [
       typescript: `iii.registerFunction(
   { id: 'users::create' },
   async (input) => {
-    const { logger } = getContext()
+    const logger = new Logger()
     logger.info('Creating user', { email: input.email })
     return { id: '123', email: input.email }
   }
 )`,
       python: `async def create_user(input):
-    logger = get_context().logger
+    logger = Logger()
     logger.info("Creating user", {
         "email": input["email"]
     })
