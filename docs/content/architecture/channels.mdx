@@ -51,7 +51,8 @@ const channel = await iii.createChannel()
 </Tab>
 <Tab value="Python">
 ```python
-channel = iii_client.create_channel()
+channel = iii_client.create_channel()          # default buffer_size=64
+channel = iii_client.create_channel(buffer_size=128)  # custom buffer size
 ```
 </Tab>
 <Tab value="Rust">
@@ -88,11 +89,14 @@ type StreamChannelRef = {
 
 | Capability | Node / TypeScript | Python | Rust |
 |-----------|-------------------|--------|------|
-| Write binary data | `writer.stream.write(data)` | `await writer.write(data)` | `writer.write(&data).await` |
-| Send text message | `writer.sendMessage(msg)` | `await writer.send_message_async(msg)` | `writer.send_message(&msg).await` |
-| Close | `writer.stream.end()` | `await writer.close_async()` | `writer.close().await` |
+| Write binary data | `writer.stream.write(data)` | `writer.stream.write(data)` (sync, fire-and-forget) or `await writer.write(data)` (async) | `writer.write(&data).await` |
+| Send text message | `writer.sendMessage(msg)` | `writer.send_message(msg)` (sync, fire-and-forget) or `await writer.send_message_async(msg)` (async) | `writer.send_message(&msg).await` |
+| Close | `writer.stream.end()` | `writer.close()` (sync, fire-and-forget) or `await writer.close_async()` (async) | `writer.close().await` |
+| Access writable stream | `writer.stream` | `writer.stream` (`WritableStream`) | N/A |
 
 Data written to the writer is automatically chunked into 64 KB frames and sent over the WebSocket. The writer lazily connects to the engine on first write, so creating a channel is cheap even if the writer is not used immediately.
+
+The Python `ChannelWriter` provides both sync and async APIs. The sync methods (`send_message()`, `close()`) are fire-and-forget wrappers that queue work on the event loop. The `writer.stream` property exposes a `WritableStream` with sync `write(data)` and `end(data?)` methods that mirror Node.js `Writable` semantics.
 
 ## ChannelReader
 
@@ -103,6 +107,9 @@ Data written to the writer is automatically chunked into 64 KB frames and sent o
 | Read as stream | `for await (const chunk of reader.stream)` | `async for chunk in reader` | `reader.next_binary().await` / `reader.read_all().await` |
 | Read all at once | Collect chunks manually | `await reader.read_all()` | `reader.read_all().await` |
 | Listen for text messages | `reader.onMessage(callback)` | `reader.on_message(callback)` | `reader.on_message(callback).await` |
+| Access readable stream | `reader.stream` | `reader.stream` (`ReadableStream`) | N/A |
+
+The Python `ChannelReader` implements `__aiter__`, so use `async for chunk in reader` to iterate over binary chunks. Text messages received on the same WebSocket are dispatched to callbacks registered via `reader.on_message(callback)` where `callback` is `Callable[[str], Any]` -- it receives the raw text message string.
 
 Backpressure is handled automatically by pausing the WebSocket when the stream buffer is full. The reader connects lazily, establishing the WebSocket when reading begins.
 
@@ -160,8 +167,10 @@ const sender = iii.registerFunction(
 <Tab value="Python">
 ```python
 import json
-from iii import III
+from iii import register_worker
 from iii.channels import ChannelReader
+
+iii_client = register_worker("ws://localhost:49134")
 
 def processor_handler(input_data):
     reader: ChannelReader = input_data["reader"]
@@ -373,16 +382,18 @@ const coordinator = iii.registerFunction(
 <Tab value="Python">
 ```python
 import json
-from iii import III
+from iii import register_worker
 from iii.channels import ChannelReader, ChannelWriter
 
-def worker_handler(input_data):
+iii_client = register_worker("ws://localhost:49134")
+
+async def worker_handler(input_data):
     reader: ChannelReader = input_data["reader"]
     writer: ChannelWriter = input_data["writer"]
 
     chunks = []
     chunk_count = 0
-    for chunk in reader:
+    async for chunk in reader:
         chunks.append(chunk)
         chunk_count += 1
         writer.send_message(json.dumps({
@@ -400,7 +411,7 @@ def worker_handler(input_data):
     }))
 
     result_json = json.dumps({"words": words[:5], "total": len(words)}).encode("utf-8")
-    writer.write(result_json)
+    await writer.write(result_json)
     writer.close()
 
     return {"status": "done"}

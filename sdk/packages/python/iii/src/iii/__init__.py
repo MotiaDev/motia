@@ -22,6 +22,7 @@ from .iii_types import (
     TriggerInfo,
     TriggerRequest,
 )
+from .telemetry_types import OtelConfig
 from .logger import Logger
 from .stream import IStream, StreamContext
 from .telemetry_types import OtelConfig

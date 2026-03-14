@@ -88,7 +88,7 @@ export const handler: Handlers<typeof config> = async (req, { logger }) => {
 **Python Example** (`steps/hello.step.py`):
 
 ```python
-from motia import ApiRequest, ApiResponse, FlowContext, api
+from motia import ApiRequest, ApiResponse, FlowContext, api, logger
 
 config = {
     "name": "hello",
@@ -241,7 +241,7 @@ export const handler: Handlers<typeof config> = async (data, { logger }) => {
 ### Python
 
 ```python
-from motia import StepConfig, EventTrigger, FlowContext, step_wrapper
+from motia import StepConfig, EventTrigger, FlowContext, logger, step_wrapper
 
 config = StepConfig(
     name="send-welcome-email",
@@ -287,7 +287,7 @@ export const handler: Handlers<typeof config> = async (data, { emit, logger }) =
 ### Python
 
 ```python
-from motia import StepConfig, CronTrigger, FlowContext, step_wrapper
+from motia import StepConfig, CronTrigger, FlowContext, logger, step_wrapper
 
 config = StepConfig(
     name="daily-report",
@@ -354,7 +354,7 @@ export const handler: Handlers<typeof config> = async (input, { trigger, logger,
 ### Python
 
 ```python
-from motia import StepConfig, ApiTrigger, EventTrigger, ApiRequest, ApiResponse, FlowContext, step_wrapper
+from motia import StepConfig, ApiTrigger, EventTrigger, ApiRequest, ApiResponse, FlowContext, logger, step_wrapper
 
 config = StepConfig(
     name="process-order",
@@ -425,7 +425,7 @@ export const handler: Handlers<typeof config> = async (req, { logger }) => {
 ### Python
 
 ```python
-from motia import StepConfig, EventTrigger, FlowContext, step_wrapper
+from motia import StepConfig, EventTrigger, FlowContext, logger, step_wrapper
 
 def is_high_value(input, ctx: FlowContext) -> bool:
     amount = input.get("amount", 0) if isinstance(input, dict) else 0
@@ -453,7 +453,7 @@ step_wrapper(config, __file__, handler)
 Each trigger in a multi-trigger step can have its own condition:
 
 ```python
-from motia import StepConfig, ApiTrigger, EventTrigger, FlowContext, step_wrapper
+from motia import StepConfig, ApiTrigger, EventTrigger, FlowContext, logger, step_wrapper
 
 def is_verified_user(input, ctx: FlowContext) -> bool:
     if ctx.trigger.type == "api":
@@ -958,7 +958,7 @@ export const handler: Handlers<typeof config> = async (data, { logger }) => {
 **steps/create_todo.step.py**
 
 ```python
-from motia import StepConfig, ApiTrigger, ApiRequest, ApiResponse, FlowContext, Stream, step_wrapper
+from motia import StepConfig, ApiTrigger, ApiRequest, ApiResponse, FlowContext, Stream, logger, step_wrapper
 
 todo_stream = Stream("todos")
 
@@ -1014,7 +1014,7 @@ step_wrapper(config, __file__, handler)
 **steps/notify_todo.step.py**
 
 ```python
-from motia import StepConfig, EventTrigger, FlowContext, step_wrapper
+from motia import StepConfig, EventTrigger, FlowContext, logger, step_wrapper
 
 config = StepConfig(
     name="notify-todo-created",

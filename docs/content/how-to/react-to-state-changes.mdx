@@ -93,7 +93,7 @@ Each state trigger watches a single `scope`/`key` pair. To react to multiple key
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript title="state-trigger.ts"
-await iii.registerTrigger({
+iii.registerTrigger({
   type: 'state',
   function_id: 'orders::on-status-change',
   config: { scope: 'orders', key: 'status' },

@@ -272,6 +272,7 @@ iii.registerTrigger({
 
 ```python
 from datetime import datetime, timezone
+from iii import Logger, TriggerAction
 
 def orders_audit(_data) -> None:
     logger = Logger()

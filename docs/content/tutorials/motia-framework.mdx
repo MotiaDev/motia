@@ -81,7 +81,7 @@ export const handler: Handlers<typeof config> = async (req, { logger }) => {
 **Python Example** (`steps/hello.step.py`):
 
 ```python
-from motia import ApiRouteConfig, ApiRequest, ApiResponse, FlowContext, step_wrapper
+from motia import ApiRouteConfig, ApiRequest, ApiResponse, FlowContext, logger, step_wrapper
 
 # Define step configuration
 config = ApiRouteConfig(
@@ -227,7 +227,7 @@ export const handler: Handlers<typeof config> = async (data, { logger }) => {
 ### Python
 
 ```python
-from motia import EventConfig, FlowContext, step_wrapper
+from motia import EventConfig, FlowContext, logger, step_wrapper
 
 config = EventConfig(
     type="event",
@@ -268,7 +268,7 @@ export const handler: Handlers<typeof config> = async ({ emit, logger }) => {
 ### Python
 
 ```python
-from motia import CronConfig, FlowContext, step_wrapper
+from motia import CronConfig, FlowContext, logger, step_wrapper
 
 config = CronConfig(
     type="cron",
@@ -692,7 +692,7 @@ export const handler: Handlers<typeof config> = async (data, { logger }) => {
 **steps/create_todo.step.py**
 
 ```python
-from motia import ApiRouteConfig, ApiRequest, ApiResponse, FlowContext, Stream, step_wrapper
+from motia import ApiRouteConfig, ApiRequest, ApiResponse, FlowContext, Stream, logger, step_wrapper
 
 todo_stream = Stream("todos")
 
@@ -747,7 +747,7 @@ step_wrapper(config, __file__, handler)
 **steps/notify_todo.step.py**
 
 ```python
-from motia import EventConfig, FlowContext, step_wrapper
+from motia import EventConfig, FlowContext, logger, step_wrapper
 
 config = EventConfig(
     type="event",

@@ -177,7 +177,7 @@ const fn = iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III, http
+from iii import register_worker, http
 from iii.types import HttpRequest, HttpResponse
 
 @http
@@ -233,8 +233,12 @@ The response object provides these capabilities across all SDKs:
 |-----------|-------------------|--------|------|
 | Set status code | `response.status(code)` | `await response.status(code)` | `writer.send_message(set_status json)` |
 | Set headers | `response.headers(map)` | `await response.headers(map)` | `writer.send_message(set_headers json)` |
-| Write body data | `response.stream.write(data)` | `await response.writer.write(data)` | `writer.write(&data).await` |
-| Close response | `response.stream.end()` / `response.close()` | `await response.writer.close_async()` | `writer.close().await` |
+| Write body data | `response.stream.write(data)` | `response.stream.write(data)` (sync) or `await response.writer.write(data)` (async) | `writer.write(&data).await` |
+| Access writable stream | `response.stream` | `response.stream` (`WritableStream`) | N/A (use writer directly) |
+| Access channel writer | N/A | `response.writer` (`ChannelWriter`) | `writer` |
+| Close response | `response.stream.end()` / `response.close()` | `response.close()` (sync) or `await response.writer.close_async()` (async) | `writer.close().await` |
+
+In Python, the `http` wrapper can be used as a decorator (`@http`) on an `async def` handler. The wrapped handler must be an async function that accepts `(req: HttpRequest, response: HttpResponse)` and optionally returns an `ApiResponse`. Import it with `from iii import http`.
 
 Under the hood, the wrapper unwraps the internal request, constructs the response object that maps `status()` and `headers()` calls to control messages sent over the underlying channel, and exposes the channel's writable stream directly. This means you can pipe file streams, write SSE frames, or send any binary data through the response stream.
 

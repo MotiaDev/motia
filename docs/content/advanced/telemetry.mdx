@@ -51,7 +51,8 @@ const iii = init('ws://localhost:49134', {
   <Tab value="Python">
 
 ```python
-from iii import InitOptions, OtelConfig, register_worker
+from iii import InitOptions, register_worker
+from iii.telemetry_types import OtelConfig
 
 iii = register_worker(
     address="ws://localhost:49134",
@@ -59,7 +60,7 @@ iii = register_worker(
         otel=OtelConfig(
             enabled=True,
             service_name="my-service",
-            exporter_endpoint="http://localhost:4318",
+            engine_ws_url="ws://localhost:49134",
         ),
     ),
 )
@@ -77,7 +78,7 @@ let iii = register_worker(
         otel: Some(OtelOptions {
             enabled: true,
             service_name: "my-service".into(),
-            exporter_endpoint: "http://localhost:4318".into(),
+            engine_ws_url="ws://localhost:49134",
         }),
         ..Default::default()
     },
@@ -138,12 +139,14 @@ iii.registerFunction({ id: 'orders::process' }, async (data) => {
 ```python
 from iii.telemetry import with_span
 
-def process_order(data):
-    with with_span("validate-order") as span:
+async def process_order(data):
+    async def validate(span):
         span.set_attribute("order.id", data["orderId"])
-        valid = validate_order(data)
+        valid = await validate_order(data)
         span.set_attribute("order.valid", valid)
         return {"status_code": 200, "body": {"valid": valid}}
+
+    return await with_span("validate-order", validate)
 ```
 
   </Tab>
@@ -200,16 +203,24 @@ let iii = III::builder("ws://localhost:49134")
   </Tab>
 </Tabs>
 
-The following metrics are collected automatically:
+The following worker metrics are collected automatically via observable gauges:
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `iii.worker.cpu_usage` | Gauge | Worker CPU utilization percentage |
-| `iii.worker.memory_rss` | Gauge | Resident set size in bytes |
-| `iii.worker.event_loop_lag` | Histogram | Event loop lag (Node.js only) |
-| `iii.invocation.duration` | Histogram | Function invocation duration in milliseconds |
-| `iii.invocation.count` | Counter | Total number of invocations |
-| `iii.invocation.errors` | Counter | Total number of failed invocations |
+| Metric | Type | SDKs | Description |
+|--------|------|------|-------------|
+| `iii.worker.cpu.percent` | Observable Gauge | Node.js, Python | Worker CPU utilization percentage |
+| `iii.worker.cpu.user_micros` | Observable Gauge | Node.js, Python | CPU user time in microseconds |
+| `iii.worker.cpu.system_micros` | Observable Gauge | Node.js, Python | CPU system time in microseconds |
+| `iii.worker.memory.rss` | Observable Gauge | Node.js, Python | Resident set size in bytes |
+| `iii.worker.memory.vms` | Observable Gauge | Python only | Virtual memory size in bytes |
+| `iii.worker.memory.heap_used` | Observable Gauge | Node.js, Python | Heap memory used in bytes |
+| `iii.worker.memory.heap_total` | Observable Gauge | Node.js, Python | Total heap memory in bytes |
+| `iii.worker.memory.external` | Observable Gauge | Node.js, Python | External memory in bytes (always 0 in Python) |
+| `iii.worker.uptime_seconds` | Observable Gauge | Node.js, Python | Worker uptime in seconds |
+| `iii.worker.event_loop.lag_ms` | Observable Gauge | Node.js only | Event loop lag in milliseconds |
+
+<Callout type="info" title="Engine-level invocation metrics">
+  Invocation metrics (`iii.invocations.total`, `iii.invocation.duration`, `iii.invocation.errors.total`) are collected by the iii Engine, not by the worker SDKs. They are available regardless of which SDK language you use.
+</Callout>
 
 ## Logs
 
@@ -261,21 +272,38 @@ iii.on_log(|log| {
 
 ## Telemetry Utilities
 
-The `iii-sdk/telemetry` subpath (Node.js) and equivalent modules in Python and Rust export the following utilities:
+The `iii-sdk/telemetry` subpath (Node.js) and `iii.telemetry` module (Python) export the following utilities:
 
-| Utility | Description |
-|---------|-------------|
-| `getTracer()` | Returns the OTel `Tracer` instance for creating custom spans |
-| `getMeter()` | Returns the OTel `Meter` instance for creating custom metrics |
-| `getLogger()` | Returns the OTel `Logger` instance for structured log emission |
-| `withSpan(name, opts, fn)` | Wraps an async function in a custom span |
-| `currentTraceId()` | Returns the active trace ID for log correlation |
-| `currentSpanId()` | Returns the active span ID for log correlation |
-| `initOtel(config)` | Manually initialize OTel (Python and Rust) |
-| `shutdownOtel()` | Flush pending telemetry and shut down the OTel SDK |
+| Node.js (camelCase) | Python (snake_case) | Description |
+|---------------------|---------------------|-------------|
+| `getTracer()` | `get_tracer()` | Returns the OTel `Tracer` instance for creating custom spans |
+| `getMeter()` | `get_meter()` | Returns the OTel `Meter` instance for creating custom metrics |
+| `getLogger()` | `get_logger()` | Returns the OTel `Logger` instance for structured log emission |
+| `withSpan(name, opts, fn)` | `await with_span(name, fn)` | Wraps an async function in a custom span |
+| `currentTraceId()` | `current_trace_id()` | Returns the active trace ID for log correlation |
+| `currentSpanId()` | `current_span_id()` | Returns the active span ID for log correlation |
+| `initOtel(config)` | `init_otel(config)` | Manually initialize OTel (Python and Rust) |
+| `shutdownOtel()` | `shutdown_otel()` | Flush pending telemetry and shut down the OTel SDK |
+
+### Python imports
+
+```python
+from iii.telemetry import (
+    with_span,
+    get_tracer,
+    get_meter,
+    get_logger,
+    current_trace_id,
+    current_span_id,
+    init_otel,
+    shutdown_otel,
+    shutdown_otel_async,
+)
+from iii.telemetry_types import OtelConfig
+```
 
 <Callout type="warn" title="Graceful shutdown">
-  Always call `shutdownOtel()` (or `iii.shutdown()`) before your process exits to ensure all buffered spans, metrics, and logs are flushed to the collector.
+  Always call `shutdown_otel()` / `shutdownOtel()` (or `iii.shutdown()`) before your process exits to ensure all buffered spans, metrics, and logs are flushed. The Python SDK also provides `shutdown_otel_async()` for use within async contexts.
 </Callout>
 
 ## Cross-SDK Comparison
@@ -291,14 +319,18 @@ The `iii-sdk/telemetry` subpath (Node.js) and equivalent modules in Python and R
 
 Configure OpenTelemetry without code changes using standard OTel environment variables:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OTEL_ENABLED` | `true` | Enable or disable OpenTelemetry |
-| `OTEL_SERVICE_NAME` | Worker name | Override the service name reported to the collector |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | OTLP exporter endpoint URL |
+| Variable | Default | SDKs | Description |
+|----------|---------|------|-------------|
+| `OTEL_ENABLED` | `true` | Node.js, Python | Enable or disable OpenTelemetry (Python accepts `false`, `0`, `no`, `off`) |
+| `OTEL_SERVICE_NAME` | Worker name | Node.js, Python | Override the service name reported to the collector |
+| `III_URL` | `ws://localhost:49134` | Python | III Engine WebSocket URL for the span/log/metrics exporter |
 
 <Callout type="info" title="Precedence">
-  Programmatic configuration passed to `init()` takes precedence over environment variables. Environment variables take precedence over defaults.
+  Programmatic configuration passed to `init()` or `OtelConfig` takes precedence over environment variables. Environment variables take precedence over defaults.
+</Callout>
+
+<Callout type="warn" title="Python SDK does not use OTEL_EXPORTER_OTLP_ENDPOINT">
+  The Python SDK sends telemetry directly to the iii Engine over WebSocket using `engine_ws_url` (or `III_URL`), not to a standalone OTLP collector endpoint. The `OTEL_EXPORTER_OTLP_ENDPOINT` variable has no effect in the Python SDK.
 </Callout>
 
 ## Next Steps

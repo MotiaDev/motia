@@ -20,10 +20,9 @@ const iii = registerWorker('ws://localhost:49134', {
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III
+from iii import register_worker
 
-iii = III('ws://localhost:49134')
-iii.connect()
+iii = register_worker('ws://localhost:49134')
 ```
 </Tab>
 <Tab value="Rust">
@@ -99,10 +98,9 @@ iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III, TriggerAction
+from iii import register_worker, TriggerAction
 
-iii = III('ws://localhost:49134')
-iii.connect()
+iii = register_worker('ws://localhost:49134')
 
 result = iii.trigger({
     'function_id': 'users::create',
@@ -625,7 +623,7 @@ The SDK exports the following from the main package:
 
 | Export | Description |
 |--------|-------------|
-| `registerWorker` | Create and connect an SDK instance (Node); Python/Rust use `III` + `connect()` or `register_worker()` |
+| `registerWorker` | Create and connect an SDK instance (Node); Python uses `register_worker()`, Rust uses `III` + `connect()` |
 | `TriggerAction` | Factory for `Enqueue` and `Void` actions |
 | `TriggerRequest` | Request type for `trigger()` |
 | `EnqueueResult` | Result type when enqueueing to a named queue |
