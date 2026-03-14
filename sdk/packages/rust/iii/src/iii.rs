@@ -533,10 +533,7 @@ impl III {
     /// trigger.unregister();
     /// # Ok::<(), iii_sdk::IIIError>(())
     /// ```
-    pub fn register_trigger(
-        &self,
-        input: RegisterTriggerInput,
-    ) -> Result<Trigger, IIIError> {
+    pub fn register_trigger(&self, input: RegisterTriggerInput) -> Result<Trigger, IIIError> {
         let id = Uuid::new_v4().to_string();
         let message = RegisterTriggerMessage {
             id: id.clone(),
@@ -593,7 +590,7 @@ impl III {
     ///     action: Some(TriggerAction::Void),
     ///     timeout_ms: None,
     /// }).await?;
-    /// 
+    ///
     /// // Enqueue
     /// let receipt = iii.trigger(TriggerRequest {
     ///     function_id: "enqueue".to_string(),
@@ -601,7 +598,7 @@ impl III {
     ///     action: Some(TriggerAction::Enqueue { queue: "test".to_string() }),
     ///     timeout_ms: None,
     /// }).await?;
-    /// 
+    ///
     /// # Ok(())
     /// # }
     /// ```

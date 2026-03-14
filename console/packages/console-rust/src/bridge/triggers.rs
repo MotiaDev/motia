@@ -1,4 +1,4 @@
-use iii_sdk::{IIIError, III, RegisterTriggerInput};
+use iii_sdk::{IIIError, RegisterTriggerInput, III};
 use serde_json::json;
 use tracing::{debug, info};
 

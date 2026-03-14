@@ -7,7 +7,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use iii_sdk::{III, InitOptions, TriggerRequest, UpdateOp, UpdateResult, register_worker, types::SetResult};
+use iii_sdk::{
+    III, InitOptions, TriggerRequest, UpdateOp, UpdateResult, register_worker, types::SetResult,
+};
 use serde_json::Value;
 
 use crate::{
@@ -153,7 +155,8 @@ impl StateAdapter for BridgeAdapter {
             .bridge
             .trigger(TriggerRequest {
                 function_id: "state::list_groups".to_string(),
-                payload: serde_json::to_value(StateListGroupsInput {}).unwrap_or(serde_json::Value::Null),
+                payload: serde_json::to_value(StateListGroupsInput {})
+                    .unwrap_or(serde_json::Value::Null),
                 action: None,
                 timeout_ms: None,
             })

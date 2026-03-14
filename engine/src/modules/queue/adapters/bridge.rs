@@ -330,7 +330,9 @@ impl QueueAdapter for BridgeAdapter {
             .trigger(TriggerRequest {
                 function_id: function_id.to_string(),
                 payload: data,
-                action: Some(TriggerAction::Enqueue { queue: queue_name.to_string() }),
+                action: Some(TriggerAction::Enqueue {
+                    queue: queue_name.to_string(),
+                }),
                 timeout_ms: None,
             })
             .await

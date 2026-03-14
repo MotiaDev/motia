@@ -1,4 +1,4 @@
-use iii_sdk::{III, RegisterFunctionMessage, TriggerRequest};
+use iii_sdk::{RegisterFunctionMessage, TriggerRequest, III};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -1056,10 +1056,13 @@ pub fn register_functions(bridge: &III) {
     });
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::trigger_types"), move |_input| {
-        let bridge = b.clone();
-        async move { Ok(handle_trigger_types(&bridge).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::trigger_types"),
+        move |_input| {
+            let bridge = b.clone();
+            async move { Ok(handle_trigger_types(&bridge).await) }
+        },
+    );
 
     let b = bridge.clone();
     bridge.register_function(reg_fn_msg("engine::console::alerts_list"), move |_input| {
@@ -1068,46 +1071,67 @@ pub fn register_functions(bridge: &III) {
     });
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::sampling_rules"), move |_input| {
-        let bridge = b.clone();
-        async move { Ok(handle_sampling_rules(&bridge).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::sampling_rules"),
+        move |_input| {
+            let bridge = b.clone();
+            async move { Ok(handle_sampling_rules(&bridge).await) }
+        },
+    );
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::otel_logs_list"), move |input| {
-        let bridge = b.clone();
-        async move { Ok(handle_otel_logs_list(&bridge, input).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::otel_logs_list"),
+        move |input| {
+            let bridge = b.clone();
+            async move { Ok(handle_otel_logs_list(&bridge, input).await) }
+        },
+    );
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::otel_logs_clear"), move |_input| {
-        let bridge = b.clone();
-        async move { Ok(handle_otel_logs_clear(&bridge).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::otel_logs_clear"),
+        move |_input| {
+            let bridge = b.clone();
+            async move { Ok(handle_otel_logs_clear(&bridge).await) }
+        },
+    );
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::otel_traces_list"), move |input| {
-        let bridge = b.clone();
-        async move { Ok(handle_otel_traces_list(&bridge, input).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::otel_traces_list"),
+        move |input| {
+            let bridge = b.clone();
+            async move { Ok(handle_otel_traces_list(&bridge, input).await) }
+        },
+    );
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::otel_traces_clear"), move |_input| {
-        let bridge = b.clone();
-        async move { Ok(handle_otel_traces_clear(&bridge).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::otel_traces_clear"),
+        move |_input| {
+            let bridge = b.clone();
+            async move { Ok(handle_otel_traces_clear(&bridge).await) }
+        },
+    );
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::otel_traces_tree"), move |input| {
-        let bridge = b.clone();
-        async move { Ok(handle_otel_traces_tree(&bridge, input).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::otel_traces_tree"),
+        move |input| {
+            let bridge = b.clone();
+            async move { Ok(handle_otel_traces_tree(&bridge, input).await) }
+        },
+    );
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::metrics_detailed"), move |input| {
-        let bridge = b.clone();
-        async move { Ok(handle_metrics_detailed(&bridge, input).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::metrics_detailed"),
+        move |input| {
+            let bridge = b.clone();
+            async move { Ok(handle_metrics_detailed(&bridge, input).await) }
+        },
+    );
 
     let b = bridge.clone();
     bridge.register_function(reg_fn_msg("engine::console::rollups_list"), move |input| {
@@ -1116,28 +1140,40 @@ pub fn register_functions(bridge: &III) {
     });
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::state_groups_list"), move |input| {
-        let bridge = b.clone();
-        async move { Ok(handle_state_groups_list(&bridge, input).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::state_groups_list"),
+        move |input| {
+            let bridge = b.clone();
+            async move { Ok(handle_state_groups_list(&bridge, input).await) }
+        },
+    );
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::state_group_items"), move |input| {
-        let bridge = b.clone();
-        async move { Ok(handle_state_group_items(&bridge, input).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::state_group_items"),
+        move |input| {
+            let bridge = b.clone();
+            async move { Ok(handle_state_group_items(&bridge, input).await) }
+        },
+    );
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::state_item_set"), move |input| {
-        let bridge = b.clone();
-        async move { Ok(handle_state_item_set(&bridge, input).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::state_item_set"),
+        move |input| {
+            let bridge = b.clone();
+            async move { Ok(handle_state_item_set(&bridge, input).await) }
+        },
+    );
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::state_item_delete"), move |input| {
-        let bridge = b.clone();
-        async move { Ok(handle_state_item_delete(&bridge, input).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::state_item_delete"),
+        move |input| {
+            let bridge = b.clone();
+            async move { Ok(handle_state_item_delete(&bridge, input).await) }
+        },
+    );
 
     let b = bridge.clone();
     bridge.register_function(reg_fn_msg("engine::console::adapters"), move |_input| {
@@ -1152,16 +1188,22 @@ pub fn register_functions(bridge: &III) {
     });
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::flow_config_get"), move |input| {
-        let bridge = b.clone();
-        async move { Ok(handle_flow_config_get(&bridge, input).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::flow_config_get"),
+        move |input| {
+            let bridge = b.clone();
+            async move { Ok(handle_flow_config_get(&bridge, input).await) }
+        },
+    );
 
     let b = bridge.clone();
-    bridge.register_function(reg_fn_msg("engine::console::flow_config_save"), move |input| {
-        let bridge = b.clone();
-        async move { Ok(handle_flow_config_save(&bridge, input).await) }
-    });
+    bridge.register_function(
+        reg_fn_msg("engine::console::flow_config_save"),
+        move |input| {
+            let bridge = b.clone();
+            async move { Ok(handle_flow_config_save(&bridge, input).await) }
+        },
+    );
 
     let b = bridge.clone();
     bridge.register_function(reg_fn_msg("engine::console::invoke"), move |input| {

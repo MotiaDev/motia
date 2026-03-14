@@ -31,13 +31,11 @@ fn json_value_to_anyvalue(v: &Value) -> AnyValue {
 }
 
 #[derive(Clone, Default)]
-pub struct Logger {
-}
+pub struct Logger {}
 
 impl Logger {
     pub fn new() -> Self {
-        Self {
-        }
+        Self {}
     }
 
     /// Emit a LogRecord via the OTel LoggerProvider with trace context from the active span.

@@ -6,7 +6,6 @@ use serde_json::json;
 
 pub fn setup(iii: &III) {
     let client = reqwest::Client::new();
-    
 
     let get_client = client.clone();
     iii.register_function(
@@ -19,41 +18,41 @@ pub fn setup(iii: &III) {
             invocation: None,
         },
         move |_input| {
-        let client = get_client.clone();
-        let logger = Logger::new();
+            let client = get_client.clone();
+            let logger = Logger::new();
 
-        async move {
-            logger.info("Fetching todo from external API", None);
+            async move {
+                logger.info("Fetching todo from external API", None);
 
-            let request = client
-                .get("https://jsonplaceholder.typicode.com/todos/1")
-                .build()
-                .map_err(|e| IIIError::Handler(e.to_string()))?;
+                let request = client
+                    .get("https://jsonplaceholder.typicode.com/todos/1")
+                    .build()
+                    .map_err(|e| IIIError::Handler(e.to_string()))?;
 
-            let response = execute_traced_request(&client, request)
-                .await
-                .map_err(|e| IIIError::Handler(e.to_string()))?;
+                let response = execute_traced_request(&client, request)
+                    .await
+                    .map_err(|e| IIIError::Handler(e.to_string()))?;
 
-            let status = response.status().as_u16();
-            logger.info(
-                "Fetched todo successfully",
-                Some(json!({ "status": status })),
-            );
+                let status = response.status().as_u16();
+                logger.info(
+                    "Fetched todo successfully",
+                    Some(json!({ "status": status })),
+                );
 
-            let data: serde_json::Value = response
-                .json::<serde_json::Value>()
-                .await
-                .map_err(|e| IIIError::Handler(e.to_string()))?;
+                let data: serde_json::Value = response
+                    .json::<serde_json::Value>()
+                    .await
+                    .map_err(|e| IIIError::Handler(e.to_string()))?;
 
-            let api_response = ApiResponse {
-                status_code: 200,
-                body: json!({ "upstream_status": status, "data": data }),
-                headers: [("Content-Type".into(), "application/json".into())].into(),
-            };
+                let api_response = ApiResponse {
+                    status_code: 200,
+                    body: json!({ "upstream_status": status, "data": data }),
+                    headers: [("Content-Type".into(), "application/json".into())].into(),
+                };
 
-            Ok(serde_json::to_value(api_response)?)
-        }
-    },
+                Ok(serde_json::to_value(api_response)?)
+            }
+        },
     );
 
     iii.register_trigger(RegisterTriggerInput {
@@ -79,50 +78,48 @@ pub fn setup(iii: &III) {
             invocation: None,
         },
         move |input| {
-        let client = post_client.clone();
-        async move {
-            let logger = Logger::new();
-            let req: ApiRequest = serde_json::from_value(input)
-                .unwrap_or_else(|_| serde_json::from_value(json!({})).unwrap());
+            let client = post_client.clone();
+            async move {
+                let logger = Logger::new();
+                let req: ApiRequest = serde_json::from_value(input)
+                    .unwrap_or_else(|_| serde_json::from_value(json!({})).unwrap());
 
-            logger
-                .info("Posting to httpbin", Some(json!({ "body": req.body })));
+                logger.info("Posting to httpbin", Some(json!({ "body": req.body })));
 
-            let payload = if req.body.is_null() {
-                json!({ "message": "hello from iii rust" })
-            } else {
-                req.body.clone()
-            };
+                let payload = if req.body.is_null() {
+                    json!({ "message": "hello from iii rust" })
+                } else {
+                    req.body.clone()
+                };
 
-            let request = client
-                .post("https://httpbin.org/post")
-                .header("Content-Type", "application/json")
-                .json(&payload)
-                .build()
-                .map_err(|e| IIIError::Handler(e.to_string()))?;
+                let request = client
+                    .post("https://httpbin.org/post")
+                    .header("Content-Type", "application/json")
+                    .json(&payload)
+                    .build()
+                    .map_err(|e| IIIError::Handler(e.to_string()))?;
 
-            let response = execute_traced_request(&client, request)
-                .await
-                .map_err(|e| IIIError::Handler(e.to_string()))?;
+                let response = execute_traced_request(&client, request)
+                    .await
+                    .map_err(|e| IIIError::Handler(e.to_string()))?;
 
-            let status = response.status().as_u16();
-            logger
-                .info("Post completed", Some(json!({ "status": status })));
+                let status = response.status().as_u16();
+                logger.info("Post completed", Some(json!({ "status": status })));
 
-            let data: serde_json::Value = response
-                .json::<serde_json::Value>()
-                .await
-                .map_err(|e| IIIError::Handler(e.to_string()))?;
+                let data: serde_json::Value = response
+                    .json::<serde_json::Value>()
+                    .await
+                    .map_err(|e| IIIError::Handler(e.to_string()))?;
 
-            let api_response = ApiResponse {
-                status_code: status,
-                body: json!({ "upstream_status": status, "data": data }),
-                headers: [("Content-Type".into(), "application/json".into())].into(),
-            };
+                let api_response = ApiResponse {
+                    status_code: status,
+                    body: json!({ "upstream_status": status, "data": data }),
+                    headers: [("Content-Type".into(), "application/json".into())].into(),
+                };
 
-            Ok(serde_json::to_value(api_response)?)
-        }
-    },
+                Ok(serde_json::to_value(api_response)?)
+            }
+        },
     );
 
     iii.register_trigger(RegisterTriggerInput {

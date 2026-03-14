@@ -25,7 +25,10 @@
 //! ```
 
 use crate::{
-    TriggerRequest, error::IIIError, iii::III, types::{StreamUpdateInput, UpdateOp, UpdateResult}
+    TriggerRequest,
+    error::IIIError,
+    iii::III,
+    types::{StreamUpdateInput, UpdateOp, UpdateResult},
 };
 
 /// Provides atomic stream update operations
