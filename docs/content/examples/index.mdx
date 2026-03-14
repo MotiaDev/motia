@@ -33,14 +33,14 @@ Each example uses the **iii SDK** directly. Every page shows the same pattern in
 
 All three SDKs share the same concepts with language-idiomatic initialization:
 
-- **TypeScript**: `init(url)` — named function, connection is automatic
+- **TypeScript**: `registerWorker(url)` — named function, connection is automatic
 - **Python**: `register_worker(address=url, options?)` — creates the client and auto-starts connection
 - **Rust**: `register_worker(url, InitOptions::default())?` — creates the client and auto-starts connection
 
 | Concept | TypeScript | Python | Rust |
 |---|---|---|---|
-| Init | `init(url)` | `register_worker(url, options?)` | `register_worker(url, InitOptions::default())?` |
-| Connect | Auto on `init()` | Auto on `register_worker()` | Auto on `register_worker()` |
+| Init | `registerWorker(url)` | `register_worker(url, options?)` | `register_worker(url, InitOptions::default())?` |
+| Connect | Auto on `registerWorker()` | Auto on `register_worker()` | Auto on `register_worker()` |
 | Register function | `iii.registerFunction({ id }, handler)` | `iii.register_function({"id": ...}, handler)` | `iii.register_function(id, \|input\| ...)` |
 | Register trigger | `iii.registerTrigger({ type, function_id, config })` | `iii.register_trigger({"type": ..., "function_id": ..., "config": ...})` | `iii.register_trigger(type, function_id, config)?` |
 | Context | `new Logger()` | `Logger()` | `iii_sdk::Logger()` |

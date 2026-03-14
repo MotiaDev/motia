@@ -44,9 +44,6 @@ sequenceDiagram
     SDK->>Engine: engine::workers::register
 ```
 
-<Callout title="Node.js auto-connects" type="info">
-  All three SDKs provide an auto-connect registration helper: Node uses `init()`, Python uses `register_worker()`, and Rust uses `register_worker()`.
-</Callout>
 
 ### Reconnection
 
@@ -103,7 +100,7 @@ iii.registerTrigger({
 
 ### Internal Structure
 
-The `Sdk` class (returned by `init()`) manages:
+The `Sdk` class (returned by `registerWorker()`) manages:
 - `functions` — `Map<string, RemoteFunctionData>` of registered handlers
 - `triggers` — `Map<string, RegisterTriggerMessage>` of trigger bindings
 - `invocations` — `Map<string, Invocation>` of pending call/response pairs
@@ -113,7 +110,7 @@ On connection open, all registrations are flushed and worker metadata is sent. O
 
 ### OpenTelemetry
 
-OpenTelemetry is initialized automatically by default. Each function invocation is wrapped in a span with trace context propagated from the engine. Disable with `init(url, { otel: { enabled: false } })` or `OTEL_ENABLED=false`.
+OpenTelemetry is initialized automatically by default. Each function invocation is wrapped in a span with trace context propagated from the engine. Disable with `registerWorker(url, { otel: { enabled: false } })` or `OTEL_ENABLED=false`.
 
 ### Subpath Exports
 
@@ -177,12 +174,12 @@ iii.register_trigger({
   </Accordion>
 
   <Accordion title="Logger" icon="file-text">
-    Context-aware logger that sends log events to the engine via `engine::log::*` functions.
+    Context-aware logger that emits structured logs via OpenTelemetry LogRecords when OTel is initialized, falling back to Python's `logging` module.
 
     ```python
     from iii import Logger
 
-    logger = Logger()
+    logger = Logger(service_name="my-worker")
     logger.info("Processing started")
     logger.error("Something failed")
     ```
@@ -209,7 +206,7 @@ Register a custom stream by implementing the `IStream` abstract class:
 
 ```python
 from iii import register_worker
-from iii.stream import IStream, StreamGetInput, StreamSetInput, StreamDeleteInput, StreamListInput
+from iii.stream import IStream, StreamGetInput, StreamSetInput, StreamDeleteInput, StreamListInput, StreamUpdateInput
 
 iii = register_worker('ws://localhost:49134')
 
@@ -223,6 +220,8 @@ class MyStream(IStream):
     async def list(self, input: StreamListInput):
         ...
     async def list_groups(self, input):
+        ...
+    async def update(self, input: StreamUpdateInput):
         ...
 
 iii.create_stream("my-stream", MyStream())

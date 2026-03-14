@@ -20,9 +20,10 @@ const iii = registerWorker('ws://localhost:49134', {
 </Tab>
 <Tab value="Python">
 ```python
-from iii import register_worker
+from iii import III
 
-iii = register_worker('ws://localhost:49134')
+iii = III('ws://localhost:49134')
+await iii.connect()
 ```
 </Tab>
 <Tab value="Rust">
@@ -98,22 +99,23 @@ iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python
-from iii import register_worker, TriggerAction
+from iii import III, TriggerAction
 
-iii = register_worker('ws://localhost:49134')
+iii = III('ws://localhost:49134')
+await iii.connect()
 
-result = iii.trigger({
+result = await iii.trigger({
     'function_id': 'users::create',
     'payload': {'name': 'Alice'},
 })
 
-iii.trigger({
+await iii.trigger({
     'function_id': 'orders::process',
     'payload': {'orderId': '123'},
     'action': TriggerAction.Enqueue(queue='payment'),
 })
 
-iii.trigger({
+await iii.trigger({
     'function_id': 'notifications::send',
     'payload': {'to': 'alice@example.com'},
     'action': TriggerAction.Void(),
@@ -190,10 +192,10 @@ const ref = iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python
-def create_user(data):
+async def create_user(data):
     return {'id': str(uuid.uuid4()), 'name': data['name']}
 
-ref = iii.register_function({"id": "users::create"}, create_user)
+ref = iii.register_function('users::create', create_user)
 ```
 </Tab>
 <Tab value="Rust">
@@ -259,11 +261,11 @@ const trigger = iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-trigger = iii.register_trigger({
-    'type': 'http',
-    'function_id': 'users::create',
-    'config': {'api_path': '/users', 'http_method': 'POST'},
-})
+trigger = iii.register_trigger(
+    type='http',
+    function_id='users::create',
+    config={'api_path': '/users', 'http_method': 'POST'},
+)
 ```
 </Tab>
 <Tab value="Rust">
@@ -337,8 +339,9 @@ iii.registerTriggerType<WebhookConfig>(
 <Tab value="Python">
 ```python
 iii.register_trigger_type(
-    {"id": "webhook", "description": "External webhook trigger"},
-    WebhookHandler(),
+    id='webhook',
+    description='External webhook trigger',
+    handler=WebhookHandler(),
 )
 ```
 </Tab>
@@ -406,7 +409,7 @@ const functions = await iii.listFunctions()
 </Tab>
 <Tab value="Python">
 ```python
-functions = iii.list_functions()
+functions = await iii.list_functions()
 ```
 </Tab>
 <Tab value="Rust">
@@ -512,7 +515,7 @@ await iii.shutdown()
 </Tab>
 <Tab value="Python">
 ```python
-iii.shutdown()
+await iii.shutdown()
 ```
 </Tab>
 <Tab value="Rust">
@@ -623,7 +626,7 @@ The SDK exports the following from the main package:
 
 | Export | Description |
 |--------|-------------|
-| `registerWorker` | Create and connect an SDK instance (Node); Python uses `register_worker()`, Rust uses `III` + `connect()` |
+| `registerWorker` | Create and connect an SDK instance (Node); Python/Rust use `III` + `connect()` or `register_worker()` |
 | `TriggerAction` | Factory for `Enqueue` and `Void` actions |
 | `TriggerRequest` | Request type for `trigger()` |
 | `EnqueueResult` | Result type when enqueueing to a named queue |

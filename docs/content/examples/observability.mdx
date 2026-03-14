@@ -460,5 +460,5 @@ logger.info("My message", Some(json!({ "traceId": current_trace_id() })));
 
 - `currentTraceId()` / `current_trace_id()` is the W3C trace-context ID for the current invocation. It is automatically propagated to all downstream workers when you emit an event — no manual header passing is needed.
 - All logs are emitted as structured JSON via the engine's `log.info` / `log.warn` / `log.error` functions.
-- The Node.js SDK supports OTel configuration directly in `init()`. Python and Rust use the engine's built-in OTLP pipeline.
+- The Node.js SDK supports OTel configuration directly in `registerWorker()`. Python and Rust use the engine's built-in OTLP pipeline.
 - Log every step at entry and exit with the `traceId` to make multi-step flows fully observable.

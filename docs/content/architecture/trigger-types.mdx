@@ -162,8 +162,8 @@ When you wrap your handler with an HTTP wrapper, it receives two arguments inste
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-import { http } from 'iii'
-import type { HttpRequest, HttpResponse } from 'iii'
+import { http } from 'iii-sdk'
+import type { HttpRequest, HttpResponse } from 'iii-sdk'
 
 const fn = iii.registerFunction(
   { id: 'api.example' },
@@ -255,8 +255,8 @@ Use the HTTP wrapper to stream a file to the client without buffering the entire
 ```typescript
 import * as fs from 'node:fs'
 import { pipeline } from 'node:stream/promises'
-import { http } from 'iii'
-import type { HttpRequest, HttpResponse } from 'iii'
+import { http } from 'iii-sdk'
+import type { HttpRequest, HttpResponse } from 'iii-sdk'
 
 const fn = iii.registerFunction(
   { id: 'api.download.pdf' },
@@ -355,8 +355,8 @@ SSE lets you push events from the server to the client over a single HTTP connec
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-import { http } from 'iii'
-import type { HttpRequest, HttpResponse } from 'iii'
+import { http } from 'iii-sdk'
+import type { HttpRequest, HttpResponse } from 'iii-sdk'
 
 const fn = iii.registerFunction(
   { id: 'api.events' },
@@ -1230,11 +1230,14 @@ iii.register_trigger("http", "webhooks.github", json!({
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
+import { TriggerAction } from 'iii-sdk'
+
 const processFn = iii.registerFunction({ id: 'orders.process' }, async (order) => {
   await saveOrder(order)
-  iii.triggerVoid('enqueue', {
-    topic: 'order.processed',
-    data: order,
+  iii.trigger({
+    function_id: 'enqueue',
+    payload: { topic: 'order.processed', data: order },
+    action: TriggerAction.Void(),
   })
 })
 
@@ -1257,6 +1260,8 @@ iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
+from iii import TriggerAction
+
 def process_order(order):
     save_order(order)
     iii.trigger({
@@ -1265,6 +1270,7 @@ def process_order(order):
             'topic': 'order.processed',
             'data': order,
         },
+        'action': TriggerAction.Void(),
     })
 
 process_fn = iii.register_function({"id": "orders.process"}, process_order)
@@ -1289,13 +1295,23 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.register_function("orders.process", |order: Value| async move {
-    save_order(&order).await;
-    iii.trigger_void("enqueue", json!({
-        "topic": "order.processed",
-        "data": order,
-    }));
-    Ok(json!(null))
+use iii_sdk::{TriggerAction, TriggerRequest};
+
+let iii_clone = iii.clone();
+iii.register_function("orders.process", move |order: Value| {
+    let iii = iii_clone.clone();
+    async move {
+        save_order(&order).await;
+        iii.trigger(
+            TriggerRequest::new("enqueue", json!({
+                "topic": "order.processed",
+                "data": order,
+            }))
+            .action(TriggerAction::void()),
+        )
+        .await?;
+        Ok(json!(null))
+    }
 });
 
 iii.register_trigger("queue", "orders.process", json!({

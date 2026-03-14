@@ -328,22 +328,39 @@ Store user profiles in state and react when they change:
 <Tabs groupId="language" persist items={["Node / TypeScript", "Python", "Rust"]}>
 <Tab value="Node / TypeScript">
 ```typescript
-iii.triggerVoid('state::set', {
-  scope: 'users',
-  key: 'user-123',
-  value: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'dark' } },
+await iii.trigger({
+  function_id: 'state::set',
+  payload: {
+    scope: 'users',
+    key: 'user-123',
+    value: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'dark' } },
+  },
+  action: TriggerAction.Void(),
 })
 
-const profile = await iii.trigger('state::get', { scope: 'users', key: 'user-123' })
-
-iii.triggerVoid('state::set', {
-  scope: 'users',
-  key: 'user-123',
-  value: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'light' } },
+const profile = await iii.trigger({
+  function_id: 'state::get',
+  payload: { scope: 'users', key: 'user-123' },
 })
 
-const allUsers = await iii.trigger('state::list', { scope: 'users' })
-const scopes = await iii.trigger('state::list_groups', {})
+await iii.trigger({
+  function_id: 'state::set',
+  payload: {
+    scope: 'users',
+    key: 'user-123',
+    value: { name: 'Alice', email: 'alice@example.com', preferences: { theme: 'light' } },
+  },
+  action: TriggerAction.Void(),
+})
+
+const allUsers = await iii.trigger({
+  function_id: 'state::list',
+  payload: { scope: 'users' },
+})
+const scopes = await iii.trigger({
+  function_id: 'state::list_groups',
+  payload: {},
+})
 ```
 </Tab>
 <Tab value="Python">
@@ -385,25 +402,28 @@ scopes = iii.trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.trigger_void("state::set", json!({
+use iii_sdk::{TriggerRequest, TriggerAction};
+use serde_json::json;
+
+iii.trigger(TriggerRequest::new("state::set", json!({
     "scope": "users",
     "key": "user-123",
     "value": { "name": "Alice", "email": "alice@example.com", "preferences": { "theme": "dark" } }
-}));
+})).action(TriggerAction::void())).await?;
 
-let profile = iii.trigger("state::get", json!({
+let profile = iii.trigger(TriggerRequest::new("state::get", json!({
     "scope": "users",
     "key": "user-123"
-})).await?;
+}))).await?;
 
-iii.trigger_void("state::set", json!({
+iii.trigger(TriggerRequest::new("state::set", json!({
     "scope": "users",
     "key": "user-123",
     "value": { "name": "Alice", "email": "alice@example.com", "preferences": { "theme": "light" } }
-}));
+})).action(TriggerAction::void())).await?;
 
-let all_users = iii.trigger("state::list", json!({ "scope": "users" })).await?;
-let scopes = iii.trigger("state::list_groups", json!({})).await?;
+let all_users = iii.trigger(TriggerRequest::new("state::list", json!({ "scope": "users" }))).await?;
+let scopes = iii.trigger(TriggerRequest::new("state::list_groups", json!({}))).await?;
 ```
 </Tab>
 </Tabs>
