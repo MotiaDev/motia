@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import type { FunctionDoc, ParamDoc, SdkDoc, TypeDoc } from '../types.mjs'
+import type { FunctionDoc, LoggerDoc, ParamDoc, SdkDoc, TypeDoc } from '../types.mjs'
 
 // ---------------------------------------------------------------------------
 // Rustdoc JSON types (format_version ~56)
@@ -563,6 +563,20 @@ export function parseRustdocData(data: RustDocIndex): SdkDoc {
     ? buildMethodDoc(registerWorkerItem, index)
     : null
 
+  // Extract Logger
+  const loggerId = reExportMap.get('Logger')
+  let loggerSection: LoggerDoc | undefined
+  if (loggerId != null) {
+    const loggerItem = index[loggerId]
+    if (loggerItem && getItemKind(loggerItem) === 'struct') {
+      const loggerMethods = extractMethodsFromStruct(loggerId, index, new Set(['new']))
+      const description = extractDocs(loggerItem)
+      if (description || loggerMethods.length > 0) {
+        loggerSection = { description, methods: loggerMethods }
+      }
+    }
+  }
+
   // Extract types
   const types: TypeDoc[] = []
   for (const typeName of EXPORTED_TYPES) {
@@ -596,9 +610,6 @@ export function parseRustdocData(data: RustDocIndex): SdkDoc {
       importExample: 'use iii_sdk::{register_worker, InitOptions};',
     },
     initialization: {
-      description:
-        'The Rust SDK provides `register_worker()` to create a connected SDK instance. The WebSocket connection is established automatically.',
-      example: `use iii_sdk::{register_worker, InitOptions};\n\nlet iii = register_worker("ws://localhost:49134", InitOptions::default());`,
       entryPoint: entryPoint ?? {
         name: 'register_worker',
         signature: 'register_worker(address: &str, options: InitOptions) -> III',
@@ -613,8 +624,7 @@ export function parseRustdocData(data: RustDocIndex): SdkDoc {
     },
     methods,
     types,
-    contextSection:
-      '```rust\nuse iii_sdk::Logger;\n\nlet logger = Logger::new(Some("my-function".to_string()));\nlogger.info("Processing started");\n```\n\nThe `Logger` struct emits OTel LogRecords when OTel is active, otherwise falls back to the `tracing` crate.',
+    loggerSection,
   }
 }
 
@@ -641,9 +651,6 @@ function createEmptyRustSdkDoc(): SdkDoc {
       importExample: 'use iii_sdk::{register_worker, InitOptions};',
     },
     initialization: {
-      description:
-        'The Rust SDK provides `register_worker()` to create a connected SDK instance.',
-      example: `use iii_sdk::{register_worker, InitOptions};\n\nlet iii = register_worker("ws://localhost:49134", InitOptions::default());`,
       entryPoint: {
         name: 'register_worker',
         signature: 'register_worker(address: &str, options: InitOptions) -> III',

@@ -13,24 +13,7 @@ pip install iii-sdk
 
 ## Initialization
 
-The Python SDK exposes the `III` class. Use `register_worker()` for automatic connection, or create an `III` instance and call `connect()` manually.
 
-```python
-from iii import III, InitOptions
-
-iii = III('ws://localhost:49134', InitOptions(worker_name='my-worker'))
-await iii.connect()
-```
-
-### register_worker
-
-
-
-**Signature**
-
-```python
-register_worker()
-```
 
 ## Methods
 
@@ -407,6 +390,127 @@ unregister_trigger_type(trigger_type: RegisterTriggerTypeInput | dict[str, Any])
     >>> iii.unregister_trigger_type(RegisterTriggerTypeInput(id="webhook", description="Webhook trigger"))
 ```
 
+## Logger
+
+Structured logger that emits logs as OpenTelemetry LogRecords.
+
+Every log call automatically captures the active trace and span context,
+correlating your logs with distributed traces without any manual wiring.
+When OTel is not initialized, Logger gracefully falls back to Python
+``logging``.
+
+Pass structured data as the second argument to any log method. Using a
+dict of key-value pairs (instead of string interpolation) lets you
+filter, aggregate, and build dashboards in your observability backend.
+
+Examples:
+    >>> from iii import Logger
+    >>> logger = Logger()
+    >>>
+    >>> # Basic logging — trace context is injected automatically
+    >>> logger.info('Worker connected')
+    >>>
+    >>> # Structured context for dashboards and alerting
+    >>> logger.info('Order processed', \{'order_id': 'ord_123', 'amount': 49.99, 'currency': 'USD'\})
+    >>> logger.warn('Retry attempt', \{'attempt': 3, 'max_retries': 5, 'endpoint': '/api/charge'\})
+    >>> logger.error('Payment failed', \{'order_id': 'ord_123', 'gateway': 'stripe', 'error_code': 'card_declined'\})
+
+### debug
+
+Log a debug-level message.
+
+**Signature**
+
+```python
+debug(message: str, data: Any = None)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | `str` | Yes | Human-readable log message. |
+| `data` | `Any` | No | Structured context attached as OTel log attributes. Use dicts of key-value pairs to enable filtering and aggregation in your observability backend (e.g. Grafana, Datadog, New Relic). |
+
+#### Example
+
+```python
+    >>> logger.debug('Cache lookup', {'key': 'user:42', 'hit': False})
+```
+
+### error
+
+Log an error-level message.
+
+**Signature**
+
+```python
+error(message: str, data: Any = None)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | `str` | Yes | Human-readable log message. |
+| `data` | `Any` | No | Structured context attached as OTel log attributes. Use dicts of key-value pairs to enable filtering and aggregation in your observability backend (e.g. Grafana, Datadog, New Relic). |
+
+#### Example
+
+```python
+    >>> logger.error('Payment failed', {
+    ...     'order_id': 'ord_123',
+    ...     'gateway': 'stripe',
+    ...     'error_code': 'card_declined',
+    ... })
+```
+
+### info
+
+Log an info-level message.
+
+**Signature**
+
+```python
+info(message: str, data: Any = None)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | `str` | Yes | Human-readable log message. |
+| `data` | `Any` | No | Structured context attached as OTel log attributes. Use dicts of key-value pairs to enable filtering and aggregation in your observability backend (e.g. Grafana, Datadog, New Relic). |
+
+#### Example
+
+```python
+    >>> logger.info('Order processed', {'order_id': 'ord_123', 'status': 'completed'})
+```
+
+### warn
+
+Log a warning-level message.
+
+**Signature**
+
+```python
+warn(message: str, data: Any = None)
+```
+
+#### Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | `str` | Yes | Human-readable log message. |
+| `data` | `Any` | No | Structured context attached as OTel log attributes. Use dicts of key-value pairs to enable filtering and aggregation in your observability backend (e.g. Grafana, Datadog, New Relic). |
+
+#### Example
+
+```python
+    >>> logger.warn('Retry attempt', {'attempt': 3, 'max_retries': 5, 'endpoint': '/api/charge'})
+```
+
 ## Types
 
 [`HttpInvocationConfig`](#httpinvocationconfig) · [`RegisterFunctionFormat`](#registerfunctionformat) · [`RegisterFunctionInput`](#registerfunctioninput) · [`RegisterServiceInput`](#registerserviceinput) · [`RegisterTriggerInput`](#registertriggerinput) · [`RegisterTriggerTypeInput`](#registertriggertypeinput) · [`TriggerActionEnqueue`](#triggeractionenqueue) · [`TriggerActionVoid`](#triggeractionvoid) · [`TriggerRequest`](#triggerrequest) · [`IStream`](#istream) · [`TriggerHandler`](#triggerhandler)
@@ -514,14 +618,3 @@ Abstract interface for stream operations.
 ### TriggerHandler
 
 Abstract base class for trigger handlers.
-
-## Context
-
-```python
-from iii import Logger
-
-logger = Logger()
-logger.info('Processing started')
-```
-
-The `Logger` class emits OTel LogRecords when OTel is active, otherwise falls back to Python `logging`.
