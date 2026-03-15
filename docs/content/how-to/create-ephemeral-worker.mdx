@@ -169,7 +169,7 @@ iii.shutdown()
     println!("Task completed. Shutting down worker...");
 
     // Cleanly close the WebSocket connection
-    iii.shutdown();
+    iii.shutdown_async().await;
 
     Ok(())
 }
