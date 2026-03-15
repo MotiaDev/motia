@@ -37,10 +37,13 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.register_trigger("http", "users.create", json!({
+use iii_sdk::RegisterTriggerInput;
+use serde_json::json;
+
+iii.register_trigger(RegisterTriggerInput { type_: "http".into(), function_id: "users.create".into(), config: json!({
     "api_path": "/users",
     "http_method": "POST"
-}))?;
+}), ..Default::default() })?;
 ```
 </Tab>
 </Tabs>
@@ -195,10 +198,10 @@ fn_ref = iii_client.register_function({"id": "api.example"}, handler)
 In Rust, the HTTP handler receives the raw `Value` input. You extract channel refs to obtain a `ChannelWriter` for the response and use `send_message` to set status and headers:
 
 ```rust
-use iii_sdk::{III, IIIError, ChannelWriter, extract_channel_refs, ChannelDirection};
+use iii_sdk::{III, IIIError, ChannelWriter, extract_channel_refs, ChannelDirection, RegisterFunctionMessage};
 use serde_json::{json, Value};
 
-iii.register_function("api.example", move |input: Value| {
+iii.register_function(RegisterFunctionMessage { id: "api.example".into(), ..Default::default() }, move |input: Value| {
     let iii = iii.clone();
     async move {
         let refs = extract_channel_refs(&input);
@@ -310,8 +313,11 @@ iii_client.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
+use iii_sdk::{III, IIIError, ChannelWriter, extract_channel_refs, ChannelDirection, RegisterFunctionMessage, RegisterTriggerInput};
+use serde_json::{json, Value};
+
 let iii_for_handler = iii.clone();
-iii.register_function("api.download.pdf", move |input: Value| {
+iii.register_function(RegisterFunctionMessage { id: "api.download.pdf".into(), ..Default::default() }, move |input: Value| {
     let iii = iii_for_handler.clone();
     async move {
         let pdf_data = std::fs::read("/path/to/report.pdf")
@@ -340,10 +346,10 @@ iii.register_function("api.download.pdf", move |input: Value| {
     }
 });
 
-iii.register_trigger("http", "api.download.pdf", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "http".into(), function_id: "api.download.pdf".into(), config: json!({
     "api_path": "download/report",
     "http_method": "GET",
-}))?;
+}), ..Default::default() })?;
 ```
 </Tab>
 </Tabs>
@@ -448,6 +454,10 @@ iii_client.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
+use std::time::Duration;
+use iii_sdk::{III, IIIError, ChannelWriter, extract_channel_refs, ChannelDirection, RegisterFunctionMessage, RegisterTriggerInput};
+use serde_json::{json, Value};
+
 let events = vec![
     json!({"id": "1", "type": "message", "data": "Hello, world!"}),
     json!({"id": "2", "type": "update", "data": serde_json::to_string(&json!({"count": 42})).unwrap()}),
@@ -455,7 +465,7 @@ let events = vec![
 ];
 
 let iii_for_handler = iii.clone();
-iii.register_function("api.events", move |input: Value| {
+iii.register_function(RegisterFunctionMessage { id: "api.events".into(), ..Default::default() }, move |input: Value| {
     let iii = iii_for_handler.clone();
     let events = events.clone();
     async move {
@@ -498,10 +508,10 @@ iii.register_function("api.events", move |input: Value| {
     }
 });
 
-iii.register_trigger("http", "api.events", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "http".into(), function_id: "api.events".into(), config: json!({
     "api_path": "events",
     "http_method": "GET",
-}))?;
+}), ..Default::default() })?;
 ```
 </Tab>
 </Tabs>
@@ -765,7 +775,10 @@ fn = iii.register_function({"id": "users.create"}, create_user)
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.register_function("users.create", |data: Value| async move {
+use iii_sdk::RegisterFunctionMessage;
+use serde_json::{json, Value};
+
+iii.register_function(RegisterFunctionMessage { id: "users.create".into(), ..Default::default() }, |data: Value| async move {
     Ok(json!({"id": "123", "name": data["name"]}))
 });
 ```
@@ -800,10 +813,13 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.register_trigger("http", "users.create", json!({
+use iii_sdk::RegisterTriggerInput;
+use serde_json::json;
+
+iii.register_trigger(RegisterTriggerInput { type_: "http".into(), function_id: "users.create".into(), config: json!({
     "api_path": "/users",
     "http_method": "POST"
-}))?;
+}), ..Default::default() })?;
 ```
 </Tab>
 </Tabs>
@@ -886,23 +902,26 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.register_function("users.notify", |data: Value| async move {
+use iii_sdk::{RegisterFunctionMessage, RegisterTriggerInput};
+use serde_json::json;
+
+iii.register_function(RegisterFunctionMessage { id: "users.notify".into(), ..Default::default() }, |data: Value| async move {
     send_notification(&data).await;
     Ok(json!({}))
 });
 
-iii.register_trigger("http", "users.notify", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "http".into(), function_id: "users.notify".into(), config: json!({
     "api_path": "/notify",
     "http_method": "POST"
-}))?;
+}), ..Default::default() })?;
 
-iii.register_trigger("queue", "users.notify", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "queue".into(), function_id: "users.notify".into(), config: json!({
     "topic": "user.created"
-}))?;
+}), ..Default::default() })?;
 
-iii.register_trigger("cron", "users.notify", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "cron".into(), function_id: "users.notify".into(), config: json!({
     "expression": "0 9 * * *"
-}))?;
+}), ..Default::default() })?;
 ```
 </Tab>
 </Tabs>
@@ -972,20 +991,23 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.register_function("conditions::requireVerified", |req: Value| async move {
+use iii_sdk::{RegisterFunctionMessage, RegisterTriggerInput};
+use serde_json::json;
+
+iii.register_function(RegisterFunctionMessage { id: "conditions::requireVerified".into(), ..Default::default() }, |req: Value| async move {
     let verified = req["headers"]["x-verified"].as_str() == Some("true");
     Ok(json!(verified))
 });
 
-iii.register_function("api::verifiedOnly", |_req: Value| async move {
+iii.register_function(RegisterFunctionMessage { id: "api::verifiedOnly".into(), ..Default::default() }, |_req: Value| async move {
     Ok(json!({"status_code": 200, "body": {"message": "Verified request"}}))
 });
 
-iii.register_trigger("http", "api::verifiedOnly", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "http".into(), function_id: "api::verifiedOnly".into(), config: json!({
     "api_path": "/verified",
     "http_method": "POST",
     "condition_function_id": "conditions::requireVerified"
-}))?;
+}), ..Default::default() })?;
 ```
 </Tab>
 </Tabs>
@@ -1040,20 +1062,23 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.register_function("conditions::highValue", |data: Value| async move {
+use iii_sdk::{RegisterFunctionMessage, RegisterTriggerInput};
+use serde_json::json;
+
+iii.register_function(RegisterFunctionMessage { id: "conditions::highValue".into(), ..Default::default() }, |data: Value| async move {
     let amount = data["amount"].as_f64().unwrap_or(0.0);
     Ok(json!(amount > 1000.0))
 });
 
-iii.register_function("orders::processHighValue", |order: Value| async move {
+iii.register_function(RegisterFunctionMessage { id: "orders::processHighValue".into(), ..Default::default() }, |order: Value| async move {
     process_high_value_order(&order).await;
     Ok(json!({}))
 });
 
-iii.register_trigger("queue", "orders::processHighValue", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "queue".into(), function_id: "orders::processHighValue".into(), config: json!({
     "topic": "order.placed",
     "condition_function_id": "conditions::highValue"
-}))?;
+}), ..Default::default() })?;
 ```
 </Tab>
 </Tabs>
@@ -1108,21 +1133,24 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.register_function("conditions::profileChanged", |event: Value| async move {
+use iii_sdk::{RegisterFunctionMessage, RegisterTriggerInput};
+use serde_json::json;
+
+iii.register_function(RegisterFunctionMessage { id: "conditions::profileChanged".into(), ..Default::default() }, |event: Value| async move {
     let is_updated = event["event_type"].as_str() == Some("updated");
     let is_profile = event["key"].as_str() == Some("profile");
     Ok(json!(is_updated && is_profile))
 });
 
-iii.register_function("state::onProfileUpdate", |event: Value| async move {
+iii.register_function(RegisterFunctionMessage { id: "state::onProfileUpdate".into(), ..Default::default() }, |event: Value| async move {
     println!("Profile updated: {:?}", event["new_value"]);
     Ok(json!({}))
 });
 
-iii.register_trigger("state", "state::onProfileUpdate", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "state".into(), function_id: "state::onProfileUpdate".into(), config: json!({
     "scope": "users",
     "condition_function_id": "conditions::profileChanged"
-}))?;
+}), ..Default::default() })?;
 ```
 </Tab>
 </Tabs>
@@ -1208,7 +1236,10 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.register_function("webhooks.github", |req: Value| async move {
+use iii_sdk::{RegisterFunctionMessage, RegisterTriggerInput};
+use serde_json::json;
+
+iii.register_function(RegisterFunctionMessage { id: "webhooks.github".into(), ..Default::default() }, |req: Value| async move {
     let event = req["headers"]["x-github-event"].as_str().unwrap_or("");
     let payload = &req["body"];
 
@@ -1217,10 +1248,10 @@ iii.register_function("webhooks.github", |req: Value| async move {
     Ok(json!({"status_code": 200, "body": {"received": true}}))
 });
 
-iii.register_trigger("http", "webhooks.github", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "http".into(), function_id: "webhooks.github".into(), config: json!({
     "api_path": "/webhooks/github",
     "http_method": "POST"
-}))?;
+}), ..Default::default() })?;
 ```
 </Tab>
 </Tabs>
@@ -1295,10 +1326,10 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{TriggerAction, TriggerRequest};
+use iii_sdk::{TriggerAction, TriggerRequest, RegisterFunctionMessage, RegisterTriggerInput};
 
 let iii_clone = iii.clone();
-iii.register_function("orders.process", move |order: Value| {
+iii.register_function(RegisterFunctionMessage { id: "orders.process".into(), ..Default::default() }, move |order: Value| {
     let iii = iii_clone.clone();
     async move {
         save_order(&order).await;
@@ -1314,18 +1345,18 @@ iii.register_function("orders.process", move |order: Value| {
     }
 });
 
-iii.register_trigger("queue", "orders.process", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "queue".into(), function_id: "orders.process".into(), config: json!({
     "topic": "order.placed"
-}))?;
+}), ..Default::default() })?;
 
-iii.register_function("orders.sendConfirmation", |order: Value| async move {
+iii.register_function(RegisterFunctionMessage { id: "orders.sendConfirmation".into(), ..Default::default() }, |order: Value| async move {
     send_email(order["email"].as_str().unwrap_or(""), "Order confirmed").await;
     Ok(json!(null))
 });
 
-iii.register_trigger("queue", "orders.sendConfirmation", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "queue".into(), function_id: "orders.sendConfirmation".into(), config: json!({
     "topic": "order.processed"
-}))?;
+}), ..Default::default() })?;
 ```
 </Tab>
 </Tabs>
@@ -1368,15 +1399,18 @@ iii.register_trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-iii.register_function("maintenance.cleanup", |_: Value| async move {
+use iii_sdk::{RegisterFunctionMessage, RegisterTriggerInput};
+use serde_json::json;
+
+iii.register_function(RegisterFunctionMessage { id: "maintenance.cleanup".into(), ..Default::default() }, |_: Value| async move {
     let deleted = delete_old_records().await;
     info!("Deleted {} old records", deleted);
     Ok(json!(null))
 });
 
-iii.register_trigger("cron", "maintenance.cleanup", json!({
+iii.register_trigger(RegisterTriggerInput { type_: "cron".into(), function_id: "maintenance.cleanup".into(), config: json!({
     "expression": "0 3 * * *"
-}))?;
+}), ..Default::default() })?;
 ```
 </Tab>
 </Tabs>
