@@ -77,9 +77,9 @@ npm install iii-sdk
 ### Basic Usage
 
 ```typescript
-import {Logger} from 'iii-sdk'
+import { registerWorker, Logger } from 'iii-sdk'
 
-const iii = init('ws://127.0.0.1:49134')
+const iii = registerWorker('ws://127.0.0.1:49134')
 
 iii.registerFunction(
   { id: 'users::create', description: 'Create a user' },
@@ -116,7 +116,7 @@ OpenTelemetry is initialized automatically by default. Each function invocation 
 
 | Import | Contents |
 | --- | --- |
-| `iii-sdk` | `init`, `Logger`, `OTel context`, `Logger`, `ISdk`, `ApiRequest`, `ApiResponse` |
+| `iii-sdk` | `registerWorker`, `Logger`, `OTel context`, `ISdk`, `ApiRequest`, `ApiResponse` |
 | `iii-sdk/stream` | `IStream`, stream input/output types, `UpdateOp` |
 | `iii-sdk/state` | State management types |
 | `iii-sdk/telemetry` | `initOtel`, `getTracer`, `getMeter`, `withSpan`, `SpanKind`, etc. |

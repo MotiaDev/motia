@@ -228,9 +228,9 @@ Subscribe to OpenTelemetry log events from the engine using `onLog()`. Logs incl
   <Tab value="Node / TypeScript">
 
 ```typescript
-import { init } from 'iii-sdk'
+import { registerWorker } from 'iii-sdk'
 
-const iii = init('ws://localhost:49134')
+const iii = registerWorker('ws://localhost:49134')
 
 iii.onLog((log) => {
   console.log(`[${log.severity_text}] ${log.body}`)
