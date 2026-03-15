@@ -20,18 +20,16 @@ const iii = registerWorker('ws://localhost:49134', {
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III
+from iii import register_worker
 
-iii = III('ws://localhost:49134')
-await iii.connect()
+iii = register_worker('ws://localhost:49134')
 ```
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::III;
+use iii_sdk::{register_worker, InitOptions};
 
-let iii = III::new("ws://localhost:49134");
-iii.connect().await?;
+let iii = register_worker("ws://localhost:49134", InitOptions::default());
 ```
 </Tab>
 </Tabs>
@@ -99,23 +97,22 @@ iii.trigger({
 </Tab>
 <Tab value="Python">
 ```python
-from iii import III, TriggerAction
+from iii import register_worker, TriggerAction
 
-iii = III('ws://localhost:49134')
-await iii.connect()
+iii = register_worker('ws://localhost:49134')
 
-result = await iii.trigger({
+result = iii.trigger({
     'function_id': 'users::create',
     'payload': {'name': 'Alice'},
 })
 
-await iii.trigger({
+iii.trigger({
     'function_id': 'orders::process',
     'payload': {'orderId': '123'},
     'action': TriggerAction.Enqueue(queue='payment'),
 })
 
-await iii.trigger({
+iii.trigger({
     'function_id': 'notifications::send',
     'payload': {'to': 'alice@example.com'},
     'action': TriggerAction.Void(),
@@ -124,11 +121,10 @@ await iii.trigger({
 </Tab>
 <Tab value="Rust">
 ```rust
-use iii_sdk::{III, TriggerRequest, TriggerAction};
+use iii_sdk::{register_worker, InitOptions, TriggerRequest, TriggerAction};
 use serde_json::json;
 
-let iii = III::new("ws://localhost:49134");
-iii.connect().await?;
+let iii = register_worker("ws://localhost:49134", InitOptions::default());
 
 let result = iii.trigger(
     TriggerRequest::new("users::create", json!({"name": "Alice"}))
@@ -192,10 +188,10 @@ const ref = iii.registerFunction(
 </Tab>
 <Tab value="Python">
 ```python
-async def create_user(data):
+def create_user(data):
     return {'id': str(uuid.uuid4()), 'name': data['name']}
 
-ref = iii.register_function('users::create', create_user)
+ref = iii.register_function({'id': 'users::create'}, create_user)
 ```
 </Tab>
 <Tab value="Rust">
@@ -261,11 +257,11 @@ const trigger = iii.registerTrigger({
 </Tab>
 <Tab value="Python">
 ```python
-trigger = iii.register_trigger(
-    type='http',
-    function_id='users::create',
-    config={'api_path': '/users', 'http_method': 'POST'},
-)
+trigger = iii.register_trigger({
+    'type': 'http',
+    'function_id': 'users::create',
+    'config': {'api_path': '/users', 'http_method': 'POST'},
+})
 ```
 </Tab>
 <Tab value="Rust">
@@ -339,9 +335,8 @@ iii.registerTriggerType<WebhookConfig>(
 <Tab value="Python">
 ```python
 iii.register_trigger_type(
-    id='webhook',
-    description='External webhook trigger',
-    handler=WebhookHandler(),
+    {'id': 'webhook', 'description': 'External webhook trigger'},
+    WebhookHandler(),
 )
 ```
 </Tab>
@@ -409,7 +404,7 @@ const functions = await iii.listFunctions()
 </Tab>
 <Tab value="Python">
 ```python
-functions = await iii.list_functions()
+functions = iii.list_functions()
 ```
 </Tab>
 <Tab value="Rust">
@@ -515,7 +510,7 @@ await iii.shutdown()
 </Tab>
 <Tab value="Python">
 ```python
-await iii.shutdown()
+iii.shutdown()
 ```
 </Tab>
 <Tab value="Rust">
