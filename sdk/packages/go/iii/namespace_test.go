@@ -180,6 +180,65 @@ func TestExplicitNamespaceWinsForEngineTrigger(t *testing.T) {
 	}
 }
 
+// TestImplicitCallInheritsTheWorkerNamespace: absent means this worker's
+// namespace, as in the other SDKs. Engine-owned builtins stay in default (see
+// TestEngineTriggerDefaultsToDefaultNamespace), and so does configuration::*,
+// which belongs to the engine-owned configuration worker. Explicit always wins.
+func TestImplicitCallInheritsTheWorkerNamespace(t *testing.T) {
+	for _, tc := range []struct{ name, functionID, explicit, want string }{
+		{"implicit call inherits", "api::ping", "", "orders"},
+		{"implicit configuration call stays in default", "configuration::get", "", "default"},
+		{"explicit wins over inheritance", "api::ping", "sandbox", "sandbox"},
+		{"explicit wins for a configuration call", "configuration::get", "sandbox", "sandbox"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := newMockEngine(t)
+			c := connectClient(t, m, WithNamespace("orders"))
+
+			_, _ = c.Trigger(context.Background(), TriggerRequest{
+				FunctionID: tc.functionID,
+				Action:     VoidAction(),
+				Namespace:  tc.explicit,
+			})
+
+			got := m.waitFor(func(msgs []map[string]json.RawMessage) bool {
+				return indexOfFunctionID(msgs, tc.functionID) >= 0
+			}, 2*time.Second)
+			inv := got[indexOfFunctionID(got, tc.functionID)]
+			if ns := stringField(inv, "namespace"); ns != tc.want {
+				t.Errorf("namespace = %q, want %q", ns, tc.want)
+			}
+		})
+	}
+}
+
+// TestTriggerRegistrationInheritsTheWorkerNamespace: a trigger names a function,
+// and the function a worker registers lands in the worker's namespace, so an
+// unset binding namespace must follow it. Naming another one stays possible.
+func TestTriggerRegistrationInheritsTheWorkerNamespace(t *testing.T) {
+	for _, tc := range []struct{ name, explicit, want string }{
+		{"unset inherits", "", "orders"},
+		{"explicit wins", "default", "default"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := newMockEngine(t)
+			c := connectClient(t, m, WithNamespace("orders"))
+
+			if err := c.RegisterTriggerNamespaced("t1", "cron", "api::process", tc.explicit, nil); err != nil {
+				t.Fatalf("RegisterTriggerNamespaced: %v", err)
+			}
+
+			got := m.waitFor(func(msgs []map[string]json.RawMessage) bool {
+				return countType(msgs, string(MsgRegisterTrigger)) >= 1
+			}, 2*time.Second)
+			reg := firstOfType(got, string(MsgRegisterTrigger))
+			if ns := stringField(reg, "namespace"); ns != tc.want {
+				t.Errorf("namespace = %q, want %q", ns, tc.want)
+			}
+		})
+	}
+}
+
 // TestRegistrationRejectedIsFatal verifies a WORKER_NAMESPACE_CONFLICT is
 // terminal: the client records the typed error, enters StateFailed, fails pending
 // invocations, and does not reconnect (which would loop forever under the default

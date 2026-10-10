@@ -108,6 +108,27 @@ describe('namespace inheritance', () => {
     expect(call).toMatchObject({ namespace: 'sandbox' })
   })
 
+  it('keeps an implicit configuration invocation in default', async () => {
+    await connect('orders')
+    void sdk.trigger({ function_id: 'configuration::get', payload: {}, action: { type: 'void' } })
+
+    const call = engine.findAllSent('invokefunction').find((f) => f.function_id === 'configuration::get')
+    expect(call).toMatchObject({ namespace: 'default' })
+  })
+
+  it('lets an explicit namespace win for a configuration invocation', async () => {
+    await connect('orders')
+    void sdk.trigger({
+      function_id: 'configuration::get',
+      payload: {},
+      action: { type: 'void' },
+      namespace: 'sandbox',
+    })
+
+    const call = engine.findAllSent('invokefunction').find((f) => f.function_id === 'configuration::get')
+    expect(call).toMatchObject({ namespace: 'sandbox' })
+  })
+
   /**
    * The regression the Node SDK hit when it adopted this rule.
    *

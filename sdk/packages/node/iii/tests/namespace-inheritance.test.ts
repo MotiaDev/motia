@@ -124,6 +124,31 @@ describe('namespace inheritance', () => {
     expect(call).toMatchObject({ namespace: 'sandbox' })
   })
 
+  it('keeps an implicit configuration invocation in default', async () => {
+    sdk = registerWorker(url, { workerName: 'tester', namespace: 'orders', otel: { enabled: false } })
+    await settle()
+    void sdk.trigger({ function_id: 'configuration::get', payload: {}, action: { type: 'void' } } as never)
+    await settle()
+
+    const call = frames.find((f) => f.type === 'invokefunction' && f.function_id === 'configuration::get')
+    expect(call).toMatchObject({ namespace: 'default' })
+  })
+
+  it('lets an explicit namespace win for a configuration invocation', async () => {
+    sdk = registerWorker(url, { workerName: 'tester', namespace: 'orders', otel: { enabled: false } })
+    await settle()
+    void sdk.trigger({
+      function_id: 'configuration::get',
+      payload: {},
+      action: { type: 'void' },
+      namespace: 'sandbox',
+    } as never)
+    await settle()
+
+    const call = frames.find((f) => f.type === 'invokefunction' && f.function_id === 'configuration::get')
+    expect(call).toMatchObject({ namespace: 'sandbox' })
+  })
+
   /**
    * The regression this file exists for.
    *
