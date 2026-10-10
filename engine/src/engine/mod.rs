@@ -24,7 +24,7 @@ use crate::{
     function::{Function, FunctionHandler, FunctionResult, FunctionsRegistry},
     invocation::{InvocationHandler, http_function::HttpFunctionConfig},
     protocol::{
-        DEFAULT_NAMESPACE, ErrorBody, FUNCTION_NAMESPACE_CONFLICT, Message,
+        DEFAULT_NAMESPACE, ErrorBody, FUNCTION_NAMESPACE_CONFLICT, Message, NAMESPACE_FORBIDDEN,
         WORKER_NAMESPACE_CONFLICT, effective_namespace,
     },
     services::{Service, ServicesRegistry},
@@ -1738,30 +1738,53 @@ impl Engine {
                             .and_then(|v| v.as_str())
                             .unwrap_or(crate::protocol::DEFAULT_NAMESPACE);
                         if !session.namespaces.contains_key(declared) {
-                            let inv_id = (*invocation_id).unwrap_or_else(Uuid::new_v4);
                             let mut permitted: Vec<&str> =
                                 session.namespaces.keys().map(String::as_str).collect();
                             permitted.sort_unstable();
+                            // A caller that awaits the call still gets its error.
+                            if let Some(inv_id) = *invocation_id {
+                                self.send_msg(
+                                    worker,
+                                    Message::InvocationResult {
+                                        invocation_id: inv_id,
+                                        function_id: function_id.clone(),
+                                        result: None,
+                                        error: Some(ErrorBody::new(
+                                            "FORBIDDEN",
+                                            format!(
+                                                "namespace '{}' not allowed for this session \
+                                                 (permitted: {})",
+                                                declared,
+                                                permitted.join(", ")
+                                            ),
+                                        )),
+                                        traceparent: traceparent.clone(),
+                                        baggage: baggage.clone(),
+                                    },
+                                )
+                                .await;
+                            }
+                            // SDKs register fire-and-forget, so the refusal must
+                            // also end the connection: otherwise the worker keeps
+                            // running, and registering, in `default`.
                             self.send_msg(
                                 worker,
-                                Message::InvocationResult {
-                                    invocation_id: inv_id,
-                                    function_id: function_id.clone(),
-                                    result: None,
-                                    error: Some(ErrorBody::new(
-                                        "FORBIDDEN",
-                                        format!(
-                                            "namespace '{}' not allowed for this session \
-                                             (permitted: {})",
-                                            declared,
-                                            permitted.join(", ")
-                                        ),
-                                    )),
-                                    traceparent: traceparent.clone(),
-                                    baggage: baggage.clone(),
+                                Message::RegistrationRejected {
+                                    code: NAMESPACE_FORBIDDEN.to_string(),
+                                    namespace: declared.to_string(),
+                                    worker_name: data
+                                        .get("name")
+                                        .and_then(|v| v.as_str())
+                                        .map(str::to_string),
+                                    function_id: None,
+                                    owner_worker_id: String::new(),
                                 },
                             )
                             .await;
+                            let _ = worker
+                                .channel
+                                .send(Outbound::Raw(WsMessage::Close(None)))
+                                .await;
                             return Ok(());
                         }
                     }
