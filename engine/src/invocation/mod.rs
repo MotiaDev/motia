@@ -17,7 +17,7 @@ use uuid::Uuid;
 use crate::telemetry::SpanExt;
 
 use crate::{
-    function::{Function, FunctionResult},
+    function::{Function, FunctionResult, HandlerFn},
     protocol::ErrorBody,
     workers::observability::metrics::get_engine_metrics,
     workers::worker::rbac_session::Session,
@@ -29,6 +29,18 @@ pub mod http_invoker;
 pub mod method;
 pub mod signature;
 pub mod url_validator;
+
+// Own the handler snapshot and original payload only until the callback returns,
+// including when dispatch subsequently waits for a deferred worker response.
+async fn call_handler_with_metadata<H: AsRef<HandlerFn> + Send>(
+    handler: H,
+    invocation_id: Option<Uuid>,
+    data: Value,
+    session: Option<Arc<Session>>,
+    metadata: Option<Value>,
+) -> FunctionResult<Option<Value>, ErrorBody> {
+    (handler.as_ref())(invocation_id, data.clone(), session, metadata).await
+}
 
 pub struct Invocation {
     pub id: Uuid,
@@ -80,6 +92,60 @@ impl InvocationHandler {
         function_id: String,
         body: Value,
         function_handler: Function,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+        session: Option<Arc<Session>>,
+        metadata: Option<Value>,
+    ) -> Result<Result<Option<Value>, ErrorBody>, RecvError> {
+        self.handle_invocation_inner(
+            invocation_id,
+            worker_id,
+            function_id,
+            body,
+            function_handler,
+            traceparent,
+            baggage,
+            session,
+            metadata,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn handle_invocation_with_handler(
+        &self,
+        invocation_id: Option<Uuid>,
+        worker_id: Option<Uuid>,
+        function_id: String,
+        body: Value,
+        function_handler: Arc<HandlerFn>,
+        traceparent: Option<String>,
+        baggage: Option<String>,
+        session: Option<Arc<Session>>,
+        metadata: Option<Value>,
+    ) -> Result<Result<Option<Value>, ErrorBody>, RecvError> {
+        self.handle_invocation_inner(
+            invocation_id,
+            worker_id,
+            function_id,
+            body,
+            function_handler,
+            traceparent,
+            baggage,
+            session,
+            metadata,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn handle_invocation_inner<H: AsRef<HandlerFn> + Send>(
+        &self,
+        invocation_id: Option<Uuid>,
+        worker_id: Option<Uuid>,
+        function_id: String,
+        body: Value,
+        function_handler: H,
         traceparent: Option<String>,
         baggage: Option<String>,
         session: Option<Arc<Session>>,
@@ -177,9 +243,14 @@ impl InvocationHandler {
             let start_time = std::time::Instant::now();
             let metrics = get_engine_metrics();
 
-            let result = function_handler
-                .call_handler_with_metadata(Some(invocation_id), body, session, metadata)
-                .await;
+            let result = call_handler_with_metadata(
+                function_handler,
+                Some(invocation_id),
+                body,
+                session,
+                metadata,
+            )
+            .await;
 
             // Calculate duration
             let duration = start_time.elapsed().as_secs_f64();
