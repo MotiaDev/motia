@@ -42,6 +42,12 @@ pub struct Function {
     pub metadata: Option<Value>,
 }
 
+impl AsRef<HandlerFn> for Function {
+    fn as_ref(&self) -> &HandlerFn {
+        self.handler.as_ref()
+    }
+}
+
 impl Function {
     pub async fn call_handler(
         self,
@@ -213,6 +219,17 @@ impl FunctionsRegistry {
         self.functions
             .get(&(namespace.to_string(), function_id.to_string()))
             .map(|entry| entry.value().clone())
+    }
+
+    pub(crate) fn get_handler(&self, namespace: &str, function_id: &str) -> Option<Arc<HandlerFn>> {
+        tracing::debug!(
+            "Searching for function {} in namespace {}",
+            function_id,
+            namespace
+        );
+        self.functions
+            .get(&(namespace.to_string(), function_id.to_string()))
+            .map(|entry| Arc::clone(&entry.handler))
     }
 
     /// Every namespace that has `function_id` registered, sorted. Used to build

@@ -669,8 +669,25 @@ impl Engine {
         requested_ns: Option<&str>,
         function_id: &str,
     ) -> Result<Function, ErrorBody> {
+        self.resolve_function_with(requested_ns, function_id, FunctionsRegistry::get)
+    }
+
+    fn resolve_function_handler(
+        &self,
+        requested_ns: Option<&str>,
+        function_id: &str,
+    ) -> Result<Arc<crate::function::HandlerFn>, ErrorBody> {
+        self.resolve_function_with(requested_ns, function_id, FunctionsRegistry::get_handler)
+    }
+
+    fn resolve_function_with<T>(
+        &self,
+        requested_ns: Option<&str>,
+        function_id: &str,
+        lookup: impl Fn(&FunctionsRegistry, &str, &str) -> Option<T>,
+    ) -> Result<T, ErrorBody> {
         let namespace = requested_ns.unwrap_or(DEFAULT_NAMESPACE);
-        if let Some(function) = self.functions.get(namespace, function_id) {
+        if let Some(function) = lookup(&self.functions, namespace, function_id) {
             return Ok(function);
         }
 
@@ -682,7 +699,7 @@ impl Engine {
         // isolation for any other function.
         if namespace != DEFAULT_NAMESPACE
             && function_id == crate::workers::observability::ui::CONTENT_FUNCTION_ID
-            && let Some(function) = self.functions.get(DEFAULT_NAMESPACE, function_id)
+            && let Some(function) = lookup(&self.functions, DEFAULT_NAMESPACE, function_id)
         {
             return Ok(function);
         }
@@ -728,7 +745,7 @@ impl Engine {
             "Remembering invocation for worker"
         );
 
-        match self.resolve_function(namespace, function_id) {
+        match self.resolve_function_handler(namespace, function_id) {
             Ok(function) => {
                 if !crate::workers::telemetry::is_iii_builtin_function_id(function_id) {
                     crate::workers::telemetry::collector::mark_user_function_invoked();
@@ -741,7 +758,7 @@ impl Engine {
                 let session = worker.session.clone();
 
                 self.invocations
-                    .handle_invocation(
+                    .handle_invocation_with_handler(
                         invocation_id,
                         Some(worker.id),
                         function_id.to_string(),
@@ -2482,7 +2499,7 @@ impl Engine {
         input: Value,
         metadata: Option<Value>,
     ) -> Result<Option<Value>, ErrorBody> {
-        let function_opt = self.functions.get(namespace, function_id);
+        let function_opt = self.functions.get_handler(namespace, function_id);
 
         if let Some(function) = function_opt {
             // Use the current tracing context to preserve parent-child links.
@@ -2492,7 +2509,7 @@ impl Engine {
 
             let result = self
                 .invocations
-                .handle_invocation(
+                .handle_invocation_with_handler(
                     None,
                     None,
                     function_id.to_string(),
