@@ -664,6 +664,7 @@ impl Engine {
     /// A miss keeps the pre-existing `function_not_found` code (SDKs and the
     /// `Enqueue` provider-missing DX branch both match on it) and only enriches
     /// the message with the namespaces where the id *does* exist.
+    #[cfg(test)]
     fn resolve_function(
         &self,
         requested_ns: Option<&str>,
@@ -678,6 +679,32 @@ impl Engine {
         function_id: &str,
     ) -> Result<Arc<crate::function::HandlerFn>, ErrorBody> {
         self.resolve_function_with(requested_ns, function_id, FunctionsRegistry::get_handler)
+    }
+
+    fn is_function_allowed(
+        &self,
+        session: &crate::workers::worker::rbac_session::Session,
+        requested_ns: Option<&str>,
+        function_id: &str,
+    ) -> bool {
+        let namespace = requested_ns.unwrap_or(DEFAULT_NAMESPACE);
+        let check = |function: Option<&Function>| {
+            crate::workers::worker::rbac_config::is_function_allowed_ref(
+                function_id,
+                namespace,
+                session.config.rbac.as_ref(),
+                &session.namespaces,
+                &session.allowed_functions,
+                &session.forbidden_functions,
+                function,
+            )
+        };
+        self.resolve_function_with(requested_ns, function_id, |registry, namespace, id| {
+            registry.with_function(namespace, id, |function| {
+                function.map(|function| check(Some(function)))
+            })
+        })
+        .unwrap_or_else(|_| check(None))
     }
 
     fn resolve_function_with<T>(
@@ -1538,45 +1565,31 @@ impl Engine {
                 // keyed by function id but inspects the `Function` this trigger
                 // would actually reach in `trigger_namespace`. Without this a
                 // worker could expose any namespace's function over a trigger.
-                if let Some(session) = &worker.session {
-                    let function = self
-                        .resolve_function(Some(&target_namespace), &reg_function_id)
-                        .ok();
-                    if !crate::workers::worker::rbac_config::is_function_allowed(
-                        &reg_function_id,
-                        &target_namespace,
-                        session.config.rbac.clone(),
-                        &session.namespaces,
-                        &session.allowed_functions,
-                        &session.forbidden_functions,
-                        function.as_ref(),
-                    ) {
-                        tracing::warn!(
-                            worker_id = %worker.id,
-                            trigger_id = %reg_trigger_id,
-                            function_id = %reg_function_id,
-                            namespace = %target_namespace,
-                            "trigger registration denied by RBAC"
-                        );
-                        // Name the id that was actually authorized (post-prefix),
-                        // matching the result's `function_id`; `reg_function_id`
-                        // is moved into the struct below, so build the text first.
-                        let denied_message = format!(
-                            "function '{}' not allowed in namespace '{}'",
-                            reg_function_id, target_namespace
-                        );
-                        let result_msg = Message::TriggerRegistrationResult {
-                            id: reg_trigger_id,
-                            trigger_type: reg_trigger_type,
-                            function_id: reg_function_id,
-                            error: Some(crate::protocol::ErrorBody::new(
-                                "FORBIDDEN",
-                                denied_message,
-                            )),
-                        };
-                        let _ = self.send_msg(worker, result_msg).await;
-                        return Ok(());
-                    }
+                if let Some(session) = &worker.session
+                    && !self.is_function_allowed(session, Some(&target_namespace), &reg_function_id)
+                {
+                    tracing::warn!(
+                        worker_id = %worker.id,
+                        trigger_id = %reg_trigger_id,
+                        function_id = %reg_function_id,
+                        namespace = %target_namespace,
+                        "trigger registration denied by RBAC"
+                    );
+                    // Name the id that was actually authorized (post-prefix),
+                    // matching the result's `function_id`; `reg_function_id`
+                    // is moved into the struct below, so build the text first.
+                    let denied_message = format!(
+                        "function '{}' not allowed in namespace '{}'",
+                        reg_function_id, target_namespace
+                    );
+                    let result_msg = Message::TriggerRegistrationResult {
+                        id: reg_trigger_id,
+                        trigger_type: reg_trigger_type,
+                        function_id: reg_function_id,
+                        error: Some(crate::protocol::ErrorBody::new("FORBIDDEN", denied_message)),
+                    };
+                    let _ = self.send_msg(worker, result_msg).await;
+                    return Ok(());
                 }
 
                 match self
@@ -1696,18 +1709,7 @@ impl Engine {
                     // hands RBAC `None` exactly as before, so a forbidden id that
                     // does not exist still answers FORBIDDEN rather than leaking
                     // its absence.
-                    let function = self
-                        .resolve_function(namespace.as_deref(), function_id)
-                        .ok();
-                    if !crate::workers::worker::rbac_config::is_function_allowed(
-                        function_id,
-                        crate::protocol::effective_namespace(namespace),
-                        session.config.rbac.clone(),
-                        &session.namespaces,
-                        &session.allowed_functions,
-                        &session.forbidden_functions,
-                        function.as_ref(),
-                    ) {
+                    if !self.is_function_allowed(session, namespace.as_deref(), function_id) {
                         let inv_id = (*invocation_id).unwrap_or_else(Uuid::new_v4);
                         let explicitly_forbidden =
                             session.forbidden_functions.iter().any(|f| f == function_id);
@@ -2492,7 +2494,7 @@ impl Engine {
     }
 
     // Callers that already own a JSON value do not need to serialize its tree again.
-    async fn call_value_with_metadata_ns(
+    pub(crate) async fn call_value_with_metadata_ns(
         &self,
         namespace: &str,
         function_id: &str,
@@ -2543,22 +2545,26 @@ impl Engine {
     }
 
     pub async fn fire_triggers(&self, trigger_type: &str, mut data: Value) {
-        let triggers: Vec<crate::trigger::Trigger> = self
+        let triggers: Vec<_> = self
             .trigger_registry
             .triggers
             .iter()
             .filter(|entry| entry.value().trigger_type == trigger_type)
-            .map(|entry| entry.value().clone())
+            .map(|entry| {
+                let trigger = entry.value();
+                (
+                    trigger.function_id.clone(),
+                    trigger.namespace.clone(),
+                    trigger.metadata.clone(),
+                )
+            })
             .collect();
 
         let current_span = tracing::Span::current();
 
         let trigger_count = triggers.len();
-        for (index, trigger) in triggers.into_iter().enumerate() {
+        for (index, (function_id, namespace, metadata)) in triggers.into_iter().enumerate() {
             let engine = self.clone();
-            let function_id = trigger.function_id;
-            let namespace = trigger.namespace;
-            let metadata = trigger.metadata;
             // Only additional destinations need a copy; the last takes the original.
             let data = if index + 1 == trigger_count {
                 data.take()

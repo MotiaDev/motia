@@ -427,6 +427,26 @@ pub fn is_function_allowed(
     forbidden_functions: &[String],
     function: Option<&Function>,
 ) -> bool {
+    is_function_allowed_ref(
+        function_id,
+        namespace,
+        config.as_ref(),
+        session_namespaces,
+        allowed_functions,
+        forbidden_functions,
+        function,
+    )
+}
+
+pub(crate) fn is_function_allowed_ref(
+    function_id: &str,
+    namespace: &str,
+    config: Option<&RbacConfig>,
+    session_namespaces: &HashMap<String, Vec<String>>,
+    allowed_functions: &[String],
+    forbidden_functions: &[String],
+    function: Option<&Function>,
+) -> bool {
     if forbidden_functions.iter().any(|f| f == function_id) {
         if INFRASTRUCTURE_FUNCTIONS.contains(&function_id) {
             tracing::warn!(

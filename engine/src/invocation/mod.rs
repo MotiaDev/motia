@@ -228,16 +228,7 @@ impl InvocationHandler {
         };
 
         let invocation_fut = async {
-            let (sender, receiver) = tokio::sync::oneshot::channel();
-            let invocation_id = invocation_id.unwrap_or(Uuid::new_v4());
-            let invocation = Invocation {
-                id: invocation_id,
-                function_id: function_id.clone(),
-                worker_id,
-                sender,
-                traceparent,
-                baggage,
-            };
+            let invocation_id = invocation_id.unwrap_or_else(Uuid::new_v4);
 
             // Start timer for invocation duration
             let start_time = std::time::Instant::now();
@@ -255,7 +246,7 @@ impl InvocationHandler {
             // Calculate duration
             let duration = start_time.elapsed().as_secs_f64();
 
-            match result {
+            let result = match result {
                 FunctionResult::Success(result) => {
                     tracing::debug!(invocation_id = %invocation_id, function_id = %function_id, "Function completed successfully");
                     tracing::Span::current().record("otel.status_code", "OK");
@@ -285,7 +276,7 @@ impl InvocationHandler {
                         let _ = acc.first_user_success_fn.set(function_id.clone());
                     }
 
-                    let _ = invocation.sender.send(Ok(result));
+                    Ok(Ok(result))
                 }
                 FunctionResult::Failure(error) => {
                     tracing::debug!(invocation_id = %invocation_id, function_id = %function_id, error_code = %error.code, "Function failed: {}", error.message);
@@ -341,7 +332,7 @@ impl InvocationHandler {
                         let _ = acc.first_user_failure_fn.set(function_id.clone());
                     }
 
-                    let _ = invocation.sender.send(Err(error));
+                    Ok(Err(error))
                 }
                 FunctionResult::NoResult => {
                     tracing::debug!(invocation_id = %invocation_id, function_id = %function_id, "Function no result");
@@ -369,7 +360,7 @@ impl InvocationHandler {
                     acc.invocations_success.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     acc.increment_function(&function_id);
 
-                    let _ = invocation.sender.send(Ok(None));
+                    Ok(Ok(None))
                 }
                 FunctionResult::Deferred => {
                     tracing::debug!(invocation_id = %invocation_id, function_id = %function_id, "Function deferred");
@@ -398,11 +389,19 @@ impl InvocationHandler {
 
                     // Deferred invocations will have their status set when the result comes back
                     // we need to store the invocation because it's a worker invocation
+                    let (sender, receiver) = oneshot::channel();
+                    let invocation = Invocation {
+                        id: invocation_id,
+                        function_id,
+                        worker_id,
+                        sender,
+                        traceparent,
+                        baggage,
+                    };
                     self.invocations.insert(invocation_id, invocation);
+                    receiver.await
                 }
-            }
-
-            let result = receiver.await;
+            };
             match &result {
                 Ok(Ok(_)) => {
                     tracing::Span::current().record("otel.status_code", "OK");
