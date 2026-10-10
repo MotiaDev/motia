@@ -580,23 +580,33 @@ impl EngineFunctionsWorker {
         }
     }
 
-    pub async fn fire_triggers(&self, trigger_type: &str, data: Value) {
-        let triggers_to_fire: Vec<Trigger> = self
+    pub async fn fire_triggers(&self, trigger_type: &str, mut data: Value) {
+        let triggers_to_fire: Vec<_> = self
             .triggers
             .iter()
             .filter(|entry| entry.value().trigger_type == trigger_type)
-            .map(|entry| entry.value().clone())
+            .map(|entry| {
+                let trigger = entry.value();
+                (
+                    trigger.function_id.clone(),
+                    trigger.namespace.clone(),
+                    trigger.metadata.clone(),
+                )
+            })
             .collect();
 
-        for trigger in triggers_to_fire {
+        let trigger_count = triggers_to_fire.len();
+        for (index, (function_id, namespace, metadata)) in triggers_to_fire.into_iter().enumerate()
+        {
             let engine = self.engine.clone();
-            let function_id = trigger.function_id.clone();
-            let namespace = trigger.namespace.clone();
-            let metadata = trigger.metadata.clone();
-            let data = data.clone();
+            let data = if index + 1 == trigger_count {
+                data.take()
+            } else {
+                data.clone()
+            };
             tokio::spawn(async move {
                 let _ = engine
-                    .call_with_metadata_ns(&namespace, &function_id, data, metadata)
+                    .call_value_with_metadata_ns(&namespace, &function_id, data, metadata)
                     .await;
             });
         }
@@ -767,8 +777,7 @@ impl EngineFunctionsWorker {
             Some(ns) => self
                 .engine
                 .functions
-                .get(ns, function_id)
-                .map(|_| ns.to_string()),
+                .with_function(ns, function_id, |function| function.map(|_| ns.to_string())),
             None => self.introspection_namespace(function_id),
         }
     }
@@ -1112,16 +1121,19 @@ impl EngineFunctionsWorker {
         namespace: &str,
         function_id: &str,
     ) -> bool {
-        let function = self.engine.functions.get(namespace, function_id);
-        crate::workers::worker::rbac_config::is_function_allowed(
-            function_id,
-            namespace,
-            session.config.rbac.clone(),
-            &session.namespaces,
-            &session.allowed_functions,
-            &session.forbidden_functions,
-            function.as_ref(),
-        )
+        self.engine
+            .functions
+            .with_function(namespace, function_id, |function| {
+                crate::workers::worker::rbac_config::is_function_allowed_ref(
+                    function_id,
+                    namespace,
+                    session.config.rbac.as_ref(),
+                    &session.namespaces,
+                    &session.allowed_functions,
+                    &session.forbidden_functions,
+                    function,
+                )
+            })
     }
 
     async fn build_function_detail(
@@ -1149,10 +1161,10 @@ impl EngineFunctionsWorker {
             function_id: function_id.to_string(),
             namespace: namespace.to_string(),
             worker_name,
-            description: function._description.clone(),
-            request_schema: function.request_format.clone(),
-            response_schema: function.response_format.clone(),
-            metadata: function.metadata.clone(),
+            description: function._description,
+            request_schema: function.request_format,
+            response_schema: function.response_format,
+            metadata: function.metadata,
             registered_triggers: self.registered_trigger_refs_for_function(namespace, function_id),
         })
     }
@@ -1329,19 +1341,24 @@ impl EngineFunctionsWorker {
         let mut functions: Vec<FunctionSummary> = function_ids
             .into_iter()
             .filter_map(|fn_id| {
-                let func = self.engine.functions.get(&worker_namespace, &fn_id)?;
+                let (description, metadata) =
+                    self.engine
+                        .functions
+                        .with_function(&worker_namespace, &fn_id, |function| {
+                            function.map(|function| {
+                                (function._description.clone(), function.metadata.clone())
+                            })
+                        })?;
+                let worker_name =
+                    Self::worker_name_for_function_id(&index, &worker_namespace, &fn_id);
                 Some(FunctionSummary {
-                    function_id: fn_id.clone(),
+                    function_id: fn_id,
                     // Mirrors the lookup directly above: this row *is* the
                     // entry keyed under the worker's own namespace.
                     namespace: worker_namespace.clone(),
-                    worker_name: Self::worker_name_for_function_id(
-                        &index,
-                        &worker_namespace,
-                        &fn_id,
-                    ),
-                    description: func._description.clone(),
-                    metadata: func.metadata.clone(),
+                    worker_name,
+                    description,
+                    metadata,
                 })
             })
             .collect();
