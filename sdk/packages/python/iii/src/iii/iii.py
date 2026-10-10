@@ -26,7 +26,7 @@ from iii_helpers.stream import (
 )
 from websockets.asyncio.client import ClientConnection
 
-from .channels import ChannelReader, ChannelWriter
+from .channels import ChannelReader, ChannelWriter, resolve_headers
 from .errors import InvocationError, RegistrationRejectedError, _wrap_wire_error
 from .format_utils import extract_request_format, extract_response_format
 from .iii_constants import (
@@ -428,7 +428,7 @@ class III:
             log.debug(f"Connecting to {self._address}")
             ws = await websockets.connect(
                 self._address,
-                additional_headers=self._options.headers,
+                additional_headers=resolve_headers(self._options.headers),
                 max_size=_MAX_JSON_MESSAGE_BYTES,
             )
             self._ws = ws
@@ -896,9 +896,9 @@ class III:
         if is_channel_ref(data):
             ref = StreamChannelRef(**data)
             return (
-                ChannelReader(self._address, ref)
+                ChannelReader(self._address, ref, self._options.headers)
                 if ref.direction == "read"
-                else ChannelWriter(self._address, ref)
+                else ChannelWriter(self._address, ref, self._options.headers)
             )
         if isinstance(data, dict):
             return {k: self._resolve_channels(v) for k, v in data.items()}
@@ -1664,8 +1664,8 @@ class III:
         writer_ref = StreamChannelRef(**result["writer"])
         reader_ref = StreamChannelRef(**result["reader"])
         return Channel(
-            writer=ChannelWriter(self._address, writer_ref),
-            reader=ChannelReader(self._address, reader_ref),
+            writer=ChannelWriter(self._address, writer_ref, self._options.headers),
+            reader=ChannelReader(self._address, reader_ref, self._options.headers),
             writer_ref=writer_ref,
             reader_ref=reader_ref,
         )
