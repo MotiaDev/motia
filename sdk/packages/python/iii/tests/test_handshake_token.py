@@ -59,14 +59,18 @@ async def test_telemetry_gets_the_main_connection_headers(monkeypatch: pytest.Mo
     init_otel = MagicMock()
     monkeypatch.setattr("iii_helpers.observability.telemetry.init_otel", init_otel)
     monkeypatch.setattr("iii_helpers.observability.telemetry.attach_event_loop", MagicMock())
+    monkeypatch.setenv("III_URL", "ws://other.test")
     sdk = III.__new__(III)
+    sdk._address = "ws://engine.test"
     sdk._options = SimpleNamespace(headers={"x-other": "kept"}, otel=None)
     sdk._set_connection_state = MagicMock()
     sdk._do_connect = AsyncMock()
 
     await sdk.connect_async()
 
-    assert init_otel.call_args.kwargs["config"].engine_ws_headers == {
+    config = init_otel.call_args.kwargs["config"]
+    assert config.engine_ws_url == "ws://engine.test"
+    assert config.engine_ws_headers == {
         "x-other": "kept",
         "Authorization": "Bearer secret",
     }

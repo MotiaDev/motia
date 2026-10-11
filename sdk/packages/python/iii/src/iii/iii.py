@@ -367,9 +367,10 @@ class III:
                 otel_cfg = self._options.otel
             else:
                 otel_cfg = OtelConfig(**self._options.otel)
-        # Telemetry dials the engine too, so its handshake carries the same headers.
+        # Telemetry dials the same engine with the same headers, unless the caller set its own.
         otel_cfg = replace(
             otel_cfg,
+            engine_ws_url=otel_cfg.engine_ws_url or self._address,
             engine_ws_headers=otel_cfg.engine_ws_headers or resolve_headers(self._options.headers),
         )
         init_otel(config=otel_cfg, loop=loop)
