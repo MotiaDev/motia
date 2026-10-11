@@ -1,7 +1,7 @@
 """``III_TOKEN`` authenticates the WebSocket handshake of the main connection and of channels."""
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -51,6 +51,25 @@ async def test_blank_or_unset_token_adds_nothing(monkeypatch: pytest.MonkeyPatch
     if value is not None:
         monkeypatch.setenv("III_TOKEN", value)
     assert await _main_connection_headers(monkeypatch, None) is None
+
+
+@pytest.mark.asyncio
+async def test_telemetry_gets_the_main_connection_headers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("III_TOKEN", "secret")
+    init_otel = MagicMock()
+    monkeypatch.setattr("iii_helpers.observability.telemetry.init_otel", init_otel)
+    monkeypatch.setattr("iii_helpers.observability.telemetry.attach_event_loop", MagicMock())
+    sdk = III.__new__(III)
+    sdk._options = SimpleNamespace(headers={"x-other": "kept"}, otel=None)
+    sdk._set_connection_state = MagicMock()
+    sdk._do_connect = AsyncMock()
+
+    await sdk.connect_async()
+
+    assert init_otel.call_args.kwargs["config"].engine_ws_headers == {
+        "x-other": "kept",
+        "Authorization": "Bearer secret",
+    }
 
 
 @pytest.mark.parametrize(

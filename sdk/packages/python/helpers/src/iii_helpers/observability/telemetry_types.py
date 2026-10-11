@@ -51,3 +51,6 @@ class OtelConfig:
 
     metrics_export_interval_ms: int = 60000
     """Metrics export interval in milliseconds. Defaults to 60000 (60 seconds)."""
+
+    engine_ws_headers: dict[str, str] | None = None
+    """HTTP headers sent on the telemetry WebSocket handshake (e.g. Authorization)."""

@@ -242,9 +242,10 @@ export type InitOptions = {
   /**
    * OpenTelemetry configuration. OTel is initialized automatically by default.
    * Set `{ enabled: false }` or env `OTEL_ENABLED=false/0/no/off` to disable.
-   * The `engineWsUrl` is set automatically from the III address.
+   * The `engineWsUrl` is set automatically from the III address, and `engineWsHeaders`
+   * from the handshake headers of the main connection.
    */
-  otel?: Omit<OtelConfig, 'engineWsUrl'>
+  otel?: Omit<OtelConfig, 'engineWsUrl' | 'engineWsHeaders'>
   /**
    * Custom HTTP headers sent during the WebSocket handshake, on the main connection and
    * on streaming channels. `Authorization: Bearer $III_TOKEN` is added unless you set
@@ -296,7 +297,11 @@ class Sdk implements IIIClient {
     }
 
     // Initialize OpenTelemetry (enabled by default, opt-out via config or env)
-    initOtel({ ...options?.otel, engineWsUrl: this.address })
+    initOtel({
+      ...options?.otel,
+      engineWsUrl: this.address,
+      engineWsHeaders: resolveHeaders(options?.headers),
+    })
 
     this.connect()
   }

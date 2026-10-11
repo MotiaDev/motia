@@ -100,6 +100,19 @@ describe('III_TOKEN on the main connection', () => {
   })
 })
 
+describe('III_TOKEN on telemetry', () => {
+  it('hands the main connection headers to the engine /otel socket', async () => {
+    vi.stubEnv('III_TOKEN', 'secret')
+    const sdk = registerWorker('ws://engine.test', { headers: { 'x-other': 'kept' } })
+    try {
+      const telemetry = sockets.find((s) => s.url === 'ws://engine.test/otel')
+      expect(telemetry?.opts?.headers).toEqual({ 'x-other': 'kept', Authorization: 'Bearer secret' })
+    } finally {
+      await sdk.shutdown()
+    }
+  })
+})
+
 describe('III_TOKEN on channels', () => {
   it('sends the same bearer header from the writer and the reader', () => {
     vi.stubEnv('III_TOKEN', 'secret')

@@ -10,7 +10,7 @@ import random
 import threading
 import traceback
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib.metadata import version
 from typing import Any, Awaitable, Callable, Coroutine, TypeVar, cast
 
@@ -361,12 +361,17 @@ class III:
         from iii_helpers.observability.telemetry import attach_event_loop, init_otel
 
         loop = asyncio.get_running_loop()
-        otel_cfg: OtelConfig | None = None
+        otel_cfg = OtelConfig()
         if self._options.otel:
             if isinstance(self._options.otel, OtelConfig):
                 otel_cfg = self._options.otel
             else:
                 otel_cfg = OtelConfig(**self._options.otel)
+        # Telemetry dials the engine too, so its handshake carries the same headers.
+        otel_cfg = replace(
+            otel_cfg,
+            engine_ws_headers=otel_cfg.engine_ws_headers or resolve_headers(self._options.headers),
+        )
         init_otel(config=otel_cfg, loop=loop)
         attach_event_loop(loop)
         self._set_connection_state("connecting")

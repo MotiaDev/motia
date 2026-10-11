@@ -1487,6 +1487,24 @@ impl IIIClient {
         *self.inner.otel_config.lock_or_recover() = Some(config);
     }
 
+    /// The telemetry config, with the engine URL and handshake headers of this
+    /// connection filled in when the caller set none.
+    fn take_otel_config(&self) -> OtelConfig {
+        let mut config = self
+            .inner
+            .otel_config
+            .lock_or_recover()
+            .take()
+            .unwrap_or_default();
+        if config.engine_ws_url.is_none() {
+            config.engine_ws_url = Some(self.inner.address.clone());
+        }
+        config
+            .engine_ws_headers
+            .get_or_insert_with(|| handshake_headers(self.inner.headers.lock_or_recover().clone()));
+        config
+    }
+
     pub(crate) fn connect(&self) {
         if self.inner.started.swap(true, Ordering::SeqCst) {
             return;
@@ -1499,18 +1517,7 @@ impl IIIClient {
 
         let iii = self.clone();
 
-        let otel_config = {
-            let mut config = self
-                .inner
-                .otel_config
-                .lock_or_recover()
-                .take()
-                .unwrap_or_default();
-            if config.engine_ws_url.is_none() {
-                config.engine_ws_url = Some(self.inner.address.clone());
-            }
-            config
-        };
+        let otel_config = self.take_otel_config();
 
         // Spawn a dedicated OS thread with its own tokio runtime so
         // the connection loop is independent of the caller's runtime.
@@ -3403,6 +3410,27 @@ mod tests {
                 Some("Bearer explicit")
             );
         });
+    }
+
+    /// Telemetry dials the engine too, so it gets the connection's handshake
+    /// headers unless the caller set its own.
+    #[test]
+    fn telemetry_config_gets_the_handshake_headers() {
+        let env = ScopedEnvVar::new("III_TOKEN");
+        env.set("secret");
+        let iii = IIIClient::new("ws://engine.test");
+        iii.set_headers(HashMap::from([("x-other".into(), "kept".into())]));
+
+        let headers = iii.take_otel_config().engine_ws_headers.unwrap();
+        assert_eq!(headers["x-other"], "kept");
+        assert_eq!(headers["Authorization"], "Bearer secret");
+
+        let own = HashMap::from([("x-own".to_string(), "1".to_string())]);
+        iii.set_otel_config(OtelConfig {
+            engine_ws_headers: Some(own.clone()),
+            ..Default::default()
+        });
+        assert_eq!(iii.take_otel_config().engine_ws_headers, Some(own));
     }
 
     #[test]
