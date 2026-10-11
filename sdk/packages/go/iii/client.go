@@ -391,14 +391,15 @@ func refuseBlankCallNamespace(namespace, source string) error {
 }
 
 // invocationNamespace resolves one function invocation. An explicit namespace
-// always wins. Otherwise engine-owned builtins (engine::*, and configuration::*
-// from the engine-owned configuration worker) stay in the engine's default
+// always wins. Otherwise engine-owned builtins (engine::*, and configuration::* and
+// stream::* from the engine-owned configuration and stream workers) stay in the engine's default
 // namespace, and every other call inherits the worker's.
 func invocationNamespace(functionID, explicit, worker string) string {
 	switch {
 	case explicit != "":
 		return explicit
-	case strings.HasPrefix(functionID, "engine::") || strings.HasPrefix(functionID, "configuration::"):
+	case strings.HasPrefix(functionID, "engine::") || strings.HasPrefix(functionID, "configuration::") ||
+		strings.HasPrefix(functionID, "stream::"):
 		return "default"
 	default:
 		return worker
@@ -469,7 +470,7 @@ type TriggerRequest struct {
 	// Timeout overrides [DefaultInvocationTimeout] for an await/enqueue call.
 	Timeout time.Duration
 	// Namespace routes the invocation to a specific namespace. Empty means this
-	// worker's namespace, except engine::* and configuration::* builtins, which
+	// worker's namespace, except engine::*, configuration::* and stream::* builtins, which
 	// resolve in the engine's default namespace.
 	Namespace string
 }

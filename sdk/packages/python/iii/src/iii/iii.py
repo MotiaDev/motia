@@ -220,11 +220,11 @@ class III:
         """Resolve one invocation namespace.
 
         An explicit namespace wins. Otherwise, engine-owned builtins
-        (``engine::*`` and ``configuration::*``) resolve in ``default`` and all
+        (``engine::*``, ``configuration::*`` and ``stream::*``) resolve in ``default`` and all
         other calls inherit this worker's namespace.
         """
         namespace = self._call_namespace(explicit, "TriggerRequest.namespace")
-        if explicit is None and function_id.startswith(("engine::", "configuration::")):
+        if explicit is None and function_id.startswith(("engine::", "configuration::", "stream::")):
             return "default"
         return namespace
 
