@@ -1766,7 +1766,12 @@ impl Engine {
                             }
                             // SDKs register fire-and-forget, so the refusal must
                             // also end the connection: otherwise the worker keeps
-                            // running, and registering, in `default`.
+                            // running, and registering, in `default`. Drop what it
+                            // buffered and anything it sends next first, so a peer
+                            // that never acknowledges the Close can't have the grace
+                            // timer drain its registrations into `default`.
+                            self.cancel_namespace_grace_timer(&worker.id);
+                            self.abort_namespace_resolution(worker);
                             self.send_msg(
                                 worker,
                                 Message::RegistrationRejected {

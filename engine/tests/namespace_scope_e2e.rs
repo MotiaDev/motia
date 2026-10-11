@@ -151,6 +151,33 @@ async fn a_namespace_outside_the_session_scope_is_rejected_and_closed() {
     );
 }
 
+/// The attack the fix must stop: register a function while the namespace is still
+/// pending, announce a forbidden namespace, then never close. The buffered
+/// registration must not drain into `default` when the grace timer fires.
+#[tokio::test]
+async fn a_rejected_worker_that_ignores_close_never_registers_into_default() {
+    let (port, engine) = spawn_scoped_engine().await;
+    engine.set_registration_namespace_grace_ms(100);
+    let mut ws = connect(port).await;
+
+    ws.send(WsMessage::Text(
+        json!({ "type": "registerfunction", "id": "billing::charge" })
+            .to_string()
+            .into(),
+    ))
+    .await
+    .expect("send registerfunction");
+    announce(&mut ws, "billing", "billing").await;
+
+    // Hold the socket without reading or closing, well past the grace.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(
+        engine.functions.get("default", "billing::charge").is_none(),
+        "a rejected worker's buffered registration must not land in default"
+    );
+    drop(ws);
+}
+
 #[tokio::test]
 async fn a_namespace_inside_the_session_scope_registers() {
     let (port, engine) = spawn_scoped_engine().await;
