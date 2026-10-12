@@ -2734,16 +2734,16 @@ impl IIIClient {
     ) {
         tracing::debug!(function_id = %function_id, traceparent = ?traceparent, baggage = ?baggage, "Invoking function");
 
-        let func_data = self
+        // Preserve HTTP-only registrations without copying their descriptors.
+        let function_handler = self
             .inner
             .functions
             .lock_or_recover()
             .get(&function_id)
-            .cloned();
-        let handler = func_data.as_ref().and_then(|d| d.handler.clone());
+            .map(|function| function.handler.clone());
 
-        let Some(handler) = handler else {
-            let (code, message) = match &func_data {
+        let Some(Some(handler)) = function_handler else {
+            let (code, message) = match function_handler {
                 Some(_) => (
                     "function_not_invokable".to_string(),
                     "Function is HTTP-invoked and cannot be invoked locally".to_string(),
