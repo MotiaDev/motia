@@ -53,27 +53,41 @@ async def test_blank_or_unset_token_adds_nothing(monkeypatch: pytest.MonkeyPatch
     assert await _main_connection_headers(monkeypatch, None) is None
 
 
-@pytest.mark.asyncio
-async def test_telemetry_gets_the_main_connection_headers(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("III_TOKEN", "secret")
+async def _telemetry_config(monkeypatch: pytest.MonkeyPatch, otel: dict[str, object] | None):
+    """The ``OtelConfig`` that ``connect_async`` hands to ``init_otel``."""
     init_otel = MagicMock()
     monkeypatch.setattr("iii_helpers.observability.telemetry.init_otel", init_otel)
     monkeypatch.setattr("iii_helpers.observability.telemetry.attach_event_loop", MagicMock())
     monkeypatch.setenv("III_URL", "ws://other.test")
     sdk = III.__new__(III)
     sdk._address = "ws://engine.test"
-    sdk._options = SimpleNamespace(headers={"x-other": "kept"}, otel=None)
+    sdk._options = SimpleNamespace(headers={"x-other": "kept"}, otel=otel)
     sdk._set_connection_state = MagicMock()
     sdk._do_connect = AsyncMock()
 
     await sdk.connect_async()
 
-    config = init_otel.call_args.kwargs["config"]
+    return init_otel.call_args.kwargs["config"]
+
+
+@pytest.mark.asyncio
+async def test_telemetry_gets_the_main_connection_headers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("III_TOKEN", "secret")
+    config = await _telemetry_config(monkeypatch, None)
     assert config.engine_ws_url == "ws://engine.test"
     assert config.engine_ws_headers == {
         "x-other": "kept",
         "Authorization": "Bearer secret",
     }
+
+
+@pytest.mark.asyncio
+async def test_explicit_empty_telemetry_headers_are_kept(monkeypatch: pytest.MonkeyPatch) -> None:
+    # `{}` selects no telemetry headers: only an omitted value inherits the main ones,
+    # so the bearer token is not sent on the telemetry handshake.
+    monkeypatch.setenv("III_TOKEN", "secret")
+    config = await _telemetry_config(monkeypatch, {"engine_ws_headers": {}})
+    assert config.engine_ws_headers == {}
 
 
 @pytest.mark.parametrize(

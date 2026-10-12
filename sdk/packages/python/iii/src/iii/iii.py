@@ -368,10 +368,16 @@ class III:
             else:
                 otel_cfg = OtelConfig(**self._options.otel)
         # Telemetry dials the same engine with the same headers, unless the caller set its own.
+        # Headers use `is None`: an explicit `{}` selects no headers and must not inherit the
+        # main connection's (which carry III_TOKEN). A blank URL is not a selection, so it keeps `or`.
         otel_cfg = replace(
             otel_cfg,
             engine_ws_url=otel_cfg.engine_ws_url or self._address,
-            engine_ws_headers=otel_cfg.engine_ws_headers or resolve_headers(self._options.headers),
+            engine_ws_headers=(
+                resolve_headers(self._options.headers)
+                if otel_cfg.engine_ws_headers is None
+                else otel_cfg.engine_ws_headers
+            ),
         )
         init_otel(config=otel_cfg, loop=loop)
         attach_event_loop(loop)
