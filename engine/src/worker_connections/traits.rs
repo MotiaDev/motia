@@ -209,32 +209,66 @@ impl FunctionHandler for WorkerConnection {
                 function_id
             };
 
-            let send_result = self
-                .channel
-                .send(Outbound::Protocol(Message::InvokeFunction {
-                    invocation_id,
-                    function_id,
-                    data: input,
-                    traceparent,
-                    baggage,
-                    action: None,
-                    metadata,
-                    namespace: None,
-                }))
-                .await;
-
-            match send_result {
-                Ok(_) => {
-                    let id = invocation_id.unwrap_or_else(Uuid::new_v4);
-                    self.invocations.write().await.insert(id);
-                    FunctionResult::Deferred
-                }
-                Err(err) => FunctionResult::Failure(ErrorBody {
-                    code: "channel_send_failed".into(),
-                    message: err.to_string(),
+            let stopped = || {
+                FunctionResult::Failure(ErrorBody {
+                    code: "invocation_stopped".into(),
+                    message: "Invocation stopped".into(),
                     stacktrace: None,
-                }),
+                })
+            };
+            if self
+                .cleanup_claimed
+                .load(std::sync::atomic::Ordering::SeqCst)
+            {
+                return stopped();
             }
+
+            // Reserve before tracking so cancellation while waiting for capacity
+            // cannot leave a worker-local ID behind.
+            let mut cleanup_done = self.cleanup_done.subscribe();
+            let permit = tokio::select! {
+                biased;
+                _ = cleanup_done.wait_for(|done| *done) => return stopped(),
+                result = self.channel.reserve() => match result {
+                    Ok(permit) => permit,
+                    Err(err) => return FunctionResult::Failure(ErrorBody {
+                        code: "channel_send_failed".into(),
+                        message: err.to_string(),
+                        stacktrace: None,
+                    }),
+                },
+            };
+
+            let mut invocations = self.invocations.write().await;
+            // A reserved permit can outlive channel closure. Serialize registration
+            // with cleanup's drain, and reject it once cleanup has started.
+            if self
+                .cleanup_claimed
+                .load(std::sync::atomic::Ordering::SeqCst)
+            {
+                return stopped();
+            }
+            if self.channel.is_closed() {
+                return FunctionResult::Failure(ErrorBody {
+                    code: "channel_send_failed".into(),
+                    message: "channel closed".into(),
+                    stacktrace: None,
+                });
+            }
+            if let Some(id) = invocation_id {
+                invocations.insert(id);
+            }
+            permit.send(Outbound::Protocol(Message::InvokeFunction {
+                invocation_id,
+                function_id,
+                data: input,
+                traceparent,
+                baggage,
+                action: None,
+                metadata,
+                namespace: None,
+            }));
+            FunctionResult::Deferred
         })
     }
 }

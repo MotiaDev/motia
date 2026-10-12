@@ -778,16 +778,12 @@ impl Engine {
                     crate::workers::telemetry::collector::mark_user_function_invoked();
                 }
 
-                if let Some(invocation_id) = invocation_id {
-                    worker.add_invocation(invocation_id).await;
-                }
-
                 let session = worker.session.clone();
 
                 self.invocations
                     .handle_invocation_with_handler(
                         invocation_id,
-                        Some(worker.id),
+                        Some(worker),
                         function_id.to_string(),
                         body,
                         function,
@@ -2925,11 +2921,13 @@ impl Engine {
             }
         }
 
-        let worker_invocations = worker.invocations.read().await;
-        tracing::debug!(worker_id = %worker.id, invocations = ?worker_invocations, "Worker invocations");
-        for invocation_id in worker_invocations.iter() {
-            tracing::debug!(invocation_id = %invocation_id, "Halting invocation");
-            self.invocations.halt_invocation(invocation_id);
+        {
+            let mut worker_invocations = worker.invocations.write().await;
+            tracing::debug!(worker_id = %worker.id, invocations = ?worker_invocations, "Worker invocations");
+            for invocation_id in worker_invocations.drain() {
+                tracing::debug!(invocation_id = %invocation_id, "Halting invocation");
+                self.invocations.halt_invocation(&invocation_id);
+            }
         }
 
         self.trigger_registry.unregister_worker(&worker.id).await;
@@ -8237,9 +8235,8 @@ mod tests {
 
         engine.cleanup_worker(&worker).await;
 
-        // cleanup_worker halts each invocation but does not clear the worker's
-        // invocation list, so the count remains unchanged.
-        assert_eq!(worker.invocation_count().await, 2);
+        // Cleanup releases worker-local tracking as well as global waiters.
+        assert_eq!(worker.invocation_count().await, 0);
     }
 
     // =========================================================================

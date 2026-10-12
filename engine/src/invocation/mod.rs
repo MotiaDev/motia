@@ -19,6 +19,7 @@ use crate::telemetry::SpanExt;
 use crate::{
     function::{Function, FunctionResult, HandlerFn},
     protocol::ErrorBody,
+    worker_connections::WorkerConnection,
     workers::observability::metrics::get_engine_metrics,
     workers::worker::rbac_session::Session,
 };
@@ -54,6 +55,18 @@ pub struct Invocation {
 }
 
 type Invocations = Arc<DashMap<Uuid, Invocation>>;
+
+// Remove unfinished registrations when dispatch fails or its future is dropped.
+struct InvocationRegistration<'a> {
+    invocations: &'a Invocations,
+    id: Uuid,
+}
+
+impl Drop for InvocationRegistration<'_> {
+    fn drop(&mut self) {
+        self.invocations.remove(&self.id);
+    }
+}
 
 #[derive(Default)]
 pub struct InvocationHandler {
@@ -100,6 +113,7 @@ impl InvocationHandler {
         self.handle_invocation_inner(
             invocation_id,
             worker_id,
+            None,
             function_id,
             body,
             function_handler,
@@ -115,7 +129,7 @@ impl InvocationHandler {
     pub(crate) async fn handle_invocation_with_handler(
         &self,
         invocation_id: Option<Uuid>,
-        worker_id: Option<Uuid>,
+        caller: Option<&WorkerConnection>,
         function_id: String,
         body: Value,
         function_handler: Arc<HandlerFn>,
@@ -126,7 +140,8 @@ impl InvocationHandler {
     ) -> Result<Result<Option<Value>, ErrorBody>, RecvError> {
         self.handle_invocation_inner(
             invocation_id,
-            worker_id,
+            caller.map(|worker| worker.id),
+            caller.filter(|_| invocation_id.is_some()),
             function_id,
             body,
             function_handler,
@@ -143,6 +158,7 @@ impl InvocationHandler {
         &self,
         invocation_id: Option<Uuid>,
         worker_id: Option<Uuid>,
+        caller: Option<&WorkerConnection>,
         function_id: String,
         body: Value,
         function_handler: H,
@@ -229,6 +245,33 @@ impl InvocationHandler {
 
         let invocation_fut = async {
             let invocation_id = invocation_id.unwrap_or_else(Uuid::new_v4);
+            let (sender, receiver) = oneshot::channel();
+            // A worker can reply or disconnect before its handler returns Deferred.
+            self.invocations.insert(invocation_id, Invocation {
+                id: invocation_id,
+                function_id: function_id.clone(),
+                worker_id,
+                sender,
+                traceparent,
+                baggage,
+            });
+            let _registration = InvocationRegistration {
+                invocations: &self.invocations,
+                id: invocation_id,
+            };
+
+            if let Some(caller) = caller {
+                let mut invocations = caller.invocations.write().await;
+                // Cleanup sets this flag before taking the same lock to drain IDs.
+                if caller.cleanup_claimed.load(std::sync::atomic::Ordering::SeqCst) {
+                    return Ok(Err(ErrorBody {
+                        code: "invocation_stopped".into(),
+                        message: "Invocation stopped".into(),
+                        stacktrace: None,
+                    }));
+                }
+                invocations.insert(invocation_id);
+            }
 
             // Start timer for invocation duration
             let start_time = std::time::Instant::now();
@@ -387,18 +430,6 @@ impl InvocationHandler {
                     acc.invocations_deferred.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     acc.increment_function(&function_id);
 
-                    // Deferred invocations will have their status set when the result comes back
-                    // we need to store the invocation because it's a worker invocation
-                    let (sender, receiver) = oneshot::channel();
-                    let invocation = Invocation {
-                        id: invocation_id,
-                        function_id,
-                        worker_id,
-                        sender,
-                        traceparent,
-                        baggage,
-                    };
-                    self.invocations.insert(invocation_id, invocation);
                     receiver.await
                 }
             };
