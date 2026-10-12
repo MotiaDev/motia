@@ -264,6 +264,22 @@ pub struct FunctionSummary {
     pub metadata: Option<Value>,
 }
 
+impl FunctionSummary {
+    fn into_notification_value(self) -> Value {
+        let mut fields = serde_json::Map::new();
+        fields.insert("function_id".to_string(), Value::String(self.function_id));
+        fields.insert("namespace".to_string(), Value::String(self.namespace));
+        fields.insert("worker_name".to_string(), Value::String(self.worker_name));
+        if let Some(description) = self.description {
+            fields.insert("description".to_string(), Value::String(description));
+        }
+        if let Some(metadata) = self.metadata {
+            fields.insert("metadata".to_string(), metadata);
+        }
+        Value::Object(fields)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct RegisteredTriggerRef {
     pub id: String,
@@ -580,23 +596,33 @@ impl EngineFunctionsWorker {
         }
     }
 
-    pub async fn fire_triggers(&self, trigger_type: &str, data: Value) {
-        let triggers_to_fire: Vec<Trigger> = self
+    pub async fn fire_triggers(&self, trigger_type: &str, mut data: Value) {
+        let triggers_to_fire: Vec<_> = self
             .triggers
             .iter()
             .filter(|entry| entry.value().trigger_type == trigger_type)
-            .map(|entry| entry.value().clone())
+            .map(|entry| {
+                let trigger = entry.value();
+                (
+                    trigger.function_id.clone(),
+                    trigger.namespace.clone(),
+                    trigger.metadata.clone(),
+                )
+            })
             .collect();
 
-        for trigger in triggers_to_fire {
+        let trigger_count = triggers_to_fire.len();
+        for (index, (function_id, namespace, metadata)) in triggers_to_fire.into_iter().enumerate()
+        {
             let engine = self.engine.clone();
-            let function_id = trigger.function_id.clone();
-            let namespace = trigger.namespace.clone();
-            let metadata = trigger.metadata.clone();
-            let data = data.clone();
+            let data = if index + 1 == trigger_count {
+                data.take()
+            } else {
+                data.clone()
+            };
             tokio::spawn(async move {
                 let _ = engine
-                    .call_with_metadata_ns(&namespace, &function_id, data, metadata)
+                    .call_value_with_metadata_ns(&namespace, &function_id, data, metadata)
                     .await;
             });
         }
@@ -767,8 +793,7 @@ impl EngineFunctionsWorker {
             Some(ns) => self
                 .engine
                 .functions
-                .get(ns, function_id)
-                .map(|_| ns.to_string()),
+                .with_function(ns, function_id, |function| function.map(|_| ns.to_string())),
             None => self.introspection_namespace(function_id),
         }
     }
@@ -951,6 +976,36 @@ impl EngineFunctionsWorker {
             .collect()
     }
 
+    async fn functions_changed_payload(&self) -> Option<Value> {
+        // Check after coalescing so a subscriber added during the delay still
+        // receives the change. Release registry guards before snapshot awaits.
+        if !self
+            .engine
+            .trigger_registry
+            .triggers
+            .iter()
+            .any(|entry| entry.value().trigger_type == TRIGGER_FUNCTIONS_AVAILABLE)
+        {
+            return None;
+        }
+
+        let functions = self
+            .list_function_summaries()
+            .await
+            .into_iter()
+            .map(FunctionSummary::into_notification_value)
+            .collect();
+        // Move the snapshot metadata into the event instead of serializing a
+        // borrowed snapshot into a second owned tree.
+        Some(Value::Object(serde_json::Map::from_iter([
+            (
+                "event".to_string(),
+                Value::String("functions_changed".to_string()),
+            ),
+            ("functions".to_string(), Value::Array(functions)),
+        ])))
+    }
+
     fn list_trigger_type_summaries(&self) -> Vec<TriggerTypeSummary> {
         self.engine
             .trigger_registry
@@ -1112,16 +1167,19 @@ impl EngineFunctionsWorker {
         namespace: &str,
         function_id: &str,
     ) -> bool {
-        let function = self.engine.functions.get(namespace, function_id);
-        crate::workers::worker::rbac_config::is_function_allowed(
-            function_id,
-            namespace,
-            session.config.rbac.clone(),
-            &session.namespaces,
-            &session.allowed_functions,
-            &session.forbidden_functions,
-            function.as_ref(),
-        )
+        self.engine
+            .functions
+            .with_function(namespace, function_id, |function| {
+                crate::workers::worker::rbac_config::is_function_allowed_ref(
+                    function_id,
+                    namespace,
+                    session.config.rbac.as_ref(),
+                    &session.namespaces,
+                    &session.allowed_functions,
+                    &session.forbidden_functions,
+                    function,
+                )
+            })
     }
 
     async fn build_function_detail(
@@ -1149,10 +1207,10 @@ impl EngineFunctionsWorker {
             function_id: function_id.to_string(),
             namespace: namespace.to_string(),
             worker_name,
-            description: function._description.clone(),
-            request_schema: function.request_format.clone(),
-            response_schema: function.response_format.clone(),
-            metadata: function.metadata.clone(),
+            description: function._description,
+            request_schema: function.request_format,
+            response_schema: function.response_format,
+            metadata: function.metadata,
             registered_triggers: self.registered_trigger_refs_for_function(namespace, function_id),
         })
     }
@@ -1329,19 +1387,24 @@ impl EngineFunctionsWorker {
         let mut functions: Vec<FunctionSummary> = function_ids
             .into_iter()
             .filter_map(|fn_id| {
-                let func = self.engine.functions.get(&worker_namespace, &fn_id)?;
+                let (description, metadata) =
+                    self.engine
+                        .functions
+                        .with_function(&worker_namespace, &fn_id, |function| {
+                            function.map(|function| {
+                                (function._description.clone(), function.metadata.clone())
+                            })
+                        })?;
+                let worker_name =
+                    Self::worker_name_for_function_id(&index, &worker_namespace, &fn_id);
                 Some(FunctionSummary {
-                    function_id: fn_id.clone(),
+                    function_id: fn_id,
                     // Mirrors the lookup directly above: this row *is* the
                     // entry keyed under the worker's own namespace.
                     namespace: worker_namespace.clone(),
-                    worker_name: Self::worker_name_for_function_id(
-                        &index,
-                        &worker_namespace,
-                        &fn_id,
-                    ),
-                    description: func._description.clone(),
-                    metadata: func.metadata.clone(),
+                    worker_name,
+                    description,
+                    metadata,
                 })
             })
             .collect();
@@ -1565,17 +1628,14 @@ impl Worker for EngineFunctionsWorker {
                     let Some(engine) = engine.upgrade() else {
                         return;
                     };
-                    let functions = EngineFunctionsWorker::new(engine.clone())
-                        .list_function_summaries()
-                        .await;
+                    let Some(payload) = EngineFunctionsWorker::new(engine.clone())
+                        .functions_changed_payload()
+                        .await
+                    else {
+                        return;
+                    };
                     engine
-                        .fire_triggers(
-                            TRIGGER_FUNCTIONS_AVAILABLE,
-                            serde_json::json!({
-                                "event": "functions_changed",
-                                "functions": functions,
-                            }),
-                        )
+                        .fire_triggers(TRIGGER_FUNCTIONS_AVAILABLE, payload)
                         .await;
                 });
             },

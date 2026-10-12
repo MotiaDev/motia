@@ -5,6 +5,8 @@
 // See LICENSE and PATENTS files for details.
 
 use std::{
+    borrow::Borrow,
+    hash::{Hash, Hasher},
     pin::Pin,
     sync::{Arc, RwLock},
 };
@@ -90,6 +92,43 @@ pub enum FunctionChange {
 /// Called synchronously on every register/remove with
 /// `(change, namespace, function_id)`. Must not block.
 pub type FunctionChangeListener = dyn Fn(FunctionChange, &str, &str) + Send + Sync;
+
+// Borrow both key components without changing the registry's stored tuple keys.
+trait FunctionKey {
+    fn parts(&self) -> (&str, &str);
+}
+
+impl FunctionKey for (String, String) {
+    fn parts(&self) -> (&str, &str) {
+        (&self.0, &self.1)
+    }
+}
+
+impl FunctionKey for (&str, &str) {
+    fn parts(&self) -> (&str, &str) {
+        *self
+    }
+}
+
+impl Hash for dyn FunctionKey + '_ {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.parts().hash(state);
+    }
+}
+
+impl PartialEq for dyn FunctionKey + '_ {
+    fn eq(&self, other: &Self) -> bool {
+        self.parts() == other.parts()
+    }
+}
+
+impl Eq for dyn FunctionKey + '_ {}
+
+impl<'a> Borrow<dyn FunctionKey + 'a> for (String, String) {
+    fn borrow(&self) -> &(dyn FunctionKey + 'a) {
+        self
+    }
+}
 
 #[derive(Default)]
 pub struct FunctionsRegistry {
@@ -189,7 +228,7 @@ impl FunctionsRegistry {
     pub fn remove(&self, namespace: &str, function_id: &str) {
         let removed = self
             .functions
-            .remove(&(namespace.to_string(), function_id.to_string()))
+            .remove(&(namespace, function_id) as &dyn FunctionKey)
             .is_some();
         if removed {
             self.notify_change(FunctionChange::Unregistered, namespace, function_id);
@@ -211,25 +250,31 @@ impl FunctionsRegistry {
     }
 
     pub fn get(&self, namespace: &str, function_id: &str) -> Option<Function> {
-        tracing::debug!(
-            "Searching for function {} in namespace {}",
-            function_id,
-            namespace
-        );
-        self.functions
-            .get(&(namespace.to_string(), function_id.to_string()))
-            .map(|entry| entry.value().clone())
+        self.with_function(namespace, function_id, |function| function.cloned())
     }
 
     pub(crate) fn get_handler(&self, namespace: &str, function_id: &str) -> Option<Arc<HandlerFn>> {
+        self.with_function(namespace, function_id, |function| {
+            function.map(|function| Arc::clone(&function.handler))
+        })
+    }
+
+    /// Read a descriptor synchronously; the callback must not re-enter the registry.
+    pub(crate) fn with_function<T>(
+        &self,
+        namespace: &str,
+        function_id: &str,
+        read: impl FnOnce(Option<&Function>) -> T,
+    ) -> T {
         tracing::debug!(
             "Searching for function {} in namespace {}",
             function_id,
             namespace
         );
-        self.functions
-            .get(&(namespace.to_string(), function_id.to_string()))
-            .map(|entry| Arc::clone(&entry.handler))
+        let entry = self
+            .functions
+            .get(&(namespace, function_id) as &dyn FunctionKey);
+        read(entry.as_deref())
     }
 
     /// Every namespace that has `function_id` registered, sorted. Used to build
