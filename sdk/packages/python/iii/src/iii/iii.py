@@ -219,11 +219,12 @@ class III:
     ) -> str | None:
         """Resolve one invocation namespace.
 
-        An explicit namespace wins. Otherwise, engine-owned builtins resolve in
-        ``default`` and all other calls inherit this worker's namespace.
+        An explicit namespace wins. Otherwise, engine-owned builtins
+        (``engine::*`` and ``configuration::*``) resolve in ``default`` and all
+        other calls inherit this worker's namespace.
         """
         namespace = self._call_namespace(explicit, "TriggerRequest.namespace")
-        if explicit is None and function_id.startswith("engine::"):
+        if explicit is None and function_id.startswith(("engine::", "configuration::")):
             return "default"
         return namespace
 

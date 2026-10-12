@@ -100,6 +100,14 @@ class TestInvocationNamespace:
             == "sandbox"
         )
 
+    def test_an_implicit_configuration_call_stays_in_default(self) -> None:
+        client = _client("orders")
+        assert client._invocation_namespace(None, "configuration::get") == "default"
+
+    def test_an_explicit_namespace_wins_for_a_configuration_call(self) -> None:
+        client = _client("orders")
+        assert client._invocation_namespace("sandbox", "configuration::get") == "sandbox"
+
     def test_a_non_engine_call_inherits_the_worker_namespace(self) -> None:
         client = _client("orders")
         assert client._invocation_namespace(None, "router::chat") == "orders"

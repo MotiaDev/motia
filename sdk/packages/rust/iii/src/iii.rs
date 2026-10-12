@@ -737,8 +737,9 @@ pub(crate) fn call_namespace(
 
 /// The namespace in which one function invocation resolves.
 ///
-/// An explicit namespace always wins. Without one, engine-owned builtins stay
-/// in `default`; all other calls inherit the worker's namespace.
+/// An explicit namespace always wins. Without one, engine-owned builtins
+/// (`engine::*` and `configuration::*`) stay in `default`; all other calls
+/// inherit the worker's namespace.
 pub(crate) fn invocation_namespace(
     explicit: Option<String>,
     worker: Option<String>,
@@ -748,7 +749,9 @@ pub(crate) fn invocation_namespace(
     let is_implicit = explicit.is_none();
     let namespace = call_namespace(explicit, worker, source)?;
 
-    if is_implicit && function_id.starts_with("engine::") {
+    if is_implicit
+        && (function_id.starts_with("engine::") || function_id.starts_with("configuration::"))
+    {
         Ok(Some("default".to_string()))
     } else {
         Ok(namespace)

@@ -143,14 +143,16 @@ function callNamespace(
   return explicit ?? worker
 }
 
-/** Resolve one function invocation without leaking engine builtins into a worker namespace. */
+/** Resolve one function invocation without leaking engine and configuration builtins into a worker namespace. */
 function invocationNamespace(
   explicit: string | undefined,
   worker: string | undefined,
   functionId: string,
 ): string | undefined {
   const namespace = callNamespace(explicit, worker, 'TriggerRequest.namespace')
-  return explicit === undefined && functionId.startsWith('engine::') ? 'default' : namespace
+  return explicit === undefined && (functionId.startsWith('engine::') || functionId.startsWith('configuration::'))
+    ? 'default'
+    : namespace
 }
 
 function resolveNamespace(optionNamespace?: string): string | undefined {
