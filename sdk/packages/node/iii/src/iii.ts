@@ -143,9 +143,6 @@ function callNamespace(
   return explicit ?? worker
 }
 
-/** Prefixes of builtins the engine registers in `default`: an implicit call to them stays there. */
-const ENGINE_OWNED_PREFIXES = ['engine::', 'configuration::', 'stream::']
-
 /** Resolve one function invocation without leaking engine and configuration builtins into a worker namespace. */
 function invocationNamespace(
   explicit: string | undefined,
@@ -153,7 +150,7 @@ function invocationNamespace(
   functionId: string,
 ): string | undefined {
   const namespace = callNamespace(explicit, worker, 'TriggerRequest.namespace')
-  return explicit === undefined && ENGINE_OWNED_PREFIXES.some((prefix) => functionId.startsWith(prefix))
+  return explicit === undefined && (functionId.startsWith('engine::') || functionId.startsWith('configuration::'))
     ? 'default'
     : namespace
 }

@@ -124,13 +124,13 @@ describe('namespace inheritance', () => {
     expect(call).toMatchObject({ namespace: 'sandbox' })
   })
 
-  it.each(['configuration::get', 'stream::set'])('keeps an implicit %s invocation in default', async (functionId) => {
+  it('keeps an implicit configuration invocation in default', async () => {
     sdk = registerWorker(url, { workerName: 'tester', namespace: 'orders', otel: { enabled: false } })
     await settle()
-    void sdk.trigger({ function_id: functionId, payload: {}, action: { type: 'void' } } as never)
+    void sdk.trigger({ function_id: 'configuration::get', payload: {}, action: { type: 'void' } } as never)
     await settle()
 
-    const call = frames.find((f) => f.type === 'invokefunction' && f.function_id === functionId)
+    const call = frames.find((f) => f.type === 'invokefunction' && f.function_id === 'configuration::get')
     expect(call).toMatchObject({ namespace: 'default' })
   })
 

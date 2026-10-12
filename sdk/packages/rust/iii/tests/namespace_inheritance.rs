@@ -182,28 +182,25 @@ async fn an_explicit_namespace_wins_for_an_engine_invocation() {
 }
 
 #[tokio::test]
-async fn engine_owned_invocations_stay_in_default() {
+async fn a_configuration_invocation_stays_in_default() {
     let mock = MockEngine::start().await;
     let iii = worker_in(&mock, Some("orders"));
 
-    // `configuration::*` and `stream::*` belong to the engine-owned
-    // `configuration` and stream workers, which only exist in `default`.
-    for function_id in ["configuration::get", "stream::set"] {
-        let _ = iii
-            .trigger(TriggerRequest {
-                function_id: function_id.to_string(),
-                payload: json!({}),
-                action: Some(TriggerAction::Void),
-                timeout_ms: None,
-            })
-            .await;
+    // `configuration::*` belongs to the engine-owned `configuration` worker,
+    // which only exists in `default`.
+    let _ = iii
+        .trigger(TriggerRequest {
+            function_id: "configuration::get".to_string(),
+            payload: json!({}),
+            action: Some(TriggerAction::Void),
+            timeout_ms: None,
+        })
+        .await;
 
-        assert_eq!(
-            invocation_namespace_of(&mock, function_id).await,
-            Some(json!("default")),
-            "{function_id}"
-        );
-    }
+    assert_eq!(
+        invocation_namespace_of(&mock, "configuration::get").await,
+        Some(json!("default"))
+    );
 }
 
 #[tokio::test]

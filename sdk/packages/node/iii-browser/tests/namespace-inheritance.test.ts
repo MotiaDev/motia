@@ -108,11 +108,11 @@ describe('namespace inheritance', () => {
     expect(call).toMatchObject({ namespace: 'sandbox' })
   })
 
-  it.each(['configuration::get', 'stream::set'])('keeps an implicit %s invocation in default', async (functionId) => {
+  it('keeps an implicit configuration invocation in default', async () => {
     await connect('orders')
-    void sdk.trigger({ function_id: functionId, payload: {}, action: { type: 'void' } })
+    void sdk.trigger({ function_id: 'configuration::get', payload: {}, action: { type: 'void' } })
 
-    const call = engine.findAllSent('invokefunction').find((f) => f.function_id === functionId)
+    const call = engine.findAllSent('invokefunction').find((f) => f.function_id === 'configuration::get')
     expect(call).toMatchObject({ namespace: 'default' })
   })
 

@@ -188,7 +188,6 @@ func TestImplicitCallInheritsTheWorkerNamespace(t *testing.T) {
 	for _, tc := range []struct{ name, functionID, explicit, want string }{
 		{"implicit call inherits", "api::ping", "", "orders"},
 		{"implicit configuration call stays in default", "configuration::get", "", "default"},
-		{"implicit stream call stays in default", "stream::set", "", "default"},
 		{"explicit wins over inheritance", "api::ping", "sandbox", "sandbox"},
 		{"explicit wins for a configuration call", "configuration::get", "sandbox", "sandbox"},
 	} {
