@@ -19,6 +19,7 @@ import {
   IconX,
 } from '@/components/icons/iconly'
 import { buttonVariants } from '@/components/ui/button'
+import { useLiveCommunityStats } from '@/hooks/use-live-community-stats'
 import type { CommunityStats } from '@/lib/community'
 import { duration, easeOut, spring, stagger } from '@/lib/motion'
 import { links } from '@/lib/site'
@@ -56,7 +57,8 @@ const navText = 'text-foreground/75'
 /** GitHub's own starred-repo yellow (dark theme). */
 const githubStar = 'group-hover:text-[#e3b341] group-focus-visible:text-[#e3b341]'
 
-export function Header({ stats }: { stats: CommunityStats }) {
+export function Header({ stats: buildStats }: { stats: CommunityStats }) {
+  const stats = useLiveCommunityStats(buildStats)
   const { scrollY } = useScroll()
   const [condensed, setCondensed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)

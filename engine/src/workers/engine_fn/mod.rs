@@ -24,6 +24,10 @@ use crate::{
 };
 
 pub const TRIGGER_FUNCTIONS_AVAILABLE: &str = "engine::functions-available";
+
+/// Window after the first registry change during which further changes are
+/// folded into the same `engine::functions-available` event.
+const FUNCTIONS_CHANGED_COALESCE: std::time::Duration = std::time::Duration::from_millis(100);
 pub const TRIGGER_WORKERS_AVAILABLE: &str = "engine::workers-available";
 
 /// Maximum length of `config_summary` strings produced by
@@ -258,6 +262,22 @@ pub struct FunctionSummary {
     /// hides (pass `include_internal: true` to see it).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Value>,
+}
+
+impl FunctionSummary {
+    fn into_notification_value(self) -> Value {
+        let mut fields = serde_json::Map::new();
+        fields.insert("function_id".to_string(), Value::String(self.function_id));
+        fields.insert("namespace".to_string(), Value::String(self.namespace));
+        fields.insert("worker_name".to_string(), Value::String(self.worker_name));
+        if let Some(description) = self.description {
+            fields.insert("description".to_string(), Value::String(description));
+        }
+        if let Some(metadata) = self.metadata {
+            fields.insert("metadata".to_string(), metadata);
+        }
+        Value::Object(fields)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -576,23 +596,33 @@ impl EngineFunctionsWorker {
         }
     }
 
-    pub async fn fire_triggers(&self, trigger_type: &str, data: Value) {
-        let triggers_to_fire: Vec<Trigger> = self
+    pub async fn fire_triggers(&self, trigger_type: &str, mut data: Value) {
+        let triggers_to_fire: Vec<_> = self
             .triggers
             .iter()
             .filter(|entry| entry.value().trigger_type == trigger_type)
-            .map(|entry| entry.value().clone())
+            .map(|entry| {
+                let trigger = entry.value();
+                (
+                    trigger.function_id.clone(),
+                    trigger.namespace.clone(),
+                    trigger.metadata.clone(),
+                )
+            })
             .collect();
 
-        for trigger in triggers_to_fire {
+        let trigger_count = triggers_to_fire.len();
+        for (index, (function_id, namespace, metadata)) in triggers_to_fire.into_iter().enumerate()
+        {
             let engine = self.engine.clone();
-            let function_id = trigger.function_id.clone();
-            let namespace = trigger.namespace.clone();
-            let metadata = trigger.metadata.clone();
-            let data = data.clone();
+            let data = if index + 1 == trigger_count {
+                data.take()
+            } else {
+                data.clone()
+            };
             tokio::spawn(async move {
                 let _ = engine
-                    .call_with_metadata_ns(&namespace, &function_id, data, metadata)
+                    .call_value_with_metadata_ns(&namespace, &function_id, data, metadata)
                     .await;
             });
         }
@@ -763,8 +793,7 @@ impl EngineFunctionsWorker {
             Some(ns) => self
                 .engine
                 .functions
-                .get(ns, function_id)
-                .map(|_| ns.to_string()),
+                .with_function(ns, function_id, |function| function.map(|_| ns.to_string())),
             None => self.introspection_namespace(function_id),
         }
     }
@@ -947,6 +976,36 @@ impl EngineFunctionsWorker {
             .collect()
     }
 
+    async fn functions_changed_payload(&self) -> Option<Value> {
+        // Check after coalescing so a subscriber added during the delay still
+        // receives the change. Release registry guards before snapshot awaits.
+        if !self
+            .engine
+            .trigger_registry
+            .triggers
+            .iter()
+            .any(|entry| entry.value().trigger_type == TRIGGER_FUNCTIONS_AVAILABLE)
+        {
+            return None;
+        }
+
+        let functions = self
+            .list_function_summaries()
+            .await
+            .into_iter()
+            .map(FunctionSummary::into_notification_value)
+            .collect();
+        // Move the snapshot metadata into the event instead of serializing a
+        // borrowed snapshot into a second owned tree.
+        Some(Value::Object(serde_json::Map::from_iter([
+            (
+                "event".to_string(),
+                Value::String("functions_changed".to_string()),
+            ),
+            ("functions".to_string(), Value::Array(functions)),
+        ])))
+    }
+
     fn list_trigger_type_summaries(&self) -> Vec<TriggerTypeSummary> {
         self.engine
             .trigger_registry
@@ -1108,16 +1167,19 @@ impl EngineFunctionsWorker {
         namespace: &str,
         function_id: &str,
     ) -> bool {
-        let function = self.engine.functions.get(namespace, function_id);
-        crate::workers::worker::rbac_config::is_function_allowed(
-            function_id,
-            namespace,
-            session.config.rbac.clone(),
-            &session.namespaces,
-            &session.allowed_functions,
-            &session.forbidden_functions,
-            function.as_ref(),
-        )
+        self.engine
+            .functions
+            .with_function(namespace, function_id, |function| {
+                crate::workers::worker::rbac_config::is_function_allowed_ref(
+                    function_id,
+                    namespace,
+                    session.config.rbac.as_ref(),
+                    &session.namespaces,
+                    &session.allowed_functions,
+                    &session.forbidden_functions,
+                    function,
+                )
+            })
     }
 
     async fn build_function_detail(
@@ -1145,10 +1207,10 @@ impl EngineFunctionsWorker {
             function_id: function_id.to_string(),
             namespace: namespace.to_string(),
             worker_name,
-            description: function._description.clone(),
-            request_schema: function.request_format.clone(),
-            response_schema: function.response_format.clone(),
-            metadata: function.metadata.clone(),
+            description: function._description,
+            request_schema: function.request_format,
+            response_schema: function.response_format,
+            metadata: function.metadata,
             registered_triggers: self.registered_trigger_refs_for_function(namespace, function_id),
         })
     }
@@ -1325,19 +1387,24 @@ impl EngineFunctionsWorker {
         let mut functions: Vec<FunctionSummary> = function_ids
             .into_iter()
             .filter_map(|fn_id| {
-                let func = self.engine.functions.get(&worker_namespace, &fn_id)?;
+                let (description, metadata) =
+                    self.engine
+                        .functions
+                        .with_function(&worker_namespace, &fn_id, |function| {
+                            function.map(|function| {
+                                (function._description.clone(), function.metadata.clone())
+                            })
+                        })?;
+                let worker_name =
+                    Self::worker_name_for_function_id(&index, &worker_namespace, &fn_id);
                 Some(FunctionSummary {
-                    function_id: fn_id.clone(),
+                    function_id: fn_id,
                     // Mirrors the lookup directly above: this row *is* the
                     // entry keyed under the worker's own namespace.
                     namespace: worker_namespace.clone(),
-                    worker_name: Self::worker_name_for_function_id(
-                        &index,
-                        &worker_namespace,
-                        &fn_id,
-                    ),
-                    description: func._description.clone(),
-                    metadata: func.metadata.clone(),
+                    worker_name,
+                    description,
+                    metadata,
                 })
             })
             .collect();
@@ -1530,6 +1597,50 @@ impl Worker for EngineFunctionsWorker {
         );
         let _ = self.engine.register_trigger_type(functions_trigger).await;
 
+        // Fire `engine::functions-available` from the registry itself, with no
+        // polling task. A burst of changes (a worker registering its whole
+        // surface on connect) is coalesced into one event: the first change
+        // schedules a one-shot send, later ones ride along until it runs.
+        // Weak: the registry lives inside the engine, so a strong handle here
+        // would keep the engine alive forever.
+        let engine = Arc::downgrade(&self.engine);
+        // Captured here (initialize always runs inside the runtime) rather than
+        // looked up per change: the registry's register/remove are synchronous
+        // and public, so a change can come from a thread with no current
+        // runtime, and it must still produce an event.
+        let runtime = tokio::runtime::Handle::current();
+        let scheduled = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        self.engine.functions.set_change_listener(Arc::new(
+            move |_change: crate::function::FunctionChange,
+                  _namespace: &str,
+                  _function_id: &str| {
+                use std::sync::atomic::Ordering;
+                if scheduled.swap(true, Ordering::AcqRel) {
+                    return;
+                }
+                let engine = engine.clone();
+                let scheduled = scheduled.clone();
+                runtime.spawn(async move {
+                    tokio::time::sleep(FUNCTIONS_CHANGED_COALESCE).await;
+                    // Clear before snapshotting: a change landing from here on
+                    // schedules its own event, so none is lost.
+                    scheduled.store(false, Ordering::Release);
+                    let Some(engine) = engine.upgrade() else {
+                        return;
+                    };
+                    let Some(payload) = EngineFunctionsWorker::new(engine.clone())
+                        .functions_changed_payload()
+                        .await
+                    else {
+                        return;
+                    };
+                    engine
+                        .fire_triggers(TRIGGER_FUNCTIONS_AVAILABLE, payload)
+                        .await;
+                });
+            },
+        ));
+
         let workers_trigger = TriggerType::new(
             TRIGGER_WORKERS_AVAILABLE,
             "Triggered when workers connect/disconnect",
@@ -1537,72 +1648,6 @@ impl Worker for EngineFunctionsWorker {
             None,
         );
         let _ = self.engine.register_trigger_type(workers_trigger).await;
-
-        Ok(())
-    }
-
-    async fn start_background_tasks(
-        &self,
-        mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
-        mut _shutdown_tx: tokio::sync::watch::Sender<bool>,
-    ) -> anyhow::Result<()> {
-        let engine = self.engine.clone();
-        let triggers = self.triggers.clone();
-        let worker_module = self.clone();
-        let duration_secs = 5u64;
-
-        tokio::spawn(async move {
-            let mut current_functions_hash = engine.functions.functions_hash();
-
-            loop {
-                tokio::select! {
-                    _ = tokio::time::sleep(tokio::time::Duration::from_secs(duration_secs)) => {
-                        let new_functions_hash = engine.functions.functions_hash();
-                        if new_functions_hash != current_functions_hash {
-                            tracing::info!("New functions detected, firing functions-available trigger");
-                            current_functions_hash = new_functions_hash;
-
-                            let functions = worker_module.list_function_summaries().await;
-
-                            let functions_data = serde_json::json!({
-                                "event": "functions_changed",
-                                "functions": functions,
-                            });
-
-                            let triggers_to_fire: Vec<Trigger> = triggers
-                                .iter()
-                                .filter(|entry| entry.value().trigger_type == TRIGGER_FUNCTIONS_AVAILABLE)
-                                .map(|entry| entry.value().clone())
-                                .collect();
-
-                            for trigger in triggers_to_fire {
-                                let engine = engine.clone();
-                                let function_id = trigger.function_id.clone();
-                                let namespace = trigger.namespace.clone();
-                                let metadata = trigger.metadata.clone();
-                                let data = functions_data.clone();
-                                tokio::spawn(async move {
-                                    let _ = engine
-                                        .call_with_metadata_ns(
-                                            &namespace,
-                                            &function_id,
-                                            data,
-                                            metadata,
-                                        )
-                                        .await;
-                                });
-                            }
-                        }
-                    }
-                    changed = shutdown_rx.changed() => {
-                        if changed.is_err() || *shutdown_rx.borrow() {
-                            tracing::info!("EngineFunctionsWorker background tasks shutting down");
-                            break;
-                        }
-                    }
-                }
-            }
-        });
 
         Ok(())
     }
@@ -3239,17 +3284,165 @@ mod tests {
         );
     }
 
+    /// `engine::functions-available` fires from the registry itself (no
+    /// polling task), keeps its original payload (`functions_changed` + the
+    /// full list), and folds a burst of registrations into one event.
     #[tokio::test]
-    async fn start_background_tasks_shutdown_is_clean() {
-        let (_engine, module) = setup_engine_and_module();
-        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    async fn functions_available_fires_on_change_with_full_list() {
+        let (engine, module) = setup_engine_and_module();
+        module.initialize().await.unwrap();
 
-        module
-            .start_background_tasks(shutdown_rx, shutdown_tx.clone())
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Value>();
+        engine.register_function_handler(
+            crate::engine::RegisterFunctionRequest {
+                function_id: "test::on_fns".to_string(),
+                description: None,
+                request_format: None,
+                response_format: None,
+                metadata: None,
+            },
+            crate::engine::Handler::new(move |input: Value| {
+                let tx = tx.clone();
+                async move {
+                    let _ = tx.send(input);
+                    FunctionResult::Success(None)
+                }
+            }),
+        );
+        engine.trigger_registry.triggers.insert(
+            "trig-fns".to_string(),
+            crate::trigger::Trigger {
+                id: "trig-fns".to_string(),
+                trigger_type: TRIGGER_FUNCTIONS_AVAILABLE.to_string(),
+                function_id: "test::on_fns".to_string(),
+                config: serde_json::json!({}),
+                worker_id: None,
+                metadata: None,
+                namespace: crate::protocol::DEFAULT_NAMESPACE.to_string(),
+                trigger_namespace: None,
+                home_namespace: crate::protocol::default_namespace(),
+                provider_namespace: crate::protocol::default_namespace(),
+            },
+        );
+
+        fn ids(event: &Value) -> Vec<String> {
+            event["functions"]
+                .as_array()
+                .expect("functions array")
+                .iter()
+                .filter_map(|f| f["function_id"].as_str().map(str::to_string))
+                .collect()
+        }
+        // The handler's own registration also schedules an event; wait for
+        // the one whose list matches `want`.
+        async fn next_matching(
+            rx: &mut tokio::sync::mpsc::UnboundedReceiver<Value>,
+            want: impl Fn(&[String]) -> bool,
+        ) -> Value {
+            tokio::time::timeout(std::time::Duration::from_secs(2), async {
+                loop {
+                    let event = rx.recv().await.expect("channel closed");
+                    if want(&ids(&event)) {
+                        return event;
+                    }
+                }
+            })
             .await
-            .unwrap();
-        let _ = shutdown_tx.send(true);
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            .expect("functions-available must fire")
+        }
+
+        for id in ["burst::a", "burst::b", "burst::c"] {
+            register_simple_function(&engine, id, None);
+        }
+        let registered = next_matching(&mut rx, |ids| {
+            ["burst::a", "burst::b", "burst::c"]
+                .iter()
+                .all(|id| ids.iter().any(|i| i == id))
+        })
+        .await;
+        assert_eq!(registered["event"], "functions_changed");
+        // The burst was folded into that single event.
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(300), rx.recv())
+                .await
+                .is_err(),
+            "a burst of registrations must yield a single event"
+        );
+
+        engine
+            .functions
+            .remove(crate::protocol::DEFAULT_NAMESPACE, "burst::b");
+        let removed = next_matching(&mut rx, |ids| !ids.iter().any(|i| i == "burst::b")).await;
+        assert_eq!(removed["event"], "functions_changed");
+    }
+
+    /// A registry change made from a thread with no current Tokio runtime
+    /// (register/remove are synchronous and public) must still produce an
+    /// `engine::functions-available` event: the listener spawns on the handle
+    /// captured at `initialize`, not on a per-change lookup.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn functions_available_fires_for_changes_outside_the_runtime() {
+        let (engine, module) = setup_engine_and_module();
+        module.initialize().await.unwrap();
+
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Value>();
+        engine.register_function_handler(
+            crate::engine::RegisterFunctionRequest {
+                function_id: "test::on_fns".to_string(),
+                description: None,
+                request_format: None,
+                response_format: None,
+                metadata: None,
+            },
+            crate::engine::Handler::new(move |input: Value| {
+                let tx = tx.clone();
+                async move {
+                    let _ = tx.send(input);
+                    FunctionResult::Success(None)
+                }
+            }),
+        );
+        engine.trigger_registry.triggers.insert(
+            "trig-fns".to_string(),
+            crate::trigger::Trigger {
+                id: "trig-fns".to_string(),
+                trigger_type: TRIGGER_FUNCTIONS_AVAILABLE.to_string(),
+                function_id: "test::on_fns".to_string(),
+                config: serde_json::json!({}),
+                worker_id: None,
+                metadata: None,
+                namespace: crate::protocol::DEFAULT_NAMESPACE.to_string(),
+                trigger_namespace: None,
+                home_namespace: crate::protocol::default_namespace(),
+                provider_namespace: crate::protocol::default_namespace(),
+            },
+        );
+
+        let off_runtime = engine.clone();
+        std::thread::spawn(move || {
+            assert!(
+                tokio::runtime::Handle::try_current().is_err(),
+                "the change must come from a thread without a runtime"
+            );
+            register_simple_function(&off_runtime, "offrt::fn", None);
+        })
+        .join()
+        .unwrap();
+
+        let event = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            loop {
+                let event = rx.recv().await.expect("channel closed");
+                let has = event["functions"]
+                    .as_array()
+                    .is_some_and(|fs| fs.iter().any(|f| f["function_id"] == "offrt::fn"));
+                if has {
+                    return event;
+                }
+            }
+        })
+        .await
+        .expect("a change made off the runtime must still fire functions-available");
+        assert_eq!(event["event"], "functions_changed");
     }
 
     // ── create_channel test ─────────────────────────────────────────────

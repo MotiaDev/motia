@@ -94,8 +94,8 @@
 /* Focus one card: a quiet round button over the visual's top-right corner. */
 .expand {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 14px;
+  right: 14px;
   z-index: 2;
   display: grid;
   place-items: center;
@@ -116,6 +116,16 @@
 .expand:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
+}
+/* The corner button (expand on a card, close in the dialog) sits beside the first row, never over it: the top row of
+   each visual stops short of it. 14px inset + 32px button − 18px padding + 12px gap. */
+.workloadHead,
+.choices {
+  margin-inline-end: 40px;
+}
+.dialogVisual .workloadHead,
+.dialogVisual .choices {
+  margin-inline-end: 30px;
 }
 .dialogRoot {
   position: fixed;
@@ -166,29 +176,7 @@
   line-height: 21px;
 }
 .dialogText {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-.dialogText > .text {
-  flex: 1;
   padding: 18px 12px 12px;
-}
-.close {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  margin: 14px 8px 0 0;
-  border-radius: 999px;
-  box-shadow: inset 0 0 0 1px var(--border);
-  color: var(--muted-foreground);
-  cursor: pointer;
-}
-.close:focus-visible {
-  outline: 2px solid var(--foreground);
-  outline-offset: 2px;
 }
 .controls {
   display: flex;
@@ -281,18 +269,29 @@
   font-size: 12px;
   color: var(--muted-foreground);
 }
+/* A reel window: values travel their full height through it and fade at the top and bottom edges instead of being
+   cut off by a hard clip. */
 .choiceValue {
   position: relative;
-  height: 18px;
+  height: 24px;
   overflow: hidden;
+  mask-image: linear-gradient(to bottom, transparent, #000 6px, #000 18px, transparent);
 }
 .roll {
   display: block;
-  line-height: 18px;
+  line-height: 24px;
   color: var(--muted-foreground);
 }
 .choice[data-landed="true"] .roll {
   color: var(--foreground);
+}
+/* The value a swap replaced: only visible while it slides out, so with reduced motion it never shows. */
+.rollOut {
+  position: absolute;
+  inset: 0;
+  line-height: 24px;
+  color: var(--muted-foreground);
+  opacity: 0;
 }
 .choiceMark {
   display: grid;
@@ -537,11 +536,13 @@
 }
 
 /* ---------- Motion ---------- */
+/* The visuals play at 0.75x (2026-10-09), matching PACE in use-cases-demos.tsx: each duration here is its 1x value
+   × 4/3. Button feedback further down stays at full speed. */
 @media (prefers-reduced-motion: no-preference) {
   .check,
   .choiceMark {
     transition-property: opacity, scale, filter;
-    transition-duration: 300ms;
+    transition-duration: 400ms;
     transition-timing-function: var(--enter);
   }
   .step,
@@ -549,41 +550,63 @@
   .miniSession,
   .result {
     transition-property: opacity, translate;
-    transition-duration: 260ms;
+    transition-duration: 350ms;
     transition-timing-function: var(--enter);
   }
-  /* A rolling choice: each value drops in from below with a little blur, like a slot settling. */
+  /* A rolling choice: the reel turns one value at a time. The new value rises in from below as the old one leaves
+     upward, a full row apart so they never overlap, on the site's gentle ease-in-out. The last turn lands slower on
+     an ease-out, so the reel settles instead of stopping. */
+  .roll[data-rolling="true"] {
+    animation: roll 400ms var(--motion-ease-in-out) both;
+  }
+  .rollOut {
+    animation: rollOut 400ms var(--motion-ease-in-out) both;
+  }
+  .choice[data-landed="true"] .roll[data-rolling="true"],
+  .choice[data-landed="true"] .rollOut {
+    animation-duration: 560ms;
+    animation-timing-function: var(--motion-ease-out);
+  }
   .roll {
-    animation: roll 200ms var(--enter) both;
+    transition: color 270ms ease;
   }
   /* Exits are softer than entrances: a short fade and a 4px lift. The next lap fades back in with the same curve. */
   .visualBody {
     transition-property: opacity, translate;
-    transition-duration: 360ms;
+    transition-duration: 560ms;
     transition-timing-function: var(--enter);
   }
   .callTrack > span,
   .tProgress > span {
-    transition: transform 400ms var(--enter);
+    transition: transform 530ms var(--enter);
   }
   .workloadHead {
-    animation: swap 260ms var(--enter) both;
+    animation: swap 350ms var(--enter) both;
   }
   .tBlock,
   .tLine {
     transition: opacity 200ms ease;
   }
   .pagerDot::before {
-    transition: background-color 150ms ease;
+    transition: background-color 400ms ease;
   }
   .tCursor {
     animation: blink 1.1s steps(1, end) infinite;
   }
   @keyframes roll {
     from {
-      opacity: 0;
-      transform: translateY(45%);
-      filter: blur(2px);
+      opacity: 0.3;
+      transform: translateY(100%);
+    }
+  }
+  @keyframes rollOut {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0.3;
+      transform: translateY(-100%);
     }
   }
   @keyframes swap {
@@ -621,12 +644,10 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .expand,
-  .close {
+  .expand {
     transition: color 150ms ease, background-color 150ms ease;
   }
-  .expand:hover,
-  .close:hover {
+  .expand:hover {
     color: var(--foreground);
     background: oklch(0.26 0 0 / 0.9);
   }
@@ -634,14 +655,12 @@
 /* Press feedback (Emil: pressable things scale 0.97 on :active, 160ms ease-out). */
 @media (prefers-reduced-motion: no-preference) {
   .expand,
-  .close,
   .pagerDot {
     transition-property: color, background-color, scale;
     transition-duration: 150ms, 150ms, 160ms;
     transition-timing-function: ease, ease, var(--motion-ease-out);
   }
   .expand:active,
-  .close:active,
   .pagerDot:active {
     scale: 0.95;
   }

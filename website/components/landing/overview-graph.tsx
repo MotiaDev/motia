@@ -5,40 +5,74 @@ import { useEffect, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
-import { EngineHub, Flow, Node, Runner, STROKE, T, Wire } from './graph/kit'
+import { EngineHub, Flow, Runner, STROKE, T, TYPE, Wire } from './graph/kit'
 import type { Point } from './graph/model'
 
 /**
- * The Overview graph, laid out the way the 2026-10-05 sync asked for: it reads left to right. A request on the
- * left, the iii engine in the middle, and every worker together in one group on the right. It starts with the
- * engine alone, workers join one or two at a time (a dependency chain arrives together), then one request is
- * served by calls that all pass through the engine. Names and functions are real registry workers.
+ * The Overview graph as a system map (2026-10-08, Anthony and Mike): every participant sits on one ring, labelled
+ * with its name and where it runs (language · cloud), with the iii engine at the centre. The ring fills as workers
+ * register, then one request is traced through the system: each call travels caller → engine → callee and leaves a
+ * fading trail. Names, functions and languages are real registry workers (iii-hq/workers); the clouds are a sample
+ * deployment spread across AWS, GCP and Azure.
  */
 
-/** A tighter frame than the story graph: the column of seven sets the height, nothing floats around it. The frame
-    starts just above the first worker row (y 44) so the drawing sits level with the paragraphs, not below them. */
-const VIEW = { y: 28, w: 1010, h: 476 } as const
-const ENGINE_BOX = { x: 400, y: 268, w: 320, h: 68 } as const
-const REQUEST = { x: 100, y: 268, w: 150, h: 40 } as const
-/** Where the request → engine axis sits, as a share of the drawn height (the Overview lines it up with the text). */
-export const AXIS_RATIO = (REQUEST.y - VIEW.y) / VIEW.h
-const COLUMN = { x: 850, w: 300, h: 52, firstRow: 70, pitch: 66 } as const
+const VIEW = { y: 18, w: 900, h: 548 } as const
+/** The ring: an ellipse a little wider than tall, so side labels have room and the drawing stays short. */
+const RING = { cx: 450, cy: 292, rx: 248, ry: 206 } as const
+const ENGINE_BOX = { x: RING.cx, y: RING.cy, w: 220, h: 64 } as const
+/** Where the engine sits, as a share of the drawn height (the Overview lines it up with the middle of the copy). */
+export const AXIS_RATIO = (RING.cy - VIEW.y) / VIEW.h
 
-type Worker = Point & { id: string; fn: string; origin: 'registry' | 'dependency' }
+type Cloud = 'AWS' | 'GCP' | 'Azure'
+type Participant = Point & {
+  id: string
+  label: string
+  place: string
+  fn?: string
+  side: 'top' | 'right' | 'bottom' | 'left'
+}
+type Worker = { id: string; fn: string; lang: string; cloud: Cloud }
 
-const row = (i: number): Point => ({ x: COLUMN.x, y: COLUMN.firstRow + i * COLUMN.pitch })
-
-/** Seven registry workers, top to bottom in the order they join. */
+/** Seven registry workers in the order they join, each tagged with its language and where it runs. */
 export const WORKERS: Worker[] = [
-  { id: 'http', fn: 'trigger · http', origin: 'registry', ...row(0) },
-  { id: 'database', fn: 'database::execute', origin: 'registry', ...row(1) },
-  { id: 'harness', fn: 'agent::events', origin: 'registry', ...row(2) },
-  { id: 'llm-router', fn: 'router::chat', origin: 'dependency', ...row(3) },
-  { id: 'provider-anthropic', fn: 'provider::anthropic::stream', origin: 'dependency', ...row(4) },
-  { id: 'browser', fn: 'browser::act', origin: 'registry', ...row(5) },
-  { id: 'github', fn: 'github::pr::create', origin: 'registry', ...row(6) },
+  { id: 'http', fn: 'trigger · http', lang: 'Rust', cloud: 'AWS' },
+  { id: 'database', fn: 'database::execute', lang: 'Rust', cloud: 'GCP' },
+  { id: 'harness', fn: 'agent::events', lang: 'Rust', cloud: 'AWS' },
+  { id: 'llm-router', fn: 'router::chat', lang: 'Rust', cloud: 'Azure' },
+  { id: 'provider-anthropic', fn: 'provider::anthropic::stream', lang: 'Rust', cloud: 'GCP' },
+  { id: 'claude-code', fn: 'claude::run', lang: 'TypeScript', cloud: 'Azure' },
+  { id: 'hermes', fn: 'hermes::send', lang: 'Python', cloud: 'AWS' },
 ]
-const byId = Object.fromEntries(WORKERS.map((w) => [w.id, w])) as Record<string, Worker>
+/** The card's tag: language, then where it is deployed. */
+const placeOf = (w: Worker) => `${w.lang} · ${w.cloud}`
+
+/** Clockwise from the top. The request enters on the left; harness, which makes every call, sits at the top. */
+const RING_ORDER = [
+  'harness',
+  'llm-router',
+  'provider-anthropic',
+  'database',
+  'hermes',
+  'claude-code',
+  'request',
+  'http',
+]
+
+const sideFor = (angle: number): Participant['side'] => {
+  const c = Math.cos(angle)
+  if (c > 0.3) return 'right'
+  if (c < -0.3) return 'left'
+  return Math.sin(angle) < 0 ? 'top' : 'bottom'
+}
+
+const PARTICIPANTS: Participant[] = RING_ORDER.map((id, i) => {
+  const angle = -Math.PI / 2 + (i * 2 * Math.PI) / RING_ORDER.length
+  const point = { x: RING.cx + RING.rx * Math.cos(angle), y: RING.cy + RING.ry * Math.sin(angle) }
+  if (id === 'request') return { id, label: 'Request', place: 'incoming call', side: sideFor(angle), ...point }
+  const w = WORKERS.find((worker) => worker.id === id) as Worker
+  return { id, label: id, place: placeOf(w), fn: w.fn, side: sideFor(angle), ...point }
+})
+const byId = Object.fromEntries(PARTICIPANTS.map((p) => [p.id, p])) as Record<string, Participant>
 
 type Beat =
   | { kind: 'engine'; caption: string }
@@ -56,7 +90,11 @@ export const SCRIPT: Beat[] = [
     ids: ['harness', 'llm-router', 'provider-anthropic'],
     caption: 'harness joins · its dependencies llm-router and provider-anthropic come with it',
   },
-  { kind: 'join', ids: ['browser', 'github'], caption: 'browser and github join · seven workers, one engine' },
+  {
+    kind: 'join',
+    ids: ['claude-code', 'hermes'],
+    caption: 'claude-code (TypeScript) and hermes (Python) join · seven workers, one engine',
+  },
   { kind: 'call', from: 'request', to: 'harness', caption: 'a request arrives → iii engine → harness' },
   { kind: 'call', from: 'harness', to: 'llm-router', caption: 'harness → iii engine → llm-router (router::chat)' },
   {
@@ -66,7 +104,8 @@ export const SCRIPT: Beat[] = [
     caption: 'llm-router → iii engine → provider-anthropic · dependencies route through the engine too',
   },
   { kind: 'call', from: 'harness', to: 'database', caption: 'harness → iii engine → database (database::execute)' },
-  { kind: 'call', from: 'harness', to: 'github', caption: 'harness → iii engine → github (github::pr::create)' },
+  { kind: 'call', from: 'harness', to: 'claude-code', caption: 'harness → iii engine → claude-code (claude::run)' },
+  { kind: 'call', from: 'harness', to: 'hermes', caption: 'harness → iii engine → hermes (hermes::send)' },
   {
     kind: 'call',
     from: 'harness',
@@ -104,55 +143,55 @@ export function useBeat(active: boolean) {
   return { step: active ? tick % SCRIPT.length : SCRIPT.length - 1, cycle: Math.floor(tick / SCRIPT.length) }
 }
 
-/* ---------- Geometry: the request feeds the engine's left edge; each worker fans out from its right edge. ---------- */
+/* ---------- Geometry: every call is caller → engine centre → callee, along the spokes. ---------- */
 
-const engineLeft: Point = { x: ENGINE_BOX.x - ENGINE_BOX.w / 2, y: ENGINE_BOX.y }
-const engineRight: Point = { x: ENGINE_BOX.x + ENGINE_BOX.w / 2, y: ENGINE_BOX.y }
-const engineCentre: Point = { x: ENGINE_BOX.x, y: ENGINE_BOX.y }
-const requestRight: Point = { x: REQUEST.x + REQUEST.w / 2, y: REQUEST.y }
-const workerLeft = (w: Worker): Point => ({ x: w.x - COLUMN.w / 2, y: w.y })
-
-/** Engine → worker wire: a short run out of the engine, then a gentle curve into the worker's row. */
-const fan = (w: Worker) => {
-  const a = engineRight
-  const b = workerLeft(w)
-  const mid = (a.x + b.x) / 2
-  return `M ${a.x} ${a.y} C ${mid} ${a.y}, ${mid} ${b.y}, ${b.x} ${b.y}`
-}
-/** The same curve as `fan`, sampled into points so a packet and its trail can ride the drawn wire exactly. */
-const fanPoints = (w: Worker, samples = 28): Point[] => {
-  const a = engineRight
-  const b = workerLeft(w)
-  const mid = (a.x + b.x) / 2
-  return Array.from({ length: samples + 1 }, (_, i) => {
-    const t = i / samples
-    const u = 1 - t
-    return {
-      x: u * u * u * a.x + 3 * u * u * t * mid + 3 * u * t * t * mid + t * t * t * b.x,
-      y: u * u * u * a.y + 3 * u * u * t * a.y + 3 * u * t * t * b.y + t * t * t * b.y,
-    }
-  })
-}
-/** engine centre → the participant's own wire. The request's wire is straight; a worker's follows its curve, so the
-    trail lights the wire that is already there instead of cutting a second, straight one across the fan. */
-const leg = (id: string): Point[] =>
-  id === 'request' ? [engineCentre, engineLeft, requestRight] : [engineCentre, ...fanPoints(byId[id])]
-/** The path a packet follows for one call: the caller's wire in, through the engine's centre, the callee's wire out. */
-const route = (from: string, to: string): Point[] => [...leg(from).reverse(), ...leg(to).slice(1)]
+const centre: Point = { x: RING.cx, y: RING.cy }
+/** The path a packet follows for one call. */
+const route = (from: string, to: string): Point[] => [byId[from], centre, byId[to]]
 
 const joinedAt = (id: string) => SCRIPT.findIndex((b) => b.kind === 'join' && b.ids.includes(id))
+
+/** Node radius and the gap between a node and its label. */
+const R = 11
+const GAP = 22
+
+/** Name and place, set outside the ring on the side the node faces. */
+function Label({ p, lit }: { p: Participant; lit: boolean }) {
+  const anchor = p.side === 'right' ? 'start' : p.side === 'left' ? 'end' : 'middle'
+  const x = p.side === 'right' ? p.x + GAP : p.side === 'left' ? p.x - GAP : p.x
+  /* Two lines: the name, then language · cloud. Top labels stack upward, the rest read downward from the node. */
+  const nameY =
+    p.side === 'top' ? p.y - GAP - TYPE.label - 6 : p.side === 'bottom' ? p.y + GAP + TYPE.title * 0.72 : p.y - 3
+  const placeY = nameY + TYPE.label + 6
+  return (
+    <g>
+      <text
+        x={x}
+        y={nameY}
+        textAnchor={anchor}
+        className={cn('font-medium font-sans', lit ? 'fill-hero-accent' : 'fill-foreground')}
+        style={{ transition: 'fill 200ms ease' }}
+        fontSize={TYPE.title}
+      >
+        {p.label}
+      </text>
+      <text x={x} y={placeY} textAnchor={anchor} className="fill-muted-foreground font-sans" fontSize={TYPE.label}>
+        {p.place}
+      </text>
+    </g>
+  )
+}
 
 type Props = { step: number; cycle: number; active: boolean; className?: string; label: string }
 
 export function OverviewGraph({ step, cycle, active, className, label }: Props) {
   const beat = SCRIPT[step]
   const call = beat.kind === 'call' ? beat : null
-  const joined = (id: string) => !active || step >= joinedAt(id)
+  const requestLive = !active || step >= 5
+  const joined = (id: string) => (id === 'request' ? requestLive : !active || step >= joinedAt(id))
   const joiningNow = (id: string) => active && beat.kind === 'join' && beat.ids.includes(id)
   const joinDelay = (id: string) => (beat.kind === 'join' && joiningNow(id) ? beat.ids.indexOf(id) * 0.1 : 0)
   const joinedCount = WORKERS.filter((w) => joined(w.id)).length
-  /* The request slot is always drawn so the frame never shifts; it is a ghost until the request fires. */
-  const requestLive = !active || step >= 5
   const lit = (id: string) => call?.from === id || call?.to === id
   const done = beat.kind === 'done' && active
   const key = `${cycle}-${step}`
@@ -164,25 +203,19 @@ export function OverviewGraph({ step, cycle, active, className, label }: Props) 
       aria-label={label}
       className={cn('h-auto w-full overflow-visible', className)}
     >
-      {/* Request → engine */}
-      <Wire
-        d={`M ${requestRight.x} ${requestRight.y} H ${engineLeft.x}`}
-        dashed={!requestLive}
-        tone={done || lit('request') ? 'lit' : requestLive ? 'idle' : 'ghost'}
-      />
-
-      {/* Engine → each worker: one wire per worker, all fanning out on the right. */}
-      {WORKERS.map((w) => (
+      {/* Spokes: each participant's line to the engine, drawn as it registers. */}
+      {PARTICIPANTS.map((p) => (
         <Wire
-          key={w.id}
-          d={fan(w)}
-          visible={joined(w.id)}
-          delay={joinDelay(w.id)}
-          tone={done || lit(w.id) ? 'lit' : 'idle'}
+          key={p.id}
+          d={`M ${p.x} ${p.y} L ${centre.x} ${centre.y}`}
+          visible={joined(p.id)}
+          dashed={p.id === 'request' && !requestLive}
+          delay={joinDelay(p.id)}
+          tone={done || lit(p.id) ? 'lit' : 'idle'}
         />
       ))}
 
-      {/* The call in flight: out of the caller, through the engine, into the callee, then the reply. */}
+      {/* The call in flight: caller → engine → callee, then the reply back along the same spokes. */}
       {call && active ? (
         <g key={key}>
           <Flow points={route(call.from, call.to)} duration={0.6} />
@@ -199,51 +232,55 @@ export function OverviewGraph({ step, cycle, active, className, label }: Props) 
         environments={joinedCount ? `${joinedCount} worker${joinedCount === 1 ? '' : 's'} registered` : undefined}
       />
 
-      <Node
-        cx={REQUEST.x}
-        cy={REQUEST.y}
-        w={REQUEST.w}
-        h={REQUEST.h}
-        title="› request"
-        center
-        dashed={!requestLive}
-        tone={lit('request') ? 'lit' : requestLive ? 'idle' : 'ghost'}
-      />
-
-      {WORKERS.map((w) => (
-        <g key={w.id}>
-          <Node
-            cx={w.x}
-            cy={w.y}
-            w={COLUMN.w}
-            h={COLUMN.h}
-            title={w.id}
-            sub={w.fn}
-            meta={w.origin === 'dependency' ? 'dependency' : 'registry'}
-            metaTone={joiningNow(w.id) ? 'accent' : 'muted'}
-            tone={lit(w.id) ? 'lit' : 'idle'}
-            visible={joined(w.id)}
-            delay={joinDelay(w.id)}
-            label={`${w.id}: ${w.fn}`}
-          />
-          {/* A ready dot the moment the worker registers. */}
-          {joiningNow(w.id) ? (
-            <motion.circle
-              key={key}
-              cx={w.x + COLUMN.w / 2}
-              cy={w.y - COLUMN.h / 2}
-              r={4}
-              fill="var(--hero-accent)"
-              stroke="var(--background)"
-              strokeWidth={STROKE + 0.75}
-              initial={{ opacity: 0, scale: 0.4 }}
-              animate={{ opacity: [0, 1, 1, 0], scale: [0.4, 1, 1, 1] }}
-              transition={{ duration: 0.9 * T, delay: 0.25 + joinDelay(w.id), times: [0, 0.2, 0.8, 1] }}
-              style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+      {PARTICIPANTS.map((p) => {
+        const on = joined(p.id)
+        const hot = lit(p.id) || done
+        return (
+          <motion.g
+            key={p.id}
+            initial={false}
+            animate={{ opacity: on ? 1 : 0.28, scale: on ? 1 : 0.92 }}
+            transition={{ duration: 0.4 * T, delay: on ? joinDelay(p.id) : 0, ease: [0.22, 1, 0.36, 1] }}
+            style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+          >
+            <circle
+              cx={p.x}
+              cy={p.y}
+              r={R}
+              fill="var(--background)"
+              stroke={hot ? 'var(--hero-accent)' : 'var(--foreground)'}
+              strokeOpacity={hot ? 1 : 0.7}
+              strokeWidth={STROKE + 0.25}
+              strokeDasharray={on ? undefined : '3 3'}
+              style={{ transition: 'stroke 200ms ease, stroke-opacity 200ms ease' }}
             />
-          ) : null}
-        </g>
-      ))}
+            <circle
+              cx={p.x}
+              cy={p.y}
+              r={3.5}
+              fill={hot ? 'var(--hero-accent)' : 'var(--foreground)'}
+              style={{ transition: 'fill 200ms ease' }}
+            />
+            <Label p={p} lit={lit(p.id)} />
+            {/* A ready ring the moment the worker registers. */}
+            {joiningNow(p.id) ? (
+              <motion.circle
+                key={key}
+                cx={p.x}
+                cy={p.y}
+                r={R}
+                fill="none"
+                stroke="var(--hero-accent)"
+                strokeWidth={STROKE}
+                initial={{ opacity: 0.7, scale: 1 }}
+                animate={{ opacity: 0, scale: 1.9 }}
+                transition={{ duration: 0.7 * T, delay: 0.2 + joinDelay(p.id), ease: [0.22, 1, 0.36, 1] }}
+                style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+              />
+            ) : null}
+          </motion.g>
+        )
+      })}
     </svg>
   )
 }
@@ -262,20 +299,20 @@ export function OverviewStack({ step, active, className }: { step: number; activ
   const done = beat.kind === 'done' && active
   const slot = (on: boolean, hot: boolean) =>
     cn(
-      'flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2 transition-[opacity,border-color,background-color] duration-300',
-      hot ? 'border-hero-accent bg-hero-accent/8' : done ? 'border-hero-accent/50' : 'border-line-strong',
+      'flex min-w-0 items-center gap-3 rounded-[10px] border bg-card px-3.5 py-2.5 transition-[opacity,border-color,background-color] duration-200',
+      hot ? 'border-hero-accent bg-hero-accent/8' : done ? 'border-hero-accent/50' : 'border-line',
       on ? 'opacity-100' : 'border-dashed opacity-40',
     )
   const rail = (on: boolean) =>
-    cn('ml-5 h-3 w-px transition-colors duration-300', on || done ? 'bg-hero-accent' : 'bg-line-strong')
+    cn('ml-5 h-3 w-px transition-colors duration-200', on || done ? 'bg-hero-accent' : 'bg-line')
 
   return (
     <div className={cn('flex flex-col font-sans text-[13px]', className)}>
       <div className={slot(requestLive, lit('request'))}>
-        <span className="font-mono text-foreground">› request</span>
+        <span className="font-medium text-foreground">Request</span>
       </div>
       <div className={rail(lit('request'))} />
-      <div className={cn(slot(true, Boolean(call) || done), 'border-foreground/60')}>
+      <div className={cn(slot(true, Boolean(call) || done), !call && !done && 'border-foreground/35')}>
         <span aria-hidden className="flex items-end gap-px">
           {[0, 1, 2].map((i) => (
             <span key={i} className="flex flex-col items-center gap-px">
@@ -284,8 +321,8 @@ export function OverviewStack({ step, active, className }: { step: number; activ
             </span>
           ))}
         </span>
-        <span className="font-mono text-foreground">iii engine</span>
-        <span className="ml-auto truncate font-mono text-[12px] text-muted-foreground">
+        <span className="font-medium text-foreground">iii engine</span>
+        <span className="ml-auto truncate text-[12px] text-muted-foreground tabular-nums">
           {joinedCount ? `${joinedCount} registered` : 'empty'}
         </span>
       </div>
@@ -293,11 +330,11 @@ export function OverviewStack({ step, active, className }: { step: number; activ
       <ol className="flex flex-col gap-1.5">
         {WORKERS.map((w) => (
           <li key={w.id} className={slot(joined(w.id), lit(w.id))}>
-            <span className="min-w-0 flex-1 truncate">
-              <span className="font-mono text-foreground">{w.id}</span>
-              <span className="ml-2 font-mono text-[12px] text-muted-foreground">{w.fn}</span>
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate font-medium text-foreground">{w.id}</span>
+              <span className="truncate font-mono text-[12px] text-muted-foreground">{w.fn}</span>
             </span>
-            <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{w.origin}</span>
+            <span className="shrink-0 text-[12px] text-muted-foreground">{placeOf(w)}</span>
           </li>
         ))}
       </ol>

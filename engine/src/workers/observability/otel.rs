@@ -853,6 +853,8 @@ pub struct InMemorySpanStorage {
     /// Broadcast of every span as it lands, driving the `trace` trigger
     /// fan-out. Mirrors `InMemoryLogStorage`'s log broadcast.
     tx: broadcast::Sender<StoredSpan>,
+    #[cfg(test)]
+    full_payload_snapshot_reads: AtomicUsize,
 }
 
 impl std::fmt::Debug for InMemorySpanStorage {
@@ -866,6 +868,22 @@ impl std::fmt::Debug for InMemorySpanStorage {
             .field("max_bytes", &self.max_bytes.load(Ordering::Relaxed))
             .finish()
     }
+}
+
+#[derive(Default)]
+struct RootPageHotSnapshot {
+    /// Only hot rows that can still be roots. Rows with a hot parent never
+    /// materialize their payload; rows whose parent may be archived are kept
+    /// because that decision requires the archive read below.
+    root_candidates: HashMap<(String, String), StoredSpan>,
+    /// Every newest hot key is needed for archive overlay accounting.
+    hot_keys: HashSet<(String, String)>,
+    /// Span ids from every newest hot key, preserving the existing dangling
+    /// parent rule (span ids are intentionally not trace-qualified here).
+    hot_span_ids: HashSet<String>,
+    /// `(trace_id, parent_span_id)` pairs absent from the hot id set. The
+    /// archive decides which of these possible roots are actually demoted.
+    parent_keys: Vec<(String, String)>,
 }
 
 impl InMemorySpanStorage {
@@ -890,6 +908,8 @@ impl InMemorySpanStorage {
             low_watermark_ratio: AtomicU64::new(low_watermark_ratio.clamp(0.5, 0.95).to_bits()),
             max_attribute_bytes: AtomicU64::new(DEFAULT_MAX_ATTRIBUTE_BYTES),
             tx,
+            #[cfg(test)]
+            full_payload_snapshot_reads: AtomicUsize::new(0),
         }
     }
 
@@ -1019,7 +1039,57 @@ impl InMemorySpanStorage {
         self.max_attribute_bytes.store(max, Ordering::Relaxed);
     }
 
+    /// Snapshot root candidates and overlay metadata under one read guard.
+    ///
+    /// The guard is released before callers perform archive I/O. The returned
+    /// candidates are owned snapshots from that same guard, so this does not
+    /// combine metadata from one hot state with payloads read from another.
+    fn root_page_snapshot(&self) -> RootPageHotSnapshot {
+        let cache = self.read();
+        let mut newest_by_key = HashMap::<(String, String), (u64, Option<String>)>::new();
+        for (&seq, slot) in &cache.slots {
+            let key = (slot.span.trace_id.clone(), slot.span.span_id.clone());
+            match newest_by_key.get(&key) {
+                Some((existing_seq, _)) if *existing_seq >= seq => {}
+                _ => {
+                    newest_by_key.insert(key, (seq, slot.span.parent_span_id.clone()));
+                }
+            }
+        }
+
+        let hot_keys: HashSet<_> = newest_by_key.keys().cloned().collect();
+        let hot_span_ids: HashSet<String> = newest_by_key
+            .keys()
+            .map(|(_, span_id)| span_id.clone())
+            .collect();
+        let mut root_candidates = HashMap::new();
+        let mut parent_keys = Vec::new();
+
+        for (key, (seq, parent_span_id)) in newest_by_key {
+            if let Some(parent_span_id) = parent_span_id {
+                if hot_span_ids.contains(&parent_span_id) {
+                    continue;
+                }
+                parent_keys.push((key.0.clone(), parent_span_id));
+            }
+            let Some(slot) = cache.slots.get(&seq) else {
+                continue;
+            };
+            root_candidates.insert(key, slot.span.clone());
+        }
+
+        RootPageHotSnapshot {
+            root_candidates,
+            hot_keys,
+            hot_span_ids,
+            parent_keys,
+        }
+    }
+
     pub fn get_spans(&self) -> Vec<StoredSpan> {
+        #[cfg(test)]
+        self.full_payload_snapshot_reads
+            .fetch_add(1, Ordering::Relaxed);
         self.read()
             .slots
             .values()
@@ -1027,15 +1097,43 @@ impl InMemorySpanStorage {
             .collect()
     }
 
-    /// Visit every hot span under the read lock without cloning it, for a
-    /// scan that keeps a few ids out of a cache of full payloads.
+    /// Visit every hot span under the read lock without cloning it.
     pub fn for_each_span(&self, mut visit: impl FnMut(&StoredSpan)) {
         for slot in self.read().slots.values() {
             visit(&slot.span);
         }
     }
 
+    /// Visit hot spans for already-deduplicated trace ids under one read lock.
+    /// The by-trace index keeps the work proportional to the requested traces
+    /// without cloning full payloads.
+    pub(crate) fn for_each_span_in_traces<'a>(
+        &self,
+        trace_ids: impl IntoIterator<Item = &'a str>,
+        mut visit: impl FnMut(&StoredSpan),
+    ) {
+        let cache = self.read();
+        for trace_id in trace_ids {
+            let Some(seqs) = cache.by_trace.get(trace_id) else {
+                continue;
+            };
+            for seq in seqs {
+                if let Some(slot) = cache.slots.get(seq) {
+                    visit(&slot.span);
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub fn full_payload_snapshot_reads(&self) -> usize {
+        self.full_payload_snapshot_reads.load(Ordering::Relaxed)
+    }
+
     pub fn get_spans_by_trace_id(&self, trace_id: &str) -> Vec<StoredSpan> {
+        #[cfg(test)]
+        self.full_payload_snapshot_reads
+            .fetch_add(1, Ordering::Relaxed);
         let cache = self.read();
         match cache.by_trace.get(trace_id) {
             Some(seqs) => seqs
@@ -1548,23 +1646,26 @@ pub(crate) fn get_query_root_span_keys() -> Vec<super::trace_store::RootSpanKey>
     let mut hot_count = 0;
     let mut hot_keys = HashSet::new();
     if let Some(storage) = get_span_storage() {
-        let hot = storage.get_spans();
-        hot_count = hot.len();
-        for span in hot {
-            hot_keys.insert((span.trace_id.clone(), span.span_id.clone()));
+        // Keep the read lock for the whole projection. Cloning a hot
+        // `StoredSpan` first also clones events, links, and every attribute;
+        // root listing only needs this small identity projection.
+        storage.for_each_span(|span| {
+            hot_count += 1;
+            let key = (span.trace_id.clone(), span.span_id.clone());
+            hot_keys.insert(key.clone());
             merged.insert(
-                (span.trace_id.clone(), span.span_id.clone()),
+                key,
                 super::trace_store::RootSpanKey {
                     is_internal: is_internal_span(&span.attributes),
-                    trace_id: span.trace_id,
-                    span_id: span.span_id,
-                    parent_span_id: span.parent_span_id,
-                    name: span.name,
-                    service_name: span.service_name,
+                    trace_id: span.trace_id.clone(),
+                    span_id: span.span_id.clone(),
+                    parent_span_id: span.parent_span_id.clone(),
+                    name: span.name.clone(),
+                    service_name: span.service_name.clone(),
                     start_time_ns: span.start_time_unix_nano,
                 },
             );
-        }
+        });
     }
 
     let present_span_ids: HashSet<String> =
@@ -1703,18 +1804,16 @@ pub(crate) fn get_query_root_spans_page_by_start_time(
     let started = Instant::now();
     // Hot snapshot with internal spans INCLUDED: even when the row filter
     // drops them, they still shadow durable rows and demote durable roots.
-    let mut hot_by_key = HashMap::<(String, String), StoredSpan>::new();
-    if let Some(storage) = get_span_storage() {
-        for span in storage.get_spans() {
-            hot_by_key.insert((span.trace_id.clone(), span.span_id.clone()), span);
-        }
-    }
-    let hot_count = hot_by_key.len();
-    let hot_keys: Vec<_> = hot_by_key.keys().cloned().collect();
-    let hot_span_ids: HashSet<String> = hot_by_key
-        .keys()
-        .map(|(_, span_id)| span_id.clone())
-        .collect();
+    let RootPageHotSnapshot {
+        root_candidates: hot_by_key,
+        hot_keys: hot_key_set,
+        hot_span_ids,
+        parent_keys,
+    } = get_span_storage()
+        .map(|storage| storage.root_page_snapshot())
+        .unwrap_or_default();
+    let hot_count = hot_key_set.len();
+    let hot_keys: Vec<_> = hot_key_set.iter().cloned().collect();
 
     let archive = get_trace_disk_storage();
 
@@ -1722,15 +1821,6 @@ pub(crate) fn get_query_root_spans_page_by_start_time(
     // in the archive; presence there disqualifies the hot span as a root.
     let mut parents_on_disk = HashSet::new();
     if let Some(archive) = &archive {
-        let parent_keys: Vec<(String, String)> = hot_by_key
-            .values()
-            .filter_map(|span| {
-                span.parent_span_id.as_ref().and_then(|parent| {
-                    (!hot_span_ids.contains(parent))
-                        .then(|| (span.trace_id.clone(), parent.clone()))
-                })
-            })
-            .collect();
         match archive.existing_span_keys(&parent_keys) {
             Ok(present) => parents_on_disk = present,
             Err(error) => archive.mark_degraded(error),
@@ -1771,13 +1861,12 @@ pub(crate) fn get_query_root_spans_page_by_start_time(
                             surviving = rows
                                 .into_iter()
                                 .filter(|span| {
-                                    !hot_by_key.contains_key(&(
-                                        span.trace_id.clone(),
-                                        span.span_id.clone(),
-                                    )) && span
-                                        .parent_span_id
-                                        .as_ref()
-                                        .is_none_or(|parent| !hot_span_ids.contains(parent))
+                                    !hot_key_set
+                                        .contains(&(span.trace_id.clone(), span.span_id.clone()))
+                                        && span
+                                            .parent_span_id
+                                            .as_ref()
+                                            .is_none_or(|parent| !hot_span_ids.contains(parent))
                                 })
                                 .collect();
                             if fetched < disk_limit {
@@ -1901,6 +1990,10 @@ pub(crate) fn get_query_trace_tags_by_trace_ids(
     trace_ids: &[String],
 ) -> HashMap<String, BTreeMap<String, String>> {
     let started = Instant::now();
+    if trace_ids.is_empty() {
+        return HashMap::new();
+    }
+
     let mut archive_rows = Vec::new();
     if let Some(archive) = get_trace_disk_storage() {
         match archive.get_trace_tag_rows_by_trace_ids(trace_ids) {
@@ -1909,42 +2002,48 @@ pub(crate) fn get_query_trace_tags_by_trace_ids(
         }
     }
 
-    let mut hot_by_key = HashMap::<(String, String), StoredSpan>::new();
+    // The hot overlay must shadow archived rows even when a hot span has no
+    // tags. Build that key set and project matching attributes while holding
+    // one read lock; do not snapshot full spans merely to discard their
+    // events, links, and unrelated attributes below.
+    let requested_trace_ids: HashSet<&str> = trace_ids.iter().map(String::as_str).collect();
+    let mut hot_keys = HashSet::<(String, String)>::new();
+    let mut hot_rows_by_key =
+        HashMap::<(String, String), Vec<super::trace_store::TraceTagRow>>::new();
     if let Some(storage) = get_span_storage() {
-        let mut unique_trace_ids = HashSet::with_capacity(trace_ids.len());
-        for trace_id in trace_ids {
-            if !unique_trace_ids.insert(trace_id.as_str()) {
-                continue;
+        storage.for_each_span_in_traces(requested_trace_ids.iter().copied(), |span| {
+            let span_key = (span.trace_id.clone(), span.span_id.clone());
+            hot_keys.insert(span_key.clone());
+            let mut projected_rows = Vec::new();
+            for (ordinal, (key, value)) in span.attributes.iter().enumerate() {
+                if key.starts_with("iii.tag.")
+                    || matches!(
+                        key.as_str(),
+                        "iii.session.id" | "iii.session.name" | "iii.message.id"
+                    )
+                {
+                    projected_rows.push(super::trace_store::TraceTagRow {
+                        trace_id: span.trace_id.clone(),
+                        span_id: span.span_id.clone(),
+                        start_time_ns: span.start_time_unix_nano,
+                        ordinal,
+                        key: key.clone(),
+                        value: value.clone(),
+                    });
+                }
             }
-            for span in storage.get_spans_by_trace_id(trace_id) {
-                hot_by_key.insert((span.trace_id.clone(), span.span_id.clone()), span);
-            }
-        }
+            // by_trace is ordered by sequence, so replacing preserves the
+            // previous last-encountered winner for duplicate hot slots. An
+            // empty projection intentionally removes stale-only tags too.
+            hot_rows_by_key.insert(span_key, projected_rows);
+        });
     }
 
     let mut rows: Vec<_> = archive_rows
         .into_iter()
-        .filter(|row| !hot_by_key.contains_key(&(row.trace_id.clone(), row.span_id.clone())))
+        .filter(|row| !hot_keys.contains(&(row.trace_id.clone(), row.span_id.clone())))
         .collect();
-    for span in hot_by_key.into_values() {
-        for (ordinal, (key, value)) in span.attributes.into_iter().enumerate() {
-            if key.starts_with("iii.tag.")
-                || matches!(
-                    key.as_str(),
-                    "iii.session.id" | "iii.session.name" | "iii.message.id"
-                )
-            {
-                rows.push(super::trace_store::TraceTagRow {
-                    trace_id: span.trace_id.clone(),
-                    span_id: span.span_id.clone(),
-                    start_time_ns: span.start_time_unix_nano,
-                    ordinal,
-                    key,
-                    value,
-                });
-            }
-        }
-    }
+    rows.extend(hot_rows_by_key.into_values().flatten());
     rows.sort_by(|a, b| {
         a.trace_id
             .cmp(&b.trace_id)

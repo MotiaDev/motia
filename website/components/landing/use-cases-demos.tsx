@@ -27,8 +27,13 @@ function Mark({ state, frame }: { state: StepState; frame: string }) {
   )
 }
 
+/** The harness and platform timelines play at 0.75x (2026-10-09): every beat below is written at 1x and stretched by
+   this, so the two cards keep their rhythm and only the tempo changes. CSS durations in the module match it. */
+const PACE = 1 / 0.75
+const slow = (ms: number) => Math.round(ms * PACE)
+
 /** The last moments of a lap: the visual fades out softly before it starts over, instead of snapping back. */
-const OUTRO_MS = 420
+const OUTRO_MS = slow(480)
 const leaving = (ms: number, total: number, still: boolean) => !still && ms >= total - OUTRO_MS
 
 /** Loops a timeline of `total` ms: the key changes on every lap so the playhead starts over. */
@@ -47,20 +52,33 @@ const CHOICES = [
   { label: 'Tools', options: ['github', 'browser', 'iii-sandbox'] },
   { label: 'Session', options: ['session-manager', 'context-manager', 'judge'] },
 ] as const
-/* A slot that decelerates: six swaps whose gaps widen (t = D·(k/N)^1.6, so ~50ms at first and ~220ms before it
-   lands), the last swap landing exactly on the final value. Rows land one after another. */
-const ROLL_TICKS = 6
-const LAND_AT = (row: number) => 950 + row * 420
-const ASK_AT = 2300
-/** The value index a rolling row shows at `ms`, counting back from the one it lands on. */
-const rollIndex = (ms: number, land: number, final: number, length: number) => {
-  const passed = Math.min(ROLL_TICKS, Math.floor(ROLL_TICKS * (Math.max(0, ms) / land) ** (1 / 1.6)))
-  return (((final - (ROLL_TICKS - passed)) % length) + length) % length
+/* A slot that decelerates: three swaps whose gaps widen (310 → 440ms at 1x, so 413 → 587ms at PACE), the last one
+   landing on the final value. Every gap outlasts the 400ms roll, so each value settles before the next replaces it,
+   and only one row turns at a time: the next starts once the one above has landed (2026-10-09: the earlier 50ms
+   swaps across all three rows at once read as flicker). */
+const ROLL_GAPS = [slow(310), slow(340), slow(440)] as const
+const ROLL_SPAN = ROLL_GAPS.reduce((sum, gap) => sum + gap, 0)
+const ROLL_FROM = (row: number) => slow(250) + row * ROLL_SPAN
+const LAND_AT = (row: number) => ROLL_FROM(row) + ROLL_SPAN
+/** How many swaps a rolling row has made by `ms`. */
+const swapsAt = (ms: number, row: number) => {
+  let at = ROLL_FROM(row)
+  let swaps = 0
+  for (const gap of ROLL_GAPS) {
+    at += gap
+    if (ms < at) break
+    swaps++
+  }
+  return swaps
 }
-const STEP_AT = (i: number) => 3000 + i * 760
-const STEP_RUN = 520
-const RESULT_AT = STEP_AT(H.steps.length) + 100
-const HARNESS_TOTAL = RESULT_AT + 2600
+/** The value index after `swaps` swaps, counting back from the one the row lands on. */
+const rollIndex = (swaps: number, final: number, length: number) =>
+  (((final - (ROLL_GAPS.length - swaps)) % length) + length) % length
+const ASK_AT = LAND_AT(CHOICES.length - 1) + slow(500)
+const STEP_AT = (i: number) => ASK_AT + slow(600 + i * 850)
+const STEP_RUN = slow(650)
+const RESULT_AT = STEP_AT(H.steps.length) + slow(150)
+const HARNESS_TOTAL = RESULT_AT + slow(3000)
 
 export function HarnessVisual({ running, frame, still }: { running: boolean; frame: string; still: boolean }) {
   const { ms: playhead, lap } = useLoop(running, HARNESS_TOTAL)
@@ -69,16 +87,23 @@ export function HarnessVisual({ running, frame, still }: { running: boolean; fra
     <div className={styles.visualBody} data-leaving={leaving(playhead, HARNESS_TOTAL, still)}>
       <ul className={styles.choices}>
         {CHOICES.map((choice, row) => {
-          const landed = ms >= LAND_AT(row)
+          const swaps = swapsAt(ms, row)
+          const landed = swaps === ROLL_GAPS.length
           const finalIndex = (lap + row) % choice.options.length
-          const value = landed
-            ? choice.options[finalIndex]
-            : choice.options[rollIndex(ms, LAND_AT(row), finalIndex, choice.options.length)]
+          const index = rollIndex(swaps, finalIndex, choice.options.length)
+          const value = choice.options[index]
+          /* The value it just replaced slides out above, so a swap reads as one reel turning, not a cut. */
+          const previous = swaps > 0 ? choice.options[rollIndex(swaps - 1, finalIndex, choice.options.length)] : null
           return (
             <li key={choice.label} className={styles.choice} data-landed={landed}>
               <span className={styles.choiceLabel}>{choice.label}</span>
               <span className={styles.choiceValue}>
-                <code key={value} className={styles.roll}>
+                {previous ? (
+                  <code key={`out-${swaps}`} className={styles.rollOut} aria-hidden>
+                    {previous}
+                  </code>
+                ) : null}
+                <code key={`in-${swaps}`} className={styles.roll} data-rolling={swaps > 0}>
                   {value}
                 </code>
               </span>
@@ -115,9 +140,11 @@ export function HarnessVisual({ running, frame, still }: { running: boolean; fra
 
 const WORKLOADS = useCases.platform.workloads
 type Workload = (typeof WORKLOADS)[number]
-const CALL_AT = (i: number) => 450 + i * 620
-const CALL_RUN = 400
-const workloadTotal = (w: Workload) => CALL_AT(w.calls.length) + 1900
+/* Unhurried on purpose (2026-10-09): at 1x a call every 900ms, and the finished trace holds for 3.4s before the
+   next workload, so each one can be read before the pager moves on. */
+const CALL_AT = (i: number) => slow(600 + i * 900)
+const CALL_RUN = slow(600)
+const workloadTotal = (w: Workload) => CALL_AT(w.calls.length) + slow(3400)
 
 const duration = (value: number) =>
   value >= 60_000 ? `${(value / 60_000).toFixed(1)}m` : value >= 1000 ? `${(value / 1000).toFixed(2)}s` : `${value}ms`

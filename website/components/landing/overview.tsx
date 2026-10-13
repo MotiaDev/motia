@@ -11,9 +11,9 @@ import { AXIS_RATIO, captionFor, OverviewGraph, OverviewStack, useBeat } from '.
 import { Section } from './section'
 
 /**
- * Overview: three plain paragraphs (no problem / cost / solution labels, per Anthony) beside the whole system as
- * one hub graph. The engine sits in the middle, real registry workers around it, and every call is drawn
- * worker → engine → worker so the routing is unmistakable.
+ * Overview: four plain paragraphs (Anthony's copy, no labels) beside the whole system as one map: the engine at
+ * the centre, real registry workers on a ring around it, each tagged with its language and cloud, and every call
+ * drawn caller → engine → callee so the routing is unmistakable.
  */
 /** Distance from the top of the document in layout terms: offsets ignore transforms, so the 10px Reveal fade-up and
     any half-finished animation never leak into the measurement. */
@@ -76,8 +76,8 @@ export function Overview() {
           {overview.paragraphs.map((body, i) => (
             <p
               key={body}
-              /* The graph's request → engine axis lines up with the second paragraph's first line. */
-              ref={i === 1 ? anchorRef : undefined}
+              /* The graph's request → engine axis lines up with the third paragraph's first line, the middle of the copy. */
+              ref={i === 2 ? anchorRef : undefined}
               className={
                 i === overview.paragraphs.length - 1
                   ? 'text-pretty text-[16px] text-foreground leading-[1.55] md:text-[17px]'
@@ -89,14 +89,14 @@ export function Overview() {
           ))}
         </Reveal>
         <Reveal delay={0.1} className="graphic-stage min-w-0">
-          {/* Phones get the same graph stacked; the drawn SVG needs the width of a laptop to stay legible. */}
-          <OverviewStack step={step} active={active} className="lg:hidden" />
-          <div ref={graphRef} className="hidden lg:block" style={shift ? { marginTop: shift } : undefined}>
+          {/* Phones and small laptops get the same graph stacked in HTML; the drawn SVG needs a wide column to stay legible. */}
+          <OverviewStack step={step} active={active} className="min-[1400px]:hidden" />
+          <div ref={graphRef} className="hidden min-[1400px]:block" style={shift ? { marginTop: shift } : undefined}>
             <OverviewGraph
               step={step}
               cycle={cycle}
               active={active}
-              label="A request on the left, the iii engine in the middle, and seven registry workers (http, database, harness, llm-router, provider-anthropic, browser and github) grouped on the right, each wired to the engine. The engine starts alone, the workers join one or two at a time, then the request is served by calls that each travel from one worker through the engine to the next."
+              label="A system map: the iii engine at the centre and eight participants on a ring around it, each labelled with where it runs: http in Rust on AWS, database in Rust on GCP, harness in Rust on AWS, llm-router in Rust on Azure, provider-anthropic in Rust on GCP, claude-code in TypeScript on Azure, hermes in Python on AWS, and the incoming request. The workers register one or two at a time, then one request is traced through the system, every call travelling from the caller through the engine to the callee."
             />
           </div>
           <div

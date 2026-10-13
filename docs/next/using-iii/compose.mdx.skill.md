@@ -764,9 +764,11 @@ Lowest to highest: the configuration a package ships, the entry in the configura
 `config_override`. Maps merge key by key. Arrays and scalars replace. When the override changes the
 `name` of a mapping, the override replaces the whole mapping. Before each start, Compose reads the
 entry with `configuration::get` and `raw: true`, applies the override, and writes the result with
-`configuration::set` and `flush: false`. The saved entry does not change. When you remove a field
-from `config_override`, the field keeps its current value. A read or write failure stops the start
-with `CONFIG_FETCH_FAILED`. For `flush` and unsaved values, see [Configuration](./configuration).
+`configuration::set` and `flush: false`. When the result is null, Compose does not write it. A null
+value would hide the stored entry, including the default that a worker sets with
+`configuration::ensure`. The saved entry does not change. When you remove a field from
+`config_override`, the field keeps its current value. A read or write failure stops the start with
+`CONFIG_FETCH_FAILED`. For `flush` and unsaved values, see [Configuration](./configuration).
 
 ### Readable configuration names and migration
 

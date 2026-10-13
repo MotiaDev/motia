@@ -10,8 +10,9 @@ export const ease = easeOut
 /** Global tempo multiplier on every transition in the graph. 1 = the base values as written. */
 export const T = 1
 
-/** Type sizes in viewBox units. The graph is 1040 wide and renders at about 760px in the slide column, so 16 ≈ 11.7px. */
-export const TYPE = { title: 16, sub: 15.5, tag: 15, label: 14.5 } as const
+/** Type sizes in viewBox units. The Overview drawing is 900 wide and renders at 760–900px, so 1 unit ≈ 0.85–1px.
+    Names and labels are Inter; only function ids (code) are Geist Mono. */
+export const TYPE = { title: 17, sub: 14.5, tag: 15, label: 14 } as const
 /** Mono advance per character at a given font size (Geist Mono is 0.6em wide). */
 export const advance = (size: number) => size * 0.6
 
@@ -24,7 +25,7 @@ type Tone = 'idle' | 'lit' | 'selected' | 'ghost'
 const GHOST = 'oklch(0.439 0 0)'
 
 const stroke: Record<Tone, string> = {
-  idle: 'var(--line-strong)',
+  idle: 'var(--line)',
   lit: 'var(--hero-accent)',
   selected: 'var(--foreground)',
   ghost: GHOST,
@@ -81,10 +82,11 @@ export function Node({
   const x = cx - w / 2
   const y = cy - h / 2
   const subs = Array.isArray(sub) ? sub : sub ? [sub] : []
-  const pad = 16
-  const lineH = 18
-  const blockH = TYPE.title + subs.length * lineH
-  const titleY = cy - blockH / 2 + TYPE.title * 0.78
+  const pad = 18
+  /* Title and code lines sit as one optically centred block: cap height of the title, a 9-unit gap per line. */
+  const lineH = TYPE.sub + 9
+  const blockH = TYPE.title * 0.72 + subs.length * lineH
+  const titleY = cy - blockH / 2 + TYPE.title * 0.72
   const interactive = Boolean(onClick)
   return (
     <motion.g
@@ -114,18 +116,18 @@ export function Node({
         y={y}
         width={w}
         height={h}
-        rx={8}
-        fill={tone === 'lit' ? 'color-mix(in oklch, var(--hero-accent) 8%, var(--node))' : 'var(--node)'}
+        rx={10}
+        fill={tone === 'lit' ? 'color-mix(in oklch, var(--hero-accent) 7%, var(--card))' : 'var(--card)'}
         stroke={stroke[tone]}
         strokeWidth={STROKE}
         strokeDasharray={dashed ? '4 4' : undefined}
-        style={{ transition: 'stroke 300ms ease, fill 300ms ease' }}
+        style={{ transition: 'stroke 200ms ease, fill 200ms ease' }}
       />
       <text
         x={center ? cx : x + pad}
-        y={titleY}
+        y={center && !subs.length ? cy + TYPE.title * 0.36 : titleY}
         textAnchor={center ? 'middle' : 'start'}
-        className="fill-foreground font-mono"
+        className="fill-foreground font-medium font-sans"
         fontSize={TYPE.title}
       >
         {title}
@@ -137,9 +139,10 @@ export function Node({
           textAnchor="end"
           className={
             metaTone === 'accent'
-              ? 'fill-hero-accent font-mono tabular-nums'
-              : 'fill-muted-foreground font-mono tabular-nums'
+              ? 'fill-hero-accent font-sans tabular-nums'
+              : 'fill-muted-foreground font-sans tabular-nums'
           }
+          style={{ transition: 'fill 200ms ease' }}
           fontSize={TYPE.label}
         >
           {meta}
@@ -151,6 +154,7 @@ export function Node({
           x={x + pad}
           y={titleY + (i + 1) * lineH}
           className="fill-muted-foreground font-mono"
+          fillOpacity={0.85}
           fontSize={TYPE.sub}
         >
           {line}
@@ -385,14 +389,14 @@ export function EngineHub({
         y={y - h / 2}
         width={w}
         height={h}
-        rx={10}
+        rx={12}
         fill="var(--card)"
         stroke={lit ? 'var(--hero-accent)' : 'var(--foreground)'}
-        strokeOpacity={lit ? 1 : 0.6}
+        strokeOpacity={lit ? 1 : 0.35}
         strokeWidth={STROKE}
-        style={{ transition: 'stroke 300ms ease' }}
+        style={{ transition: 'stroke 200ms ease, stroke-opacity 200ms ease' }}
       />
-      <g transform={`translate(${left + 20} ${y - (environments ? 20 : 11)})`} className="fill-foreground">
+      <g transform={`translate(${left + 20} ${y - 11})`} className="fill-foreground">
         {[0, 8, 16].map((dx) => (
           <g key={dx}>
             <rect x={dx} y={0} width={5} height={5} />
@@ -401,9 +405,9 @@ export function EngineHub({
         ))}
       </g>
       <text
-        x={left + 52}
-        y={y + (environments ? -3 : TYPE.title * 0.36)}
-        className="fill-foreground font-mono"
+        x={left + 56}
+        y={y + (environments ? -4 : TYPE.title * 0.36)}
+        className="fill-foreground font-medium font-sans"
         fontSize={TYPE.title}
       >
         iii engine
@@ -411,10 +415,10 @@ export function EngineHub({
       {environments ? (
         <motion.text
           key="env"
-          x={left + 52}
-          y={y + 17}
-          className="fill-muted-foreground font-mono"
-          fontSize={13.5}
+          x={left + 56}
+          y={y + 16}
+          className="fill-muted-foreground font-sans tabular-nums"
+          fontSize={TYPE.label}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 * T }}
