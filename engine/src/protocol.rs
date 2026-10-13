@@ -44,6 +44,13 @@ pub const WORKER_NAMESPACE_CONFLICT: &str = "WORKER_NAMESPACE_CONFLICT";
 /// refused; the connection stays open.
 pub const FUNCTION_NAMESPACE_CONFLICT: &str = "FUNCTION_NAMESPACE_CONFLICT";
 
+/// [`Message::RegistrationRejected`] code: the worker declared a namespace its
+/// session is not scoped to. Fatal: the engine closes the connection. SDKs
+/// announce themselves with a fire-and-forget `engine::workers::register`, so
+/// an invocation error alone would go unread and leave the worker serving from
+/// `default`.
+pub const NAMESPACE_FORBIDDEN: &str = "NAMESPACE_FORBIDDEN";
+
 /// A namespace field was present and held nothing but whitespace.
 pub const INVALID_NAMESPACE: &str = "INVALID_NAMESPACE";
 
