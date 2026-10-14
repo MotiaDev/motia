@@ -20,8 +20,30 @@ use iii::{
     },
 };
 use serde_json::json;
-use std::{sync::Arc, time::Duration};
+use std::{
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 use tokio_tungstenite::tungstenite::Message;
+
+const MIB: u64 = 1024 * 1024;
+
+fn directory_bytes(directory: &Path) -> u64 {
+    std::fs::read_dir(directory)
+        .map(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .filter_map(|entry| entry.metadata().ok())
+                .filter(|metadata| metadata.is_file())
+                .map(|metadata| metadata.len())
+                .sum()
+        })
+        .unwrap_or(0)
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "isolated load on reserved port 49834; takes over a minute"]
@@ -136,6 +158,21 @@ async fn telemetry_sampling_disk_cap_and_age_sweep() {
         "NETWORK_EVIDENCE sent=4000 sampled_hot=400 archived={count} max_bytes={maximum_bytes} current_bytes={last_bytes} decreases={decreases} serialized_bytes={payload_bytes} payload_attribute_bytes={attribute_bytes} auto_vacuum={vacuum}"
     );
     // Do NOT call retain(): prove the worker's real 60-second sweep runs.
+    // Watch the directory through the whole sweep: rows disappear before the
+    // reclaim that returns their pages finishes, so COUNT=0 is not its end.
+    let watching = Arc::new(AtomicBool::new(true));
+    let watcher = {
+        let watching = watching.clone();
+        let sweep_directory = directory.path().to_path_buf();
+        std::thread::spawn(move || {
+            let mut peak = 0;
+            while watching.load(Ordering::Relaxed) {
+                peak = peak.max(directory_bytes(&sweep_directory));
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            peak
+        })
+    };
     // Check durable rows (not the hot cache, which intentionally retains its
     // bounded recent view) before observing the physical database footprint.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(125);
@@ -154,13 +191,33 @@ async fn telemetry_sampling_disk_cap_and_age_sweep() {
         tokio::time::sleep(Duration::from_secs(1)).await;
     };
     assert_eq!(archive_rows, 0, "the age sweep removed all durable rows");
-    let after = archive.status().physical_bytes;
-    // The engine can receive fresh spans while the test waits for the sweep;
-    // record the directory size without attributing those new writes to old
-    // expired pages. The unit tests cover file shrinking after isolated deletes.
+    let at_count_zero = archive.status().physical_bytes;
+    // The sweep is over when the expired pages are back on the filesystem.
+    let reclaim_deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+    let after = loop {
+        let bytes = archive.status().physical_bytes;
+        if bytes <= MIB {
+            break bytes;
+        }
+        assert!(
+            tokio::time::Instant::now() < reclaim_deadline,
+            "expired pages returned to filesystem: {bytes} bytes remain"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    };
+    watching.store(false, Ordering::Relaxed);
+    let sweep_peak = watcher.join().unwrap();
     eprintln!(
-        "AGE_EVIDENCE archived_after={archive_rows} physical_before={last_bytes} physical_at_empty={after} elapsed={:?}",
+        "AGE_EVIDENCE archived_after={archive_rows} physical_before={last_bytes} physical_at_count_zero={at_count_zero} physical_after_reclaim={after} sweep_peak={sweep_peak} elapsed={:?}",
         load_started.elapsed()
+    );
+    assert!(
+        after < last_bytes / 4,
+        "expired pages returned to filesystem ({last_bytes} -> {after})"
+    );
+    assert!(
+        sweep_peak <= 64 * MIB + 8 * MIB,
+        "retention transient {sweep_peak} bytes exceeded limit plus tolerance"
     );
     ws.close(None).await.unwrap();
     stop.send(true).unwrap();

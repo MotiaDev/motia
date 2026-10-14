@@ -114,7 +114,7 @@ engine restart. Memory-backed stores are unaffected.
 | `alerts`                    | AlertRule[] | Alert rules evaluated against metrics.                                                                                                                                       |
 | `trace_storage.enabled`     | boolean     | Persist completed spans to SQLite (`traces.sqlite3`). Defaults to `true`.                                                                                                     |
 | `trace_storage.directory`   | string      | Directory for the archive and its WAL sidecars. Defaults to `./data/observability/traces`.                                                                                    |
-| `trace_storage.max_disk_bytes` | number   | Physical cap on the archive directory; oldest traces are evicted at 90% and the file shrunk toward 80%. SQLite allocation tolerance is max(1%, 8 MiB); active readers can temporarily pin WAL frames. Defaults to `1073741824` (1 GiB), minimum 64 MiB.                         |
+| `trace_storage.max_disk_bytes` | number   | Physical cap on the archive directory; oldest traces are evicted at 90% and the file shrunk toward 80%. No committed SQLite image exceeds the cap plus a tolerance of max(1%, 8 MiB); see [Archive capacity](#archive-capacity) for spans that can never fit, transients and readers. Defaults to `1073741824` (1 GiB), minimum 64 MiB.                         |
 | `trace_storage.retention_seconds` | number | Age limit for archived traces; `0` disables it. Defaults to `2592000` (30 days).                                                                                             |
 | `trace_storage.memory_max_bytes` | number | Hard cap on the in-memory hot cache (an RSS estimate). Oldest spans are evicted first — including finalized spans the archive has not written yet, which are counted in `known_dropped_spans` and turn `completeness` to `partial`. Defaults to `268435456` (256 MiB), minimum 16 MiB. |
 | `trace_storage.memory_low_watermark_ratio` | number | Fraction of `memory_max_bytes` the cache shrinks to under pressure (`0.5`–`0.95`). Defaults to `0.75`.                                                                  |
@@ -181,6 +181,33 @@ traces and `logs_exporter: both` for logs.
 | `enabled`          | boolean     | Whether the alert rule is active. Defaults to `true`.                                                   |
 | `action`           | AlertAction | `{ "type": "log" }`, `{ "type": "webhook", "url": "..." }`, or `{ "type": "function", "path": "..." }`. |
 
+### Archive capacity
+
+- Durable rows are never deleted to make room for their own trace. A span
+  whose trace can never fit beside its durable rows within the cap plus
+  tolerance (judged by a lower bound, and for large traces by their real
+  SQLite image measured in a private scratch file under the system temp
+  directory) is dropped before anything is evicted for it, counted in
+  `known_dropped_spans` (`completeness: partial`), and later spans of the same
+  trace are judged on their own. Of two dirty versions of a span, the newest
+  is archived.
+- A trace that fits an empty archive but not the current one (for example
+  while a live trace holds the space) stays dirty and is retried with backoff
+  (1 s doubling to 60 s); when nothing fits at all the whole archive backs off
+  (up to 30 s). `flush` ignores the backoffs, new limits, `clear` and retention
+  reset them. A periodic pass does at most 32 batches or 1 s of work before
+  serving control requests; a longer backlog is progress, not degradation.
+- `flush` returns `Ok` once every span ingested before the call is durable or
+  counted as dropped; it returns an error if capacity or storage left some
+  dirty (archive `degraded`) or its 4 s budget ran out (not degraded).
+- Freed pages return to the filesystem in checkpointed steps of 1024 pages, so
+  retention or eviction adds about one step of WAL on top of the main file
+  instead of a WAL as large as the space being freed. A reader holding a
+  snapshot pins the WAL: the return pauses until the reader finishes.
+- The full-VACUUM fallback (for files whose pages do not return) runs at most
+  once per 10 minutes. Archive warnings (capacity, drops, VACUUM failures)
+  are limited to one log line per minute with a suppressed count.
+
 ### Advanced Sampling
 
 ```yaml
@@ -193,6 +220,16 @@ sampling:
   rate_limit:
     max_traces_per_second: 100
 ```
+
+Worker spans received over OTLP are sampled per trace before local storage
+and collector export: the first span seen of a trace decides and its start
+snapshot, final and children follow, so rules and rate limits never split a
+trace and a snapshot never spends a second token. A worker span carrying the
+W3C sampled flag is treated like a sampled remote parent: parent-based
+samplers (`parent_based: true`, and rules/rate limits, which always run
+parent-based) keep it, as the engine keeps its own spans under that parent,
+while a plain `sampling_ratio` keeps deciding by trace id. Verdicts are
+remembered for the 16,384 most recent traces and reset when sampling changes.
 
 ## Functions
 
