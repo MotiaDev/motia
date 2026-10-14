@@ -1152,7 +1152,7 @@ async fn download_and_extract(
     .await
 }
 
-/// Checks between chunks of one large tar entry, not only between files.
+/// Checks between chunks of one large archive entry, not only between files.
 /// ErrorKind::Interrupted must not be used: std::io::copy retries it.
 struct ArchiveReader<'a, R> {
     inner: R,
@@ -1175,7 +1175,51 @@ fn extract_and_publish(
     cancel: &crate::shutdown::BlockingCancellation,
 ) -> Result<()> {
     unpack_and_publish(
-        flate2::read::GzDecoder::new(std::io::Cursor::new(bytes)),
+        |staging| {
+            if bytes.starts_with(b"PK\x03\x04") || bytes.starts_with(b"PK\x05\x06") {
+                let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))?;
+                for index in 0..archive.len() {
+                    cancel.check(staging).map_err(std::io::Error::other)?;
+                    let mut entry = archive.by_index(index)?;
+                    let relative = entry.enclosed_name().ok_or_else(|| {
+                        std::io::Error::other("ZIP entry is outside the install directory")
+                    })?;
+                    if entry.is_symlink() {
+                        return Err(std::io::Error::other("ZIP symlinks are not supported"));
+                    }
+                    let path = staging.join(relative);
+                    if entry.is_dir() {
+                        std::fs::create_dir_all(&path)?;
+                    } else {
+                        if let Some(parent) = path.parent() {
+                            std::fs::create_dir_all(parent)?;
+                        }
+                        let mut output = std::fs::File::create(&path)?;
+                        std::io::copy(
+                            &mut ArchiveReader {
+                                inner: &mut entry,
+                                cancel,
+                                path: staging,
+                            },
+                            &mut output,
+                        )?;
+                        #[cfg(unix)]
+                        if let Some(mode) = entry.unix_mode() {
+                            use std::os::unix::fs::PermissionsExt;
+                            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode))?;
+                        }
+                    }
+                }
+                Ok(())
+            } else {
+                tar::Archive::new(ArchiveReader {
+                    inner: flate2::read::GzDecoder::new(std::io::Cursor::new(bytes)),
+                    cancel,
+                    path: staging,
+                })
+                .unpack(staging)
+            }
+        },
         install_dir,
         archive_sha256,
         cancel,
@@ -1183,7 +1227,7 @@ fn extract_and_publish(
 }
 
 fn unpack_and_publish(
-    decoder: impl Read,
+    unpack: impl FnOnce(&Path) -> std::io::Result<()>,
     install_dir: &Path,
     archive_sha256: &str,
     cancel: &crate::shutdown::BlockingCancellation,
@@ -1211,12 +1255,7 @@ fn unpack_and_publish(
         }
     }
     let _staging = Staging(staging.clone());
-    let decoder = ArchiveReader {
-        inner: decoder,
-        cancel,
-        path: &staging,
-    };
-    if let Err(source) = tar::Archive::new(decoder).unpack(&staging) {
+    if let Err(source) = unpack(&staging) {
         let error = ComposeError::Io {
             path: staging.clone(),
             source,
@@ -1380,7 +1419,22 @@ mod tests {
             ))),
             cancel: cancel.clone(),
         };
-        assert!(unpack_and_publish(decoder, &install, "digest", &cancel).is_err());
+        assert!(
+            unpack_and_publish(
+                |staging| {
+                    tar::Archive::new(ArchiveReader {
+                        inner: decoder,
+                        cancel: &cancel,
+                        path: staging,
+                    })
+                    .unpack(staging)
+                },
+                &install,
+                "digest",
+                &cancel,
+            )
+            .is_err()
+        );
         assert!(!install.exists());
         assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
     }
@@ -1409,6 +1463,50 @@ mod tests {
         archive.append_data(&mut header, name, body).unwrap();
         let encoder = archive.into_inner().unwrap();
         encoder.finish().unwrap()
+    }
+
+    fn zip_archive(name: &str, body: &[u8]) -> Vec<u8> {
+        use std::io::Write;
+
+        let mut archive = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        archive
+            .start_file(
+                name,
+                zip::write::SimpleFileOptions::default().unix_permissions(0o755),
+            )
+            .unwrap();
+        archive.write_all(body).unwrap();
+        archive.finish().unwrap().into_inner()
+    }
+
+    #[tokio::test]
+    async fn zip_binary_is_installed_and_reused_from_cache() {
+        let name = format!("package/worker{}", std::env::consts::EXE_SUFFIX);
+        let server = alias_registry("binary", zip_archive(&name, b"worker contents"), 1).await;
+        let cache = tempfile::tempdir().unwrap();
+        let installed =
+            install_from_registry("shell", &server.uri(), "shell", "1.0.0", cache.path())
+                .await
+                .unwrap();
+        let cached = install_from_registry("shell", &server.uri(), "shell", "1.0.0", cache.path())
+            .await
+            .unwrap();
+        assert_eq!(installed.payload, cached.payload);
+        assert_eq!(cached.status, InstallStatus::Cached);
+    }
+
+    #[test]
+    fn invalid_zip_is_not_published_and_staging_is_removed() {
+        let root = tempfile::tempdir().unwrap();
+        let install = root.path().join("install");
+        let cancel = crate::shutdown::BlockingCancellation::default();
+        for bytes in [
+            zip_archive("../escaped.exe", b"outside"),
+            b"PK\x03\x04truncated".to_vec(),
+        ] {
+            assert!(extract_and_publish(bytes, &install, "digest", &cancel).is_err());
+            assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+        }
     }
 
     #[test]
