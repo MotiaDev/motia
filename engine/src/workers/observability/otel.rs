@@ -694,6 +694,9 @@ struct Slot {
     bytes: u64,
     span: StoredSpan,
     archive_rejected: bool,
+    /// A newer final of the same `(trace_id, span_id)` is resident: losing
+    /// this record loses nothing, the archive keeps the newest version.
+    superseded: bool,
 }
 
 /// The hot cache proper: a bounded FIFO of spans keyed by a monotonic sequence
@@ -721,6 +724,9 @@ struct HotCache {
     in_flight: HashSet<u64>,
     /// In-flight seqs the cache evicted before the writer settled them.
     evicted_in_flight: HashSet<u64>,
+    /// Newest resident final per `trace_id` -> `span_id`, to mark the older
+    /// final it supersedes in O(1).
+    finals: HashMap<String, HashMap<String, u64>>,
     hot_bytes: u64,
 }
 
@@ -737,6 +743,7 @@ impl HotCache {
                 .insert((span.trace_id.clone(), span.span_id.clone()), seq);
         } else {
             self.dirty.insert(seq);
+            self.record_final(&span.trace_id, &span.span_id, seq);
         }
         self.hot_bytes = self.hot_bytes.saturating_add(bytes);
         self.slots.insert(
@@ -745,9 +752,24 @@ impl HotCache {
                 bytes,
                 span,
                 archive_rejected: false,
+                superseded: false,
             },
         );
         seq
+    }
+
+    /// `seq` is now the newest final of its span: mark the previous one.
+    fn record_final(&mut self, trace_id: &str, span_id: &str, seq: u64) {
+        let previous = self
+            .finals
+            .entry(trace_id.to_string())
+            .or_default()
+            .insert(span_id.to_string(), seq);
+        if let Some(previous) = previous.filter(|previous| *previous != seq)
+            && let Some(slot) = self.slots.get_mut(&previous)
+        {
+            slot.superseded = true;
+        }
     }
 
     /// A final span replacing its live snapshot overwrites in place: same seq,
@@ -773,6 +795,7 @@ impl HotCache {
         slot.span = span;
         slot.archive_rejected = false;
         self.dirty.insert(seq);
+        self.record_final(&key.0, &key.1, seq);
         Ok(())
     }
 
@@ -805,6 +828,13 @@ impl HotCache {
             if self.pending.get(&key) == Some(&seq) {
                 self.pending.remove(&key);
             }
+        } else if let Some(spans) = self.finals.get_mut(&slot.span.trace_id) {
+            if spans.get(&slot.span.span_id) == Some(&seq) {
+                spans.remove(&slot.span.span_id);
+            }
+            if spans.is_empty() {
+                self.finals.remove(&slot.span.trace_id);
+            }
         }
         let was_dirty = self.dirty.remove(&seq);
         if was_dirty && self.in_flight.remove(&seq) {
@@ -814,25 +844,6 @@ impl HotCache {
             return false;
         }
         was_dirty
-    }
-
-    /// Whether a newer dirty record of the same `(trace_id, span_id)` exists.
-    fn has_newer_dirty_version(&self, seq: u64) -> bool {
-        let Some(slot) = self.slots.get(&seq) else {
-            return false;
-        };
-        self.by_trace.get(&slot.span.trace_id).is_some_and(|seqs| {
-            seqs.iter()
-                .rev()
-                .take_while(|other| **other > seq)
-                .any(|other| {
-                    self.dirty.contains(other)
-                        && self
-                            .slots
-                            .get(other)
-                            .is_some_and(|newer| newer.span.span_id == slot.span.span_id)
-                })
-        })
     }
 
     /// Evict oldest-first until both limits hold with `incoming_spans` /
@@ -862,7 +873,13 @@ impl HotCache {
             let Some((seq, slot)) = self.slots.pop_first() else {
                 break;
             };
-            if self.detach(seq, slot) {
+            // A newer final of the same span carries it to the archive:
+            // evicting this one loses nothing.
+            let superseded = slot.superseded;
+            let lost = self.detach(seq, slot);
+            if superseded {
+                self.evicted_in_flight.remove(&seq);
+            } else if lost {
                 dropped += 1;
             }
         }
@@ -1196,6 +1213,7 @@ impl InMemorySpanStorage {
         cache.dirty.clear();
         cache.in_flight.clear();
         cache.evicted_in_flight.clear();
+        cache.finals.clear();
         cache.hot_bytes = 0;
     }
 
@@ -1340,7 +1358,7 @@ impl InMemorySpanStorage {
         for seq in dropped {
             let claimed = cache.in_flight.remove(seq);
             let evicted = cache.evicted_in_flight.remove(seq);
-            if claimed && cache.has_newer_dirty_version(*seq) {
+            if claimed && cache.slots.get(seq).is_some_and(|slot| slot.superseded) {
                 // A newer record of the same span replaces this one in the
                 // archive: superseded, not lost.
                 cache.dirty.remove(seq);
@@ -10011,6 +10029,35 @@ mod tests {
             evicted, 1,
             "a dirty span outside any batch is counted by eviction"
         );
+    }
+
+    /// Review P2-5 (r2, OPUS2B_N5B): evicting an older dirty record whose
+    /// newer version is still dirty loses nothing, whether or not the writer
+    /// holds it in flight.
+    #[test]
+    fn evicting_a_superseded_span_version_counts_nothing() {
+        let storage = InMemorySpanStorage::new_with_limits(16, 1_000_000);
+        storage.add_spans(vec![archive_test_span("t", "same")]);
+        storage.add_spans(vec![archive_test_span("t", "same")]);
+        assert_eq!(storage.write().evict_for(0, 0, 1, 0, 0.75), 0);
+        assert_eq!(storage.dirty_len(), 1, "the newer version is still queued");
+
+        let storage = InMemorySpanStorage::new_with_limits(16, 1_000_000);
+        storage.add_spans(vec![archive_test_span("u", "same")]);
+        let claimed = storage.begin_archive_batch(1, u64::MAX, u64::MAX, &HashSet::new());
+        storage.add_spans(vec![archive_test_span("u", "same")]);
+        let evicted = storage.write().evict_for(0, 0, 1, 0, 0.75);
+        let lost = storage.finish_archive_batch(&[], &[], &[claimed[0].0]);
+        assert_eq!(
+            (evicted, lost),
+            (0, 0),
+            "in flight and superseded: not lost"
+        );
+
+        // Without a newer version, eviction still counts the lost span.
+        let storage = InMemorySpanStorage::new_with_limits(16, 1_000_000);
+        storage.add_spans(vec![archive_test_span("v", "only")]);
+        assert_eq!(storage.write().evict_for(0, 0, 0, 0, 0.75), 1);
     }
 
     /// Review P2-5: an older dirty record replaced by a newer version of the

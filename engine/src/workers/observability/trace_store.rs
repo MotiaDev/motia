@@ -5153,4 +5153,76 @@ mod tests {
         assert_eq!(store.get_spans_by_trace_id("legacy").unwrap().len(), 1);
         store.shutdown();
     }
+
+    /// Review B1 with the real environment: `TMPDIR` points to a missing
+    /// directory for the whole process. The scratch is skipped (one warning),
+    /// the large trace is measured by a trial, and every trace is written.
+    #[cfg(unix)]
+    #[test]
+    fn missing_tmpdir_does_not_block_independent_traces() {
+        const CHILD_MARKER: &str = "III_TRACE_STORE_MISSING_TMPDIR_CHILD";
+        const CHILD_DIRECTORY: &str = "III_TRACE_STORE_MISSING_TMPDIR_DIRECTORY";
+        if let Some(directory) = std::env::var_os(CHILD_DIRECTORY)
+            && std::env::var_os(CHILD_MARKER).is_some()
+        {
+            let directory = PathBuf::from(directory);
+            let store = TraceDiskStore::open(&capped_config(&directory, 64 * MIB)).unwrap();
+            let hot = hot_cache(8192, 1024 * MIB);
+            store.attach_hot_storage(&hot);
+            hot.add_spans(vec![span_with(
+                "aaa-big",
+                "big",
+                wide_attributes(150, 64 * 1024),
+            )]);
+            hot.add_spans(
+                (0..12)
+                    .map(|index| test_span(&format!("zzz-n-{index:02}"), "s", "normal"))
+                    .collect(),
+            );
+            let started = Instant::now();
+            let flush = store.flush();
+            let status = store.status();
+            eprintln!(
+                "B1_TMPDIR_EVIDENCE tmpdir={:?} flush={flush:?} flush_ms={} normals={} big_rows={} dirty={} archive={} warnings={} scratch_measurements={}",
+                std::env::var_os("TMPDIR"),
+                started.elapsed().as_millis(),
+                count_trace_prefix(&directory, "zzz-n-"),
+                count_trace_prefix(&directory, "aaa-big"),
+                hot.dirty_len(),
+                status.archive,
+                store.warnings_emitted(),
+                store.scratch_measurements.load(Ordering::Relaxed)
+            );
+            flush.expect("a missing TMPDIR is not an archive error");
+            assert_eq!(count_trace_prefix(&directory, "zzz-n-"), 12);
+            assert_eq!(count_trace_prefix(&directory, "aaa-big"), 1);
+            assert_eq!(hot.dirty_len(), 0);
+            assert_eq!(status.archive, "healthy");
+            assert_eq!(store.warnings_emitted(), 1);
+            store.shutdown();
+            return;
+        }
+
+        let directory = tempfile::tempdir().unwrap();
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "workers::observability::trace_store::tests::missing_tmpdir_does_not_block_independent_traces",
+                "--nocapture",
+            ])
+            .env(CHILD_MARKER, "1")
+            .env(CHILD_DIRECTORY, directory.path())
+            .env("TMPDIR", "/nonexistent-iii-trace-tmpdir")
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        for line in stderr.lines().filter(|line| line.contains("EVIDENCE")) {
+            eprintln!("{line}");
+        }
+        assert!(
+            output.status.success(),
+            "missing-TMPDIR child failed:\nstdout:\n{}\nstderr:\n{stderr}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+    }
 }
