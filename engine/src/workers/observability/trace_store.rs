@@ -4200,6 +4200,36 @@ mod tests {
         span_lower_bound(span, &serde_json::to_string(span).unwrap())
     }
 
+    /// Process-wide /proc counters include every concurrent libtest case.
+    /// Run resource regressions alone in a fresh process, not merely behind a
+    /// serial_test lock (unannotated tests would still run alongside them).
+    /// Inherit LLVM_PROFILE_FILE and the rest of the environment so coverage
+    /// from the child is collected just like the existing subprocess tests.
+    /// Returns true in the parent, which must return without running the body.
+    fn run_resource_test_in_child(test_name: &str) -> bool {
+        const CHILD_TEST: &str = "III_TRACE_STORE_RESOURCE_CHILD";
+        if std::env::var(CHILD_TEST).as_deref() == Ok(test_name) {
+            return false;
+        }
+        let full_name = format!("workers::observability::trace_store::tests::{test_name}");
+        let output = std::process::Command::new(
+            std::env::current_exe().expect("locate resource test binary"),
+        )
+        .args(["--exact", &full_name, "--test-threads=1", "--nocapture"])
+        .env(CHILD_TEST, test_name)
+        .output()
+        .expect("run isolated archive resource test");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success() && stdout.contains("1 passed;"),
+            "isolated resource test {full_name} failed or did not run: {}\nstdout:\n{stdout}\nstderr:\n{stderr}",
+            output.status,
+        );
+        eprint!("{stderr}");
+        true
+    }
+
     /// `wchar` of this process: bytes passed to write syscalls.
     fn process_write_chars() -> u64 {
         fs::read_to_string("/proc/self/io")
@@ -4330,6 +4360,11 @@ mod tests {
     /// writer stops rewriting the file.
     #[test]
     fn trace_whose_real_image_exceeds_the_limit_is_dropped_although_its_lower_bound_fits() {
+        if run_resource_test_in_child(
+            "trace_whose_real_image_exceeds_the_limit_is_dropped_although_its_lower_bound_fits",
+        ) {
+            return;
+        }
         let max = 16 * MIB;
         let threshold = max + 8 * MIB;
         let wide = span_with("aaa-wide", "wide", wide_attributes(1500, 5085));
@@ -4540,6 +4575,11 @@ mod tests {
     /// evictable and the blocked traces are archived.
     #[test]
     fn blocked_archive_answers_controls_quickly_and_resumes_when_protection_ends() {
+        if run_resource_test_in_child(
+            "blocked_archive_answers_controls_quickly_and_resumes_when_protection_ends",
+        ) {
+            return;
+        }
         let directory = tempfile::tempdir().unwrap();
         let store = TraceDiskStore::open(&capped_config(directory.path(), 1024 * MIB)).unwrap();
         let hot = hot_cache(100_000, 4096 * MIB);
@@ -4614,9 +4654,12 @@ mod tests {
     }
 
     /// Review R11: a blocked flush copies one bounded batch, not the whole
-    /// dirty set, and answers promptly. Run alone for a meaningful VmHWM.
+    /// dirty set, and answers promptly. The subprocess isolates VmHWM.
     #[test]
     fn blocked_flush_does_not_copy_the_dirty_set() {
+        if run_resource_test_in_child("blocked_flush_does_not_copy_the_dirty_set") {
+            return;
+        }
         let directory = tempfile::tempdir().unwrap();
         let store = TraceDiskStore::open(&capped_config(directory.path(), 1024 * MIB)).unwrap();
         let hot = hot_cache(100_000, 4096 * MIB);
