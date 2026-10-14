@@ -7,6 +7,7 @@ pub mod iii;
 pub mod protocol;
 pub mod stream_provider;
 pub mod structs;
+mod transport;
 pub mod triggers;
 pub mod types;
 
