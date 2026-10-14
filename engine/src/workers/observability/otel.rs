@@ -2465,23 +2465,58 @@ fn get_or_build_forwarder(
     }
 }
 
-/// Whether the engine sampler keeps a forwarded worker span. The trace-id ratio
-/// is deterministic per trace, so an entire trace is kept or dropped
-/// consistently regardless of which service produced a given span.
-fn forward_span_is_sampled<S: opentelemetry_sdk::trace::ShouldSample>(
+/// Apply the engine's ingest sampling policy once, BEFORE the local archive
+/// and collector paths diverge. Worker SDKs export at 100%; filtering only
+/// the collector silently bypasses sampling for memory/SQLite. Start snapshots
+/// use the same policy as finals so sampled-out spans leave no pending rows.
+/// Like the former forwarder policy, this is a root decision: the worker's
+/// sampled flag is not the engine's sampling decision.
+fn sample_sdk_spans<S: opentelemetry_sdk::trace::ShouldSample>(
+    request: &mut OtlpExportTraceServiceRequest,
     sampler: &S,
-    sd: &SpanData,
-) -> bool {
+) {
+    use opentelemetry::{TraceId, trace::SpanKind};
     use opentelemetry_sdk::trace::SamplingDecision;
-    let result = sampler.should_sample(
-        None,
-        sd.span_context.trace_id(),
-        sd.name.as_ref(),
-        &sd.span_kind,
-        &sd.attributes,
-        &sd.links.links,
-    );
-    matches!(result.decision, SamplingDecision::RecordAndSample)
+
+    let storage = get_span_storage();
+    for resource in &mut request.resource_spans {
+        for scope in &mut resource.scope_spans {
+            scope.spans.retain(|span| {
+                let Ok(trace_id) = TraceId::from_hex(&span.trace_id) else {
+                    return false;
+                };
+                let kind = match span.kind {
+                    Some(2) => SpanKind::Server,
+                    Some(3) => SpanKind::Client,
+                    Some(4) => SpanKind::Producer,
+                    Some(5) => SpanKind::Consumer,
+                    _ => SpanKind::Internal,
+                };
+                let attributes: Vec<_> = span
+                    .attributes
+                    .iter()
+                    .filter_map(otlp_kv_to_key_value)
+                    .collect();
+                let result =
+                    sampler.should_sample(None, trace_id, &span.name, &kind, &attributes, &[]);
+                let sampled = matches!(result.decision, SamplingDecision::RecordAndSample);
+                if !sampled
+                    && span.end_time_unix_nano.0 != 0
+                    && let Some(storage) = &storage
+                {
+                    // A config swap or rate limit may change the decision
+                    // after a live snapshot. Do not leave that snapshot
+                    // pending forever when its final is sampled out.
+                    let mut cache = storage.write();
+                    let key = (span.trace_id.clone(), span.span_id.clone());
+                    if let Some(seq) = cache.pending.get(&key).copied() {
+                        cache.remove(seq);
+                    }
+                }
+                sampled
+            });
+        }
+    }
 }
 
 /// Initialize OpenTelemetry with the given configuration.
@@ -3654,8 +3689,11 @@ pub async fn ingest_otlp_json(json_str: &str) -> anyhow::Result<()> {
     }
 
     // Parse the OTLP JSON
-    let request: OtlpExportTraceServiceRequest = serde_json::from_str(json_str)
+    let mut request: OtlpExportTraceServiceRequest = serde_json::from_str(json_str)
         .map_err(|e| anyhow::anyhow!("Failed to parse OTLP JSON: {}", e))?;
+    if let Some(sampler) = get_dynamic_sampler() {
+        sample_sdk_spans(&mut request, sampler);
+    }
 
     // Store in memory if available (for API access)
     if let Some(storage) = get_span_storage() {
@@ -3812,12 +3850,10 @@ pub async fn ingest_otlp_json(json_str: &str) -> anyhow::Result<()> {
     // engine sampler so forwarded volume matches `sampling_ratio` (worker SDKs
     // export to the engine at 100%).
     if SDK_FORWARDER_ENDPOINT.get().is_some() {
-        let sampler = get_dynamic_sampler();
         for resource_span in &request.resource_spans {
-            let mut span_data = convert_resource_span_to_span_data(resource_span);
-            if let Some(sampler) = sampler {
-                span_data.retain(|sd| forward_span_is_sampled(sampler, sd));
-            }
+            // Already sampled above, including when both destinations are
+            // active. Sampling again would consume rate-limit tokens twice.
+            let span_data = convert_resource_span_to_span_data(resource_span);
             if span_data.is_empty() {
                 continue;
             }
@@ -7819,19 +7855,12 @@ mod tests {
                 }]
             }]
         }"#;
-        let request: OtlpExportTraceServiceRequest =
+        let mut request: OtlpExportTraceServiceRequest =
             serde_json::from_str(json_str).expect("parse JSON");
-        let span_data = convert_otlp_to_span_data(&request);
-        let sd = &span_data[0];
-
-        assert!(
-            forward_span_is_sampled(&Sampler::AlwaysOn, sd),
-            "AlwaysOn must keep forwarded spans"
-        );
-        assert!(
-            !forward_span_is_sampled(&Sampler::AlwaysOff, sd),
-            "AlwaysOff must drop forwarded spans"
-        );
+        sample_sdk_spans(&mut request, &Sampler::AlwaysOn);
+        assert_eq!(convert_otlp_to_span_data(&request).len(), 1);
+        sample_sdk_spans(&mut request, &Sampler::AlwaysOff);
+        assert!(convert_otlp_to_span_data(&request).is_empty());
     }
 
     #[test]

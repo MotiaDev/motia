@@ -1145,6 +1145,13 @@ fn persist_dirty_batch(store: &Arc<TraceDiskStore>, connection: &mut Connection)
                 store.record_success();
                 return;
             }
+            // Capacity cannot improve while this same batch protects the
+            // same traces. Leave it dirty for a later tick/config change;
+            // sleeping through every retry only starves flush/shutdown.
+            Err(error) if error.starts_with("trace storage limit reached:") => {
+                store.record_error(error);
+                return;
+            }
             Err(error) if attempt < RETRY_DELAYS.len() => {
                 thread::sleep(RETRY_DELAYS[attempt]);
                 store.record_error(error);
@@ -1198,7 +1205,23 @@ fn write_batch(
                 .map_err(|err| format!("cannot serialize trace {}: {err}", span.trace_id))
         })
         .collect::<Result<_, String>>()?;
-    let incoming_bytes: u64 = payloads.iter().flatten().map(|p| p.len() as u64).sum();
+    // Values are stored in the payload, attribute table and covering index.
+    // Reserve all three copies before eviction; the page-count guard below
+    // remains authoritative because SQLite page/index overhead varies.
+    let incoming_bytes: u64 = batch
+        .iter()
+        .zip(&payloads)
+        .filter_map(|(span, payload)| {
+            payload.as_ref().map(|payload| {
+                let attributes: u64 = span
+                    .attributes
+                    .iter()
+                    .map(|(key, value)| (key.len() + value.len()) as u64)
+                    .sum();
+                (payload.len() as u64).saturating_add(attributes.saturating_mul(2))
+            })
+        })
+        .sum();
     ensure_capacity(store, connection, incoming_bytes, batch)?;
     let epoch = store.epoch.load(Ordering::Acquire) as i64;
     let ingest_time_ns = super::otel::now_unix_nanos() as i64;
@@ -1327,9 +1350,37 @@ fn write_batch(
         })?;
     }
 
+    // A single span can exceed BATCH_MAX_BYTES even with capped attributes.
+    // Check the actual SQLite image before commit: rejecting a protected or
+    // oversized batch must leave it dirty, not partially durable.
+    let pages: i64 = tx
+        .query_row("PRAGMA page_count", [], |row| row.get(0))
+        .map_err(|err| database_error(&store.database_path, "page count", err))?;
+    let page_size: i64 = tx
+        .query_row("PRAGMA page_size", [], |row| row.get(0))
+        .map_err(|err| database_error(&store.database_path, "page size", err))?;
+    let image_bytes = (pages as u64).saturating_mul(page_size as u64);
+    let max_bytes = store.max_disk_bytes.load(Ordering::Acquire);
+    let tolerance = (max_bytes / 100).max(8 * 1024 * 1024);
+    if image_bytes > max_bytes.saturating_add(tolerance) {
+        tx.rollback()
+            .map_err(|err| database_error(&store.database_path, "oversized batch rollback", err))?;
+        // Rollback can leave spilled WAL frames; reclaim them before retry.
+        let _ = reclaim_free_pages(connection);
+        return Err(format!(
+            "trace storage limit reached: batch requires {image_bytes} bytes, limit {max_bytes} bytes, tolerance {tolerance} bytes"
+        ));
+    }
     tx.commit()
         .map_err(|err| database_error(&store.database_path, "write transaction commit", err))?;
     let _ = connection.execute_batch("PRAGMA wal_checkpoint(PASSIVE);");
+    // PASSIVE copies pages but keeps the WAL file. Do not leave the last
+    // batch's duplicate image on disk until a later insert or retention tick.
+    if directory_size(&store.directory)
+        .is_ok_and(|bytes| bytes > (max_bytes as f64 * CAP_HIGH_WATERMARK) as u64)
+    {
+        let _ = reclaim_free_pages(connection);
+    }
     Ok(())
 }
 
@@ -1847,6 +1898,97 @@ mod tests {
         store.shutdown();
     }
 
+    #[test]
+    fn oversized_physical_batch_is_not_acknowledged_as_durable() {
+        let directory = tempfile::tempdir().unwrap();
+        let config = test_config(directory.path());
+        let store = TraceDiskStore::open(&config).unwrap();
+        let hot = Arc::new(InMemorySpanStorage::new_with_limits(8, 128 * 1024 * 1024));
+        store.attach_hot_storage(&hot);
+        let mut span = test_span("wide-trace", "wide-span", "wide");
+        // Each attribute fits the default cap, but their three SQLite copies
+        // together do not fit the archive. Single spans can exceed a batch.
+        span.attributes = (0..400)
+            .map(|i| (format!("field-{i}"), "x".repeat(64 * 1024)))
+            .collect();
+        hot.add_spans(vec![span]);
+        let error = store
+            .flush()
+            .expect_err("oversized batch must not be durable");
+        assert!(error.contains("trace storage limit reached"), "{error}");
+        assert!(store.get_spans().unwrap().is_empty());
+        assert_eq!(hot.dirty_spans(8, u64::MAX).len(), 1);
+        let bytes = store.status().physical_bytes;
+        assert!(bytes <= config.max_disk_bytes + 8 * 1024 * 1024);
+        eprintln!("OVERSIZED_EVIDENCE rejected=true physical_after={bytes}");
+        store.shutdown();
+    }
+
+    #[test]
+    fn sustained_archive_writes_stay_within_physical_disk_cap() {
+        let directory = tempfile::tempdir().unwrap();
+        let config = test_config(directory.path());
+        let store = TraceDiskStore::open(&config).unwrap();
+        let hot = Arc::new(InMemorySpanStorage::new_with_limits(512, 128 * 1024 * 1024));
+        store.attach_hot_storage(&hot);
+        let mut maximum = 0;
+        for index in 0..100 {
+            let spans = (0..63)
+                .map(|part| {
+                    let mut span =
+                        test_span(&format!("cap-{index:04}-{part:02}"), "span", "cap-load");
+                    span.attributes = vec![("iii.payload.json".to_string(), "x".repeat(64 * 1024))];
+                    span
+                })
+                .collect();
+            hot.add_spans(spans);
+            store.flush().expect("bounded batch persists");
+            let bytes = store.status().physical_bytes;
+            maximum = maximum.max(bytes);
+            assert!(
+                bytes <= config.max_disk_bytes + 8 * 1024 * 1024,
+                "{bytes} bytes at batch {index}"
+            );
+        }
+        assert_eq!(store.get_spans_by_trace_id("cap-0099-62").unwrap().len(), 1);
+        assert!(
+            store
+                .get_spans_by_trace_id("cap-0000-00")
+                .unwrap()
+                .is_empty()
+        );
+        eprintln!(
+            "TRACE_CAP_EVIDENCE max_disk_bytes={} max_observed_bytes={maximum} final_bytes={}",
+            config.max_disk_bytes,
+            store.status().physical_bytes
+        );
+        store.shutdown();
+    }
+
+    #[test]
+    fn age_retention_removes_old_ingested_trace_and_keeps_recent_trace() {
+        let directory = tempfile::tempdir().unwrap();
+        let store = TraceDiskStore::open(&test_config(directory.path())).unwrap();
+        let hot = Arc::new(InMemorySpanStorage::new_with_limits(8, 1024 * 1024));
+        store.attach_hot_storage(&hot);
+        hot.add_spans(vec![
+            test_span("old", "span", "old"),
+            test_span("new", "span", "new"),
+        ]);
+        store.flush().unwrap();
+        let conn = Connection::open(directory.path().join("traces.sqlite3")).unwrap();
+        conn.execute(
+            "UPDATE trace_meta SET last_ingest_ns=1 WHERE trace_id='old'",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        store.retain().unwrap();
+        assert!(store.get_spans_by_trace_id("old").unwrap().is_empty());
+        assert_eq!(store.get_spans_by_trace_id("new").unwrap().len(), 1);
+        store.shutdown();
+    }
+
     /// Shrinking the disk cap below the current physical size must evict
     /// oldest traces until the FILE fits again — measured on disk, not by
     /// row accounting — keep the newest history, and leave the archive
@@ -2361,9 +2503,9 @@ mod tests {
         let directory = tempfile::tempdir().expect("temp trace directory");
         let mut config = test_config(directory.path());
         // The capacity guard has an 8 MiB SQLite allocation tolerance. Keep
-        // the configured limit below it, then write two 3 MiB spans from one
-        // trace. SQLite stores each attribute in both the span payload and
-        // its lookup table, so the first write consumes most of that
+        // the configured limit below it, then write 1 MiB and 3 MiB spans from one
+        // trace. SQLite stores each attribute in the span payload, its
+        // attribute table and lookup index, so the first write consumes most of that
         // allowance. The second cannot evict the earlier row because the
         // current trace is protected by the incoming batch.
         config.max_disk_bytes = 1;
@@ -2375,7 +2517,7 @@ mod tests {
         store.attach_hot_storage(&hot);
 
         let mut committed = test_span("trace-protected", "span-1", "large");
-        committed.attributes = vec![("payload".to_string(), "x".repeat(3 * 1024 * 1024))];
+        committed.attributes = vec![("payload".to_string(), "x".repeat(1024 * 1024))];
         hot.add_spans(vec![committed]);
         store
             .flush()

@@ -292,7 +292,7 @@ fn protected_active_trace_is_not_partially_committed_when_capacity_is_exhausted(
     archive_config.max_disk_bytes = 1;
     let hot = start_archive(archive_config);
 
-    hot.add_spans(vec![span("protected-trace", "span-1", 1, 3 * MIB)]);
+    hot.add_spans(vec![span("protected-trace", "span-1", 1, MIB)]);
     trace_store::flush().expect("persist first protected span");
     hot.add_spans(vec![span("protected-trace", "span-2", 2, 3 * MIB)]);
     let error = trace_store::flush().expect_err("reject protected batch at capacity");
