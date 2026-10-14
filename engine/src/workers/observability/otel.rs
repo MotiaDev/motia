@@ -693,6 +693,7 @@ fn sanitize_span(span: &mut StoredSpan, max_attribute_bytes: usize) {
 struct Slot {
     bytes: u64,
     span: StoredSpan,
+    archive_rejected: bool,
 }
 
 /// The hot cache proper: a bounded FIFO of spans keyed by a monotonic sequence
@@ -732,7 +733,14 @@ impl HotCache {
             self.dirty.insert(seq);
         }
         self.hot_bytes = self.hot_bytes.saturating_add(bytes);
-        self.slots.insert(seq, Slot { bytes, span });
+        self.slots.insert(
+            seq,
+            Slot {
+                bytes,
+                span,
+                archive_rejected: false,
+            },
+        );
         seq
     }
 
@@ -757,6 +765,7 @@ impl HotCache {
             .saturating_add(bytes);
         slot.bytes = bytes;
         slot.span = span;
+        slot.archive_rejected = false;
         self.dirty.insert(seq);
         Ok(())
     }
@@ -1184,10 +1193,22 @@ impl InMemorySpanStorage {
     /// SQLite transaction; a span evicted in between is simply not there
     /// anymore and its sequence acknowledges nothing.
     pub fn dirty_spans(&self, limit: usize, max_bytes: u64) -> Vec<(u64, StoredSpan)> {
+        self.dirty_spans_excluding(limit, max_bytes, &HashSet::new())
+    }
+
+    pub(crate) fn dirty_spans_excluding(
+        &self,
+        limit: usize,
+        max_bytes: u64,
+        excluded: &HashSet<u64>,
+    ) -> Vec<(u64, StoredSpan)> {
         let cache = self.read();
         let mut bytes = 0u64;
         let mut result = Vec::new();
         for seq in &cache.dirty {
+            if excluded.contains(seq) {
+                continue;
+            }
             let Some(slot) = cache.slots.get(seq) else {
                 continue;
             };
@@ -1209,6 +1230,23 @@ impl InMemorySpanStorage {
         }
     }
 
+    pub(crate) fn reject_archive_trace(&self, trace_id: &str) -> usize {
+        let mut cache = self.write();
+        let seqs: Vec<_> = cache
+            .slots
+            .iter()
+            .filter(|(_, slot)| slot.span.trace_id == trace_id && !slot.span.pending)
+            .map(|(seq, _)| *seq)
+            .collect();
+        for seq in &seqs {
+            cache.dirty.remove(seq);
+            if let Some(slot) = cache.slots.get_mut(seq) {
+                slot.archive_rejected = true;
+            }
+        }
+        seqs.len()
+    }
+
     /// Re-mark every resident finalized span as dirty. A trace-storage swap
     /// drains the dirty set into the OLD archive on shutdown, so a
     /// newly-installed archive (new directory, or enabled at runtime) would
@@ -1220,7 +1258,7 @@ impl InMemorySpanStorage {
         let finals: Vec<u64> = cache
             .slots
             .iter()
-            .filter(|(_, slot)| !slot.span.pending)
+            .filter(|(_, slot)| !slot.span.pending && !slot.archive_rejected)
             .map(|(seq, _)| *seq)
             .collect();
         cache.dirty.extend(finals);

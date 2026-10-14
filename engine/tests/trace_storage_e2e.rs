@@ -295,17 +295,15 @@ fn protected_active_trace_is_not_partially_committed_when_capacity_is_exhausted(
     hot.add_spans(vec![span("protected-trace", "span-1", 1, MIB)]);
     trace_store::flush().expect("persist first protected span");
     hot.add_spans(vec![span("protected-trace", "span-2", 2, 3 * MIB)]);
-    let error = trace_store::flush().expect_err("reject protected batch at capacity");
+    trace_store::flush().expect("drop irreducibly oversized trace");
 
-    assert!(error.contains("trace storage limit reached"));
-    let stored = trace_store::read_spans().expect("read archive after rejected batch");
-    assert_eq!(stored.len(), 1);
-    assert_eq!(stored[0].span_id, "span-1");
-    assert_eq!(
-        hot.dirty_spans(16, 20 * MIB as u64).len(),
-        1,
-        "the rejected span remains eligible for retry"
+    assert!(
+        trace_store::read_spans().unwrap().is_empty(),
+        "archive trace is removed as a whole"
     );
+    assert_eq!(hot.dirty_len(), 0, "rejected trace must not retry forever");
+    assert_eq!(trace_store::status()["known_dropped_spans"], 2);
+    assert_eq!(trace_store::status()["completeness"], "partial");
 }
 
 #[test]

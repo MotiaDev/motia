@@ -22,7 +22,7 @@ use std::{
         mpsc::{self, RecvTimeoutError, SyncSender},
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use super::otel::StoredSpan;
@@ -30,11 +30,6 @@ use super::otel::StoredSpan;
 const BATCH_MAX_SPANS: usize = 512;
 const BATCH_MAX_BYTES: u64 = 4 * 1024 * 1024;
 const BATCH_INTERVAL: Duration = Duration::from_millis(250);
-const RETRY_DELAYS: [Duration; 3] = [
-    Duration::from_millis(100),
-    Duration::from_millis(500),
-    Duration::from_secs(2),
-];
 const CAP_HIGH_WATERMARK: f64 = 0.90;
 const CAP_LOW_WATERMARK: f64 = 0.80;
 /// Keep clear of SQLite's default 999 bind-variable limit. One slot is used
@@ -173,6 +168,8 @@ struct RuntimeState {
     last_error: Option<String>,
     known_dropped_spans: u64,
     unclean_shutdown: bool,
+    capacity_warning_at: Option<Instant>,
+    suppressed_capacity_warnings: u64,
 }
 
 /// A bounded, asynchronous SQLite archive for finalized spans.
@@ -187,6 +184,24 @@ pub struct TraceDiskStore {
     hot: RwLock<Option<Weak<InMemorySpanStorage>>>,
     state: Mutex<RuntimeState>,
     stop: AtomicBool,
+}
+
+const CAPACITY_WARNING_INTERVAL: Duration = Duration::from_secs(60);
+
+/// Return the number of suppressed warnings represented by this log line.
+/// `None` means the caller should count this event but emit no log.
+fn capacity_warning_due(
+    last_emitted: &mut Option<Instant>,
+    suppressed: &mut u64,
+    now: Instant,
+) -> Option<u64> {
+    if last_emitted.is_none_or(|last| now.duration_since(last) >= CAPACITY_WARNING_INTERVAL) {
+        *last_emitted = Some(now);
+        Some(std::mem::take(suppressed))
+    } else {
+        *suppressed = suppressed.saturating_add(1);
+        None
+    }
 }
 
 impl std::fmt::Debug for TraceDiskStore {
@@ -247,6 +262,8 @@ impl TraceDiskStore {
                 last_error: None,
                 known_dropped_spans: read_dropped_spans(&connection).unwrap_or(0),
                 unclean_shutdown,
+                capacity_warning_at: None,
+                suppressed_capacity_warnings: 0,
             }),
             stop: AtomicBool::new(false),
         });
@@ -1028,6 +1045,39 @@ impl TraceDiskStore {
         self.record_error(error.into());
     }
 
+    fn record_capacity_error(&self, error: String, emit_warning: bool) {
+        let suppressed = {
+            let mut state = self
+                .state
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            state.degraded = true;
+            state.last_error = Some(error.clone());
+            let RuntimeState {
+                capacity_warning_at,
+                suppressed_capacity_warnings,
+                ..
+            } = &mut *state;
+            if emit_warning {
+                capacity_warning_due(
+                    capacity_warning_at,
+                    suppressed_capacity_warnings,
+                    Instant::now(),
+                )
+            } else {
+                *suppressed_capacity_warnings = suppressed_capacity_warnings.saturating_add(1);
+                None
+            }
+        };
+        if let Some(suppressed) = suppressed {
+            tracing::warn!(
+                %error,
+                suppressed_attempts = suppressed,
+                "trace archive capacity rejected spans; further capacity warnings are rate-limited"
+            );
+        }
+    }
+
     pub(crate) fn record_dropped_spans(&self, count: u64) {
         if count == 0 {
             return;
@@ -1043,6 +1093,17 @@ impl TraceDiskStore {
             .control_tx
             .send(ControlMessage::RecordDropped { count });
         self.notify();
+    }
+
+    fn record_dropped_spans_on_writer(&self, count: u64) {
+        if count == 0 {
+            return;
+        }
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.known_dropped_spans = state.known_dropped_spans.saturating_add(count);
     }
 
     #[cfg(test)]
@@ -1122,6 +1183,27 @@ fn handle_control(
 }
 
 fn persist_dirty_batch(store: &Arc<TraceDiskStore>, connection: &mut Connection) {
+    if let Err(error) = drain_dirty(store, connection) {
+        if !error.starts_with("trace storage limit reached:") {
+            store.record_error(error);
+        }
+    }
+}
+
+fn drain_dirty(store: &Arc<TraceDiskStore>, connection: &mut Connection) -> Result<(), String> {
+    let result = drain_dirty_batches(store, connection);
+    if let Err(error) = &result
+        && error.starts_with("trace storage limit reached:")
+    {
+        store.record_capacity_error(error.clone(), true);
+    }
+    result
+}
+
+fn drain_dirty_batches(
+    store: &Arc<TraceDiskStore>,
+    connection: &mut Connection,
+) -> Result<(), String> {
     let Some(hot) = store
         .hot
         .read()
@@ -1129,62 +1211,222 @@ fn persist_dirty_batch(store: &Arc<TraceDiskStore>, connection: &mut Connection)
         .as_ref()
         .and_then(Weak::upgrade)
     else {
-        return;
+        return Ok(());
     };
+    let mut deferred = HashSet::new();
 
-    let batch = hot.dirty_spans(BATCH_MAX_SPANS, BATCH_MAX_BYTES);
-    if batch.is_empty() {
-        return;
-    }
-
-    let (seqs, spans): (Vec<u64>, Vec<StoredSpan>) = batch.into_iter().unzip();
-    for attempt in 0..=RETRY_DELAYS.len() {
+    'drain: for _ in 0..32 {
+        let batch = hot.dirty_spans_excluding(BATCH_MAX_SPANS, BATCH_MAX_BYTES, &deferred);
+        if batch.is_empty() {
+            if deferred.is_empty() {
+                return Ok(());
+            }
+            return Err(
+                "trace storage limit reached: some trace groups remain deferred".to_string(),
+            );
+        }
+        let (seqs, spans): (Vec<_>, Vec<_>) = batch.into_iter().unzip();
         match write_batch(store, connection, &spans) {
             Ok(()) => {
                 hot.mark_durable(&seqs);
                 store.record_success();
-                return;
             }
-            // Capacity cannot improve while this same batch protects the
-            // same traces. Leave it dirty for a later tick/config change;
-            // sleeping through every retry only starves flush/shutdown.
             Err(error) if error.starts_with("trace storage limit reached:") => {
-                store.record_error(error);
-                return;
+                // Each trace is the indivisible unit of archive progress. First
+                // discard traces whose minimum physical image cannot fit after
+                // all unrelated history has been evicted, then retry the batch.
+                if discard_unfittable_traces(store, connection, &hot)? > 0 {
+                    continue;
+                }
+
+                // The batch transaction rolled back. Split only at trace
+                // boundaries; every normal trace remains an all-or-nothing
+                // transaction, while an over-large/temporarily protected trace
+                // cannot block other independent traces.
+                let mut groups: BTreeMap<String, Vec<(u64, StoredSpan)>> = BTreeMap::new();
+                for (seq, span) in seqs.into_iter().zip(spans) {
+                    groups
+                        .entry(span.trace_id.clone())
+                        .or_default()
+                        .push((seq, span));
+                }
+                for (_, group) in groups {
+                    let (group_seqs, group_spans): (Vec<_>, Vec<_>) = group.into_iter().unzip();
+                    match write_batch(store, connection, &group_spans) {
+                        Ok(()) => {
+                            hot.mark_durable(&group_seqs);
+                            store.record_success();
+                        }
+                        Err(group_error)
+                            if group_error.starts_with("trace storage limit reached:") =>
+                        {
+                            if discard_unfittable_traces(store, connection, &hot)? > 0 {
+                                // The local group vector is now stale: the
+                                // discard may include later groups. Re-query
+                                // the live dirty set instead of resurrecting
+                                // an archive-rejected trace from these clones.
+                                continue 'drain;
+                            }
+                            deferred.extend(group_seqs);
+                            store.record_capacity_error(group_error, false);
+                        }
+                        Err(other) => return Err(other),
+                    }
+                }
             }
-            Err(error) if attempt < RETRY_DELAYS.len() => {
-                thread::sleep(RETRY_DELAYS[attempt]);
-                store.record_error(error);
-            }
-            Err(error) => {
-                store.record_error(error);
-                return;
-            }
+            Err(error) => return Err(error),
         }
+    }
+    if hot
+        .dirty_spans_excluding(BATCH_MAX_SPANS, BATCH_MAX_BYTES, &deferred)
+        .is_empty()
+    {
+        if deferred.is_empty() {
+            Ok(())
+        } else {
+            Err("trace storage limit reached: some trace groups remain deferred".to_string())
+        }
+    } else {
+        Err("archive drain reached the bounded batch limit".to_string())
     }
 }
 
-fn drain_dirty(store: &Arc<TraceDiskStore>, connection: &mut Connection) -> Result<(), String> {
-    for _ in 0..32 {
-        let Some(hot) = store
-            .hot
-            .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .as_ref()
-            .and_then(Weak::upgrade)
-        else {
-            return Ok(());
-        };
-        let batch = hot.dirty_spans(BATCH_MAX_SPANS, BATCH_MAX_BYTES);
-        if batch.is_empty() {
-            return Ok(());
-        }
-        let (seqs, spans): (Vec<u64>, Vec<StoredSpan>) = batch.into_iter().unzip();
-        write_batch(store, connection, &spans)?;
-        hot.mark_durable(&seqs);
-        store.record_success();
+fn span_archive_lower_bound(span: &StoredSpan) -> u64 {
+    let serialized = serde_json::to_vec(span).map_or(u64::MAX, |bytes| bytes.len() as u64);
+    let attributes = span
+        .attributes
+        .iter()
+        .map(|(key, value)| key.len().saturating_add(value.len()) as u64)
+        .fold(0_u64, u64::saturating_add);
+    serialized.saturating_add(attributes.saturating_mul(2))
+}
+
+/// Permanently reject only traces whose dirty spans alone exceed the maximum
+/// possible archive image. Remove any older rows for the same trace as well,
+/// mark its hot slots as archive-rejected (so reload cannot requeue them), and
+/// count unique spans lost from the durable archive.
+fn discard_unfittable_traces(
+    store: &Arc<TraceDiskStore>,
+    connection: &mut Connection,
+    hot: &Arc<InMemorySpanStorage>,
+) -> Result<usize, String> {
+    let dirty = hot.dirty_spans(usize::MAX, u64::MAX);
+    let mut by_trace: HashMap<String, Vec<(u64, StoredSpan)>> = HashMap::new();
+    for (seq, span) in dirty {
+        by_trace
+            .entry(span.trace_id.clone())
+            .or_default()
+            .push((seq, span));
     }
-    Err("shutdown drain reached the bounded batch limit".to_string())
+    let mut rejected_traces = 0;
+    for (trace_id, dirty_spans) in by_trace {
+        let epoch = store.epoch.load(Ordering::Acquire) as i64;
+        let candidates: Vec<_> = dirty_spans.iter().map(|(_, span)| span.clone()).collect();
+        let mut statement = connection
+            .prepare("SELECT span_id, payload FROM spans WHERE epoch = ?1 AND trace_id = ?2")
+            .map_err(|err| database_error(&store.database_path, "oversized trace lookup", err))?;
+        let archived_rows: Vec<(String, String)> = statement
+            .query_map(params![epoch, &trace_id], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .map_err(|err| database_error(&store.database_path, "oversized trace query", err))?
+            .collect::<Result<_, _>>()
+            .map_err(|err| database_error(&store.database_path, "oversized trace rows", err))?;
+        drop(statement);
+
+        let archived_ids: HashSet<String> =
+            archived_rows.iter().map(|(id, _)| id.clone()).collect();
+        let archived_lower_bound = archived_rows
+            .iter()
+            .map(|(_, payload)| {
+                serde_json::from_str::<StoredSpan>(payload)
+                    .map(|span| span_archive_lower_bound(&span))
+                    .unwrap_or(u64::MAX)
+            })
+            .fold(0_u64, u64::saturating_add);
+        let mut new_ids = HashSet::new();
+        let dirty_lower_bound = dirty_spans
+            .iter()
+            .filter(|(_, span)| {
+                !archived_ids.contains(&span.span_id) && new_ids.insert(span.span_id.clone())
+            })
+            .map(|(_, span)| span_archive_lower_bound(span))
+            .fold(0_u64, u64::saturating_add);
+        let lower_bound = archived_lower_bound.saturating_add(dirty_lower_bound);
+        let max_bytes = store.max_disk_bytes.load(Ordering::Acquire);
+        let tolerance = (max_bytes / 100).max(8 * 1024 * 1024);
+        let threshold = max_bytes.saturating_add(tolerance);
+        if lower_bound <= threshold {
+            continue;
+        }
+        // Now that the trace is proven too large in isolation, let the normal
+        // policy evict every unprotected trace before permanently discarding it.
+        if let Err(error) = ensure_capacity(store, connection, 0, &candidates)
+            && !error.starts_with("trace storage limit reached:")
+        {
+            return Err(error);
+        }
+        let tx = connection.transaction().map_err(|err| {
+            database_error(&store.database_path, "oversized trace discard start", err)
+        })?;
+        tx.execute(
+            "DELETE FROM span_attributes WHERE epoch=?1 AND trace_id=?2",
+            params![epoch, trace_id],
+        )
+        .map_err(|err| {
+            database_error(
+                &store.database_path,
+                "oversized trace attribute discard",
+                err,
+            )
+        })?;
+        tx.execute(
+            "DELETE FROM spans WHERE epoch=?1 AND trace_id=?2",
+            params![epoch, trace_id],
+        )
+        .map_err(|err| database_error(&store.database_path, "oversized trace span discard", err))?;
+        tx.execute(
+            "DELETE FROM trace_meta WHERE epoch=?1 AND trace_id=?2",
+            params![epoch, trace_id],
+        )
+        .map_err(|err| {
+            database_error(
+                &store.database_path,
+                "oversized trace metadata discard",
+                err,
+            )
+        })?;
+        tx.commit().map_err(|err| {
+            database_error(&store.database_path, "oversized trace discard commit", err)
+        })?;
+        let _ = reclaim_free_pages(connection);
+        let rejected = hot.reject_archive_trace(&trace_id);
+        let dropped = (archived_ids.len() + new_ids.len()) as u64;
+        store.record_dropped_spans_on_writer(dropped);
+        store.record_capacity_error(
+            format!("trace storage limit reached: permanently discarded trace {trace_id}; minimum estimated image {lower_bound} bytes exceeds limit plus tolerance {threshold} bytes"),
+            true,
+        );
+        // The writer owns this connection, so persist the counter before a
+        // queued synchronous flush response is sent to the caller.
+        connection
+            .execute(
+                "INSERT INTO storage_meta(key, value) VALUES ('known_dropped_spans', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + ?1",
+                params![dropped as i64],
+            )
+            .map_err(|err| {
+                database_error(&store.database_path, "persist rejected span count", err)
+            })?;
+        tracing::debug!(
+            trace_id,
+            rejected_hot_spans = rejected,
+            dropped,
+            "irreducibly oversized trace discarded from archive"
+        );
+        rejected_traces += 1;
+    }
+    Ok(rejected_traces)
 }
 
 fn write_batch(
@@ -1899,28 +2141,64 @@ mod tests {
     }
 
     #[test]
-    fn oversized_physical_batch_is_not_acknowledged_as_durable() {
+    fn repeated_capacity_warnings_are_rate_limited_to_one_per_minute() {
+        let start = Instant::now();
+        let mut last = None;
+        let mut suppressed = 0;
+        let emitted: Vec<_> = (0..100)
+            .filter_map(|_| capacity_warning_due(&mut last, &mut suppressed, start))
+            .collect();
+        assert_eq!(emitted, vec![0]);
+        assert_eq!(suppressed, 99);
+        assert_eq!(
+            capacity_warning_due(&mut last, &mut suppressed, start + Duration::from_secs(59)),
+            None
+        );
+        assert_eq!(
+            capacity_warning_due(&mut last, &mut suppressed, start + Duration::from_secs(60)),
+            Some(100)
+        );
+    }
+
+    #[test]
+    fn oversized_trace_is_dropped_and_following_normal_spans_are_archived() {
         let directory = tempfile::tempdir().unwrap();
         let config = test_config(directory.path());
         let store = TraceDiskStore::open(&config).unwrap();
-        let hot = Arc::new(InMemorySpanStorage::new_with_limits(8, 128 * 1024 * 1024));
+        let hot = Arc::new(InMemorySpanStorage::new_with_limits(32, 128 * 1024 * 1024));
         store.attach_hot_storage(&hot);
-        let mut span = test_span("wide-trace", "wide-span", "wide");
-        // Each attribute fits the default cap, but their three SQLite copies
-        // together do not fit the archive. Single spans can exceed a batch.
-        span.attributes = (0..400)
+        let mut oversized = test_span("wide-trace", "wide-span", "wide");
+        oversized.attributes = (0..400)
             .map(|i| (format!("field-{i}"), "x".repeat(64 * 1024)))
             .collect();
-        hot.add_spans(vec![span]);
-        let error = store
+        let normal_spans: Vec<_> = (0..12)
+            .map(|i| test_span(&format!("normal-{i:02}"), "span", "normal"))
+            .collect();
+        let mut incoming = vec![oversized];
+        incoming.extend(normal_spans);
+        hot.add_spans(incoming);
+
+        store
             .flush()
-            .expect_err("oversized batch must not be durable");
-        assert!(error.contains("trace storage limit reached"), "{error}");
-        assert!(store.get_spans().unwrap().is_empty());
-        assert_eq!(hot.dirty_spans(8, u64::MAX).len(), 1);
-        let bytes = store.status().physical_bytes;
-        assert!(bytes <= config.max_disk_bytes + 8 * 1024 * 1024);
-        eprintln!("OVERSIZED_EVIDENCE rejected=true physical_after={bytes}");
+            .expect("unfittable trace is dropped and normal spans continue");
+        assert!(
+            store
+                .get_spans_by_trace_id("wide-trace")
+                .unwrap()
+                .is_empty()
+        );
+        let archived = store.get_spans().unwrap();
+        assert_eq!(archived.len(), 12, "all normal traces must make progress");
+        assert_eq!(hot.dirty_len(), 0, "rejected trace is not retried forever");
+        let status = store.status();
+        assert_eq!(status.known_dropped_spans, 1);
+        assert_eq!(status.completeness, "partial");
+        eprintln!(
+            "OVERSIZED_FOLLOWED_EVIDENCE archived_normal={} dropped={} physical={}",
+            archived.len(),
+            status.known_dropped_spans,
+            status.physical_bytes
+        );
         store.shutdown();
     }
 
@@ -2526,27 +2804,19 @@ mod tests {
         let mut rejected = test_span("trace-protected", "span-2", "large");
         rejected.attributes = vec![("payload".to_string(), "x".repeat(3 * 1024 * 1024))];
         hot.add_spans(vec![rejected]);
-        let error = store
+        store
             .flush()
-            .expect_err("the protected trace must be rejected once it exhausts the disk cap");
-
+            .expect("protected trace is discarded without blocking the writer");
         assert!(
-            error.contains("trace storage limit reached"),
-            "unexpected disk-cap error: {error}"
-        );
-        assert_eq!(
             store
                 .get_spans_by_trace_id("trace-protected")
-                .expect("read committed archive rows")
-                .len(),
-            1,
-            "the failed batch must not partially persist its span"
+                .unwrap()
+                .is_empty(),
+            "a protected trace that cannot fit is discarded as a whole"
         );
-        assert_eq!(
-            hot.dirty_spans(16, 20 * 1024 * 1024).len(),
-            1,
-            "the rejected span must remain eligible for a later retry"
-        );
+        assert_eq!(hot.dirty_len(), 0, "the trace must not be retried forever");
+        assert_eq!(store.status().known_dropped_spans, 2);
+        assert_eq!(store.status().completeness, "partial");
 
         store.shutdown();
         let status = store.status();
