@@ -272,13 +272,14 @@ Continuing the `mini-http` example from above:
     ```python
     # Inside the worker's HTTP listener, after matching method+path to an
     # entry in the `bindings` dict from the declare-trigger-type example:
-    binding = bindings[matched_trigger_id]
-    worker.trigger({
-        "function_id": binding.function_id,
-        "payload": {"method": method, "headers": headers, "body": body},
-        "namespace": binding.namespace or "default",
-        "metadata": binding.metadata,
-    })
+    binding = bindings.get(matched_trigger_id)
+    if binding is not None:
+        worker.trigger({
+            "function_id": binding.function_id,
+            "payload": {"method": method, "headers": headers, "body": body},
+            "namespace": binding.namespace or "default",
+            "metadata": binding.metadata,
+        })
     ```
   </Tab>
   <Tab title="Rust">

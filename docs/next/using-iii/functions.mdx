@@ -99,9 +99,10 @@ The SDK samples run in the `orders` worker, so they leave out `namespace`.
 
 A call resolves its function in one namespace. Set `namespace` on the call to pick that namespace.
 Without `namespace`, the call resolves in the namespace of the calling worker. A call to an
-`engine::*` function without `namespace` resolves in `default`. Without `--namespace`, `iii trigger`
-uses the `III_NAMESPACE` value of the shell. When `III_NAMESPACE` is not set, it uses `default`. For
-the steps and the errors, see [Use namespaces](./namespaces#trigger-a-function-in-a-namespace).
+`engine::*` or `configuration::*` function without `namespace` resolves in `default`. Without
+`--namespace`, `iii trigger` uses the `III_NAMESPACE` value of the shell. When `III_NAMESPACE` is
+not set, it uses `default`. For the steps and the errors, see
+[Use namespaces](./namespaces#trigger-a-function-in-a-namespace).
 
 ## Trigger functions from the CLI
 

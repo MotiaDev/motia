@@ -382,11 +382,13 @@ iii trigger database::query db=primary sql="SELECT COUNT(*) AS clicks FROM click
 The `rows` field shows `"clicks": 3`.
 
 Change its target. `PUT /links/:code` publishes `link.updated` durably, and the subscriber refreshes
-the cache, so `link::resolve` returns the new URL right away:
+the cache in the background. The `sleep` line gives the subscriber time to finish. Then
+`link::resolve` returns the new URL:
 
 ```bash
 curl -s -X PUT http://127.0.0.1:3111/links/analyticslink1 \
   -H 'Content-Type: application/json' -d '{"url":"https://iii.dev/updated"}'
+sleep 3
 iii trigger link::resolve code=analyticslink1
 ```
 

@@ -57,7 +57,7 @@ Write worker-compose.yaml:
 - Pin versions from iii.lock or the registry. Never invent a version number.
 - For a separately supervised engine, keep only the five engine-owned workers in the list-shaped config.yaml and omit engine: from the Compose file.
 
-Stored configuration: after a worker's first boot, 0.22 moved its config: block into the configuration worker under the worker's config.yaml name, such as iii-state. For each project worker, read the stored value with configuration::get and raw: true, so any ${VAR} templates stay as templates. Read each value before you upgrade, while the 0.22 engine runs. If 0.23 is already installed, read the value field of ./config/<id>.yaml in ./backup-pre-compose/. When config_name equals the 0.22 name, such as state, the worker reads the stored value as it is; skip that worker. Copy the value to the container's config_override. Replace each secret in the copied value with a ${VAR} reference before you write the file. Verify the new worker before you remove the old entry. Do not rename YAML files as a shortcut.
+Stored configuration: after a worker's first boot, 0.22 moved its config: block into the configuration worker under the worker's config.yaml name, such as iii-state. For each project worker, read the stored value with configuration::get and raw: true, so any ${VAR} templates stay as templates. Read each value before you upgrade, while the 0.22 engine runs. If 0.23 is already installed, read the value field of <id>.yaml in the backup copy of the configuration worker's storage directory in ./backup-pre-compose/. When config_name equals the 0.22 name, such as state, the worker reads the stored value as it is; skip that worker. Copy the value to the container's config_override. Replace each secret in the copied value with a ${VAR} reference before you write the file. The configuration worker expands each reference from the environment of the engine process, and an unset variable fails the read with EXPAND_FAILED, so list each variable that I must set there before startup. Verify the new worker before you remove the old entry. Do not rename YAML files as a shortcut.
 
 Never edit the generated engine-config.yaml in the Compose state directory.
 
@@ -69,7 +69,7 @@ With the daemon running, show me the output of:
   iii trigger compose::status file=worker-compose.yaml
   iii trigger engine::workers::list
   iii trigger engine::triggers::list
-Run these commands from the project directory. iii trigger reads engine.url from worker-compose.yaml there. If the engine runs at another address, add --engine ws://<host>:<port> to each iii trigger command.
+Run these commands from the project directory. iii trigger reads engine.url from worker-compose.yaml there. If worker-compose.yaml sets namespace:, add -n <namespace> to the compose::status command. If the engine runs at another address, add --engine ws://<host>:<port> to each iii trigger command.
 
 If startup reports UNSUPPORTED_CONFIG_WORKERS, UNSUPPORTED_ENGINE_WORKER, ENGINE_WORKER_IS_INJECTED, or any other error from the Common errors list on the page, fix the cause and rerun. Do not work around an error by deleting a worker.
 
@@ -115,7 +115,10 @@ Compose does not copy a value from an `iii-` id. For the naming rules, see
 
 2. Copy the returned `value` to the container's `config_override`. 0.22 expanded `${VAR}` references
    before it stored the block, so the copied value can hold secrets as plain text. In
-   `config_override`, replace each secret with a `${VAR}` reference.
+   `config_override`, replace each secret with a `${VAR}` reference. Before you start the project,
+   set each variable in the environment of the engine process. The configuration worker expands the
+   reference from that environment. An unset variable with no default makes the read fail with
+   `EXPAND_FAILED`.
 3. After you start the project, verify the new worker.
 4. Remove the old entry. With the default `fs` adapter, delete `./config/iii-state.yaml`.
 

@@ -251,9 +251,10 @@ subscriber. See the [`durable:subscriber` reference](https://workers.iii.dev/wor
 complete trigger schema, including filtering and adapter-specific options. The same page gives the
 retry schedule.
 
-The queue worker keys the durable queue of each subscriber by the namespace of that subscriber. Two
-subscribers with the same topic and function id in different namespaces get two queues, and each
-queue receives every published message.
+The queue worker keys the durable queue of each subscriber by the namespace of that subscriber. When
+one queue worker serves two subscribers with the same topic and function id in different namespaces,
+each subscriber gets its own queue. Each queue receives every message published to that queue
+worker. A queue worker in another namespace does not receive the message.
 
 <Warning>
   RabbitMQ queue names changed in 0.23.x and are not migrated automatically. See [Upgrading from

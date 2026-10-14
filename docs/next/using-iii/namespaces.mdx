@@ -98,7 +98,8 @@ token, see [Connect a client](../creating-workers/worker-manager#connect-a-clien
 
 Set `namespace` on the invocation. The call resolves only in that namespace. When you omit the
 field, the SDK uses the namespace of the calling worker. A worker without a namespace calls into
-`default`. A call to an `engine::*` function goes to `default` when you omit the field.
+`default`. A call to an `engine::*` or `configuration::*` function goes to `default` when you omit
+the field.
 
 <Tabs>
   <Tab title="CLI">

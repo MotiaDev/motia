@@ -119,8 +119,8 @@ that `trigger_type` (e.g. `http` for `http` triggers). The engine responds with 
 `TriggerRegistrationResult` carrying an optional `error: ErrorBody`.
 
 `namespace` names the namespace of the target function. When the field is absent, `function_id`
-resolves in `default`. The Node, browser, Python, and Rust SDKs set it to the worker namespace when
-the caller sets none. A trigger can target a function in another namespace.
+resolves in `default`. The Node, browser, Python, Rust, and Go SDKs set it to the worker namespace
+when the caller sets none. A trigger can target a function in another namespace.
 
 A present field must be a non-empty string. The engine refuses an empty or whitespace-only
 `namespace` or `trigger_namespace` with `INVALID_NAMESPACE` in `TriggerRegistrationResult`. The
@@ -348,9 +348,9 @@ Invocation routing is strict. It never falls back to another namespace:
 | `""` or whitespace only    | refused with `INVALID_NAMESPACE` (a `void` call is dropped)        |
 | any other non-string value | the frame does not decode. The engine drops it and sends no reply. |
 
-When the caller sets no namespace, the Node, browser, Python, and Rust SDKs send the worker
-namespace. They omit the field when the worker has no namespace. A call to an `engine::*` function
-with no namespace goes to `default`.
+When the caller sets no namespace, the Node, browser, Python, Rust, and Go SDKs send the worker
+namespace. They omit the field when the worker has no namespace. A call to an `engine::*` or
+`configuration::*` function with no namespace goes to `default`.
 
 A miss returns `function_not_found` naming the namespaces where the id does exist.
 
