@@ -903,7 +903,7 @@ type workerMetadata struct {
 
 // sdkVersion is reported in the worker metadata. Kept as a const for v1; a release
 // process can wire this to the module version later.
-const sdkVersion = "0.24.6-rc.4"
+const sdkVersion = "0.24.5"
 
 // writeLoop is the single writer for one connection. It drains the shared outbound
 // channel (connection-agnostic frames) and this connection's own reply channel
