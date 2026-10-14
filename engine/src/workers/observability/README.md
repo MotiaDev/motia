@@ -185,22 +185,39 @@ traces and `logs_exporter: both` for logs.
 
 - Every commit attributes the pages it used (new plus reused free pages,
   minus pages freed by replaced versions) to the traces it wrote, in
-  `trace_meta.image_bytes`. Capacity decisions use these measured sizes,
-  never an archive-wide ratio. Archives from before the column gain it on
+  `trace_meta.image_bytes`; a commit of several traces shares them by an
+  estimate of each trace's row cost (payload, attribute rows and their index
+  entries). Capacity decisions use these sizes, never an archive-wide ratio. Archives from before the column gain it on
   open (0 = not measured; `approx_bytes` is used until the trace is written
   again).
 - Durable rows are never deleted to make room for their own trace. Before
   anything is evicted, a trace's new spans are judged against the room it
-  could ever have beside its own rows (the room left now plus what other
-  traces hold): rows that never fit are dropped and counted in
-  `known_dropped_spans` (`completeness: partial`); the longest prefix that
-  fits is written; rows that fit only once others leave wait. Later spans of
+  could ever have beside its own rows. With no other trace in the archive
+  that is the room left now, an exact bound. Otherwise the sizes of the
+  others are only attributed (or unknown), so nothing is dropped on them:
+  the bound is the cap plus tolerance minus a lower bound of the trace's own
+  rows and the fixed overhead (schema pages, `-shm`), and the spans are
+  judged again, exactly, once the others are gone. Rows that never fit are
+  dropped and counted in `known_dropped_spans` (`completeness: partial`);
+  the longest prefix that fits is written; rows that fit only once others
+  leave wait. Later spans of
   the same trace are judged on their own. Of two dirty versions of a span,
   the newest is archived.
 - Nothing is evicted for spans that would not fit even with every
-  unprotected trace gone (protected = traces in the batch and live traces);
-  after an exhaustive eviction the bytes left are remembered as a floor while
-  the same traces stay protected.
+  unprotected trace gone (protected = traces in the batch and live traces).
+  When no unprotected trace is left, the bytes in use are remembered as a
+  floor for the protected traces holding them, plus their attributed change
+  since. It holds while they stay protected and keep their rows (retention
+  keeps it; new limits, `clear`, a floor trace losing its protection or rows
+  of one being deleted drop it). A group of the only trace in the floor is
+  judged against it, so spans that can never fit beside their live trace
+  are dropped without evicting anything. Known limitation: without a floor
+  sizes come from attribution, and a protected trace whose share of shared
+  commits is underestimated, whose size is unknown (written by an older
+  version), or the group's own rows (left out until measured) can make the
+  first eviction for a group that still does not fit useless; that
+  unprotected history is lost uncounted, once per set of protected traces,
+  and the eviction measures the floor.
 - Large new spans (lower bound above a quarter of the cap and at most 64 MiB)
   are measured once in a private scratch database under the system temporary
   directory (mode 0600, 2 MiB page cache, removed right after, outside the
@@ -214,12 +231,18 @@ traces and `logs_exporter: both` for logs.
   doubling to 60 s); when nothing fits at all the whole archive backs off (up
   to 30 s). A storage error (for example EFBIG/ENOSPC writing one large
   trace) defers only the traces that hit it. `flush` ignores the backoffs;
-  new limits, `clear` and retention reset them. A periodic pass does at most
+  new limits and `clear` reset them; retention retries deferred traces at
+  once, keeping their measurements and the floor. A periodic pass does at most
   32 batches or 1 s of work before serving control requests; a longer backlog
   is progress, not degradation.
 - `flush` returns `Ok` once every span ingested before the call is durable or
   counted as dropped; it returns an error if capacity or storage left some
-  dirty (archive `degraded`) or its 4 s budget ran out (not degraded).
+  dirty (archive `degraded`) or its 4 s budget ran out (not degraded). The
+  budget is checked between batches, and `flush`, `retain`, `clear` and
+  `shutdown` wait 5 s for the writer: one large batch (a measurement,
+  eviction and trial of a span near 64 MiB) or a kernel I/O stall (slow
+  fsync, journal commit, writeback) can exceed that. The call then returns
+  a timeout error while the writer finishes the work; nothing is lost.
 - The cap counts the pages in use plus the `-shm` index. Freed pages return
   to the filesystem in checkpointed steps of 1024 pages, so retention or
   eviction adds about one step of WAL on top of the main file instead of a
@@ -258,11 +281,15 @@ and collector export, where the trace is rooted in the worker:
 - Every other span follows its trace. A root anywhere in the same request
   decides first; a trace already in the hot cache was sampled in. With
   per-operation rules a child that arrives before its root waits for it, up
-  to 2 s and 4,096 spans in total, then is decided by its own span (rules are
+  to 2 s, 4,096 spans and 32 MiB of estimated raw span data in total (held
+  spans are not yet truncated to `max_attribute_bytes`; the decoded request
+  itself is not counted), then is decided by its own span (rules are
   evaluated on the root, as the engine does). Without such rules the first
   span seen decides.
 - Verdicts are remembered for the 16,384 most recent traces and reset when
-  sampling changes. Engine spans under a worker's traceparent follow the
+  sampling changes. A root final whose verdict was forgotten keeps it while
+  the root's live start snapshot, stored since the last sampling change, is
+  in the hot cache; otherwise it is decided again. Engine spans under a worker's traceparent follow the
   engine's own sampler (`ParentBased`, unchanged): it trusts the worker's
   sampled flag, so with `parent_based: true` and default 0 a worker-rooted
   trace keeps its engine spans while the worker's local root is sampled out.

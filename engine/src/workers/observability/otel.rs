@@ -1287,6 +1287,15 @@ impl InMemorySpanStorage {
         self.read().by_trace.contains_key(trace_id)
     }
 
+    /// Whether the live snapshot `(trace_id, span_id)` is resident and was
+    /// stored at or after sequence `since` (see `archive_watermark`).
+    pub(crate) fn pending_since(&self, trace_id: &str, span_id: &str, since: u64) -> bool {
+        self.read()
+            .pending
+            .get(&(trace_id.to_string(), span_id.to_string()))
+            .is_some_and(|seq| *seq >= since)
+    }
+
     /// Whether an unclaimed dirty span below `below_seq` outside `skip_traces`
     /// remains, without cloning any span.
     pub(crate) fn has_archive_backlog(
@@ -2557,10 +2566,15 @@ impl DynamicSampler {
             .inner
             .write()
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = new;
-        self.ingest_decisions
+        // Live snapshots stored before this point were admitted by the
+        // previous policy: their roots are decided again.
+        let watermark = get_span_storage().map_or(u64::MAX, |storage| storage.archive_watermark());
+        let mut decisions = self
+            .ingest_decisions
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clear();
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        decisions.clear();
+        decisions.admitted_since = watermark;
     }
 }
 
@@ -2570,11 +2584,16 @@ const INGEST_DECISION_CAPACITY: usize = 16_384;
 /// The first sampling verdict reached for each ingested worker trace, so a
 /// start snapshot, its final and every child span share one decision and a
 /// rate-limit token is spent at most once per trace. FIFO-bounded: when full,
-/// the oldest trace is forgotten (a late span of it is decided again).
+/// the oldest trace is forgotten; a late child of it then follows the hot
+/// cache, a late root final its live snapshot (`admitted_since`), anything
+/// else is decided again.
 #[derive(Debug, Default)]
 pub(crate) struct IngestDecisions {
     sampled: HashMap<String, bool>,
     order: VecDeque<String>,
+    /// Hot-cache sequence at the last sampler swap: live snapshots stored
+    /// before it were admitted by an earlier policy.
+    admitted_since: u64,
 }
 
 impl IngestDecisions {
@@ -2726,6 +2745,95 @@ const OTLP_REMOTE_PARENT: u32 = 0x300;
 const ROOT_WAIT: Duration = Duration::from_secs(2);
 /// Upper bound on held worker spans across all traces.
 const MAX_HELD_SPANS: usize = 4_096;
+/// Upper bound on the estimated raw OTLP bytes of held worker spans. Held
+/// spans are not yet truncated to the stored attribute limit, so a count
+/// alone does not bound their memory.
+const MAX_HELD_BYTES: usize = 32 * 1024 * 1024;
+/// Bytes counted per span, attribute, event and link beside its strings.
+const OTLP_ITEM_OVERHEAD: usize = 64;
+
+fn otlp_value_bytes(value: &OtlpAnyValue) -> usize {
+    let strings = value.string_value.as_ref().map_or(0, String::len);
+    let list = value
+        .kvlist_value
+        .as_ref()
+        .map_or(0, |list| otlp_attributes_bytes(&list.values));
+    let array = value.array_value.as_ref().map_or(0, |array| {
+        array
+            .values
+            .iter()
+            .map(otlp_value_bytes)
+            .fold(0, usize::saturating_add)
+    });
+    strings
+        .saturating_add(list)
+        .saturating_add(array)
+        .saturating_add(std::mem::size_of::<OtlpAnyValue>())
+}
+
+fn otlp_attributes_bytes(attributes: &[OtlpKeyValue]) -> usize {
+    attributes
+        .iter()
+        .map(|attribute| {
+            attribute
+                .key
+                .len()
+                .saturating_add(attribute.value.as_ref().map_or(0, otlp_value_bytes))
+                .saturating_add(OTLP_ITEM_OVERHEAD)
+        })
+        .fold(0, usize::saturating_add)
+}
+
+/// Estimated memory of one decoded OTLP span: its strings, attributes,
+/// events and links.
+fn otlp_span_bytes(span: &OtlpSpan) -> usize {
+    let events = span
+        .events
+        .iter()
+        .map(|event| {
+            event
+                .name
+                .len()
+                .saturating_add(otlp_attributes_bytes(&event.attributes))
+                .saturating_add(OTLP_ITEM_OVERHEAD)
+        })
+        .fold(0, usize::saturating_add);
+    let links = span
+        .links
+        .iter()
+        .map(|link| {
+            (link.trace_id.len() + link.span_id.len())
+                .saturating_add(link.trace_state.as_ref().map_or(0, String::len))
+                .saturating_add(otlp_attributes_bytes(&link.attributes))
+                .saturating_add(OTLP_ITEM_OVERHEAD)
+        })
+        .fold(0, usize::saturating_add);
+    let status = span
+        .status
+        .as_ref()
+        .and_then(|status| status.message.as_ref())
+        .map_or(0, String::len);
+    (span.trace_id.len() + span.span_id.len() + span.name.len())
+        .saturating_add(span.parent_span_id.as_ref().map_or(0, String::len))
+        .saturating_add(status)
+        .saturating_add(otlp_attributes_bytes(&span.attributes))
+        .saturating_add(events)
+        .saturating_add(links)
+        .saturating_add(std::mem::size_of::<OtlpSpan>())
+}
+
+fn otlp_fragment_bytes(fragment: &OtlpResourceSpans) -> usize {
+    let resource = fragment
+        .resource
+        .as_ref()
+        .map_or(0, |resource| otlp_attributes_bytes(&resource.attributes));
+    fragment
+        .scope_spans
+        .iter()
+        .flat_map(|scope| &scope.spans)
+        .map(otlp_span_bytes)
+        .fold(resource, usize::saturating_add)
+}
 
 fn valid_span_id(id: &str) -> Option<opentelemetry::trace::SpanId> {
     use opentelemetry::trace::SpanId;
@@ -2766,14 +2874,18 @@ fn sampling_waits_for_root() -> bool {
 /// arrives (the trace is then decided by the root) or `ROOT_WAIT` passes;
 /// a full buffer releases its oldest traces early. A trace released without
 /// its root is decided by its first held span, as without waiting. Bounded
-/// by `MAX_HELD_SPANS` spans and, for the bookkeeping queue, by the rate of
-/// held traces over `ROOT_WAIT`.
+/// by `MAX_HELD_SPANS` spans, by `MAX_HELD_BYTES` estimated raw bytes and,
+/// for the bookkeeping queue, by the rate of held traces over `ROOT_WAIT`.
+/// The budgets are checked on every ingest and release pass, so one request
+/// can exceed them until the next pass; the decoding of the request itself
+/// is not counted.
 #[derive(Debug, Default)]
 pub(crate) struct HeldSpans {
     traces: HashMap<String, HeldTrace>,
     /// Held traces, oldest first; entries of released traces are skipped.
     order: VecDeque<String>,
     spans: usize,
+    bytes: usize,
 }
 
 #[derive(Debug)]
@@ -2781,6 +2893,7 @@ struct HeldTrace {
     since: Instant,
     fragments: Vec<OtlpResourceSpans>,
     spans: usize,
+    bytes: usize,
 }
 
 impl HeldSpans {
@@ -2792,7 +2905,9 @@ impl HeldSpans {
         spans: usize,
         now: Instant,
     ) -> bool {
+        let bytes = otlp_fragment_bytes(&fragment);
         self.spans = self.spans.saturating_add(spans);
+        self.bytes = self.bytes.saturating_add(bytes);
         let new_trace = !self.traces.contains_key(&trace_id);
         if new_trace {
             self.order.push_back(trace_id.clone());
@@ -2801,9 +2916,11 @@ impl HeldSpans {
             since: now,
             fragments: Vec::new(),
             spans: 0,
+            bytes: 0,
         });
         held.fragments.push(fragment);
         held.spans = held.spans.saturating_add(spans);
+        held.bytes = held.bytes.saturating_add(bytes);
         if self.order.len() > 4 * MAX_HELD_SPANS {
             let traces = &self.traces;
             self.order.retain(|trace_id| traces.contains_key(trace_id));
@@ -2814,6 +2931,7 @@ impl HeldSpans {
     fn take(&mut self, trace_id: &str) -> Option<HeldTrace> {
         let held = self.traces.remove(trace_id)?;
         self.spans = self.spans.saturating_sub(held.spans);
+        self.bytes = self.bytes.saturating_sub(held.bytes);
         Some(held)
     }
 
@@ -2825,7 +2943,10 @@ impl HeldSpans {
                 self.order.pop_front();
                 continue;
             };
-            if now.duration_since(held.since) < ROOT_WAIT && self.spans <= MAX_HELD_SPANS {
+            if now.duration_since(held.since) < ROOT_WAIT
+                && self.spans <= MAX_HELD_SPANS
+                && self.bytes <= MAX_HELD_BYTES
+            {
                 break;
             }
             self.order.pop_front();
@@ -2891,7 +3012,9 @@ fn schedule_held_release() {
 ///    rules/rate limits, which always run parent-based) follow it, a plain
 ///    ratio keeps deciding by trace id. A local root otherwise gets the
 ///    configured root policy (rules, rate-limit token, default) — the sampled
-///    bit the Node SDK sets on every span (`0x101`) is never a bypass.
+///    bit the Node SDK sets on every span (`0x101`) is never a bypass. A
+///    root whose verdict the bounded cache forgot keeps it while its live
+///    snapshot, stored since the last sampler swap, is resident.
 /// 2. Every other span follows its trace: the remembered verdict, else a
 ///    trace already in the hot cache (sampled in), else, when per-operation
 ///    rules need the root, it waits in `held` for the root (bounded); without
@@ -2923,8 +3046,17 @@ fn sample_sdk_spans<S: opentelemetry_sdk::trace::ShouldSample>(
                     if !is_local_root(span) || decisions.get(&span.trace_id).is_some() {
                         continue;
                     }
-                    let sampled = TraceId::from_hex(&span.trace_id)
-                        .is_ok_and(|trace_id| ingest_sampling_decision(sampler, span, trace_id));
+                    // Only this root's own live snapshot proves an earlier
+                    // admission: engine spans of the trace may follow a
+                    // worker `traceparent` instead of this policy.
+                    let since = decisions.admitted_since;
+                    let admitted = storage
+                        .as_ref()
+                        .is_some_and(|hot| hot.pending_since(&span.trace_id, &span.span_id, since));
+                    let sampled = admitted
+                        || TraceId::from_hex(&span.trace_id).is_ok_and(|trace_id| {
+                            ingest_sampling_decision(sampler, span, trace_id)
+                        });
                     decisions.insert(&span.trace_id, sampled);
                 }
             }
@@ -10394,6 +10526,43 @@ mod tests {
             assert_eq!(held.take_due(now).len(), 1, "oldest released when full");
             assert_eq!(held.spans, MAX_HELD_SPANS);
         }
+    }
+
+    /// Review N14: held spans are bounded by their raw bytes too, so large
+    /// untruncated children cannot pile up to `MAX_HELD_SPANS` copies.
+    #[test]
+    fn held_spans_are_bounded_by_bytes() {
+        let big = |trace: &str| {
+            let mut span = sampling_span(
+                trace,
+                "00000000000000f2",
+                Some("00000000000000f1"),
+                "2",
+                None,
+            );
+            span["attributes"] = serde_json::json!([{
+                "key": "iii.payload.json",
+                "value": {"stringValue": "x".repeat(MAX_HELD_BYTES / 2)}
+            }]);
+            sampling_request(serde_json::json!([span]))
+                .resource_spans
+                .remove(0)
+        };
+        let first = "6af7651916cd43dd8448eb211c80319c";
+        let second = "7af7651916cd43dd8448eb211c80319c";
+        let now = Instant::now();
+        let mut held = HeldSpans::default();
+        held.hold(first.to_string(), big(first), 1, now);
+        assert!(held.take_due(now).is_empty(), "one fits the byte budget");
+        held.hold(second.to_string(), big(second), 1, now);
+        let due: Vec<String> = held
+            .take_due(now)
+            .into_iter()
+            .map(|(trace, _)| trace)
+            .collect();
+        assert_eq!(due, vec![first.to_string()], "oldest released over budget");
+        assert_eq!(held.spans, 1);
+        assert!(held.bytes > MAX_HELD_BYTES / 2 && held.bytes <= MAX_HELD_BYTES);
     }
 
     #[test]

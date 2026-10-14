@@ -17,7 +17,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::{
-        Arc, Mutex, RwLock, Weak,
+        Arc, Mutex, OnceLock, RwLock, Weak,
         atomic::{AtomicBool, AtomicU64, Ordering},
         mpsc::{self, RecvTimeoutError, SyncSender},
     },
@@ -1290,7 +1290,20 @@ struct WriterState {
 
 struct HeldFloor {
     traces: HashSet<String>,
+    /// Bytes in use (pages plus `-shm`) when these traces were alone.
     bytes: u64,
+    /// Their attributed sizes then: later growth (or shrinkage) of the same
+    /// traces is added as it is attributed (`now`).
+    attributed: u64,
+}
+
+impl HeldFloor {
+    /// The floor today, given what `traces` are attributed now.
+    fn now(&self, attributed_now: u64) -> u64 {
+        self.bytes
+            .saturating_add(attributed_now)
+            .saturating_sub(self.attributed)
+    }
 }
 
 /// Identifies one set of dirty rows of a trace: `(rows, payload bytes,
@@ -1319,6 +1332,29 @@ impl WriterState {
         self.deferred.clear();
         self.held_floor = None;
         self.unblock();
+    }
+
+    /// Retention may have made room: retry deferred traces now. Their
+    /// measurements and the measured floor stay; the floor is dropped only
+    /// when rows of one of its traces are deleted (`forget_floor_of`), when
+    /// limits change or on `clear`.
+    fn retry_deferred_now(&mut self) {
+        let now = Instant::now();
+        for deferral in self.deferred.values_mut() {
+            deferral.until = now;
+        }
+        self.unblock();
+    }
+
+    /// Rows of these traces were deleted: a floor that counted them is stale.
+    fn forget_floor_of<'a>(&mut self, deleted: impl IntoIterator<Item = &'a str>) {
+        if let Some(floor) = &self.held_floor
+            && deleted
+                .into_iter()
+                .any(|trace_id| floor.traces.contains(trace_id))
+        {
+            self.held_floor = None;
+        }
     }
 
     fn scratch_available(&self, now: Instant) -> bool {
@@ -1432,7 +1468,7 @@ fn handle_control(
             false
         }
         ControlMessage::Retain { response } => {
-            writer.reset();
+            writer.retry_deferred_now();
             let result = retain_database(store, connection, writer);
             let _ = response.send(result);
             false
@@ -1919,7 +1955,7 @@ fn archive_batch(
                     outcome.release([group]);
                     continue;
                 }
-                match own_room(store, connection, &group.trace_id, None) {
+                match terminal_room(store, connection, &group, writer.held_floor.as_ref(), None) {
                     Ok(room) if group.estimate > room => {
                         let reason = format!(
                             "trace {}: {} bytes incoming exceed the {room} bytes it could ever use beside its own archived rows",
@@ -2065,7 +2101,7 @@ fn classify_group(
             }
         },
     };
-    let room = own_room(store, connection, &group.trace_id, None)?;
+    let room = terminal_room(store, connection, group, writer.held_floor.as_ref(), None)?;
     if measured > room {
         if group.rows.len() > 1 {
             group.trial_first = true;
@@ -2106,7 +2142,13 @@ fn judge_rejected(
     outcome: &mut BatchOutcome,
 ) {
     for _ in 0..JUDGE_ROUNDS {
-        let ever = match own_room(store, connection, &group.trace_id, Some(room)) {
+        let ever = match terminal_room(
+            store,
+            connection,
+            &group,
+            writer.held_floor.as_ref(),
+            Some(room),
+        ) {
             Ok(ever) => ever,
             Err(error) => {
                 outcome.error = Some(error);
@@ -2166,6 +2208,31 @@ fn judge_rejected(
     outcome.defer(group, reason);
 }
 
+/// Fixed bytes of one attribute row and its two index entries beyond the
+/// ids, key and value (cell headers, rowid, epoch, ordinal).
+const ATTRIBUTE_ROW_OVERHEAD: u64 = 32;
+/// Fixed bytes of one span row and its three index entries beyond the ids.
+const SPAN_ROW_OVERHEAD: u64 = 96;
+
+/// Relative storage weight of one span row, used only to share a commit's
+/// measured page delta among the traces it wrote. Unlike the lower bound it
+/// counts the per-row cost that dominates spans with many small attributes:
+/// each attribute is a table row plus a primary-key and a lookup index entry,
+/// each carrying the trace and span ids.
+fn row_storage_weight(span: &StoredSpan, payload: &str) -> u64 {
+    let trace = span.trace_id.len() as u64;
+    let span_id = span.span_id.len() as u64;
+    let per_attribute = 3 * trace + 2 * span_id + ATTRIBUTE_ROW_OVERHEAD;
+    let attributes = span
+        .attributes
+        .iter()
+        .map(|(key, value)| 2 * (key.len() + value.len()) as u64 + per_attribute)
+        .fold(0_u64, u64::saturating_add);
+    (payload.len() as u64)
+        .saturating_add(attributes)
+        .saturating_add(4 * (trace + span_id) + SPAN_ROW_OVERHEAD)
+}
+
 /// How many leading rows of `group` fit in `room`, sharing the measured
 /// `growth` of the whole group by each row's lower bound, and their share.
 fn fitting_prefix(group: &TraceGroup, growth: u64, room: u64) -> (usize, u64) {
@@ -2193,34 +2260,125 @@ fn used_bytes(store: &TraceDiskStore, connection: &Connection) -> Result<u64, St
         .saturating_add(store.sidecar_bytes()))
 }
 
-/// Room `trace_id` could ever have beside its own durable rows: the room the
-/// archive has now (`room_now`, or limit plus tolerance minus the bytes in
-/// use) plus what every other trace holds, by its commit-measured
-/// `image_bytes` (at least its `approx_bytes`). The trace's own rows, the
-/// fixed schema pages and the -shm index stay counted as in use.
-fn own_room(
+/// The most `group` could ever be given beside its trace's own durable rows,
+/// as a terminal (drop) bound:
+/// - exact when no other trace holds rows: the room the archive has now
+///   (`room_now`, or limit plus tolerance minus the bytes in use), so a group
+///   that does not fit beside its own rows is settled (N4);
+/// - otherwise permissive, because the sizes of other traces are only
+///   attributed (or unknown, `image_bytes = 0` in archives from older
+///   versions): limit plus tolerance minus the lower bound of the trace's own
+///   rows, the fixed schema pages and the -shm index. Groups below it wait,
+///   the others are evicted when unprotected, and the group is judged again,
+///   exactly, once they are gone;
+/// - at most the measured floor allows when only this trace held rows once
+///   every unprotected trace was gone: those bytes, plus the trace's
+///   attributed change since, stay beside any group of it.
+fn terminal_room(
     store: &TraceDiskStore,
     connection: &Connection,
-    trace_id: &str,
+    group: &TraceGroup,
+    floor: Option<&HeldFloor>,
     room_now: Option<u64>,
 ) -> Result<u64, String> {
-    let room_now = match room_now {
-        Some(room) => room,
-        None => store
-            .capacity_limits()
-            .threshold
-            .saturating_sub(used_bytes(store, connection)?),
-    };
+    let limits = store.capacity_limits();
     let epoch = store.epoch.load(Ordering::Acquire) as i64;
-    let others: i64 = connection
+    let others: bool = connection
         .query_row(
-            "SELECT COALESCE(SUM(MAX(image_bytes, approx_bytes)), 0) FROM trace_meta
-             WHERE epoch = ?1 AND trace_id <> ?2",
-            params![epoch, trace_id],
+            "SELECT EXISTS(SELECT 1 FROM trace_meta WHERE epoch = ?1 AND trace_id <> ?2)",
+            params![epoch, group.trace_id],
             |row| row.get(0),
         )
-        .map_err(|err| database_error(&store.database_path, "other traces size", err))?;
-    Ok(room_now.saturating_add(others.max(0) as u64))
+        .map_err(|err| database_error(&store.database_path, "other traces lookup", err))?;
+    if !others {
+        return match room_now {
+            Some(room) => Ok(room),
+            None => Ok(limits
+                .threshold
+                .saturating_sub(used_bytes(store, connection)?)),
+        };
+    }
+    let permissive = limits
+        .threshold
+        .saturating_sub(own_lower_bound(store, connection, group)?)
+        .saturating_sub(schema_base_bytes())
+        .saturating_sub(store.sidecar_bytes());
+    let Some(floor) = floor.filter(|floor| {
+        floor
+            .traces
+            .iter()
+            .all(|trace_id| *trace_id == group.trace_id)
+    }) else {
+        return Ok(permissive);
+    };
+    let attributed: i64 = connection
+        .query_row(
+            "SELECT COALESCE(MAX(MAX(image_bytes, approx_bytes)), 0) FROM trace_meta
+             WHERE epoch = ?1 AND trace_id = ?2",
+            params![epoch, group.trace_id],
+            |row| row.get(0),
+        )
+        .map_err(|err| database_error(&store.database_path, "trace size lookup", err))?;
+    Ok(permissive.min(
+        limits
+            .threshold
+            .saturating_sub(floor.now(attributed.max(0) as u64)),
+    ))
+}
+
+/// Lower bound of the trace's durable rows that `group` does not replace,
+/// computed in SQL without reading payloads into memory (`length` counts
+/// characters, never more than bytes).
+fn own_lower_bound(
+    store: &TraceDiskStore,
+    connection: &Connection,
+    group: &TraceGroup,
+) -> Result<u64, String> {
+    let epoch = store.epoch.load(Ordering::Acquire) as i64;
+    let replaced: HashSet<&str> = group
+        .rows
+        .iter()
+        .map(|row| row.span.span_id.as_str())
+        .collect();
+    let mut statement = connection
+        .prepare_cached(
+            "SELECT s.span_id, length(s.payload) + 2 * COALESCE((
+                SELECT SUM(length(a.key) + length(a.value)) FROM span_attributes a
+                WHERE a.epoch = s.epoch AND a.trace_id = s.trace_id AND a.span_id = s.span_id
+             ), 0)
+             FROM spans s WHERE s.epoch = ?1 AND s.trace_id = ?2",
+        )
+        .map_err(|err| database_error(&store.database_path, "archived size preparation", err))?;
+    let rows = statement
+        .query_map(params![epoch, group.trace_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })
+        .map_err(|err| database_error(&store.database_path, "archived size query", err))?;
+    let mut kept = 0_u64;
+    for row in rows {
+        let (span_id, bytes) =
+            row.map_err(|err| database_error(&store.database_path, "archived size row", err))?;
+        if !replaced.contains(span_id.as_str()) {
+            kept = kept.saturating_add(bytes.max(0) as u64);
+        }
+    }
+    Ok(kept)
+}
+
+/// Bytes an empty archive already occupies (schema root pages, pointer map),
+/// measured once on an in-memory copy of the schema.
+fn schema_base_bytes() -> u64 {
+    static BASE: OnceLock<u64> = OnceLock::new();
+    *BASE.get_or_init(|| {
+        Connection::open_in_memory()
+            .and_then(|connection| {
+                connection.execute_batch("PRAGMA auto_vacuum=INCREMENTAL;")?;
+                connection.execute_batch(SCHEMA_SQL)?;
+                page_stats(&connection)
+            })
+            .map(|stats| stats.pages.saturating_mul(stats.page_size))
+            .unwrap_or(64 * 1024)
+    })
 }
 
 /// A private scratch file, removed on drop.
@@ -2517,18 +2675,26 @@ fn try_commit(
         return Ok(Trial::Rejected { growth, room });
     }
     // Pages this transaction consumed (new pages plus reused free pages,
-    // minus pages freed by replaced versions), shared by lower bound when
+    // minus pages freed by replaced versions), shared by storage weight when
     // several traces were written together. Summed over the traces this is
     // the file's used size; one trace written alone gets its exact delta.
     let delta =
         (after.pages as i128 + before.free as i128 - before.pages as i128 - after.free as i128)
             * after.page_size as i128;
-    let weights: i128 = groups
+    let group_weights: Vec<i128> = groups
         .iter()
-        .map(|group| group.lower_bound.max(1) as i128)
-        .sum();
-    for group in groups {
-        let share = delta * group.lower_bound.max(1) as i128 / weights.max(1);
+        .map(|group| {
+            group
+                .rows
+                .iter()
+                .map(|row| row_storage_weight(&row.span, &row.payload))
+                .fold(0_u64, u64::saturating_add)
+                .max(1) as i128
+        })
+        .collect();
+    let weights: i128 = group_weights.iter().sum();
+    for (group, weight) in groups.iter().zip(&group_weights) {
+        let share = delta * weight / weights.max(1);
         tx.execute(
             "UPDATE trace_meta SET image_bytes = MAX(0, image_bytes + ?3)
              WHERE epoch = ?1 AND trace_id = ?2",
@@ -2700,19 +2866,46 @@ fn ensure_capacity(
         .into_iter()
         .partition(|(trace_id, _)| protected.contains(trace_id));
     if current <= limits.threshold && !incoming.is_empty() {
-        let mut held_estimate = held
+        let held_total = held
             .iter()
             .map(|(_, bytes)| *bytes)
             .fold(0_u64, u64::saturating_add);
-        if let Some(floor) = &writer.held_floor
-            && floor
+        let held_by_trace: HashMap<&str, u64> = held
+            .iter()
+            .map(|(trace_id, bytes)| (trace_id.as_str(), *bytes))
+            .collect();
+        // A floor trace that lost its protection can finish or be evicted:
+        // the measurement no longer bounds what the protected traces hold.
+        if writer.held_floor.as_ref().is_some_and(|floor| {
+            !floor
                 .traces
                 .iter()
                 .all(|trace_id| protected.contains(trace_id))
-        {
-            held_estimate = held_estimate.max(floor.bytes);
+        }) {
+            writer.held_floor = None;
         }
+        // With a measured floor: the floor today plus what the protected
+        // traces outside it are attributed.
+        let floor_estimate = writer.held_floor.as_ref().map(|floor| {
+            let (inside, outside) =
+                held.iter()
+                    .fold((0_u64, 0_u64), |(inside, outside), (trace_id, bytes)| {
+                        if floor.traces.contains(trace_id) {
+                            (inside.saturating_add(*bytes), outside)
+                        } else {
+                            (inside, outside.saturating_add(*bytes))
+                        }
+                    });
+            floor.now(inside).saturating_add(outside)
+        });
         for (trace_id, bytes) in incoming {
+            // Without one, a group's own durable rows are left out: their
+            // attributed size may be too high. A group that still does not
+            // fit once the unprotected traces are gone is judged exactly
+            // after that one eviction, which measures the floor.
+            let held_estimate = floor_estimate.unwrap_or_else(|| {
+                held_total.saturating_sub(held_by_trace.get(trace_id).copied().unwrap_or(0))
+            });
             if held_estimate.saturating_add(*bytes) > limits.threshold {
                 cannot_fit_now.insert((*trace_id).to_string());
                 incoming_bytes = incoming_bytes.saturating_sub(*bytes);
@@ -2774,6 +2967,7 @@ fn ensure_capacity(
         }
         tx.commit()
             .map_err(|err| storage_error("eviction transaction commit", err))?;
+        writer.forget_floor_of(chunk.iter().copied());
         evicted_any = true;
         // Vacuum BEFORE the checkpoint (reclaim_free_pages does both, in
         // steps): in WAL mode the freed pages land in the write-ahead log and
@@ -2803,7 +2997,11 @@ fn ensure_capacity(
     if next_candidate >= candidates.len() {
         writer.held_floor = Some(HeldFloor {
             traces: held.iter().map(|(trace_id, _)| trace_id.clone()).collect(),
-            bytes: measure().unwrap_or(measured),
+            bytes: used_bytes(store, connection).unwrap_or_else(|_| measure().unwrap_or(measured)),
+            attributed: held
+                .iter()
+                .map(|(_, bytes)| *bytes)
+                .fold(0_u64, u64::saturating_add),
         });
     }
 
@@ -2901,6 +3099,7 @@ fn retain_database(
                 database_error(&store.database_path, "retention transaction commit", err)
             })?;
         }
+        writer.forget_floor_of(traces.iter().map(String::as_str));
         // Return the space in bounded steps; see `reclaim_free_pages`.
         let _ = reclaim_free_pages(connection);
     }
@@ -5224,5 +5423,306 @@ mod tests {
             "missing-TMPDIR child failed:\nstdout:\n{}\nstderr:\n{stderr}",
             String::from_utf8_lossy(&output.stdout)
         );
+    }
+
+    fn hex_trace(tag: u64, index: u64) -> String {
+        format!("{tag:08x}{index:024x}")
+    }
+
+    fn hex_span(index: u64) -> String {
+        format!("{index:016x}")
+    }
+
+    fn wait_for_rows(directory: &Path, prefix: &str, rows: i64, limit: Duration) -> i64 {
+        let deadline = Instant::now() + limit;
+        loop {
+            let found = count_trace_prefix(directory, prefix);
+            if found >= rows || Instant::now() >= deadline {
+                return found;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    /// A live trace (600 spans of 200 tiny attributes) committed in the same
+    /// batches as 60 payload traces (prefix `bbbb0003`), so its size is
+    /// attributed from shared commits. Returns the live trace id.
+    fn shared_commit_live_trace(store: &TraceDiskStore, hot: &Arc<InMemorySpanStorage>) -> String {
+        let live = hex_trace(0xaaaa_0003, 1);
+        for round in 0..6_u64 {
+            let mut spans = Vec::new();
+            for batch in 0..10_u64 {
+                for index in 0..10_u64 {
+                    let span_id = hex_span(round * 100 + batch * 10 + index + 10);
+                    spans.push(span_with(&live, &span_id, tiny_attributes(200)));
+                }
+                spans.push(span_with(
+                    &hex_trace(0xbbbb_0003, round * 10 + batch),
+                    &hex_span(1),
+                    payload_attribute(64 * 1024),
+                ));
+            }
+            hot.add_spans(spans);
+            store.flush().unwrap();
+        }
+        let mut snapshot = span_with(&live, &hex_span(1), Vec::new());
+        snapshot.pending = true;
+        snapshot.end_time_unix_nano = 0;
+        hot.add_pending_span(snapshot);
+        live
+    }
+
+    /// Review N3c: the measured floor survives a retention pass that deletes
+    /// none of its traces; deleting rows of one of them, new limits or a
+    /// clear (`reset`) drop it.
+    #[test]
+    fn held_floor_survives_retention_unless_its_traces_lose_rows() {
+        let floor = || {
+            Some(HeldFloor {
+                traces: HashSet::from(["live".to_string()]),
+                bytes: 42,
+                attributed: 0,
+            })
+        };
+        let mut writer = WriterState {
+            held_floor: floor(),
+            ..WriterState::default()
+        };
+        writer.deferred.insert(
+            "group".to_string(),
+            Deferral {
+                until: Instant::now() + Duration::from_secs(60),
+                delay: Duration::from_secs(1),
+                measured: None,
+            },
+        );
+        writer.retry_deferred_now();
+        assert!(writer.held_floor.is_some(), "retention keeps the floor");
+        assert!(
+            writer.deferred["group"].until <= Instant::now(),
+            "retried now"
+        );
+        writer.forget_floor_of(["other"]);
+        assert!(writer.held_floor.is_some(), "unrelated rows deleted");
+        writer.forget_floor_of(["live"]);
+        assert!(writer.held_floor.is_none(), "rows of a floor trace deleted");
+        writer.held_floor = floor();
+        writer.reset();
+        assert!(writer.held_floor.is_none() && writer.deferred.is_empty());
+    }
+
+    /// Review N3c: the size of a live trace is unknown (`image_bytes = 0`, as
+    /// written by an older version), so a group that cannot fit beside it
+    /// evicts the unprotected history once and measures the floor. Later
+    /// history is spared by the floor on the backoff retry AND after a
+    /// retention pass; the group waits (it fits an empty archive).
+    #[test]
+    fn retention_keeps_the_floor_of_a_live_trace_of_unknown_size() {
+        let directory = tempfile::tempdir().unwrap();
+        let store =
+            TraceDiskStore::open(&capped_config(directory.path(), 64 * 1024 * 1024)).unwrap();
+        let hot = hot_cache(200_000, 4096 * 1024 * 1024);
+        store.attach_hot_storage(&hot);
+        let live = shared_commit_live_trace(&store, &hot);
+        Connection::open(directory.path().join("traces.sqlite3"))
+            .unwrap()
+            .execute(
+                "UPDATE trace_meta SET image_bytes = 0 WHERE trace_id = ?1",
+                params![live],
+            )
+            .unwrap();
+        let group = hex_trace(0xcccc_0004, 1);
+        hot.add_spans(vec![span_with(
+            &group,
+            &hex_span(1),
+            wide_attributes(280, 64 * 1024),
+        )]);
+        let first = store.flush();
+        let first_history = count_trace_prefix(directory.path(), "bbbb0003");
+        hot.add_spans(
+            (0..40_u64)
+                .map(|index| {
+                    span_with(
+                        &hex_trace(0xdddd_0004, index),
+                        &hex_span(1),
+                        payload_attribute(64 * 1024),
+                    )
+                })
+                .collect(),
+        );
+        let written = wait_for_rows(directory.path(), "dddd0004", 40, Duration::from_secs(5));
+        std::thread::sleep(Duration::from_millis(2_500));
+        let after_retry = count_trace_prefix(directory.path(), "dddd0004");
+        let retained = store.retain();
+        std::thread::sleep(Duration::from_millis(1_500));
+        let after_retain = count_trace_prefix(directory.path(), "dddd0004");
+        let status = store.status();
+        eprintln!(
+            "EVIDENCE N3C first_flush={first:?} first_history_left={first_history} written={written} after_backoff_retry={after_retry} retain={retained:?} after_retain={after_retain} group_rows={} dropped={}",
+            count_trace_prefix(directory.path(), "cccc0004"),
+            status.known_dropped_spans
+        );
+        store.shutdown();
+        assert_eq!(written, 40);
+        assert_eq!(after_retry, 40, "the floor spares later history");
+        assert!(retained.is_ok());
+        assert_eq!(after_retain, 40, "retention keeps the measured floor");
+        assert_eq!(status.known_dropped_spans, 0, "the group waits");
+    }
+
+    /// Review N11: a group that fits an empty archive but not beside a live
+    /// trace sized from shared commits waits: no history is evicted for it
+    /// and nothing is dropped.
+    #[test]
+    fn shared_commit_attribution_does_not_evict_history_in_vain() {
+        let directory = tempfile::tempdir().unwrap();
+        let store =
+            TraceDiskStore::open(&capped_config(directory.path(), 64 * 1024 * 1024)).unwrap();
+        let hot = hot_cache(200_000, 4096 * 1024 * 1024);
+        store.attach_hot_storage(&hot);
+        let live = shared_commit_live_trace(&store, &hot);
+        let image_bytes: i64 = Connection::open(directory.path().join("traces.sqlite3"))
+            .unwrap()
+            .query_row(
+                "SELECT image_bytes FROM trace_meta WHERE trace_id = ?1",
+                params![live],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let history = count_trace_prefix(directory.path(), "bbbb0003");
+        hot.add_spans(vec![span_with(
+            &hex_trace(0xcccc_0003, 1),
+            &hex_span(1),
+            wide_attributes(300, 64 * 1024),
+        )]);
+        let flushed = store.flush();
+        let status = store.status();
+        let history_after = count_trace_prefix(directory.path(), "bbbb0003");
+        eprintln!(
+            "EVIDENCE N11 live_image_bytes={image_bytes} flush={flushed:?} history={history}->{history_after} dropped={}",
+            status.known_dropped_spans
+        );
+        store.shutdown();
+        assert_eq!(history, 60);
+        assert_eq!(history_after, history, "no history evicted in vain");
+        assert_eq!(status.known_dropped_spans, 0, "the group waits");
+    }
+
+    /// A live trace whose rows are far larger than their lower bound (many
+    /// tiny attributes) fills the archive, and its large spans can never fit
+    /// beside those rows. They are dropped (counted) on the measured floor
+    /// without evicting the history written between them.
+    #[test]
+    fn spans_that_never_fit_beside_their_live_trace_do_not_evict_history() {
+        let directory = tempfile::tempdir().unwrap();
+        let store =
+            TraceDiskStore::open(&capped_config(directory.path(), 16 * 1024 * 1024)).unwrap();
+        let hot = hot_cache(200_000, 4096 * 1024 * 1024);
+        store.attach_hot_storage(&hot);
+        let live = hex_trace(0xabcd_0001, 1);
+        let mut root = span_with(&live, &hex_span(1), Vec::new());
+        root.pending = true;
+        root.end_time_unix_nano = 0;
+        hot.add_pending_span(root);
+        hot.add_spans(
+            (0..900_u64)
+                .map(|index| span_with(&live, &hex_span(index + 10), tiny_attributes(100)))
+                .collect(),
+        );
+        store.flush().unwrap();
+        let mut evidence = Vec::new();
+        for (round, tag) in [0xbcde_0001_u64, 0xbcde_0002].into_iter().enumerate() {
+            hot.add_spans(
+                (0..10_u64)
+                    .map(|index| {
+                        span_with(
+                            &hex_trace(tag, index),
+                            &hex_span(1),
+                            payload_attribute(64 * 1024),
+                        )
+                    })
+                    .collect(),
+            );
+            store.flush().unwrap();
+            let prefix = format!("{tag:08x}");
+            let written = count_trace_prefix(directory.path(), &prefix);
+            hot.add_spans(vec![span_with(
+                &live,
+                &hex_span(5_000 + round as u64),
+                wide_attributes(33, 64 * 1024),
+            )]);
+            let flushed = store.flush();
+            let left = count_trace_prefix(directory.path(), &prefix);
+            evidence.push(format!(
+                "round{round} history {written}->{left} flush={flushed:?}"
+            ));
+            assert_eq!(written, 10);
+            assert_eq!(left, written, "history evicted for a span that never fits");
+        }
+        let status = store.status();
+        eprintln!(
+            "EVIDENCE NEVER_FIT {} live_rows={} dropped={} dirty={}",
+            evidence.join(" | "),
+            count_trace_prefix(directory.path(), "abcd0001"),
+            status.known_dropped_spans,
+            hot.dirty_len()
+        );
+        store.shutdown();
+        assert_eq!(status.known_dropped_spans, 2, "both spans dropped, counted");
+        assert_eq!(hot.dirty_len(), 0);
+    }
+
+    /// Review N13: in an archive written by an older version (`image_bytes
+    /// = 0`) the sizes of other traces are unknown, so a group that fits once
+    /// unprotected history is evicted is written, not dropped. Control: the
+    /// same with measured sizes.
+    #[test]
+    fn unknown_sizes_of_other_traces_never_drop_a_group_that_fits() {
+        for unknown in [true, false] {
+            let directory = tempfile::tempdir().unwrap();
+            let store =
+                TraceDiskStore::open(&capped_config(directory.path(), 64 * 1024 * 1024)).unwrap();
+            let hot = hot_cache(200_000, 4096 * 1024 * 1024);
+            store.attach_hot_storage(&hot);
+            for chunk in 0..5_u64 {
+                hot.add_spans(
+                    (0..50_u64)
+                        .map(|index| {
+                            span_with(
+                                &hex_trace(0xeeee_0003, chunk * 50 + index),
+                                &hex_span(1),
+                                payload_attribute(64 * 1024),
+                            )
+                        })
+                        .collect(),
+                );
+                store.flush().unwrap();
+            }
+            if unknown {
+                Connection::open(directory.path().join("traces.sqlite3"))
+                    .unwrap()
+                    .execute("UPDATE trace_meta SET image_bytes = 0", [])
+                    .unwrap();
+            }
+            hot.add_spans(vec![span_with(
+                &hex_trace(0xffff_0003, 1),
+                &hex_span(1),
+                wide_attributes(230, 64 * 1024),
+            )]);
+            let flushed = store.flush();
+            let group_rows =
+                wait_for_rows(directory.path(), "ffff0003", 1, Duration::from_secs(10));
+            let status = store.status();
+            let legacy = count_trace_prefix(directory.path(), "eeee0003");
+            eprintln!(
+                "EVIDENCE N13 unknown_sizes={unknown} flush={flushed:?} legacy=250->{legacy} group_rows={group_rows} dropped={} dirty={}",
+                status.known_dropped_spans,
+                hot.dirty_len()
+            );
+            store.shutdown();
+            assert_eq!(status.known_dropped_spans, 0, "unknown_sizes={unknown}");
+            assert_eq!(group_rows, 1, "unknown_sizes={unknown}");
+            assert!(legacy < 250, "unprotected history made room");
+        }
     }
 }

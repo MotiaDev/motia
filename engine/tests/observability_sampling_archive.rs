@@ -363,6 +363,24 @@ async fn sdk_and_engine_spans_obey_live_sampling_in_memory_and_archive() {
     )])))
     .await
     .unwrap();
+    // N12: likewise a long root whose start snapshot (and a child) was
+    // kept: its final is recognised by the live snapshot, not re-decided.
+    tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+    let long = "8df7651916cd43dd8448eb211c80319c";
+    otel::ingest_otlp_json(&worker_request(json!([
+        worker_span(long, "00000000000000c1", None, "root-op", "0", None),
+        worker_span(
+            long,
+            "00000000000000c2",
+            Some("00000000000000c1"),
+            "child-op",
+            CHILD_END,
+            None
+        ),
+    ])))
+    .await
+    .unwrap();
+    assert_eq!(stored_names(long), ["child-op", "root-op(pending)"]);
     for chunk in 0..17_u64 {
         let spans: Vec<_> = (0..1000_u64)
             .map(|index| {
@@ -394,6 +412,21 @@ async fn sdk_and_engine_spans_obey_live_sampling_in_memory_and_archive() {
         stored_names(r),
         ["child-op", "root-op"],
         "cache pressure N8"
+    );
+    otel::ingest_otlp_json(&worker_request(json!([worker_span(
+        long,
+        "00000000000000c1",
+        None,
+        "root-op",
+        END,
+        None
+    )])))
+    .await
+    .unwrap();
+    assert_eq!(
+        stored_names(long),
+        ["child-op", "root-op"],
+        "cache pressure N12: the root final keeps its snapshot's verdict"
     );
 
     // Rules: worker children follow the root like engine children do, also
