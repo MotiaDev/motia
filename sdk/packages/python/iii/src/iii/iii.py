@@ -10,7 +10,7 @@ import random
 import threading
 import traceback
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib.metadata import version
 from typing import Any, Awaitable, Callable, Coroutine, TypeVar, cast
 
@@ -26,7 +26,7 @@ from iii_helpers.stream import (
 )
 from websockets.asyncio.client import ClientConnection
 
-from .channels import ChannelReader, ChannelWriter
+from .channels import ChannelReader, ChannelWriter, resolve_headers
 from .errors import InvocationError, RegistrationRejectedError, _wrap_wire_error
 from .format_utils import extract_request_format, extract_response_format
 from .iii_constants import (
@@ -362,12 +362,24 @@ class III:
         from iii_helpers.observability.telemetry import attach_event_loop, init_otel
 
         loop = asyncio.get_running_loop()
-        otel_cfg: OtelConfig | None = None
+        otel_cfg = OtelConfig()
         if self._options.otel:
             if isinstance(self._options.otel, OtelConfig):
                 otel_cfg = self._options.otel
             else:
                 otel_cfg = OtelConfig(**self._options.otel)
+        # Telemetry dials the same engine with the same headers, unless the caller set its own.
+        # Headers use `is None`: an explicit `{}` selects no headers and must not inherit the
+        # main connection's (which carry III_TOKEN). A blank URL is not a selection, so it keeps `or`.
+        otel_cfg = replace(
+            otel_cfg,
+            engine_ws_url=otel_cfg.engine_ws_url or self._address,
+            engine_ws_headers=(
+                resolve_headers(self._options.headers)
+                if otel_cfg.engine_ws_headers is None
+                else otel_cfg.engine_ws_headers
+            ),
+        )
         init_otel(config=otel_cfg, loop=loop)
         attach_event_loop(loop)
         self._set_connection_state("connecting")
@@ -429,7 +441,7 @@ class III:
             log.debug(f"Connecting to {self._address}")
             ws = await websockets.connect(
                 self._address,
-                additional_headers=self._options.headers,
+                additional_headers=resolve_headers(self._options.headers),
                 max_size=_MAX_JSON_MESSAGE_BYTES,
             )
             self._ws = ws
@@ -897,9 +909,9 @@ class III:
         if is_channel_ref(data):
             ref = StreamChannelRef(**data)
             return (
-                ChannelReader(self._address, ref)
+                ChannelReader(self._address, ref, self._options.headers)
                 if ref.direction == "read"
-                else ChannelWriter(self._address, ref)
+                else ChannelWriter(self._address, ref, self._options.headers)
             )
         if isinstance(data, dict):
             return {k: self._resolve_channels(v) for k, v in data.items()}
@@ -1665,8 +1677,8 @@ class III:
         writer_ref = StreamChannelRef(**result["writer"])
         reader_ref = StreamChannelRef(**result["reader"])
         return Channel(
-            writer=ChannelWriter(self._address, writer_ref),
-            reader=ChannelReader(self._address, reader_ref),
+            writer=ChannelWriter(self._address, writer_ref, self._options.headers),
+            reader=ChannelReader(self._address, reader_ref, self._options.headers),
             writer_ref=writer_ref,
             reader_ref=reader_ref,
         )

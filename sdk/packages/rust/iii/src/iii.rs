@@ -354,7 +354,9 @@ const SDK_VERSION: &str = env!("CARGO_PKG_VERSION");
 use iii_helpers::http::HttpInvocationConfig;
 
 use crate::{
-    channels::{ChannelReader, ChannelWriter, StreamChannelRef},
+    channels::{
+        ChannelReader, ChannelWriter, StreamChannelRef, handshake_headers, handshake_request,
+    },
     error::Error,
     protocol::{
         ErrorBody, FUNCTION_NAMESPACE_CONFLICT, Message, RegisterFunctionMessage,
@@ -1488,6 +1490,24 @@ impl IIIClient {
         *self.inner.otel_config.lock_or_recover() = Some(config);
     }
 
+    /// The telemetry config, with the engine URL and handshake headers of this
+    /// connection filled in when the caller set none.
+    fn take_otel_config(&self) -> OtelConfig {
+        let mut config = self
+            .inner
+            .otel_config
+            .lock_or_recover()
+            .take()
+            .unwrap_or_default();
+        if config.engine_ws_url.is_none() {
+            config.engine_ws_url = Some(self.inner.address.clone());
+        }
+        config
+            .engine_ws_headers
+            .get_or_insert_with(|| handshake_headers(self.inner.headers.lock_or_recover().clone()));
+        config
+    }
+
     pub(crate) fn connect(&self) {
         if self.inner.started.swap(true, Ordering::SeqCst) {
             return;
@@ -1500,18 +1520,7 @@ impl IIIClient {
 
         let iii = self.clone();
 
-        let otel_config = {
-            let mut config = self
-                .inner
-                .otel_config
-                .lock_or_recover()
-                .take()
-                .unwrap_or_default();
-            if config.engine_ws_url.is_none() {
-                config.engine_ws_url = Some(self.inner.address.clone());
-            }
-            config
-        };
+        let otel_config = self.take_otel_config();
 
         // Spawn a dedicated OS thread with its own tokio runtime so
         // the connection loop is independent of the caller's runtime.
@@ -2157,39 +2166,15 @@ impl IIIClient {
                 IIIConnectionState::Connecting
             });
 
-            let custom_headers = self.inner.headers.lock_or_recover().clone();
+            let headers = handshake_headers(self.inner.headers.lock_or_recover().clone());
 
             // Cap the whole connect (TCP + TLS + WS upgrade): a stalled
             // socket otherwise wedges this loop forever and the worker sits
             // in Reconnecting with zero functions registered engine-side
             // (MOT-3857).
             let connect_result = tokio::time::timeout(t.connect_timeout, async {
-                if let Some(ref h) = custom_headers {
-                    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-                    use tokio_tungstenite::tungstenite::http;
-                    let mut request = self
-                        .inner
-                        .address
-                        .as_str()
-                        .into_client_request()
-                        .expect("valid ws request");
-                    for (k, v) in h {
-                        if let (Ok(name), Ok(val)) = (
-                            http::header::HeaderName::from_bytes(k.as_bytes()),
-                            http::header::HeaderValue::from_str(v),
-                        ) {
-                            request.headers_mut().insert(name, val);
-                        }
-                    }
-                    connect_async_with_config(request, Some(Self::receive_config()), false).await
-                } else {
-                    connect_async_with_config(
-                        &self.inner.address,
-                        Some(Self::receive_config()),
-                        false,
-                    )
-                    .await
-                }
+                let request = handshake_request(&self.inner.address, &headers)?;
+                connect_async_with_config(request, Some(Self::receive_config()), false).await
             })
             .await;
 
@@ -3098,9 +3083,10 @@ pub(crate) async fn internal_create_channel(
     )
     .map_err(|e| Error::Serde(e.to_string()))?;
 
+    let headers = iii.inner.headers.lock_or_recover().clone();
     Ok(Channel {
-        writer: ChannelWriter::new(&iii.inner.address, &writer_ref),
-        reader: ChannelReader::new(&iii.inner.address, &reader_ref),
+        writer: ChannelWriter::new(&iii.inner.address, &writer_ref).with_headers(headers.clone()),
+        reader: ChannelReader::new(&iii.inner.address, &reader_ref).with_headers(headers),
         writer_ref,
         reader_ref,
     })
@@ -3309,6 +3295,167 @@ mod tests {
         let n = handshakes.load(Ordering::SeqCst);
         iii.shutdown_async().await;
         assert_eq!(n, 1, "healthy pinged connection must not be torn down");
+    }
+
+    type Handshake = (String, tokio_tungstenite::tungstenite::http::HeaderMap);
+
+    /// WS server that reports each handshake's request URI and headers.
+    // tungstenite's handshake callback is forced to return its large error type.
+    #[allow(clippy::result_large_err)]
+    async fn spawn_handshake_recorder() -> (std::net::SocketAddr, mpsc::UnboundedReceiver<Handshake>)
+    {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (tx, rx) = mpsc::unbounded_channel();
+        tokio::spawn(async move {
+            while let Ok((sock, _)) = listener.accept().await {
+                let tx = tx.clone();
+                tokio::spawn(async move {
+                    let record =
+                        |req: &tokio_tungstenite::tungstenite::handshake::server::Request, resp| {
+                            let _ = tx.send((req.uri().to_string(), req.headers().clone()));
+                            Ok(resp)
+                        };
+                    let Ok(mut ws) = tokio_tungstenite::accept_hdr_async(sock, record).await else {
+                        return;
+                    };
+                    while let Some(Ok(_)) = ws.next().await {}
+                });
+            }
+        });
+        (addr, rx)
+    }
+
+    async fn next_handshake(rx: &mut mpsc::UnboundedReceiver<Handshake>) -> Handshake {
+        tokio::time::timeout(Duration::from_secs(5), rx.recv())
+            .await
+            .expect("no handshake within 5s")
+            .expect("recorder stopped")
+    }
+
+    fn connect_recording(
+        addr: std::net::SocketAddr,
+        headers: Option<HashMap<String, String>>,
+    ) -> IIIClient {
+        let iii = IIIClient::new(&format!("ws://{addr}"));
+        // Keep OTel's exporter from dialing the recorder too.
+        *iii.inner.otel_config.lock_or_recover() = Some(OtelConfig {
+            enabled: Some(false),
+            ..Default::default()
+        });
+        if let Some(headers) = headers {
+            iii.set_headers(headers);
+        }
+        iii.connect();
+        iii
+    }
+
+    fn channel_ref(direction: crate::channels::ChannelDirection) -> StreamChannelRef {
+        StreamChannelRef {
+            channel_id: "chan".into(),
+            access_key: "key".into(),
+            direction,
+        }
+    }
+
+    /// `III_TOKEN` alone authenticates the main connection and both channel
+    /// ends, and an explicit `Authorization` wins on each of them. Sync because
+    /// the env guard is a std mutex that must not be held across an await.
+    #[test]
+    fn iii_token_authenticates_the_handshake_of_the_connection_and_channels() {
+        use crate::channels::ChannelDirection::{Read, Write};
+
+        let env = ScopedEnvVar::new("III_TOKEN");
+        env.set("secret");
+        let explicit =
+            HashMap::from([("authorization".to_string(), "Bearer explicit".to_string())]);
+
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let (addr, mut rx) = spawn_handshake_recorder().await;
+            let auth = |h: &Handshake| {
+                h.1.get("authorization")
+                    .map(|v| v.to_str().unwrap().to_string())
+            };
+
+            let iii = connect_recording(addr, None);
+            assert_eq!(
+                auth(&next_handshake(&mut rx).await).as_deref(),
+                Some("Bearer secret")
+            );
+            iii.shutdown_async().await;
+
+            let iii = connect_recording(addr, Some(explicit.clone()));
+            assert_eq!(
+                auth(&next_handshake(&mut rx).await).as_deref(),
+                Some("Bearer explicit")
+            );
+            iii.shutdown_async().await;
+
+            // The base query survives, and the channel's own params follow it.
+            let base = format!("ws://{addr}/?token=abc");
+            let writer = ChannelWriter::new(&base, &channel_ref(Write));
+            writer.send_message("hi").await.unwrap();
+            let handshake = next_handshake(&mut rx).await;
+            assert_eq!(handshake.0, "/ws/channels/chan?token=abc&key=key&dir=write");
+            assert_eq!(auth(&handshake).as_deref(), Some("Bearer secret"));
+
+            let reader = ChannelReader::new(&base, &channel_ref(Read));
+            let _ = tokio::time::timeout(Duration::from_millis(500), reader.next_binary()).await;
+            let handshake = next_handshake(&mut rx).await;
+            assert_eq!(handshake.0, "/ws/channels/chan?token=abc&key=key&dir=read");
+            assert_eq!(auth(&handshake).as_deref(), Some("Bearer secret"));
+
+            let writer =
+                ChannelWriter::new(&base, &channel_ref(Write)).with_headers(Some(explicit));
+            writer.send_message("hi").await.unwrap();
+            assert_eq!(
+                auth(&next_handshake(&mut rx).await).as_deref(),
+                Some("Bearer explicit")
+            );
+        });
+    }
+
+    /// Telemetry dials the engine too, so it gets the connection's handshake
+    /// headers unless the caller set its own.
+    #[test]
+    fn telemetry_config_gets_the_handshake_headers() {
+        let env = ScopedEnvVar::new("III_TOKEN");
+        env.set("secret");
+        let iii = IIIClient::new("ws://engine.test");
+        iii.set_headers(HashMap::from([("x-other".into(), "kept".into())]));
+
+        let headers = iii.take_otel_config().engine_ws_headers.unwrap();
+        assert_eq!(headers["x-other"], "kept");
+        assert_eq!(headers["Authorization"], "Bearer secret");
+
+        let own = HashMap::from([("x-own".to_string(), "1".to_string())]);
+        iii.set_otel_config(OtelConfig {
+            engine_ws_headers: Some(own.clone()),
+            ..Default::default()
+        });
+        assert_eq!(iii.take_otel_config().engine_ws_headers, Some(own));
+    }
+
+    #[test]
+    fn handshake_headers_add_a_bearer_only_for_a_non_blank_token() {
+        let env = ScopedEnvVar::new("III_TOKEN");
+        let kept = HashMap::from([("x-other".to_string(), "kept".to_string())]);
+
+        env.remove();
+        assert_eq!(handshake_headers(None), HashMap::new());
+        for blank in ["", "  \t "] {
+            env.set(blank);
+            assert_eq!(handshake_headers(Some(kept.clone())), kept);
+        }
+
+        env.set(" secret\n");
+        let mut with_bearer = kept.clone();
+        with_bearer.insert("Authorization".to_string(), "Bearer secret".to_string());
+        assert_eq!(handshake_headers(Some(kept)), with_bearer);
+
+        let explicit =
+            HashMap::from([("AUTHORIZATION".to_string(), "Bearer explicit".to_string())]);
+        assert_eq!(handshake_headers(Some(explicit.clone())), explicit);
     }
 
     struct NoopTriggerHandler;

@@ -39,7 +39,7 @@ import { registerWorkerGauges, stopWorkerGauges } from '@iii-dev/helpers/observa
 import { getMeter, getTracer } from '@iii-dev/helpers/observability/internal'
 import { SpanKind } from '@opentelemetry/api'
 import type { IStream } from './stream'
-import { detectProjectName } from './utils'
+import { detectProjectName, resolveHeaders } from './utils'
 import {
   extractContext,
   getLogger,
@@ -244,10 +244,15 @@ export type InitOptions = {
   /**
    * OpenTelemetry configuration. OTel is initialized automatically by default.
    * Set `{ enabled: false }` or env `OTEL_ENABLED=false/0/no/off` to disable.
-   * The `engineWsUrl` is set automatically from the III address.
+   * The `engineWsUrl` is set automatically from the III address, and `engineWsHeaders`
+   * from the handshake headers of the main connection.
    */
-  otel?: Omit<OtelConfig, 'engineWsUrl'>
-  /** Custom HTTP headers sent during the WebSocket handshake. */
+  otel?: Omit<OtelConfig, 'engineWsUrl' | 'engineWsHeaders'>
+  /**
+   * Custom HTTP headers sent during the WebSocket handshake, on the main connection and
+   * on streaming channels. `Authorization: Bearer $III_TOKEN` is added unless you set
+   * `Authorization` here.
+   */
   headers?: Record<string, string>
   /** @internal */
   telemetry?: TelemetryOptions
@@ -294,7 +299,11 @@ class Sdk implements IIIClient {
     }
 
     // Initialize OpenTelemetry (enabled by default, opt-out via config or env)
-    initOtel({ ...options?.otel, engineWsUrl: this.address })
+    initOtel({
+      ...options?.otel,
+      engineWsUrl: this.address,
+      engineWsHeaders: resolveHeaders(options?.headers),
+    })
 
     this.connect()
   }
@@ -585,8 +594,8 @@ class Sdk implements IIIClient {
     )
 
     return {
-      writer: new ChannelWriter(this.address, result.writer),
-      reader: new ChannelReader(this.address, result.reader),
+      writer: new ChannelWriter(this.address, result.writer, this.options?.headers),
+      reader: new ChannelReader(this.address, result.reader, this.options?.headers),
       writerRef: result.writer,
       readerRef: result.reader,
     }
@@ -835,7 +844,7 @@ class Sdk implements IIIClient {
     this.ws = new WebSocket(this.address, {
       // Match the engine's message bound; outbound single frames use 16 MiB.
       maxPayload: MAX_JSON_MESSAGE_BYTES,
-      headers: this.options?.headers,
+      headers: resolveHeaders(this.options?.headers),
       handshakeTimeout: WS_HANDSHAKE_TIMEOUT_MS,
     })
     this.ws.on('open', this.onSocketOpen.bind(this))
@@ -1257,8 +1266,8 @@ class Sdk implements IIIClient {
   private resolveChannelValue(value: unknown): unknown {
     if (isChannelRef(value)) {
       return value.direction === 'read'
-        ? new ChannelReader(this.address, value)
-        : new ChannelWriter(this.address, value)
+        ? new ChannelReader(this.address, value, this.options?.headers)
+        : new ChannelWriter(this.address, value, this.options?.headers)
     }
     if (Array.isArray(value)) {
       return value.map((item) => this.resolveChannelValue(item))

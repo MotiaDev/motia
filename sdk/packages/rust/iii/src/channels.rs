@@ -1,9 +1,12 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::Mutex;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::http::{HeaderName, HeaderValue, Request};
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 
 use crate::error::Error;
@@ -38,15 +41,63 @@ type WsReader = futures_util::stream::SplitStream<
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
 >;
 
+/// Handshake headers for an engine connection: the caller's, plus
+/// `Authorization: Bearer $III_TOKEN` when the variable is set and not blank.
+/// An `Authorization` header the caller passed wins (names match
+/// case-insensitively).
+pub(crate) fn handshake_headers(
+    explicit: Option<HashMap<String, String>>,
+) -> HashMap<String, String> {
+    let mut headers = explicit.unwrap_or_default();
+    let token = std::env::var("III_TOKEN").unwrap_or_default();
+    let token = token.trim();
+    if !token.is_empty()
+        && !headers
+            .keys()
+            .any(|name| name.eq_ignore_ascii_case("authorization"))
+    {
+        headers.insert("Authorization".to_string(), format!("Bearer {token}"));
+    }
+    headers
+}
+
+/// A client handshake request for `url` carrying `headers`. A header whose name
+/// or value is not valid HTTP is skipped.
+pub(crate) fn handshake_request(
+    url: &str,
+    headers: &HashMap<String, String>,
+) -> Result<Request<()>, tokio_tungstenite::tungstenite::Error> {
+    let mut request = url.into_client_request()?;
+    for (name, value) in headers {
+        if let (Ok(name), Ok(value)) = (
+            HeaderName::from_bytes(name.as_bytes()),
+            HeaderValue::from_str(value),
+        ) {
+            request.headers_mut().insert(name, value);
+        }
+    }
+    Ok(request)
+}
+
 fn build_channel_url(
     engine_ws_base: &str,
     channel_id: &str,
     access_key: &str,
     direction: &str,
 ) -> String {
-    let base = engine_ws_base.trim_end_matches('/');
+    // Keep a query already on the engine URL (e.g. `?token=...`); the channel's
+    // own come after it.
+    let (base, query) = engine_ws_base
+        .split_once('?')
+        .unwrap_or((engine_ws_base, ""));
+    let base = base.trim_end_matches('/');
+    let query = if query.is_empty() {
+        String::new()
+    } else {
+        format!("{query}&")
+    };
     let encoded_key = urlencoded(access_key);
-    format!("{base}/ws/channels/{channel_id}?key={encoded_key}&dir={direction}")
+    format!("{base}/ws/channels/{channel_id}?{query}key={encoded_key}&dir={direction}")
 }
 
 fn urlencoded(s: &str) -> String {
@@ -69,10 +120,12 @@ fn urlencoded(s: &str) -> String {
 /// WebSocket-backed writer for streaming binary data and text messages.
 pub struct ChannelWriter {
     url: String,
+    headers: HashMap<String, String>,
     ws: Arc<Mutex<Option<WsWriter>>>,
 }
 
 impl ChannelWriter {
+    /// Authenticates with `III_TOKEN` as a bearer token when it is set.
     pub fn new(engine_ws_base: &str, channel_ref: &StreamChannelRef) -> Self {
         Self {
             url: build_channel_url(
@@ -81,8 +134,16 @@ impl ChannelWriter {
                 &channel_ref.access_key,
                 "write",
             ),
+            headers: handshake_headers(None),
             ws: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Connect with `explicit` handshake headers (plus the `III_TOKEN` bearer,
+    /// see [`handshake_headers`]) instead of the token alone.
+    pub(crate) fn with_headers(mut self, explicit: Option<HashMap<String, String>>) -> Self {
+        self.headers = handshake_headers(explicit);
+        self
     }
 
     async fn ensure_connected(&self) -> Result<(), Error> {
@@ -90,7 +151,7 @@ impl ChannelWriter {
         if guard.is_some() {
             return Ok(());
         }
-        let (stream, _) = connect_async(&self.url).await?;
+        let (stream, _) = connect_async(handshake_request(&self.url, &self.headers)?).await?;
         let (writer, _reader) = stream.split();
         *guard = Some(writer);
         Ok(())
@@ -136,11 +197,13 @@ type MessageCallbackList = Arc<Mutex<Vec<MessageCallback>>>;
 /// WebSocket-backed reader for streaming binary data and text messages.
 pub struct ChannelReader {
     url: String,
+    headers: HashMap<String, String>,
     ws: Arc<Mutex<Option<WsReader>>>,
     message_callbacks: MessageCallbackList,
 }
 
 impl ChannelReader {
+    /// Authenticates with `III_TOKEN` as a bearer token when it is set.
     pub fn new(engine_ws_base: &str, channel_ref: &StreamChannelRef) -> Self {
         Self {
             url: build_channel_url(
@@ -149,9 +212,17 @@ impl ChannelReader {
                 &channel_ref.access_key,
                 "read",
             ),
+            headers: handshake_headers(None),
             ws: Arc::new(Mutex::new(None)),
             message_callbacks: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    /// Connect with `explicit` handshake headers (plus the `III_TOKEN` bearer,
+    /// see [`handshake_headers`]) instead of the token alone.
+    pub(crate) fn with_headers(mut self, explicit: Option<HashMap<String, String>>) -> Self {
+        self.headers = handshake_headers(explicit);
+        self
     }
 
     async fn ensure_connected(&self) -> Result<(), Error> {
@@ -159,7 +230,7 @@ impl ChannelReader {
         if guard.is_some() {
             return Ok(());
         }
-        let (stream, _) = connect_async(&self.url).await?;
+        let (stream, _) = connect_async(handshake_request(&self.url, &self.headers)?).await?;
         let (_writer, reader) = stream.split();
         *guard = Some(reader);
         Ok(())
@@ -293,6 +364,7 @@ mod tests {
 
         let writer = ChannelWriter {
             url: "ws://test".to_string(),
+            headers: HashMap::new(),
             ws: Arc::new(Mutex::new(None)),
         };
 
@@ -312,6 +384,7 @@ mod tests {
     async fn close_when_not_connected_succeeds() {
         let writer = ChannelWriter {
             url: "ws://test".to_string(),
+            headers: HashMap::new(),
             ws: Arc::new(Mutex::new(None)),
         };
 
@@ -324,6 +397,7 @@ mod tests {
     async fn close_sets_ws_to_none() {
         let writer = ChannelWriter {
             url: "ws://test".to_string(),
+            headers: HashMap::new(),
             ws: Arc::new(Mutex::new(None)),
         };
 
@@ -354,6 +428,24 @@ mod tests {
     fn build_channel_url_strips_trailing_slash_from_base() {
         let url = build_channel_url("http://engine/", "chan-2", "k", "read");
         assert_eq!(url, "http://engine/ws/channels/chan-2?key=k&dir=read");
+    }
+
+    /// A query already on the engine URL stays ahead of the channel's own, and
+    /// an empty one adds nothing.
+    #[test]
+    fn build_channel_url_keeps_the_base_query() {
+        assert_eq!(
+            build_channel_url("ws://engine/?token=abc", "chan-3", "k", "read"),
+            "ws://engine/ws/channels/chan-3?token=abc&key=k&dir=read"
+        );
+        assert_eq!(
+            build_channel_url("ws://engine/p/?a=1&b=2", "chan-3", "k", "write"),
+            "ws://engine/p/ws/channels/chan-3?a=1&b=2&key=k&dir=write"
+        );
+        assert_eq!(
+            build_channel_url("ws://engine/?", "chan-3", "k", "read"),
+            "ws://engine/ws/channels/chan-3?key=k&dir=read"
+        );
     }
 
     // ---------------------------------------------------------------------------

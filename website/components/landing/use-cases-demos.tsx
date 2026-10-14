@@ -50,7 +50,7 @@ const H = useCases.harness.session
 const CHOICES = [
   { label: 'Model', options: ['provider-anthropic', 'provider-openai', 'provider-deepseek'] },
   { label: 'Tools', options: ['github', 'browser', 'iii-sandbox'] },
-  { label: 'Session', options: ['session-manager', 'context-manager', 'judge'] },
+  { label: 'Session', options: ['session-manager', 'context-manager', 'JEV'] },
 ] as const
 /* A slot that decelerates: three swaps whose gaps widen (310 → 440ms at 1x, so 413 → 587ms at PACE), the last one
    landing on the final value. Every gap outlasts the 400ms roll, so each value settles before the next replaces it,

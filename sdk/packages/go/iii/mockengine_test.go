@@ -30,9 +30,10 @@ type mockEngine struct {
 	server *httptest.Server
 	url    string
 
-	mu       sync.Mutex
-	received []map[string]json.RawMessage
-	active   *websocket.Conn // most-recent accepted connection, for forced close
+	mu         sync.Mutex
+	received   []map[string]json.RawMessage
+	handshakes []handshake     // one per accepted connection, in order
+	active     *websocket.Conn // most-recent accepted connection, for forced close
 
 	// onReceive, if set, is called for every decoded inbound frame with the
 	// connection it arrived on, letting a test script the engine's reply. It runs
@@ -41,6 +42,19 @@ type mockEngine struct {
 
 	// updated under mu; broadcast lets WaitFor wake on every new frame.
 	gotMessage *sync.Cond
+}
+
+// handshake is what a connection's WebSocket upgrade request carried.
+type handshake struct {
+	uri    string
+	header http.Header
+}
+
+// handshakeAt returns the i-th accepted connection's upgrade request.
+func (m *mockEngine) handshakeAt(i int) handshake {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.handshakes[i]
 }
 
 // newMockEngine starts a mock engine on an ephemeral loopback port and returns it with
@@ -63,6 +77,10 @@ func newMockEngine(t *testing.T) *mockEngine {
 // it, notify waiters, and (unlike the Rust mock) hand it to onReceive so the test can
 // reply on the same connection.
 func (m *mockEngine) handle(w http.ResponseWriter, r *http.Request) {
+	m.mu.Lock()
+	m.handshakes = append(m.handshakes, handshake{uri: r.URL.RequestURI(), header: r.Header.Clone()})
+	m.mu.Unlock()
+
 	conn, err := websocket.Accept(w, r, nil)
 	if err != nil {
 		return
