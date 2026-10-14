@@ -343,10 +343,7 @@ use tokio::{
 };
 #[cfg(test)]
 use tokio_tungstenite::connect_async;
-use tokio_tungstenite::{
-    connect_async_with_config,
-    tungstenite::{Message as WsMessage, Utf8Bytes, protocol::WebSocketConfig},
-};
+use tokio_tungstenite::tungstenite::{Message as WsMessage, Utf8Bytes, protocol::WebSocketConfig};
 use uuid::Uuid;
 
 const SDK_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -364,6 +361,7 @@ use crate::{
         TriggerRequest, TriggerRequestWithMetadata, UnregisterTriggerMessage,
         UnregisterTriggerTypeMessage, WORKER_NAMESPACE_CONFLICT,
     },
+    transport::{self, WsConnectResult, WsStream},
     triggers::{Trigger, TriggerConfig, TriggerHandler},
     types::{
         Channel, RemoteFunctionData, RemoteFunctionHandlerWithMetadata, RemoteTriggerTypeData,
@@ -905,10 +903,7 @@ enum Outbound {
 type PendingInvocation = oneshot::Sender<Result<Value, Error>>;
 
 // WebSocket transmitter type alias
-type WsTx = futures_util::stream::SplitSink<
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
-    WsMessage,
->;
+type WsTx = futures_util::stream::SplitSink<WsStream, WsMessage>;
 
 /// Inject trace context headers for outbound messages.
 fn inject_trace_headers() -> (Option<String>, Option<String>) {
@@ -2154,6 +2149,14 @@ impl IIIClient {
             .map_err(|_| Error::NotConnected)
     }
 
+    /// Opens the worker connection; `TCP_NODELAY` is negotiated with the
+    /// engine (see `transport::connect`).
+    async fn connect_socket(&self) -> WsConnectResult {
+        let headers = handshake_headers(self.inner.headers.lock_or_recover().clone());
+        let request = handshake_request(&self.inner.address, &headers)?;
+        transport::connect(request, Some(Self::receive_config())).await
+    }
+
     async fn run_connection(&self, mut rx: mpsc::UnboundedReceiver<Outbound>) {
         let mut queue: Vec<PreparedEnvelope> = Vec::new();
         let mut has_connected_before = false;
@@ -2166,17 +2169,12 @@ impl IIIClient {
                 IIIConnectionState::Connecting
             });
 
-            let headers = handshake_headers(self.inner.headers.lock_or_recover().clone());
-
             // Cap the whole connect (TCP + TLS + WS upgrade): a stalled
             // socket otherwise wedges this loop forever and the worker sits
             // in Reconnecting with zero functions registered engine-side
             // (MOT-3857).
-            let connect_result = tokio::time::timeout(t.connect_timeout, async {
-                let request = handshake_request(&self.inner.address, &headers)?;
-                connect_async_with_config(request, Some(Self::receive_config()), false).await
-            })
-            .await;
+            let connect_result =
+                tokio::time::timeout(t.connect_timeout, self.connect_socket()).await;
 
             match connect_result {
                 Ok(Ok((stream, _))) => {
@@ -4469,5 +4467,44 @@ mod tests {
         }))
         .unwrap();
         assert!(without_ns.namespace.is_none());
+    }
+}
+
+#[cfg(test)]
+mod nodelay_tests {
+    use super::*;
+    use crate::transport::test_engine;
+
+    /// Connects through `connect_socket` to a stand-in engine and reports
+    /// whether the client socket ended up with `TCP_NODELAY`.
+    async fn client_nodelay(headers: Option<HashMap<String, String>>, advertise: bool) -> bool {
+        let (address, server) = test_engine::spawn(advertise).await;
+        let client = IIIClient::new(&format!("ws://{address}"));
+        if let Some(headers) = headers {
+            client.set_headers(headers);
+        }
+        let (stream, _) = tokio::time::timeout(Duration::from_secs(5), client.connect_socket())
+            .await
+            .unwrap()
+            .unwrap();
+        let nodelay = test_engine::nodelay(&stream);
+        drop(server.await.unwrap());
+        nodelay
+    }
+
+    #[tokio::test]
+    async fn worker_socket_has_tcp_nodelay_when_engine_advertises_it() {
+        assert!(client_nodelay(None, true).await);
+    }
+
+    #[tokio::test]
+    async fn worker_socket_with_headers_has_tcp_nodelay_when_engine_advertises_it() {
+        let headers = HashMap::from([("x-test".into(), "nodelay".into())]);
+        assert!(client_nodelay(Some(headers), true).await);
+    }
+
+    #[tokio::test]
+    async fn worker_socket_keeps_nagle_when_engine_does_not_advertise_it() {
+        assert!(!client_nodelay(None, false).await);
     }
 }

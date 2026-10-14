@@ -15,6 +15,19 @@ pub const WORKER_NAMESPACE_CONFLICT: &str = "WORKER_NAMESPACE_CONFLICT";
 /// functions. Mirrors the engine constant of the same name.
 pub const FUNCTION_NAMESPACE_CONFLICT: &str = "FUNCTION_NAMESPACE_CONFLICT";
 
+/// Response header in which the engine lists optional transport capabilities
+/// on every worker-listener response, including the WebSocket upgrade, as
+/// comma-separated tokens. Workers ignore tokens they do not know.
+pub const ENGINE_CAPABILITIES_HEADER: &str = "x-iii-capabilities";
+
+/// Capability token: the engine's end of the connection has `TCP_NODELAY`, so
+/// the worker may disable Nagle on its end too (MOT-5377). A worker must not
+/// disable it without this token: Nagle on the engine's end alone is slower
+/// than on both ends. The token describes the engine's own socket: behind a
+/// proxy that forwards the header, the worker's peer is the proxy, which
+/// should then set `TCP_NODELAY` on its side too (nginx and Envoy do).
+pub const ENGINE_CAPABILITY_TCP_NODELAY: &str = "tcp-nodelay";
+
 /// Routing action for [`TriggerRequest`]. Determines how the engine handles
 /// the invocation.
 ///

@@ -5,11 +5,12 @@ use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::Mutex;
+use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::http::{HeaderName, HeaderValue, Request};
-use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 
 use crate::error::Error;
+use crate::transport::{self, WsConnectResult, WsStream};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
@@ -32,14 +33,16 @@ pub enum ChannelItem {
     Binary(Vec<u8>),
 }
 
-type WsWriter = futures_util::stream::SplitSink<
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
-    WsMessage,
->;
+type WsWriter = futures_util::stream::SplitSink<WsStream, WsMessage>;
 
-type WsReader = futures_util::stream::SplitStream<
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
->;
+type WsReader = futures_util::stream::SplitStream<WsStream>;
+
+/// Opens a channel end with its handshake headers (see [`handshake_headers`]).
+/// Channel frames are often small (HTTP bodies, control messages), so
+/// `TCP_NODELAY` is negotiated like on the worker connection.
+async fn connect_channel(url: &str, headers: &HashMap<String, String>) -> WsConnectResult {
+    transport::connect(handshake_request(url, headers)?, None).await
+}
 
 /// Handshake headers for an engine connection: the caller's, plus
 /// `Authorization: Bearer $III_TOKEN` when the variable is set and not blank.
@@ -151,7 +154,8 @@ impl ChannelWriter {
         if guard.is_some() {
             return Ok(());
         }
-        let (stream, _) = connect_async(handshake_request(&self.url, &self.headers)?).await?;
+        // Through connect_channel: it negotiates TCP_NODELAY (MOT-5377).
+        let (stream, _) = connect_channel(&self.url, &self.headers).await?;
         let (writer, _reader) = stream.split();
         *guard = Some(writer);
         Ok(())
@@ -230,7 +234,8 @@ impl ChannelReader {
         if guard.is_some() {
             return Ok(());
         }
-        let (stream, _) = connect_async(handshake_request(&self.url, &self.headers)?).await?;
+        // Through connect_channel: it negotiates TCP_NODELAY (MOT-5377).
+        let (stream, _) = connect_channel(&self.url, &self.headers).await?;
         let (_writer, reader) = stream.split();
         *guard = Some(reader);
         Ok(())
@@ -472,5 +477,36 @@ mod tests {
     #[test]
     fn urlencoded_returns_empty_for_empty_input() {
         assert_eq!(urlencoded(""), "");
+    }
+}
+
+#[cfg(test)]
+mod nodelay_tests {
+    use super::*;
+    use crate::transport::test_engine;
+
+    async fn channel_nodelay(advertise: bool) -> bool {
+        let (address, server) = test_engine::spawn(advertise).await;
+        let url = format!("ws://{address}/ws/channels/test?direction=read");
+        let (stream, _) = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            connect_channel(&url, &HashMap::new()),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        let nodelay = test_engine::nodelay(&stream);
+        drop(server.await.unwrap());
+        nodelay
+    }
+
+    #[tokio::test]
+    async fn channel_socket_has_tcp_nodelay_when_engine_advertises_it() {
+        assert!(channel_nodelay(true).await);
+    }
+
+    #[tokio::test]
+    async fn channel_socket_keeps_nagle_when_engine_does_not_advertise_it() {
+        assert!(!channel_nodelay(false).await);
     }
 }
