@@ -28,4 +28,4 @@ for (const [method, path, function_id] of [
   ['GET', '/probe', 'probe::buffered'], ['POST', '/probe', 'probe::buffered'],
   ['POST', '/read', 'probe::read'], ['POST', '/sse', 'probe::sse'],
 ]) iii.registerTrigger({ type: 'http', function_id, config: { http_method: method, api_path: path } });
-console.log('Worker de reprodução iniciado');
+console.log('Reproduction worker started');

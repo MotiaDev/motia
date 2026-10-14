@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Summarize RSS slopes before the first orphan-channel sweep (seconds 30..270)."""
 import csv, json, pathlib, statistics, sys
-print('| Rodada | OK/enviadas | KiB/req robusto | RSS inicial/final carga (MiB) | RSS após idle (MiB) | Load min/máx |')
+print('| Run | Successful/sent | Robust KiB/req | RSS at load start/end (MiB) | RSS after idle (MiB) | Load min/max |')
 print('|---|---:|---:|---:|---:|---:|')
 for path in sorted(pathlib.Path(sys.argv[1]).glob('valid-*/probe.json')):
     p = json.loads(path.read_text())
