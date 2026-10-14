@@ -1754,6 +1754,8 @@ impl ObservabilityWorker {
 
         tokio::spawn(async move {
             tracing::debug!("[ObservabilityWorker] Log trigger subscriber started");
+            let mut skipped_logs = 0_u64;
+            let mut last_lag_warning = None;
             loop {
                 tokio::select! {
                     result = shutdown_rx.changed() => {
@@ -1774,7 +1776,8 @@ impl ObservabilityWorker {
                                 ObservabilityWorker::invoke_triggers_for_log(&triggers, &engine, &log).await;
                             }
                             Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
-                                tracing::warn!(skipped, "Log trigger subscriber lagged, some logs were skipped");
+                                skipped_logs = skipped_logs.saturating_add(skipped);
+                                report_log_trigger_lag(&mut skipped_logs, &mut last_lag_warning);
                             }
                             Err(tokio::sync::broadcast::error::RecvError::Closed) => {
                                 tracing::debug!("[ObservabilityWorker] Log broadcast channel closed");
@@ -4284,11 +4287,78 @@ crate::register_worker!(
     mandatory
 );
 
+fn report_log_trigger_lag(skipped: &mut u64, last_warning: &mut Option<Instant>) {
+    let now = Instant::now();
+    if last_warning
+        .is_some_and(|last| now.duration_since(last) < std::time::Duration::from_secs(60))
+    {
+        return;
+    }
+    // Subscriber diagnostics must not feed the broadcast receiver that is lagging.
+    tracing::warn!(
+        target: otel::OTEL_PASSTHROUGH_TARGET,
+        skipped = *skipped,
+        "Log trigger subscriber lagged, some logs were skipped"
+    );
+    *skipped = 0;
+    *last_warning = Some(now);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serial_test::serial;
     use std::collections::{HashMap, HashSet};
+
+    #[test]
+    fn log_trigger_lag_warning_does_not_reenter_storage_or_broadcast() {
+        use tracing_subscriber::prelude::*;
+
+        let storage = Arc::new(otel::InMemoryLogStorage::new(100));
+        let mut receiver = storage.subscribe();
+        let subscriber = tracing_subscriber::registry().with(logs_layer::OtelLogsLayer::new(
+            storage.clone(),
+            "lag-test".to_string(),
+        ));
+        tracing::subscriber::with_default(subscriber, || {
+            let mut skipped = 7;
+            let mut last_warning = None;
+            report_log_trigger_lag(&mut skipped, &mut last_warning);
+            assert_eq!(skipped, 0);
+            assert!(last_warning.is_some());
+            assert_eq!(storage.len(), 0);
+            assert!(matches!(
+                receiver.try_recv(),
+                Err(tokio::sync::broadcast::error::TryRecvError::Empty)
+            ));
+
+            // Ordinary warnings still reach warn/all log-trigger consumers.
+            tracing::warn!("application warning");
+            assert_eq!(storage.len(), 1);
+            assert_eq!(receiver.try_recv().unwrap().body, "application warning");
+        });
+    }
+
+    #[test]
+    fn log_trigger_lag_warning_is_rate_limited_and_accumulates_skips() {
+        let mut skipped = 1;
+        let mut last_warning = None;
+        report_log_trigger_lag(&mut skipped, &mut last_warning);
+        let first_warning = last_warning;
+        assert_eq!(skipped, 0);
+
+        skipped += 5;
+        report_log_trigger_lag(&mut skipped, &mut last_warning);
+        skipped += 9;
+        report_log_trigger_lag(&mut skipped, &mut last_warning);
+        assert_eq!(skipped, 14);
+        assert_eq!(last_warning, first_warning);
+
+        last_warning = Some(Instant::now() - std::time::Duration::from_secs(61));
+        report_log_trigger_lag(&mut skipped, &mut last_warning);
+        assert_eq!(skipped, 0);
+        assert!(last_warning > first_warning);
+    }
 
     // ── Coverage: log-trigger level filter, ingest gate, is_active, collapse ──
 
