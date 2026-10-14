@@ -33,7 +33,7 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::env;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast;
@@ -1262,6 +1262,11 @@ impl InMemorySpanStorage {
             result.push((*seq, slot.span.clone()));
         }
         result
+    }
+
+    /// Whether any span of `trace_id` is resident (stored spans were sampled in).
+    pub(crate) fn has_trace(&self, trace_id: &str) -> bool {
+        self.read().by_trace.contains_key(trace_id)
     }
 
     /// Whether an unclaimed dirty span below `below_seq` outside `skip_traces`
@@ -2515,6 +2520,9 @@ pub struct DynamicSampler {
     /// Per-trace verdicts for ingested worker spans; reset on every swap so
     /// a new policy applies to traces first seen after the change.
     ingest_decisions: Arc<Mutex<IngestDecisions>>,
+    /// Worker spans waiting for their trace's root; kept across swaps and
+    /// decided by the policy in force when released.
+    held_spans: Arc<Mutex<HeldSpans>>,
 }
 
 impl DynamicSampler {
@@ -2522,6 +2530,7 @@ impl DynamicSampler {
         Self {
             inner: Arc::new(RwLock::new(initial)),
             ingest_decisions: Arc::new(Mutex::new(IngestDecisions::default())),
+            held_spans: Arc::new(Mutex::new(HeldSpans::default())),
         }
     }
 
@@ -2691,60 +2700,313 @@ fn get_or_build_forwarder(
     }
 }
 
+/// OTLP span flags bits 8 and 9: the SDK knows whether the parent is remote,
+/// and it is. Only then is the parent's W3C sampled bit a decision made
+/// elsewhere (as with an incoming `traceparent`).
+const OTLP_REMOTE_PARENT: u32 = 0x300;
+/// How long a worker span may wait for its trace's root (see `HeldSpans`).
+const ROOT_WAIT: Duration = Duration::from_secs(2);
+/// Upper bound on held worker spans across all traces.
+const MAX_HELD_SPANS: usize = 4_096;
+
+fn valid_span_id(id: &str) -> Option<opentelemetry::trace::SpanId> {
+    use opentelemetry::trace::SpanId;
+    SpanId::from_hex(id)
+        .ok()
+        .filter(|id| *id != SpanId::INVALID)
+}
+
+fn remote_parent_flags(span: &OtlpSpan) -> Option<u32> {
+    span.flags
+        .filter(|flags| flags & OTLP_REMOTE_PARENT == OTLP_REMOTE_PARENT)
+}
+
+/// Where this service decides a trace: a span without a valid parent, or one
+/// whose parent is remote.
+fn is_local_root(span: &OtlpSpan) -> bool {
+    span.parent_span_id
+        .as_deref()
+        .and_then(valid_span_id)
+        .is_none()
+        || remote_parent_flags(span).is_some()
+}
+
+/// Per-operation rules are evaluated on a trace's root (the engine samples
+/// children by their parent), so a worker child that arrives before its root
+/// must wait for it.
+fn sampling_waits_for_root() -> bool {
+    get_otel_config().is_some_and(|config| {
+        config
+            .sampling
+            .as_ref()
+            .is_some_and(|sampling| sampling.rules.iter().any(|rule| rule.operation.is_some()))
+    })
+}
+
+/// Worker spans that arrived before their trace's root while per-operation
+/// rules are active. They are neither stored nor forwarded until the root
+/// arrives (the trace is then decided by the root) or `ROOT_WAIT` passes;
+/// a full buffer releases its oldest traces early. A trace released without
+/// its root is decided by its first held span, as without waiting. Bounded
+/// by `MAX_HELD_SPANS` spans and, for the bookkeeping queue, by the rate of
+/// held traces over `ROOT_WAIT`.
+#[derive(Debug, Default)]
+pub(crate) struct HeldSpans {
+    traces: HashMap<String, HeldTrace>,
+    /// Held traces, oldest first; entries of released traces are skipped.
+    order: VecDeque<String>,
+    spans: usize,
+}
+
+#[derive(Debug)]
+struct HeldTrace {
+    since: Instant,
+    fragments: Vec<OtlpResourceSpans>,
+    spans: usize,
+}
+
+impl HeldSpans {
+    /// Returns whether the trace was not held before.
+    fn hold(
+        &mut self,
+        trace_id: String,
+        fragment: OtlpResourceSpans,
+        spans: usize,
+        now: Instant,
+    ) -> bool {
+        self.spans = self.spans.saturating_add(spans);
+        let new_trace = !self.traces.contains_key(&trace_id);
+        if new_trace {
+            self.order.push_back(trace_id.clone());
+        }
+        let held = self.traces.entry(trace_id).or_insert_with(|| HeldTrace {
+            since: now,
+            fragments: Vec::new(),
+            spans: 0,
+        });
+        held.fragments.push(fragment);
+        held.spans = held.spans.saturating_add(spans);
+        if self.order.len() > 4 * MAX_HELD_SPANS {
+            let traces = &self.traces;
+            self.order.retain(|trace_id| traces.contains_key(trace_id));
+        }
+        new_trace
+    }
+
+    fn take(&mut self, trace_id: &str) -> Option<HeldTrace> {
+        let held = self.traces.remove(trace_id)?;
+        self.spans = self.spans.saturating_sub(held.spans);
+        Some(held)
+    }
+
+    /// Traces whose wait is over, and the oldest ones while over capacity.
+    fn take_due(&mut self, now: Instant) -> Vec<(String, HeldTrace)> {
+        let mut due = Vec::new();
+        while let Some(trace_id) = self.order.front().cloned() {
+            let Some(held) = self.traces.get(&trace_id) else {
+                self.order.pop_front();
+                continue;
+            };
+            if now.duration_since(held.since) < ROOT_WAIT && self.spans <= MAX_HELD_SPANS {
+                break;
+            }
+            self.order.pop_front();
+            if let Some(held) = self.take(&trace_id) {
+                due.push((trace_id, held));
+            }
+        }
+        due
+    }
+
+    fn is_empty(&self) -> bool {
+        self.traces.is_empty()
+    }
+}
+
+/// At most one task releases held spans whose wait is over.
+static HELD_RELEASE_SCHEDULED: AtomicBool = AtomicBool::new(false);
+
+fn held_spans_pending() -> bool {
+    get_dynamic_sampler().is_some_and(|sampler| {
+        !sampler
+            .held_spans
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .is_empty()
+    })
+}
+
+fn schedule_held_release() {
+    if HELD_RELEASE_SCHEDULED.swap(true, Ordering::AcqRel) {
+        return;
+    }
+    let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+        HELD_RELEASE_SCHEDULED.store(false, Ordering::Release);
+        return;
+    };
+    runtime.spawn(async {
+        loop {
+            tokio::time::sleep(ROOT_WAIT / 4).await;
+            let _ = Box::pin(ingest_otlp_request(OtlpExportTraceServiceRequest::default())).await;
+            if !held_spans_pending() {
+                HELD_RELEASE_SCHEDULED.store(false, Ordering::Release);
+                // A span held after the check keeps the task alive.
+                if !held_spans_pending() || HELD_RELEASE_SCHEDULED.swap(true, Ordering::AcqRel) {
+                    break;
+                }
+            }
+        }
+    });
+}
+
 /// Apply the engine's ingest sampling policy once, BEFORE the local archive
 /// and collector paths diverge. Worker SDKs export at 100%; filtering only
 /// the collector silently bypasses sampling for memory/SQLite.
 ///
-/// The verdict is per trace, like the engine's own tracer: the first span
-/// seen for a trace decides and every later span of it (start snapshot,
-/// final, children) follows, so rules, rate limits and parent-based mode
-/// never fragment a trace and a snapshot cannot spend a second token.
-/// A worker span carrying the W3C sampled flag is presented to the sampler
-/// as a sampled remote parent, exactly as an incoming `traceparent` is:
-/// parent-based samplers (explicit `parent_based`, and the advanced
-/// rules/rate-limit sampler, which the engine always wraps in ParentBased)
-/// follow it, while plain ratio samplers ignore parents and keep deciding by
-/// trace id, so the flag is never a bypass of `sampling_ratio`. Spans without
-/// that flag get a root decision.
+/// The verdict is per trace, like the engine's own tracer, and is made where
+/// the trace is rooted in this service:
+/// 1. A local root (no parent, or a parent the SDK flags as remote, OTLP flags
+///    `0x300`) decides first, even if a child precedes it in the request. With
+///    a remote parent its W3C sampled bit (set or not) is presented to the
+///    sampler as a remote parent context, exactly as an incoming
+///    `traceparent` is: parent-based samplers (`parent_based: true`, and
+///    rules/rate limits, which always run parent-based) follow it, a plain
+///    ratio keeps deciding by trace id. A local root otherwise gets the
+///    configured root policy (rules, rate-limit token, default) — the sampled
+///    bit the Node SDK sets on every span (`0x101`) is never a bypass.
+/// 2. Every other span follows its trace: the remembered verdict, else a
+///    trace already in the hot cache (sampled in), else, when per-operation
+///    rules need the root, it waits in `held` for the root (bounded); without
+///    such rules the first span seen decides.
+///
+/// Returns whether a new trace started waiting (the caller schedules its
+/// release).
 fn sample_sdk_spans<S: opentelemetry_sdk::trace::ShouldSample>(
     request: &mut OtlpExportTraceServiceRequest,
     sampler: &S,
     decisions: &Mutex<IngestDecisions>,
-) {
+    held: &Mutex<HeldSpans>,
+    hold_new: bool,
+) -> bool {
+    use opentelemetry::TraceId;
+
+    let storage = get_span_storage();
+    let in_hot = |trace_id: &str| storage.as_ref().is_some_and(|hot| hot.has_trace(trace_id));
     let mut discarded_snapshots = Vec::new();
+    let mut new_wait = false;
     {
         let mut decisions = decisions
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        for resource in &mut request.resource_spans {
-            for scope in &mut resource.scope_spans {
-                scope.spans.retain(|span| {
-                    let Ok(trace_id) = opentelemetry::TraceId::from_hex(&span.trace_id) else {
-                        return false;
-                    };
-                    let sampled = decisions.get(&span.trace_id).unwrap_or_else(|| {
-                        let sampled = ingest_sampling_decision(sampler, span, trace_id);
-                        decisions.insert(&span.trace_id, sampled);
-                        sampled
-                    });
-                    if !sampled && span.end_time_unix_nano.0 != 0 {
-                        discarded_snapshots.push((span.trace_id.clone(), span.span_id.clone()));
+        // 1. Roots first.
+        for resource in &request.resource_spans {
+            for scope in &resource.scope_spans {
+                for span in &scope.spans {
+                    if !is_local_root(span) || decisions.get(&span.trace_id).is_some() {
+                        continue;
                     }
-                    sampled
-                });
+                    let sampled = TraceId::from_hex(&span.trace_id)
+                        .is_ok_and(|trace_id| ingest_sampling_decision(sampler, span, trace_id));
+                    decisions.insert(&span.trace_id, sampled);
+                }
             }
         }
+        // Held spans rejoin the request once their trace is decided or their
+        // wait is over.
+        let mut held = held.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut released = Vec::new();
+        for resource in &request.resource_spans {
+            for scope in &resource.scope_spans {
+                for span in &scope.spans {
+                    if decisions.get(&span.trace_id).is_some()
+                        && let Some(trace) = held.take(&span.trace_id)
+                    {
+                        released.push(trace);
+                    }
+                }
+            }
+        }
+        for (trace_id, trace) in held.take_due(Instant::now()) {
+            if decisions.get(&trace_id).is_none() {
+                let first = trace
+                    .fragments
+                    .first()
+                    .and_then(|fragment| fragment.scope_spans.first())
+                    .and_then(|scope| scope.spans.first());
+                let sampled = first.is_some_and(|span| {
+                    TraceId::from_hex(&trace_id)
+                        .is_ok_and(|id| ingest_sampling_decision(sampler, span, id))
+                });
+                decisions.insert(&trace_id, sampled);
+            }
+            released.push(trace);
+        }
+        request
+            .resource_spans
+            .extend(released.into_iter().flat_map(|trace| trace.fragments));
+
+        // 2. Every span follows its trace.
+        let mut waiting = Vec::new();
+        for resource in &mut request.resource_spans {
+            for scope in &mut resource.scope_spans {
+                let mut wait_here: HashMap<String, Vec<OtlpSpan>> = HashMap::new();
+                for span in std::mem::take(&mut scope.spans) {
+                    let Ok(trace_id) = TraceId::from_hex(&span.trace_id) else {
+                        continue;
+                    };
+                    let sampled = match decisions.get(&span.trace_id) {
+                        Some(sampled) => sampled,
+                        None if in_hot(&span.trace_id) => {
+                            decisions.insert(&span.trace_id, true);
+                            true
+                        }
+                        None if hold_new => {
+                            wait_here
+                                .entry(span.trace_id.clone())
+                                .or_default()
+                                .push(span);
+                            continue;
+                        }
+                        None => {
+                            let sampled = ingest_sampling_decision(sampler, &span, trace_id);
+                            decisions.insert(&span.trace_id, sampled);
+                            sampled
+                        }
+                    };
+                    if sampled {
+                        scope.spans.push(span);
+                    } else if span.end_time_unix_nano.0 != 0 {
+                        discarded_snapshots.push((span.trace_id.clone(), span.span_id.clone()));
+                    }
+                }
+                for (trace_id, spans) in wait_here {
+                    let count = spans.len();
+                    let fragment = OtlpResourceSpans {
+                        resource: resource.resource.clone(),
+                        scope_spans: vec![OtlpScopeSpans {
+                            scope: scope.scope.clone(),
+                            spans,
+                        }],
+                    };
+                    waiting.push((trace_id, fragment, count));
+                }
+            }
+        }
+        let now = Instant::now();
+        for (trace_id, fragment, count) in waiting {
+            new_wait |= held.hold(trace_id, fragment, count, now);
+        }
     }
-    // Only reachable after a sampler swap reset the verdicts: a live snapshot
-    // stored under the old policy must not stay pending forever when its
-    // final is now sampled out.
+    // A live snapshot stored before its trace was sampled out (after a
+    // sampler swap reset the verdicts) must not stay pending forever.
     if !discarded_snapshots.is_empty()
-        && let Some(storage) = get_span_storage()
+        && let Some(storage) = storage
     {
         for (trace_id, span_id) in discarded_snapshots {
             storage.discard_pending(&trace_id, &span_id);
         }
     }
+    new_wait
 }
 
 fn ingest_sampling_decision<S: opentelemetry_sdk::trace::ShouldSample>(
@@ -2752,7 +3014,7 @@ fn ingest_sampling_decision<S: opentelemetry_sdk::trace::ShouldSample>(
     span: &OtlpSpan,
     trace_id: opentelemetry::TraceId,
 ) -> bool {
-    use opentelemetry::trace::{SpanContext, SpanId, SpanKind, TraceFlags, TraceState};
+    use opentelemetry::trace::{SpanContext, SpanKind, TraceFlags, TraceState};
     use opentelemetry_sdk::trace::SamplingDecision;
 
     let kind = match span.kind {
@@ -2767,31 +3029,20 @@ fn ingest_sampling_decision<S: opentelemetry_sdk::trace::ShouldSample>(
         .iter()
         .filter_map(otlp_kv_to_key_value)
         .collect();
-    let valid_id = |id: &str| {
-        SpanId::from_hex(id)
-            .ok()
-            .filter(|id| *id != SpanId::INVALID)
-    };
-    let propagated_parent = span
-        .flags
-        .filter(|flags| flags & 0x1 == 0x1)
-        .and_then(|_| {
-            span.parent_span_id
-                .as_deref()
-                .and_then(valid_id)
-                .or_else(|| valid_id(&span.span_id))
-        })
-        .map(|parent_id| {
-            Context::new().with_remote_span_context(SpanContext::new(
-                trace_id,
-                parent_id,
-                TraceFlags::SAMPLED,
-                true,
-                TraceState::default(),
-            ))
-        });
+    // Only a real parent the SDK marks remote carries a decision: never the
+    // span's own id, never a local parent.
+    let remote_parent = remote_parent_flags(span).and_then(|flags| {
+        let parent_id = span.parent_span_id.as_deref().and_then(valid_span_id)?;
+        Some(Context::new().with_remote_span_context(SpanContext::new(
+            trace_id,
+            parent_id,
+            TraceFlags::new((flags & 0xff) as u8),
+            true,
+            TraceState::default(),
+        )))
+    });
     let result = sampler.should_sample(
-        propagated_parent.as_ref(),
+        remote_parent.as_ref(),
         trace_id,
         &span.name,
         &kind,
@@ -3286,14 +3537,14 @@ pub fn baggage_with_function_id(baggage: Option<&str>, function_id: &str) -> Opt
 // =============================================================================
 
 /// OTLP ExportTraceServiceRequest structure for JSON deserialization
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpExportTraceServiceRequest {
     #[serde(default)]
     resource_spans: Vec<OtlpResourceSpans>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpResourceSpans {
     #[serde(default)]
@@ -3302,14 +3553,14 @@ struct OtlpResourceSpans {
     scope_spans: Vec<OtlpScopeSpans>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpResource {
     #[serde(default)]
     attributes: Vec<OtlpKeyValue>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpScopeSpans {
     #[serde(default)]
@@ -3318,7 +3569,7 @@ struct OtlpScopeSpans {
     spans: Vec<OtlpSpan>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpSpan {
     trace_id: String,
@@ -3346,7 +3597,7 @@ struct OtlpSpan {
     flags: Option<u32>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpSpanEvent {
     #[serde(default)]
@@ -3357,7 +3608,7 @@ struct OtlpSpanEvent {
     attributes: Vec<OtlpKeyValue>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpSpanLink {
     #[serde(default)]
@@ -3371,7 +3622,7 @@ struct OtlpSpanLink {
 }
 
 /// Wrapper type that can deserialize either a number or a string to u64
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 struct OtlpNumericString(u64);
 
 impl<'de> Deserialize<'de> for OtlpNumericString {
@@ -3479,7 +3730,7 @@ impl<'de> Deserialize<'de> for OtlpIntString {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpStatus {
     #[serde(default)]
@@ -3488,7 +3739,7 @@ struct OtlpStatus {
     message: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpKeyValue {
     key: String,
@@ -3496,14 +3747,14 @@ struct OtlpKeyValue {
     value: Option<OtlpAnyValue>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpKeyValueList {
     #[serde(default)]
     values: Vec<OtlpKeyValue>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpArrayValue {
     #[serde(default)]
@@ -3609,7 +3860,7 @@ where
     deserializer.deserialize_any(Int64Visitor)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct OtlpAnyValue {
     string_value: Option<String>,
@@ -3971,10 +4222,24 @@ pub async fn ingest_otlp_json(json_str: &str) -> anyhow::Result<()> {
     }
 
     // Parse the OTLP JSON
-    let mut request: OtlpExportTraceServiceRequest = serde_json::from_str(json_str)
+    let request: OtlpExportTraceServiceRequest = serde_json::from_str(json_str)
         .map_err(|e| anyhow::anyhow!("Failed to parse OTLP JSON: {}", e))?;
-    if let Some(sampler) = get_dynamic_sampler() {
-        sample_sdk_spans(&mut request, sampler, &sampler.ingest_decisions);
+    ingest_otlp_request(request).await
+}
+
+/// Sample, store and forward one parsed request. Also used, with an empty
+/// request, to release held spans whose wait for their root is over.
+async fn ingest_otlp_request(mut request: OtlpExportTraceServiceRequest) -> anyhow::Result<()> {
+    if let Some(sampler) = get_dynamic_sampler()
+        && sample_sdk_spans(
+            &mut request,
+            sampler,
+            &sampler.ingest_decisions,
+            &sampler.held_spans,
+            sampling_waits_for_root(),
+        )
+    {
+        schedule_held_release();
     }
 
     // Store in memory if available (for API access)
@@ -4196,7 +4461,7 @@ struct OtlpScopeMetrics {
     metrics: Vec<OtlpMetric>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 struct OtlpScope {
@@ -8143,12 +8408,16 @@ mod tests {
             &mut request,
             &Sampler::AlwaysOn,
             &Mutex::new(IngestDecisions::default()),
+            &Mutex::new(HeldSpans::default()),
+            false,
         );
         assert_eq!(convert_otlp_to_span_data(&request).len(), 1);
         sample_sdk_spans(
             &mut request,
             &Sampler::AlwaysOff,
             &Mutex::new(IngestDecisions::default()),
+            &Mutex::new(HeldSpans::default()),
+            false,
         );
         assert!(convert_otlp_to_span_data(&request).is_empty());
     }
@@ -9788,25 +10057,72 @@ mod tests {
         request.resource_spans[0].scope_spans[0].spans.len()
     }
 
+    fn sample(
+        request: &mut OtlpExportTraceServiceRequest,
+        sampler: &Sampler,
+        decisions: &Mutex<IngestDecisions>,
+        held: &Mutex<HeldSpans>,
+        hold_new: bool,
+    ) -> usize {
+        sample_sdk_spans(request, sampler, decisions, held, hold_new);
+        kept(request)
+    }
+
+    fn rate_limited(max_traces_per_second: u32) -> Sampler {
+        Sampler::ParentBased(Box::new(
+            AdvancedSampler::new(
+                1.0,
+                Vec::new(),
+                Some(crate::workers::observability::config::RateLimitConfig {
+                    max_traces_per_second,
+                }),
+                None,
+            )
+            .expect("advanced sampler"),
+        ))
+    }
+
+    fn rules(operation: &str, default: f64) -> Sampler {
+        Sampler::ParentBased(Box::new(
+            AdvancedSampler::new(
+                default,
+                vec![crate::workers::observability::config::SamplingRule {
+                    operation: Some(operation.to_string()),
+                    service: None,
+                    rate: 1.0,
+                }],
+                None,
+                None,
+            )
+            .expect("advanced sampler"),
+        ))
+    }
+
+    fn roots(prefix: &str, count: u64, flags: Option<u32>) -> OtlpExportTraceServiceRequest {
+        sampling_request(serde_json::Value::Array(
+            (0..count)
+                .map(|index| {
+                    sampling_span(
+                        &format!("{prefix}{index:030x}"),
+                        "00000000000000a1",
+                        None,
+                        "3",
+                        flags,
+                    )
+                })
+                .collect(),
+        ))
+    }
+
     /// Review P2-6: rules and rate limits decide once per trace; a start
     /// snapshot does not spend a second token and children follow the root.
     #[test]
     fn ingest_sampling_decides_once_per_trace_and_spends_one_token() {
-        let advanced = AdvancedSampler::new(
-            1.0,
-            Vec::new(),
-            Some(crate::workers::observability::config::RateLimitConfig {
-                max_traces_per_second: 1,
-            }),
-            None,
-        )
-        .expect("advanced sampler");
-        let sampler = Sampler::ParentBased(Box::new(advanced));
+        let sampler = rate_limited(1);
         let decisions = Mutex::new(IngestDecisions::default());
+        let held = Mutex::new(HeldSpans::default());
         let first = "0af7651916cd43dd8448eb211c80319c";
         let mut request = sampling_request(serde_json::json!([
-            sampling_span(first, "00000000000000a1", None, "0", None),
-            sampling_span(first, "00000000000000a1", None, "3", None),
             sampling_span(
                 first,
                 "00000000000000a2",
@@ -9814,12 +10130,13 @@ mod tests {
                 "2",
                 None
             ),
+            sampling_span(first, "00000000000000a1", None, "0", None),
+            sampling_span(first, "00000000000000a1", None, "3", None),
         ]));
-        sample_sdk_spans(&mut request, &sampler, &decisions);
         assert_eq!(
-            kept(&request),
+            sample(&mut request, &sampler, &decisions, &held, false),
             3,
-            "snapshot, final and child share one token"
+            "child (sent first), snapshot and final share the root's token"
         );
 
         let second = "1bf7651916cd43dd8448eb211c80319c";
@@ -9833,74 +10150,203 @@ mod tests {
                 None
             ),
         ]));
-        sample_sdk_spans(&mut request, &sampler, &decisions);
-        assert_eq!(kept(&request), 0, "the rate-limited trace is dropped whole");
+        assert_eq!(
+            sample(&mut request, &sampler, &decisions, &held, false),
+            0,
+            "the rate-limited trace is dropped whole"
+        );
 
-        // A propagated sampled flag is a sampled remote parent: ParentBased
-        // follows it without spending a token.
+        // A real remote parent (OTLP flags 0x300 plus a parent id) carries the
+        // caller's decision: followed without spending a token.
         let third = "2cf7651916cd43dd8448eb211c80319c";
         let mut request = sampling_request(serde_json::json!([
-            sampling_span(third, "00000000000000c1", None, "3", Some(1)),
+            sampling_span(
+                third,
+                "00000000000000c1",
+                Some("00000000000000c0"),
+                "3",
+                Some(0x301)
+            ),
             sampling_span(
                 third,
                 "00000000000000c2",
                 Some("00000000000000c1"),
                 "2",
-                Some(1)
+                Some(0x101)
             ),
         ]));
-        sample_sdk_spans(&mut request, &sampler, &decisions);
-        assert_eq!(kept(&request), 2);
+        assert_eq!(sample(&mut request, &sampler, &decisions, &held, false), 2);
     }
 
-    /// The worker's sampled flag is followed only where the engine follows a
-    /// sampled parent; a plain ratio sampler keeps deciding by trace id.
+    /// Review B2: the Node SDK sets the sampled bit on every span (`0x101`);
+    /// a local root with it gets exactly the configured policy, like a root
+    /// without flags.
     #[test]
-    fn propagated_sampled_flag_is_followed_only_by_parent_based_samplers() {
+    fn node_sampled_flag_on_local_roots_is_not_a_policy_bypass() {
+        let cases: [(&str, Sampler, usize); 3] = [
+            ("rate_limit=1/s", rate_limited(1), 1),
+            ("rules default 0", rules("keep-op", 0.0), 0),
+            (
+                "parent_based default 0",
+                Sampler::ParentBased(Box::new(Sampler::TraceIdRatioBased(0.0))),
+                0,
+            ),
+        ];
+        for (name, sampler, expected) in cases {
+            for (prefix, flags) in [("11", Some(0x101)), ("12", None)] {
+                // One sampler per run so each starts with a fresh token.
+                let sampler = match name {
+                    "rate_limit=1/s" => rate_limited(1),
+                    _ => sampler.clone(),
+                };
+                let mut request = roots(prefix, 50, flags);
+                let kept = sample(
+                    &mut request,
+                    &sampler,
+                    &Mutex::new(IngestDecisions::default()),
+                    &Mutex::new(HeldSpans::default()),
+                    false,
+                );
+                assert_eq!(kept, expected, "{name} with flags {flags:?}");
+            }
+        }
+    }
+
+    /// A remote parent's sampled bit decides, set or not; a span is never its
+    /// own parent, and a local parent never carries a decision.
+    #[test]
+    fn only_a_real_remote_parent_carries_a_sampling_decision() {
+        let parent_based_off = Sampler::ParentBased(Box::new(Sampler::AlwaysOff));
+        let parent_based_on = Sampler::ParentBased(Box::new(Sampler::AlwaysOn));
         let trace = "3df7651916cd43dd8448eb211c80319c";
-        let flagged = || {
-            sampling_request(serde_json::json!([sampling_span(
+        let one = |parent: Option<&str>, flags: Option<u32>, sampler: &Sampler| {
+            let mut request = sampling_request(serde_json::json!([sampling_span(
                 trace,
                 "00000000000000d1",
-                None,
+                parent,
                 "3",
-                Some(1)
-            )]))
+                flags
+            )]));
+            sample(
+                &mut request,
+                sampler,
+                &Mutex::new(IngestDecisions::default()),
+                &Mutex::new(HeldSpans::default()),
+                false,
+            )
         };
-        let mut request = flagged();
-        sample_sdk_spans(
-            &mut request,
-            &Sampler::AlwaysOff,
-            &Mutex::new(IngestDecisions::default()),
+        assert_eq!(
+            one(Some("00000000000000d0"), Some(0x301), &parent_based_off),
+            1
         );
-        assert_eq!(kept(&request), 0, "the flag is not a bypass of the ratio");
-
-        let parent_based = Sampler::ParentBased(Box::new(Sampler::AlwaysOff));
-        let mut request = flagged();
-        sample_sdk_spans(
-            &mut request,
-            &parent_based,
-            &Mutex::new(IngestDecisions::default()),
+        assert_eq!(
+            one(Some("00000000000000d0"), Some(0x300), &parent_based_on),
+            0,
+            "an unsampled remote parent is followed too"
         );
-        assert_eq!(kept(&request), 1, "parent-based follows the sampled flag");
+        assert_eq!(
+            one(None, Some(0x301), &parent_based_off),
+            0,
+            "no parent id: never the span's own id"
+        );
+        assert_eq!(
+            one(Some("00000000000000d0"), Some(0x101), &parent_based_off),
+            0,
+            "a local parent carries no decision"
+        );
+        assert_eq!(
+            one(Some("00000000000000d0"), Some(0x301), &Sampler::AlwaysOff),
+            0,
+            "a plain ratio sampler ignores parents"
+        );
+    }
 
-        let mut request = sampling_request(serde_json::json!([sampling_span(
+    /// Review N7: with per-operation rules a child that arrives before its
+    /// root waits for it, then follows the root's verdict.
+    #[test]
+    fn child_before_root_waits_and_follows_the_root_rule() {
+        let sampler = rules("root-op", 0.0);
+        let decisions = Mutex::new(IngestDecisions::default());
+        let held = Mutex::new(HeldSpans::default());
+        let trace = "4af7651916cd43dd8448eb211c80319c";
+        let mut child = sampling_request(serde_json::json!([sampling_span(
             trace,
-            "00000000000000d1",
+            "00000000000000e2",
+            Some("00000000000000e1"),
+            "2",
+            None
+        )]));
+        child.resource_spans[0].scope_spans[0].spans[0].name = "child-op".to_string();
+        assert!(sample_sdk_spans(
+            &mut child, &sampler, &decisions, &held, true
+        ));
+        assert_eq!(kept(&child), 0, "held, not decided by the child's name");
+        let mut root = sampling_request(serde_json::json!([sampling_span(
+            trace,
+            "00000000000000e1",
             None,
             "3",
             None
         )]));
-        sample_sdk_spans(
-            &mut request,
-            &parent_based,
-            &Mutex::new(IngestDecisions::default()),
-        );
+        root.resource_spans[0].scope_spans[0].spans[0].name = "root-op".to_string();
+        sample_sdk_spans(&mut root, &sampler, &decisions, &held, true);
+        let names: Vec<&str> = root
+            .resource_spans
+            .iter()
+            .flat_map(|resource| &resource.scope_spans)
+            .flat_map(|scope| &scope.spans)
+            .map(|span| span.name.as_str())
+            .collect();
         assert_eq!(
-            kept(&request),
-            0,
-            "an unflagged root gets the root decision"
+            names,
+            vec!["root-op", "child-op"],
+            "root keeps; held child released"
         );
+        assert!(held.lock().unwrap().is_empty());
+    }
+
+    /// The wait is bounded: past `ROOT_WAIT`, or over `MAX_HELD_SPANS`, a
+    /// held trace is released and decided by its first held span.
+    #[test]
+    fn held_spans_are_released_after_the_wait_or_when_full() {
+        let sampler = rules("root-op", 1.0);
+        let decisions = Mutex::new(IngestDecisions::default());
+        let held = Mutex::new(HeldSpans::default());
+        let late = Instant::now() - ROOT_WAIT - Duration::from_millis(1);
+        let fragment = |trace: &str| {
+            sampling_request(serde_json::json!([sampling_span(
+                trace,
+                "00000000000000f2",
+                Some("00000000000000f1"),
+                "2",
+                None
+            )]))
+            .resource_spans
+            .remove(0)
+        };
+        let expired = "5af7651916cd43dd8448eb211c80319c";
+        held.lock()
+            .unwrap()
+            .hold(expired.to_string(), fragment(expired), 1, late);
+        let mut empty = OtlpExportTraceServiceRequest::default();
+        sample_sdk_spans(&mut empty, &sampler, &decisions, &held, true);
+        assert_eq!(
+            kept(&empty),
+            1,
+            "expired trace released, decided by its span"
+        );
+        assert!(held.lock().unwrap().is_empty());
+
+        let now = Instant::now();
+        {
+            let mut held = held.lock().unwrap();
+            for index in 0..=MAX_HELD_SPANS {
+                let trace = format!("{index:032x}");
+                held.hold(trace.clone(), fragment(&trace), 1, now);
+            }
+            assert_eq!(held.take_due(now).len(), 1, "oldest released when full");
+            assert_eq!(held.spans, MAX_HELD_SPANS);
+        }
     }
 
     #[test]

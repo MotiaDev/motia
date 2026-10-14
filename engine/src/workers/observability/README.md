@@ -183,30 +183,51 @@ traces and `logs_exporter: both` for logs.
 
 ### Archive capacity
 
-- Durable rows are never deleted to make room for their own trace. A span
-  whose trace can never fit beside its durable rows within the cap plus
-  tolerance (judged by a lower bound, and for large traces by their real
-  SQLite image measured in a private scratch file under the system temp
-  directory) is dropped before anything is evicted for it, counted in
-  `known_dropped_spans` (`completeness: partial`), and later spans of the same
-  trace are judged on their own. Of two dirty versions of a span, the newest
-  is archived.
-- A trace that fits an empty archive but not the current one (for example
-  while a live trace holds the space) stays dirty and is retried with backoff
-  (1 s doubling to 60 s); when nothing fits at all the whole archive backs off
-  (up to 30 s). `flush` ignores the backoffs, new limits, `clear` and retention
-  reset them. A periodic pass does at most 32 batches or 1 s of work before
-  serving control requests; a longer backlog is progress, not degradation.
+- Every commit attributes the pages it used (new plus reused free pages,
+  minus pages freed by replaced versions) to the traces it wrote, in
+  `trace_meta.image_bytes`. Capacity decisions use these measured sizes,
+  never an archive-wide ratio. Archives from before the column gain it on
+  open (0 = not measured; `approx_bytes` is used until the trace is written
+  again).
+- Durable rows are never deleted to make room for their own trace. Before
+  anything is evicted, a trace's new spans are judged against the room it
+  could ever have beside its own rows (the room left now plus what other
+  traces hold): rows that never fit are dropped and counted in
+  `known_dropped_spans` (`completeness: partial`); the longest prefix that
+  fits is written; rows that fit only once others leave wait. Later spans of
+  the same trace are judged on their own. Of two dirty versions of a span,
+  the newest is archived.
+- Nothing is evicted for spans that would not fit even with every
+  unprotected trace gone (protected = traces in the batch and live traces);
+  after an exhaustive eviction the bytes left are remembered as a floor while
+  the same traces stay protected.
+- Large new spans (lower bound above a quarter of the cap and at most 64 MiB)
+  are measured once in a private scratch database under the system temporary
+  directory (mode 0600, 2 MiB page cache, removed right after, outside the
+  cap; on tmpfs it is memory for one measurement). The measurement is kept
+  for retries of the same rows. If the scratch cannot be used (missing or
+  full TMPDIR) it is skipped for 10 minutes with one warning, and such spans
+  are measured by a trial in the archive itself, with nothing evicted for
+  them; larger spans always are.
+- A trace that fits beside its own rows but not now (for example while a
+  live trace holds the space) stays dirty and is retried with backoff (1 s
+  doubling to 60 s); when nothing fits at all the whole archive backs off (up
+  to 30 s). A storage error (for example EFBIG/ENOSPC writing one large
+  trace) defers only the traces that hit it. `flush` ignores the backoffs;
+  new limits, `clear` and retention reset them. A periodic pass does at most
+  32 batches or 1 s of work before serving control requests; a longer backlog
+  is progress, not degradation.
 - `flush` returns `Ok` once every span ingested before the call is durable or
   counted as dropped; it returns an error if capacity or storage left some
   dirty (archive `degraded`) or its 4 s budget ran out (not degraded).
-- Freed pages return to the filesystem in checkpointed steps of 1024 pages, so
-  retention or eviction adds about one step of WAL on top of the main file
-  instead of a WAL as large as the space being freed. A reader holding a
-  snapshot pins the WAL: the return pauses until the reader finishes.
+- The cap counts the pages in use plus the `-shm` index. Freed pages return
+  to the filesystem in checkpointed steps of 1024 pages, so retention or
+  eviction adds about one step of WAL on top of the main file instead of a
+  WAL as large as the space being freed. A reader holding a snapshot pins the
+  WAL: the return pauses until the reader finishes.
 - The full-VACUUM fallback (for files whose pages do not return) runs at most
-  once per 10 minutes. Archive warnings (capacity, drops, VACUUM failures)
-  are limited to one log line per minute with a suppressed count.
+  once per 10 minutes. Archive warnings (capacity, drops, scratch and VACUUM
+  failures) are limited to one log line per minute with a suppressed count.
 
 ### Advanced Sampling
 
@@ -222,14 +243,29 @@ sampling:
 ```
 
 Worker spans received over OTLP are sampled per trace before local storage
-and collector export: the first span seen of a trace decides and its start
-snapshot, final and children follow, so rules and rate limits never split a
-trace and a snapshot never spends a second token. A worker span carrying the
-W3C sampled flag is treated like a sampled remote parent: parent-based
-samplers (`parent_based: true`, and rules/rate limits, which always run
-parent-based) keep it, as the engine keeps its own spans under that parent,
-while a plain `sampling_ratio` keeps deciding by trace id. Verdicts are
-remembered for the 16,384 most recent traces and reset when sampling changes.
+and collector export, where the trace is rooted in the worker:
+
+- A local root (no parent) gets the configured policy: rules, one rate-limit
+  token per trace, default ratio. The W3C sampled bit SDKs set on exported
+  spans (the Node SDK sends flags `0x101` on every span) is not a decision
+  and never bypasses these policies.
+- A span whose parent the SDK marks remote (OTLP flags `0x300` together with
+  a `parentSpanId`) carries the caller's decision: its sampled bit, set or
+  not, is presented to the sampler as an incoming `traceparent` would be, so
+  parent-based samplers (`parent_based: true`, and rules/rate limits, which
+  always run parent-based) follow it and a plain `sampling_ratio` keeps
+  deciding by trace id.
+- Every other span follows its trace. A root anywhere in the same request
+  decides first; a trace already in the hot cache was sampled in. With
+  per-operation rules a child that arrives before its root waits for it, up
+  to 2 s and 4,096 spans in total, then is decided by its own span (rules are
+  evaluated on the root, as the engine does). Without such rules the first
+  span seen decides.
+- Verdicts are remembered for the 16,384 most recent traces and reset when
+  sampling changes. Engine spans under a worker's traceparent follow the
+  engine's own sampler (`ParentBased`, unchanged): it trusts the worker's
+  sampled flag, so with `parent_based: true` and default 0 a worker-rooted
+  trace keeps its engine spans while the worker's local root is sampled out.
 
 ## Functions
 
