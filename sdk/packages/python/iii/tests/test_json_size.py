@@ -281,7 +281,9 @@ async def test_cancelled_fragmented_send_waiting_for_another_preserves_first_mes
 async def test_cancelled_fragmented_send_after_fin_does_not_abort_connection():
     fin_written = asyncio.Event()
     let_send_finish = asyncio.Event()
+    keep_server_open = asyncio.Event()
     received = asyncio.get_running_loop().create_future()
+    received_small = asyncio.get_running_loop().create_future()
 
     async def handler(ws):
         try:
@@ -290,9 +292,15 @@ async def test_cancelled_fragmented_send_after_fin_does_not_abort_connection():
                 fragments.append(fragment)
             if not received.done():
                 received.set_result("".join(fragments))
+            small = await ws.recv()
+            if not received_small.done():
+                received_small.set_result(small)
+            await keep_server_open.wait()
         except Exception as error:
             if not received.done():
                 received.set_exception(error)
+            if not received_small.done():
+                received_small.set_exception(error)
 
     async with websockets.serve(handler, "127.0.0.1", 0, max_size=_MAX_JSON_OUTBOUND_BYTES + 1024) as server:
         port = server.sockets[0].getsockname()[1]
@@ -335,9 +343,13 @@ async def test_cancelled_fragmented_send_after_fin_does_not_abort_connection():
                 assert ws.state.name == "OPEN"
                 let_send_finish.set()
                 assert await asyncio.wait_for(received, timeout=10) == message
+                small = json.dumps({"type": "small-after-fin", "data": 1})
+                await III._send_json(III.__new__(III), ws, small)
+                assert await asyncio.wait_for(received_small, timeout=10) == small
                 assert ws.state.name == "OPEN"
             finally:
                 let_send_finish.set()
+                keep_server_open.set()
                 ws.protocol.send_continuation = original_continuation
                 ws.send_context = original_send_context
 

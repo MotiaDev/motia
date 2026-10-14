@@ -9986,6 +9986,8 @@ mod tests {
             other => panic!("expected a FORBIDDEN observeresult, got {other:?}"),
         }
         assert!(engine.observers.get("o-denied").is_none());
+    }
+
     #[tokio::test]
     async fn oversized_invoke_completes_caller_and_cleans_caller_and_target_state() {
         ensure_default_meter();
