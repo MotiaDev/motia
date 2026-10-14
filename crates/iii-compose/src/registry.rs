@@ -1177,14 +1177,24 @@ fn extract_and_publish(
     unpack_and_publish(
         |staging| {
             if bytes.starts_with(b"PK\x03\x04") || bytes.starts_with(b"PK\x05\x06") {
-                let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))?;
+                use zip::HasZipMetadata;
+
+                let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&bytes))?;
                 for index in 0..archive.len() {
                     cancel.check(staging).map_err(std::io::Error::other)?;
                     let mut entry = archive.by_index(index)?;
                     let relative = entry.enclosed_name().ok_or_else(|| {
                         std::io::Error::other("ZIP entry is outside the install directory")
                     })?;
-                    if entry.is_symlink() {
+                    let mode = entry.unix_mode().or_else(|| {
+                        // zip 2 discards Darwin's creator OS (19), but its external
+                        // attributes contain Unix modes just like Unix-created ZIPs.
+                        let creator = entry.central_header_start() as usize + 5;
+                        (bytes.get(creator) == Some(&19))
+                            .then(|| entry.get_metadata().external_attributes >> 16)
+                            .filter(|mode| *mode != 0)
+                    });
+                    if mode.is_some_and(|mode| mode & 0o170000 == 0o120000) {
                         return Err(std::io::Error::other("ZIP symlinks are not supported"));
                     }
                     let path = staging.join(relative);
@@ -1204,7 +1214,7 @@ fn extract_and_publish(
                             &mut output,
                         )?;
                         #[cfg(unix)]
-                        if let Some(mode) = entry.unix_mode() {
+                        if let Some(mode) = mode {
                             use std::os::unix::fs::PermissionsExt;
                             std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode))?;
                         }
@@ -1502,11 +1512,44 @@ mod tests {
         let cancel = crate::shutdown::BlockingCancellation::default();
         for bytes in [
             zip_archive("../escaped.exe", b"outside"),
+            darwin_zip_archive("worker", b"outside", 0o120777),
             b"PK\x03\x04truncated".to_vec(),
         ] {
             assert!(extract_and_publish(bytes, &install, "digest", &cancel).is_err());
             assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
         }
+    }
+
+    fn darwin_zip_archive(name: &str, body: &[u8], mode: u32) -> Vec<u8> {
+        let mut bytes = zip_archive(name, body);
+        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&bytes)).unwrap();
+        let header = archive.by_index(0).unwrap().central_header_start() as usize;
+        drop(archive);
+        // Central directory: creator OS is byte 5; external attributes start at 38.
+        bytes[header + 5] = 19;
+        bytes[header + 38..header + 42].copy_from_slice(&(mode << 16).to_le_bytes());
+        bytes
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn darwin_zip_binary_is_installed_and_reused_from_cache() {
+        let server = alias_registry(
+            "binary",
+            darwin_zip_archive("package/worker", b"worker contents", 0o100755),
+            1,
+        )
+        .await;
+        let cache = tempfile::tempdir().unwrap();
+        let installed =
+            install_from_registry("shell", &server.uri(), "shell", "1.0.0", cache.path())
+                .await
+                .unwrap();
+        let cached = install_from_registry("shell", &server.uri(), "shell", "1.0.0", cache.path())
+            .await
+            .unwrap();
+        assert_eq!(installed.payload, cached.payload);
+        assert_eq!(cached.status, InstallStatus::Cached);
     }
 
     #[test]
