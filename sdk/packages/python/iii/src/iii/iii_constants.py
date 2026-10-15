@@ -70,6 +70,9 @@ class InitOptions:
         reconnection_config: WebSocket reconnection behavior.
         otel: OpenTelemetry configuration. Enabled by default.
             Set ``{'enabled': False}`` or env ``OTEL_ENABLED=false`` to disable.
+        headers: Custom HTTP headers sent during the WebSocket handshake, on the
+            main connection and on streaming channels. ``Authorization: Bearer $III_TOKEN``
+            is added unless you set ``Authorization`` here.
         telemetry: Internal worker metadata reported to the engine.
     """
 

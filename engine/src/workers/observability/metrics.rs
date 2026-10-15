@@ -747,6 +747,7 @@ impl RollupStorage {
 
 /// Time-indexed metric storage with efficient range queries
 pub struct TimeIndexedMetricStorage {
+    // When both indexes are locked, lock time before name; both guards keep the indexes coherent.
     /// Primary storage: timestamp -> metrics
     metrics_by_time: std::sync::RwLock<std::collections::BTreeMap<u64, Vec<StoredMetric>>>,
     /// Secondary index: name -> timestamps (for name+time queries)
@@ -911,8 +912,8 @@ impl TimeIndexedMetricStorage {
     }
 
     pub fn get_metrics_by_name(&self, name: &str) -> Vec<StoredMetric> {
-        let by_name = self.metrics_by_name.read().unwrap();
         let by_time = self.metrics_by_time.read().unwrap();
+        let by_name = self.metrics_by_name.read().unwrap();
 
         if let Some(timestamps) = by_name.get(name) {
             timestamps
@@ -931,8 +932,8 @@ impl TimeIndexedMetricStorage {
         start_ns: u64,
         end_ns: u64,
     ) -> Vec<StoredMetric> {
-        let by_name = self.metrics_by_name.read().unwrap();
         let by_time = self.metrics_by_time.read().unwrap();
+        let by_name = self.metrics_by_name.read().unwrap();
 
         if let Some(timestamps) = by_name.get(name) {
             timestamps
@@ -1103,8 +1104,13 @@ impl TimeIndexedMetricStorage {
     }
 
     pub fn clear(&self) {
-        self.metrics_by_time.write().unwrap().clear();
-        self.metrics_by_name.write().unwrap().clear();
+        // Keep the same time-before-name ordering as every operation that
+        // needs both indexes, and hold both guards while clearing so readers
+        // cannot observe indexes from different generations.
+        let mut by_time = self.metrics_by_time.write().unwrap();
+        let mut by_name = self.metrics_by_name.write().unwrap();
+        by_time.clear();
+        by_name.clear();
         self.total_metrics
             .store(0, std::sync::atomic::Ordering::Relaxed);
     }
@@ -2020,6 +2026,129 @@ mod tests {
             storage.len() <= 2,
             "tightened cap must bound the store, got {}",
             storage.len()
+        );
+    }
+
+    #[test]
+    fn metric_index_operations_hold_time_while_waiting_for_name() {
+        use std::{
+            sync::mpsc,
+            time::{Duration, Instant},
+        };
+        // Hold the second lock to observe acquisition of the first without
+        // relying on a lucky thread interleaving. Pre-#2296 readers block on
+        // name without holding time; the old clear releases time too early.
+        for operation in 0..3 {
+            let storage = Arc::new(InMemoryMetricStorage::new(10, DEFAULT_RETENTION_NS));
+            let name = storage.metrics_by_name.write().unwrap();
+            let (done_tx, done_rx) = mpsc::channel();
+            let worker_storage = storage.clone();
+            let worker = std::thread::spawn(move || {
+                match operation {
+                    0 => {
+                        worker_storage.get_metrics_by_name("requests");
+                    }
+                    1 => {
+                        worker_storage.get_metrics_by_name_in_range("requests", 0, u64::MAX);
+                    }
+                    _ => worker_storage.clear(),
+                }
+                done_tx.send(()).unwrap();
+            });
+            let deadline = Instant::now() + Duration::from_secs(5);
+            let holds_time = loop {
+                if storage.metrics_by_time.try_write().is_err() {
+                    break true;
+                }
+                if Instant::now() >= deadline {
+                    break false;
+                }
+                std::thread::yield_now();
+            };
+            // Exclude a transient time guard (the old clear only held it
+            // for one statement, then waited for name without it).
+            std::thread::sleep(Duration::from_millis(20));
+            let holds_time = holds_time && storage.metrics_by_time.try_write().is_err();
+            drop(name);
+            done_rx
+                .recv_timeout(Duration::from_secs(5))
+                .expect("index operation completed");
+            worker.join().unwrap();
+            assert!(
+                holds_time,
+                "operation {operation} must hold time while waiting for name"
+            );
+        }
+    }
+
+    #[test]
+    fn metric_storage_concurrent_writes_retention_and_range_reads_complete() {
+        use std::sync::{Barrier, mpsc};
+        use std::time::Duration;
+
+        const WRITERS: usize = 2;
+        const READERS: usize = 4;
+        const ITERATIONS: u64 = 20_000;
+
+        let storage = Arc::new(InMemoryMetricStorage::new(64, DEFAULT_RETENTION_NS));
+        let barrier = Arc::new(Barrier::new(WRITERS + READERS + 1));
+        let (done_tx, done_rx) = mpsc::channel();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after epoch")
+            .as_nanos() as u64;
+
+        for writer in 0..WRITERS {
+            let storage = storage.clone();
+            let barrier = barrier.clone();
+            let done_tx = done_tx.clone();
+            std::thread::spawn(move || {
+                barrier.wait();
+                for i in 0..ITERATIONS {
+                    let timestamp = now + i * 1_000_000 + writer as u64;
+                    storage.add_metrics(vec![make_number_metric(
+                        "requests",
+                        "stress-test",
+                        StoredMetricType::Gauge,
+                        &[(i as f64, timestamp)],
+                        vec![],
+                    )]);
+                    if i % 4 == 0 {
+                        storage.apply_retention();
+                    }
+                }
+                let _ = done_tx.send(());
+            });
+        }
+
+        for _ in 0..READERS {
+            let storage = storage.clone();
+            let barrier = barrier.clone();
+            let done_tx = done_tx.clone();
+            std::thread::spawn(move || {
+                barrier.wait();
+                for _ in 0..ITERATIONS {
+                    let _ = storage.get_metrics_by_name_in_range(
+                        "requests",
+                        now,
+                        now + ITERATIONS * 1_000_000,
+                    );
+                }
+                let _ = done_tx.send(());
+            });
+        }
+        drop(done_tx);
+        barrier.wait();
+
+        for completed in 0..WRITERS + READERS {
+            assert!(
+                done_rx.recv_timeout(Duration::from_secs(10)).is_ok(),
+                "metric storage worker {completed} deadlocked or exceeded the 10s watchdog"
+            );
+        }
+        assert!(
+            storage.len() <= 64,
+            "capacity remains enforced under contention"
         );
     }
 

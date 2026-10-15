@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"net/http"
 	"os"
 	"runtime"
 	"strings"
@@ -39,6 +40,9 @@ type Client struct {
 	reconnect   ReconnectConfig
 	name        string
 	description string
+	// headers are the caller's WithHeaders, sent on the WebSocket handshake of the
+	// main connection and of channels. handshakeHeaders adds the III_TOKEN bearer.
+	headers http.Header
 	// namespace is the routing dimension this worker registers into. Empty means
 	// the engine's default namespace. Resolved once at construction: an explicit
 	// WithNamespace wins, else the III_NAMESPACE env var, else default.
@@ -176,6 +180,35 @@ func WithReconnectConfig(c ReconnectConfig) Option {
 // worker does. Surfaces in engine::workers::list / engine::workers::info.
 func WithDescription(description string) Option {
 	return func(c *Client) { c.description = description }
+}
+
+// WithHeaders sets HTTP headers sent on the WebSocket handshake of the main connection
+// and of channels created with [Client.CreateChannel]. The III_TOKEN environment
+// variable, when set and not blank, adds "Authorization: Bearer <token>" unless h
+// already carries an Authorization header.
+func WithHeaders(h http.Header) Option {
+	return func(c *Client) { c.headers = h }
+}
+
+// handshakeHeaders returns explicit plus "Authorization: Bearer $III_TOKEN" when the
+// variable is set and not blank. An Authorization header already in explicit wins
+// (names match case-insensitively). explicit is never modified.
+func handshakeHeaders(explicit http.Header) http.Header {
+	token := strings.TrimSpace(os.Getenv("III_TOKEN"))
+	if token == "" {
+		return explicit
+	}
+	for name := range explicit {
+		if strings.EqualFold(name, "Authorization") {
+			return explicit
+		}
+	}
+	h := explicit.Clone()
+	if h == nil {
+		h = http.Header{}
+	}
+	h.Set("Authorization", "Bearer "+token)
+	return h
 }
 
 // WithName sets the worker name reported to the engine. A non-empty
@@ -380,35 +413,40 @@ func (c *Client) RegisterTriggerType(id, description string, handler TriggerHand
 // forwarded it verbatim and Python replaced it with the worker's. One mistake,
 // four behaviours.
 //
-// Unlike the other SDKs, absent here still means the engine's `default` rather
-// than this worker's namespace: Go has not adopted namespace inheritance yet.
+// Absent is not blank: it inherits this worker's namespace.
 func refuseBlankCallNamespace(namespace, source string) error {
 	if namespace != "" && strings.TrimSpace(namespace) == "" {
 		return fmt.Errorf(
 			"iii: namespace is empty: %s was set to %q. Give it a name, or leave it unset "+
-				"to resolve in the engine's default namespace", source, namespace)
+				"to stay in this worker's namespace", source, namespace)
 	}
 	return nil
 }
 
-// invocationNamespace keeps engine-owned builtins in the engine's default
-// namespace. An explicit namespace always wins. Go does not yet inherit the
-// worker namespace for other calls, so their absent namespace stays absent.
-func invocationNamespace(functionID, explicit string) string {
-	if explicit == "" && strings.HasPrefix(functionID, "engine::") {
+// invocationNamespace resolves one function invocation. An explicit namespace
+// always wins. Otherwise engine-owned builtins (engine::*, and configuration::*
+// from the engine-owned configuration worker) stay in the engine's default
+// namespace, and every other call inherits the worker's.
+func invocationNamespace(functionID, explicit, worker string) string {
+	switch {
+	case explicit != "":
+		return explicit
+	case strings.HasPrefix(functionID, "engine::") || strings.HasPrefix(functionID, "configuration::"):
 		return "default"
+	default:
+		return worker
 	}
-	return explicit
 }
 
 // RegisterTrigger registers a trigger instance: fire functionID when a trigger of
 // triggerType matches config. config and optional metadata are raw JSON (may be nil).
+// functionID resolves in this worker's namespace.
 func (c *Client) RegisterTrigger(id, triggerType, functionID string, config json.RawMessage, metadata ...json.RawMessage) error {
 	return c.registerTrigger(id, triggerType, functionID, "", config, metadata...)
 }
 
 // RegisterTriggerNamespaced is like [Client.RegisterTrigger] but resolves the
-// target functionID in namespace. An empty namespace means the engine's default.
+// target functionID in namespace. An empty namespace means this worker's.
 func (c *Client) RegisterTriggerNamespaced(id, triggerType, functionID, namespace string, config json.RawMessage, metadata ...json.RawMessage) error {
 	return c.registerTrigger(id, triggerType, functionID, namespace, config, metadata...)
 }
@@ -416,6 +454,9 @@ func (c *Client) RegisterTriggerNamespaced(id, triggerType, functionID, namespac
 func (c *Client) registerTrigger(id, triggerType, functionID, namespace string, config json.RawMessage, metadata ...json.RawMessage) error {
 	if err := refuseBlankCallNamespace(namespace, "RegisterTriggerNamespaced namespace"); err != nil {
 		return err
+	}
+	if namespace == "" {
+		namespace = c.namespace
 	}
 	if config == nil {
 		config = json.RawMessage("{}")
@@ -460,8 +501,9 @@ type TriggerRequest struct {
 	Action *TriggerAction
 	// Timeout overrides [DefaultInvocationTimeout] for an await/enqueue call.
 	Timeout time.Duration
-	// Namespace routes the invocation to a specific namespace. Empty means the
-	// engine's default namespace, independent of this worker's own namespace.
+	// Namespace routes the invocation to a specific namespace. Empty means this
+	// worker's namespace, except engine::* and configuration::* builtins, which
+	// resolve in the engine's default namespace.
 	Namespace string
 }
 
@@ -476,7 +518,7 @@ func (c *Client) Trigger(ctx context.Context, req TriggerRequest) (json.RawMessa
 	if err := refuseBlankCallNamespace(req.Namespace, "TriggerRequest.Namespace"); err != nil {
 		return nil, err
 	}
-	namespace := invocationNamespace(req.FunctionID, req.Namespace)
+	namespace := invocationNamespace(req.FunctionID, req.Namespace, c.namespace)
 	data := req.Data
 	if data == nil {
 		data = json.RawMessage("{}")
@@ -705,7 +747,7 @@ func (c *Client) runConnection() error {
 	connCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	conn, _, err := websocket.Dial(connCtx, c.url, nil)
+	conn, _, err := websocket.Dial(connCtx, c.url, &websocket.DialOptions{HTTPHeader: handshakeHeaders(c.headers)})
 	if err != nil {
 		// Treat dial failure as a reconnectable error unless we're shutting down.
 		select {
@@ -894,7 +936,7 @@ type workerMetadata struct {
 
 // sdkVersion is reported in the worker metadata. Kept as a const for v1; a release
 // process can wire this to the module version later.
-const sdkVersion = "0.24.6-rc.2"
+const sdkVersion = "0.24.6-rc.5"
 
 // writeLoop is the single writer for one connection. It drains the shared outbound
 // channel (connection-agnostic frames) and this connection's own reply channel

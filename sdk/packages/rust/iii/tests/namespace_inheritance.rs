@@ -182,13 +182,32 @@ async fn an_explicit_namespace_wins_for_an_engine_invocation() {
 }
 
 #[tokio::test]
-async fn an_invocation_can_still_name_another_namespace() {
+async fn a_configuration_invocation_stays_in_default() {
     let mock = MockEngine::start().await;
     let iii = worker_in(&mock, Some("orders"));
 
-    // Reaching an engine builtin from inside a namespace: `configuration` and
-    // `engine::*` are compiled into the engine and only ever exist in
-    // `default`, so a worker that needs one names it.
+    // `configuration::*` belongs to the engine-owned `configuration` worker,
+    // which only exists in `default`.
+    let _ = iii
+        .trigger(TriggerRequest {
+            function_id: "configuration::get".to_string(),
+            payload: json!({}),
+            action: Some(TriggerAction::Void),
+            timeout_ms: None,
+        })
+        .await;
+
+    assert_eq!(
+        invocation_namespace_of(&mock, "configuration::get").await,
+        Some(json!("default"))
+    );
+}
+
+#[tokio::test]
+async fn an_explicit_namespace_wins_for_a_configuration_invocation() {
+    let mock = MockEngine::start().await;
+    let iii = worker_in(&mock, Some("orders"));
+
     let _ = iii
         .trigger(
             TriggerRequest {
@@ -197,13 +216,13 @@ async fn an_invocation_can_still_name_another_namespace() {
                 action: Some(TriggerAction::Void),
                 timeout_ms: None,
             }
-            .namespace("default"),
+            .namespace("sandbox"),
         )
         .await;
 
     assert_eq!(
-        namespace_of(&mock, "invokefunction").await,
-        Some(json!("default"))
+        invocation_namespace_of(&mock, "configuration::get").await,
+        Some(json!("sandbox"))
     );
 }
 

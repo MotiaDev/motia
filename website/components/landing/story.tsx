@@ -60,29 +60,33 @@ export function Story() {
     <section id="coder" aria-labelledby={headingId} className={cn('landing-section relative', styles.story)}>
       <SectionRule />
       <div ref={ref} className={wideContainer}>
-        <header className={styles.intro}>
-          <p className={styles.eyebrow}>{story.eyebrow}</p>
-          <PixelHeading id={headingId} className={styles.introTitle}>
-            {story.title}
-          </PixelHeading>
-          <p className={styles.introCopy}>{story.description}</p>
-        </header>
         <div className={styles.layout}>
-          <ol className={styles.chapters}>
-            {STORY_STEPS.map((chapter) => {
-              const active = chapter.id === stage
-              const chapterBeat = active ? beat : lastStoryBeat(chapter.id)
-              return (
-                <StoryChapter key={chapter.id} chapter={chapter} onVisibility={chapterVisibility}>
-                  <StoryActivity stage={chapter.id} beat={chapterBeat} running={active && animating} />
-                  <div className={styles.mobileGraph}>
-                    <StoryPreview stage={chapter.id} beat={chapterBeat} running={active && animating} />
-                    {active ? controls : null}
-                  </div>
-                </StoryChapter>
-              )
-            })}
-          </ol>
+          {/* The intro heads the text column, so the animation sits beside it from the first line and pins as soon
+              as the section reaches the top, instead of after the intro has scrolled away. */}
+          <div className={styles.chapters}>
+            <header className={styles.intro}>
+              <p className={styles.eyebrow}>{story.eyebrow}</p>
+              <PixelHeading id={headingId} className={styles.introTitle}>
+                {story.title}
+              </PixelHeading>
+              <p className={styles.introCopy}>{story.description}</p>
+            </header>
+            <ol>
+              {STORY_STEPS.map((chapter) => {
+                const active = chapter.id === stage
+                const chapterBeat = active ? beat : lastStoryBeat(chapter.id)
+                return (
+                  <StoryChapter key={chapter.id} chapter={chapter} onVisibility={chapterVisibility}>
+                    <StoryActivity stage={chapter.id} beat={chapterBeat} running={active && animating} />
+                    <div className={styles.mobileGraph}>
+                      <StoryPreview stage={chapter.id} beat={chapterBeat} running={active && animating} />
+                      {active ? controls : null}
+                    </div>
+                  </StoryChapter>
+                )
+              })}
+            </ol>
+          </div>
           <div className={styles.desktopGraph}>
             <div className={styles.stickyGraph}>
               <nav aria-label="Explore CODER" className={styles.chapterNav}>
