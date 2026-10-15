@@ -8,7 +8,7 @@ import { easeOut } from '@/lib/motion'
 
 type Format = 'plain' | 'compact'
 
-const formatters: Record<Format, (n: number) => string> = {
+export const formatters: Record<Format, (n: number) => string> = {
   plain: (n) => n.toLocaleString('en-US'),
   compact: (n) =>
     new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n).toLowerCase(),
@@ -36,22 +36,28 @@ export function CountUp({
   const ref = useRef<HTMLSpanElement>(null)
   const seen = useInView(ref, { once: true, margin: '0px 0px -10% 0px' })
   const [text, setText] = useState(() => formatters[format](value))
+  const shown = useRef<number | null>(null)
 
   useEffect(() => {
     if (reduce || !seen) return
     const render = formatters[format]
-    const controls = animate(Math.round(value * 0.9), value, {
+    const from = shown.current ?? Math.round(value * 0.9)
+    if (from === value) return
+    const controls = animate(from, value, {
       duration: 1.2,
-      delay,
+      delay: shown.current === null ? delay : 0,
       ease: easeOut,
-      onUpdate: (v) => setText(render(Math.round(v))),
+      onUpdate: (v) => {
+        shown.current = Math.round(v)
+        setText(render(shown.current))
+      },
     })
     return () => controls.stop()
   }, [value, format, delay, reduce, seen])
 
   return (
     <span ref={ref} className={className}>
-      {text}
+      {reduce ? formatters[format](value) : text}
     </span>
   )
 }

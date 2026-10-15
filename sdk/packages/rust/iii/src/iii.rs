@@ -8,7 +8,7 @@ mod json_size_tests {
     use super::*;
 
     #[tokio::test]
-    async fn flush_drops_permanent_rejection_without_blocking_following_messages() {
+    async fn local_rejection_preserves_result_fallback_and_following_messages() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let server = tokio::spawn(async move {
@@ -21,17 +21,23 @@ mod json_size_tests {
         let (stream, _) = connect_async(format!("ws://{address}")).await.unwrap();
         let (mut tx, _) = stream.split();
         let sdk = IIIClient::new("ws://127.0.0.1:0");
+        let rejected =
+            IIIClient::prepare_envelope(&invocation("x".repeat(MAX_JSON_FRAME_BYTES))).unwrap_err();
+        assert_eq!(
+            rejected.invocation_error().unwrap().code,
+            "payload_too_large"
+        );
         let mut queue = vec![
-            invocation("x".repeat(MAX_JSON_FRAME_BYTES)),
-            Message::InvocationResult {
+            IIIClient::prepare_envelope(&Message::InvocationResult {
                 invocation_id: Uuid::nil(),
                 function_id: "f".into(),
                 result: Some(Value::String("x".repeat(MAX_JSON_FRAME_BYTES))),
                 error: None,
                 traceparent: None,
                 baggage: None,
-            },
-            Message::Pong,
+            })
+            .unwrap(),
+            IIIClient::prepare_envelope(&Message::Pong).unwrap(),
         ];
         sdk.flush_queue(&mut tx, &mut queue).await.unwrap();
         assert!(queue.is_empty());
@@ -232,10 +238,12 @@ mod json_size_tests {
         assert!(matches!(receiver.try_recv(), Ok(Outbound::Message(_))));
         assert!(receiver.try_recv().is_err());
         sdk.send_message(Message::Pong).unwrap();
-        assert!(matches!(
-            receiver.try_recv(),
-            Ok(Outbound::Message(Message::Pong))
-        ));
+        match receiver.try_recv().unwrap() {
+            Outbound::Message(envelope) => {
+                assert_eq!(envelope.payload.as_str(), "{\"type\":\"pong\"}");
+            }
+            Outbound::Shutdown => panic!("expected pong"),
+        }
     }
 
     fn invocation(data: String) -> Message {
@@ -262,13 +270,12 @@ mod json_size_tests {
             MAX_JSON_FRAME_BYTES + 1,
         ] {
             let message = invocation("x".repeat(size - overhead));
-            let result = IIIClient::prepare_json(&message);
+            let result = IIIClient::prepare_envelope(&message);
             if size <= MAX_JSON_FRAME_BYTES {
-                assert_eq!(result.unwrap().len(), size);
+                assert_eq!(result.unwrap().payload.len(), size);
             } else {
                 let error = result.unwrap_err();
                 assert_eq!(error.invocation_error().unwrap().code, "payload_too_large");
-                assert!(IIIClient::permanent_send_error(&error));
             }
         }
     }
@@ -277,7 +284,7 @@ mod json_size_tests {
     fn unicode_and_escapes_use_serialized_bytes() {
         let input = "😀é\n\"\\".repeat(1_700_000);
         assert!(input.chars().count() < MAX_JSON_FRAME_BYTES);
-        assert!(IIIClient::prepare_json(&invocation(input)).is_err());
+        assert!(IIIClient::prepare_envelope(&invocation(input)).is_err());
     }
 
     #[test]
@@ -290,7 +297,7 @@ mod json_size_tests {
             traceparent: None,
             baggage: Some("secret".repeat(1000)),
         };
-        let payload = IIIClient::prepare_json(&message).unwrap();
+        let payload = IIIClient::prepare_envelope(&message).unwrap().payload;
         let parsed: Value = serde_json::from_str(&payload).unwrap();
         assert_eq!(parsed["invocation_id"], Uuid::nil().to_string());
         assert_eq!(parsed["error"]["code"], "payload_too_large");
@@ -304,24 +311,13 @@ mod json_size_tests {
         assert_eq!(config.max_frame_size, Some(67_108_864));
         assert_eq!(config.max_message_size, Some(67_108_864));
     }
-
-    #[test]
-    fn transport_failures_remain_transient() {
-        assert!(!IIIClient::permanent_send_error(&Error::Timeout));
-        assert!(!IIIClient::permanent_send_error(&Error::WebSocket(
-            "closed".into()
-        )));
-        assert!(IIIClient::permanent_send_error(&Error::Serde(
-            "invalid".into()
-        )));
-    }
 }
 
 use std::{
     collections::{HashMap, HashSet},
     sync::{
         Arc, Mutex, MutexGuard,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     time::Duration,
 };
@@ -347,10 +343,7 @@ use tokio::{
 };
 #[cfg(test)]
 use tokio_tungstenite::connect_async;
-use tokio_tungstenite::{
-    connect_async_with_config,
-    tungstenite::{Message as WsMessage, protocol::WebSocketConfig},
-};
+use tokio_tungstenite::tungstenite::{Message as WsMessage, Utf8Bytes, protocol::WebSocketConfig};
 use uuid::Uuid;
 
 const SDK_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -358,7 +351,9 @@ const SDK_VERSION: &str = env!("CARGO_PKG_VERSION");
 use iii_helpers::http::HttpInvocationConfig;
 
 use crate::{
-    channels::{ChannelReader, ChannelWriter, StreamChannelRef},
+    channels::{
+        ChannelReader, ChannelWriter, StreamChannelRef, handshake_headers, handshake_request,
+    },
     error::Error,
     protocol::{
         ErrorBody, FUNCTION_NAMESPACE_CONFLICT, Message, RegisterFunctionMessage,
@@ -366,6 +361,7 @@ use crate::{
         TriggerRequest, TriggerRequestWithMetadata, UnregisterTriggerMessage,
         UnregisterTriggerTypeMessage, WORKER_NAMESPACE_CONFLICT,
     },
+    transport::{self, WsConnectResult, WsStream},
     triggers::{Trigger, TriggerConfig, TriggerHandler},
     types::{
         Channel, RemoteFunctionData, RemoteFunctionHandlerWithMetadata, RemoteTriggerTypeData,
@@ -741,8 +737,9 @@ pub(crate) fn call_namespace(
 
 /// The namespace in which one function invocation resolves.
 ///
-/// An explicit namespace always wins. Without one, engine-owned builtins stay
-/// in `default`; all other calls inherit the worker's namespace.
+/// An explicit namespace always wins. Without one, engine-owned builtins
+/// (`engine::*` and `configuration::*`) stay in `default`; all other calls
+/// inherit the worker's namespace.
 pub(crate) fn invocation_namespace(
     explicit: Option<String>,
     worker: Option<String>,
@@ -752,7 +749,9 @@ pub(crate) fn invocation_namespace(
     let is_implicit = explicit.is_none();
     let namespace = call_namespace(explicit, worker, source)?;
 
-    if is_implicit && function_id.starts_with("engine::") {
+    if is_implicit
+        && (function_id.starts_with("engine::") || function_id.starts_with("configuration::"))
+    {
         Ok(Some("default".to_string()))
     } else {
         Ok(namespace)
@@ -828,19 +827,83 @@ fn parse_cargo_package_name(content: &str) -> Option<String> {
     None
 }
 
-#[allow(clippy::large_enum_variant)]
+// Bounds reservations for deliberately retained String spare capacity,
+// not payload volume, allocator overhead, or physical heap/RSS.
+const MAX_OUTBOUND_SPARE_BYTES: usize = 128 * 1024;
+
+#[derive(Debug)]
+struct SpareCapacityLease {
+    used: Arc<AtomicUsize>,
+    bytes: usize,
+}
+
+impl SpareCapacityLease {
+    fn reserve(used: &Arc<AtomicUsize>, bytes: usize) -> Option<Self> {
+        if bytes == 0 || bytes > MAX_OUTBOUND_SPARE_BYTES {
+            return None;
+        }
+        let mut current = used.load(Ordering::Relaxed);
+        loop {
+            let next = current.checked_add(bytes)?;
+            if next > MAX_OUTBOUND_SPARE_BYTES {
+                return None;
+            }
+            match used.compare_exchange_weak(current, next, Ordering::Relaxed, Ordering::Relaxed) {
+                Ok(_) => break,
+                Err(actual) => current = actual,
+            }
+        }
+        Some(Self {
+            used: Arc::clone(used),
+            bytes,
+        })
+    }
+}
+
+impl Drop for SpareCapacityLease {
+    fn drop(&mut self) {
+        self.used.fetch_sub(self.bytes, Ordering::Relaxed);
+    }
+}
+
+#[derive(Debug)]
+struct PreparedEnvelope {
+    payload: Utf8Bytes,
+    registration_key: Option<String>,
+    // The payload is dropped before its lease; send_ws borrows the envelope
+    // throughout its shared-byte clone and network await.
+    _spare_capacity: Option<SpareCapacityLease>,
+}
+
+impl PreparedEnvelope {
+    fn from_json(
+        mut payload: String,
+        registration_key: Option<String>,
+        budget: Option<&Arc<AtomicUsize>>,
+    ) -> Self {
+        let spare = payload.capacity() - payload.len();
+        let lease = budget.and_then(|used| SpareCapacityLease::reserve(used, spare));
+        if spare != 0 && lease.is_none() {
+            // Compact disconnected/control messages and exhausted budgets.
+            payload.shrink_to_fit();
+        }
+        Self {
+            payload: payload.into(),
+            registration_key,
+            _spare_capacity: lease,
+        }
+    }
+}
+
 enum Outbound {
-    Message(Message),
+    Message(PreparedEnvelope),
     Shutdown,
 }
 
 type PendingInvocation = oneshot::Sender<Result<Value, Error>>;
 
 // WebSocket transmitter type alias
-type WsTx = futures_util::stream::SplitSink<
-    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
-    WsMessage,
->;
+type WsTx = futures_util::stream::SplitSink<WsStream, WsMessage>;
 
 /// Inject trace context headers for outbound messages.
 fn inject_trace_headers() -> (Option<String>, Option<String>) {
@@ -1240,6 +1303,7 @@ impl Default for ConnTimings {
 struct IIIInner {
     address: String,
     outbound: mpsc::UnboundedSender<Outbound>,
+    spare_capacity_budget: Arc<AtomicUsize>,
     receiver: Mutex<Option<mpsc::UnboundedReceiver<Outbound>>>,
     running: AtomicBool,
     started: AtomicBool,
@@ -1302,6 +1366,7 @@ impl IIIClient {
         let inner = IIIInner {
             address: address.into(),
             outbound: tx,
+            spare_capacity_budget: Arc::new(AtomicUsize::new(0)),
             receiver: Mutex::new(Some(rx)),
             running: AtomicBool::new(false),
             started: AtomicBool::new(false),
@@ -1420,6 +1485,24 @@ impl IIIClient {
         *self.inner.otel_config.lock_or_recover() = Some(config);
     }
 
+    /// The telemetry config, with the engine URL and handshake headers of this
+    /// connection filled in when the caller set none.
+    fn take_otel_config(&self) -> OtelConfig {
+        let mut config = self
+            .inner
+            .otel_config
+            .lock_or_recover()
+            .take()
+            .unwrap_or_default();
+        if config.engine_ws_url.is_none() {
+            config.engine_ws_url = Some(self.inner.address.clone());
+        }
+        config
+            .engine_ws_headers
+            .get_or_insert_with(|| handshake_headers(self.inner.headers.lock_or_recover().clone()));
+        config
+    }
+
     pub(crate) fn connect(&self) {
         if self.inner.started.swap(true, Ordering::SeqCst) {
             return;
@@ -1432,18 +1515,7 @@ impl IIIClient {
 
         let iii = self.clone();
 
-        let otel_config = {
-            let mut config = self
-                .inner
-                .otel_config
-                .lock_or_recover()
-                .take()
-                .unwrap_or_default();
-            if config.engine_ws_url.is_none() {
-                config.engine_ws_url = Some(self.inner.address.clone());
-            }
-            config
-        };
+        let otel_config = self.take_otel_config();
 
         // Spawn a dedicated OS thread with its own tokio runtime so
         // the connection loop is independent of the caller's runtime.
@@ -1532,18 +1604,18 @@ impl IIIClient {
         if id.trim().is_empty() {
             panic!("id is required");
         }
-        if let Err(error) = Self::prepare_json(&message.to_message()) {
-            tracing::warn!(error = %error, "Function registration rejected locally");
-            // A rejected handle must not unregister a previous owner of this ID.
-            return FunctionRef {
-                id,
-                unregister_fn: Arc::new(|| {}),
-            };
-        }
-        let data = RemoteFunctionData {
-            message: message.clone(),
-            handler,
+        let envelope = match Self::prepare_envelope(&message.to_message()) {
+            Ok(envelope) => envelope,
+            Err(error) => {
+                tracing::warn!(error = %error, "Function registration rejected locally");
+                // A rejected handle must not unregister a previous owner of this ID.
+                return FunctionRef {
+                    id,
+                    unregister_fn: Arc::new(|| {}),
+                };
+            }
         };
+        let data = RemoteFunctionData { message, handler };
         let mut funcs = self.inner.functions.lock_or_recover();
         match funcs.entry(id.clone()) {
             std::collections::hash_map::Entry::Occupied(_) => {
@@ -1554,7 +1626,7 @@ impl IIIClient {
             }
         }
         drop(funcs);
-        let _ = self.send_message(message.to_message());
+        let _ = self.send_prepared(envelope);
 
         let iii = self.clone();
         let unregister_id = id.clone();
@@ -1706,17 +1778,17 @@ impl IIIClient {
 
         // Validate before touching ownership: rollback by ID could remove a
         // previously accepted handler, including a newer concurrent generation.
-        match Self::prepare_json(&message.to_message()) {
-            Ok(_) => {
+        match Self::prepare_envelope(&message.to_message()) {
+            Ok(envelope) => {
                 self.inner.trigger_types.lock_or_recover().insert(
                     message.id.clone(),
                     RemoteTriggerTypeData {
-                        message: message.clone(),
+                        message,
                         handler: Arc::new(trigger_type.handler),
                     },
                 );
 
-                let _ = self.send_message(message.to_message());
+                let _ = self.send_prepared(envelope);
             }
             Err(error) => {
                 tracing::warn!(error = %error, "Trigger type registration rejected locally")
@@ -1992,23 +2064,39 @@ impl IIIClient {
             .max_message_size(Some(MAX_JSON_MESSAGE_BYTES))
     }
 
-    fn prepare_json(message: &Message) -> Result<String, Error> {
-        Self::prepare_envelope(message).map(|(payload, _)| payload)
+    fn prepare_outbound(&self, message: &Message) -> Result<PreparedEnvelope, Error> {
+        let budget = if matches!(
+            message,
+            Message::InvokeFunction { .. } | Message::InvocationResult { .. }
+        ) && self.get_connection_state() == IIIConnectionState::Connected
+        {
+            Some(&self.inner.spare_capacity_budget)
+        } else {
+            None
+        };
+        Self::prepare_envelope_with_budget(message, budget)
     }
 
-    fn prepare_envelope(message: &Message) -> Result<(String, Option<Message>), Error> {
+    fn prepare_envelope(message: &Message) -> Result<PreparedEnvelope, Error> {
+        Self::prepare_envelope_with_budget(message, None)
+    }
+
+    fn prepare_envelope_with_budget(
+        message: &Message,
+        budget: Option<&Arc<AtomicUsize>>,
+    ) -> Result<PreparedEnvelope, Error> {
         let payload = serde_json::to_string(message)?;
         let size = payload.len();
         if size <= MAX_JSON_FRAME_BYTES {
-            return Ok((payload, None));
+            return Ok(PreparedEnvelope::from_json(
+                payload,
+                Self::registration_key(message),
+                budget,
+            ));
         }
-        let error = Error::Remote {
-            code: "payload_too_large".to_string(),
-            message: format!(
-                "Serialized JSON envelope is {size} bytes; limit is {MAX_JSON_FRAME_BYTES} bytes. Use channels for large data."
-            ),
-            stacktrace: None,
-        };
+        let error_message = format!(
+            "Serialized JSON envelope is {size} bytes; limit is {MAX_JSON_FRAME_BYTES} bytes. Use channels for large data."
+        );
         if let Message::InvocationResult {
             invocation_id,
             function_id,
@@ -2021,10 +2109,7 @@ impl IIIClient {
                 result: None,
                 error: Some(ErrorBody {
                     code: "payload_too_large".to_string(),
-                    message: match &error {
-                        Error::Remote { message, .. } => message.clone(),
-                        _ => unreachable!(),
-                    },
+                    message: error_message.clone(),
                     stacktrace: None,
                 }),
                 traceparent: None,
@@ -2032,40 +2117,48 @@ impl IIIClient {
             };
             let payload = serde_json::to_string(&fallback)?;
             if payload.len() <= MAX_JSON_FRAME_BYTES {
-                return Ok((payload, Some(fallback)));
+                return Ok(PreparedEnvelope::from_json(payload, None, None));
             }
         }
-        Err(error)
-    }
-
-    fn permanent_send_error(error: &Error) -> bool {
-        matches!(error, Error::Serde(_))
-            || matches!(error, Error::Remote { code, .. } if code == "payload_too_large")
+        Err(Error::Remote {
+            code: "payload_too_large".to_string(),
+            message: error_message,
+            stacktrace: None,
+        })
     }
 
     fn send_message(&self, message: Message) -> Result<(), Error> {
-        let replacement = match Self::prepare_envelope(&message) {
-            Ok((_, replacement)) => replacement,
+        let envelope = match self.prepare_outbound(&message) {
+            Ok(envelope) => envelope,
             Err(error) => {
                 tracing::warn!(error = %error, "JSON envelope rejected locally");
                 return Err(error);
             }
         };
-        // Preserve typed values (notably Some(Value::Null)) without a JSON round-trip.
-        // Only oversized results replace the original with the checked fallback.
-        let message = replacement.unwrap_or(message);
+        self.send_prepared(envelope)
+    }
+
+    fn send_prepared(&self, envelope: PreparedEnvelope) -> Result<(), Error> {
         if !self.inner.running.load(Ordering::SeqCst) {
             return Ok(());
         }
 
         self.inner
             .outbound
-            .send(Outbound::Message(message))
+            .send(Outbound::Message(envelope))
             .map_err(|_| Error::NotConnected)
     }
 
+    /// Opens the worker connection; `TCP_NODELAY` is negotiated with the
+    /// engine (see `transport::connect`).
+    async fn connect_socket(&self) -> WsConnectResult {
+        let headers = handshake_headers(self.inner.headers.lock_or_recover().clone());
+        let request = handshake_request(&self.inner.address, &headers)?;
+        transport::connect(request, Some(Self::receive_config())).await
+    }
+
     async fn run_connection(&self, mut rx: mpsc::UnboundedReceiver<Outbound>) {
-        let mut queue: Vec<Message> = Vec::new();
+        let mut queue: Vec<PreparedEnvelope> = Vec::new();
         let mut has_connected_before = false;
 
         while self.inner.running.load(Ordering::SeqCst) {
@@ -2076,41 +2169,12 @@ impl IIIClient {
                 IIIConnectionState::Connecting
             });
 
-            let custom_headers = self.inner.headers.lock_or_recover().clone();
-
             // Cap the whole connect (TCP + TLS + WS upgrade): a stalled
             // socket otherwise wedges this loop forever and the worker sits
             // in Reconnecting with zero functions registered engine-side
             // (MOT-3857).
-            let connect_result = tokio::time::timeout(t.connect_timeout, async {
-                if let Some(ref h) = custom_headers {
-                    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-                    use tokio_tungstenite::tungstenite::http;
-                    let mut request = self
-                        .inner
-                        .address
-                        .as_str()
-                        .into_client_request()
-                        .expect("valid ws request");
-                    for (k, v) in h {
-                        if let (Ok(name), Ok(val)) = (
-                            http::header::HeaderName::from_bytes(k.as_bytes()),
-                            http::header::HeaderValue::from_str(v),
-                        ) {
-                            request.headers_mut().insert(name, val);
-                        }
-                    }
-                    connect_async_with_config(request, Some(Self::receive_config()), false).await
-                } else {
-                    connect_async_with_config(
-                        &self.inner.address,
-                        Some(Self::receive_config()),
-                        false,
-                    )
-                    .await
-                }
-            })
-            .await;
+            let connect_result =
+                tokio::time::timeout(t.connect_timeout, self.connect_socket()).await;
 
             match connect_result {
                 Ok(Ok((stream, _))) => {
@@ -2129,16 +2193,15 @@ impl IIIClient {
                     let previous_worker_id = self.inner.worker_id.lock_or_recover().clone();
                     if let Some(previous_worker_id) = previous_worker_id {
                         let reattach_token = self.inner.reattach_token.lock_or_recover().clone();
-                        if let Err(err) = self
-                            .send_ws(
-                                &mut ws_tx,
-                                &Message::Reattach {
-                                    previous_worker_id,
-                                    reattach_token,
-                                },
-                            )
-                            .await
-                        {
+                        let reattach = Self::prepare_envelope(&Message::Reattach {
+                            previous_worker_id,
+                            reattach_token,
+                        });
+                        let send_result = match reattach {
+                            Ok(envelope) => self.send_ws(&mut ws_tx, &envelope).await,
+                            Err(error) => Err(error),
+                        };
+                        if let Err(err) = send_result {
                             tracing::warn!(error = %err, "failed to send reattach; reconnecting");
                             sleep(t.retry_delay).await;
                             continue;
@@ -2154,8 +2217,10 @@ impl IIIClient {
                     // threads before the WS handshake completed: each call
                     // both inserts into the in-memory map (replayed via
                     // `collect_registrations`) AND queues into `outbound`.
-                    let snapshot_ids: HashSet<String> =
-                        queue.iter().filter_map(Self::registration_key).collect();
+                    let snapshot_ids: HashSet<String> = queue
+                        .iter()
+                        .filter_map(|message| message.registration_key.clone())
+                        .collect();
 
                     if let Err(err) = self.flush_queue(&mut ws_tx, &mut queue).await {
                         tracing::warn!(error = %err, "failed to flush queue");
@@ -2204,13 +2269,9 @@ impl IIIClient {
                                 match outgoing {
                                     Some(Outbound::Message(message)) => {
                                         if let Err(err) = self.send_ws(&mut ws_tx, &message).await {
-                                            if Self::permanent_send_error(&err) {
-                                                tracing::warn!(error = %err, "JSON envelope rejected permanently");
-                                            } else {
-                                                tracing::warn!(error = %err, "send failed; reconnecting");
-                                                queue.push(message);
-                                                should_reconnect = true;
-                                            }
+                                            tracing::warn!(error = %err, "send failed; reconnecting");
+                                            queue.push(message);
+                                            should_reconnect = true;
                                         }
                                     }
                                     Some(Outbound::Shutdown) => {
@@ -2284,7 +2345,7 @@ impl IIIClient {
         }
     }
 
-    fn collect_registrations(&self) -> Vec<Message> {
+    fn collect_registrations(&self) -> Vec<PreparedEnvelope> {
         let mut messages = Vec::new();
 
         for trigger_type in self.inner.trigger_types.lock_or_recover().values() {
@@ -2300,6 +2361,15 @@ impl IIIClient {
         }
 
         messages
+            .into_iter()
+            .filter_map(|message| match Self::prepare_envelope(&message) {
+                Ok(envelope) => Some(envelope),
+                Err(error) => {
+                    tracing::warn!(error = %error, "registration replay rejected locally");
+                    None
+                }
+            })
+            .collect()
     }
 
     /// Returns a stable identity key for a registration message, or `None`
@@ -2326,14 +2396,16 @@ impl IIIClient {
     /// drain, the caller should then stop the connection loop.
     fn drain_pre_connect_duplicates(
         rx: &mut mpsc::UnboundedReceiver<Outbound>,
-        queue: &mut Vec<Message>,
+        queue: &mut Vec<PreparedEnvelope>,
         snapshot_ids: &HashSet<String>,
     ) -> bool {
         loop {
             match rx.try_recv() {
                 Ok(Outbound::Message(msg)) => {
-                    let is_dup = Self::registration_key(&msg)
-                        .map(|k| snapshot_ids.contains(&k))
+                    let is_dup = msg
+                        .registration_key
+                        .as_ref()
+                        .map(|k| snapshot_ids.contains(k))
                         .unwrap_or(false);
                     if is_dup {
                         continue;
@@ -2346,19 +2418,19 @@ impl IIIClient {
         }
     }
 
-    fn dedupe_registrations(queue: &mut Vec<Message>) {
+    fn dedupe_registrations(queue: &mut Vec<PreparedEnvelope>) {
         let mut seen = HashSet::new();
         let mut deduped_rev = Vec::with_capacity(queue.len());
 
-        for message in queue.iter().rev() {
-            match Self::registration_key(message) {
+        for message in std::mem::take(queue).into_iter().rev() {
+            match &message.registration_key {
                 Some(key) => {
-                    if seen.insert(key) {
-                        deduped_rev.push(message.clone());
+                    if seen.insert(key.clone()) {
+                        deduped_rev.push(message);
                     }
                 }
                 None => {
-                    deduped_rev.push(message.clone());
+                    deduped_rev.push(message);
                 }
             }
         }
@@ -2367,32 +2439,17 @@ impl IIIClient {
         *queue = deduped_rev;
     }
 
-    async fn flush_queue(&self, ws_tx: &mut WsTx, queue: &mut Vec<Message>) -> Result<(), Error> {
+    async fn flush_queue(
+        &self,
+        ws_tx: &mut WsTx,
+        queue: &mut Vec<PreparedEnvelope>,
+    ) -> Result<(), Error> {
         let mut drained = Vec::new();
         std::mem::swap(queue, &mut drained);
 
         let mut iter = drained.into_iter();
         while let Some(message) = iter.next() {
             if let Err(err) = self.send_ws(ws_tx, &message).await {
-                if Self::permanent_send_error(&err) {
-                    tracing::warn!(error = %err, "queued JSON envelope rejected permanently");
-                    if let Message::InvokeFunction {
-                        invocation_id: Some(id),
-                        ..
-                    } = message
-                    {
-                        self.handle_invocation_result(
-                            id,
-                            None,
-                            Some(ErrorBody {
-                                code: "payload_too_large".into(),
-                                message: err.to_string(),
-                                stacktrace: None,
-                            }),
-                        );
-                    }
-                    continue;
-                }
                 queue.push(message);
                 queue.extend(iter);
                 return Err(err);
@@ -2402,16 +2459,18 @@ impl IIIClient {
         Ok(())
     }
 
-    async fn send_ws(&self, ws_tx: &mut WsTx, message: &Message) -> Result<(), Error> {
-        let payload = Self::prepare_json(message)?;
+    async fn send_ws(&self, ws_tx: &mut WsTx, message: &PreparedEnvelope) -> Result<(), Error> {
         // Bound the send: on a blackholed peer with a full TCP send window,
         // send().await can block indefinitely — and since callers await this
         // inside select! handlers, an unbounded send wedges the entire
         // connection loop (idle detection included). A send that can't
         // complete within the idle window is a dead link; reconnect.
         let t = *self.inner.timings.lock_or_recover();
-        match tokio::time::timeout(t.idle_timeout, ws_tx.send(WsMessage::Text(payload.into())))
-            .await
+        match tokio::time::timeout(
+            t.idle_timeout,
+            ws_tx.send(WsMessage::Text(message.payload.clone())),
+        )
+        .await
         {
             Ok(Ok(())) => Ok(()),
             Ok(Err(err)) => Err(err.into()),
@@ -2661,16 +2720,16 @@ impl IIIClient {
     ) {
         tracing::debug!(function_id = %function_id, traceparent = ?traceparent, baggage = ?baggage, "Invoking function");
 
-        let func_data = self
+        // Preserve HTTP-only registrations without copying their descriptors.
+        let function_handler = self
             .inner
             .functions
             .lock_or_recover()
             .get(&function_id)
-            .cloned();
-        let handler = func_data.as_ref().and_then(|d| d.handler.clone());
+            .map(|function| function.handler.clone());
 
-        let Some(handler) = handler else {
-            let (code, message) = match &func_data {
+        let Some(Some(handler)) = function_handler else {
+            let (code, message) = match function_handler {
                 Some(_) => (
                     "function_not_invokable".to_string(),
                     "Function is HTTP-invoked and cannot be invoked locally".to_string(),
@@ -2747,7 +2806,7 @@ impl IIIClient {
                 use iii_helpers::observability::opentelemetry::trace::TraceContextExt;
                 use iii_helpers::observability::redact_and_truncate;
                 let span = otel_cx.span();
-                if span.span_context().is_valid() {
+                if span.is_recording() {
                     let (input_json, truncated) = redact_and_truncate(&data, payload_max_bytes);
                     span.add_event(
                         "iii.invocation.input",
@@ -2769,7 +2828,7 @@ impl IIIClient {
                 use iii_helpers::observability::opentelemetry::trace::TraceContextExt;
                 use iii_helpers::observability::redact_and_truncate;
                 let span = otel_cx.span();
-                if span.span_context().is_valid() {
+                if span.is_recording() {
                     let (output_json, truncated, ok) = match &result {
                         Ok(value) => {
                             let (j, t) = redact_and_truncate(value, payload_max_bytes);
@@ -3022,9 +3081,10 @@ pub(crate) async fn internal_create_channel(
     )
     .map_err(|e| Error::Serde(e.to_string()))?;
 
+    let headers = iii.inner.headers.lock_or_recover().clone();
     Ok(Channel {
-        writer: ChannelWriter::new(&iii.inner.address, &writer_ref),
-        reader: ChannelReader::new(&iii.inner.address, &reader_ref),
+        writer: ChannelWriter::new(&iii.inner.address, &writer_ref).with_headers(headers.clone()),
+        reader: ChannelReader::new(&iii.inner.address, &reader_ref).with_headers(headers),
         writer_ref,
         reader_ref,
     })
@@ -3233,6 +3293,167 @@ mod tests {
         let n = handshakes.load(Ordering::SeqCst);
         iii.shutdown_async().await;
         assert_eq!(n, 1, "healthy pinged connection must not be torn down");
+    }
+
+    type Handshake = (String, tokio_tungstenite::tungstenite::http::HeaderMap);
+
+    /// WS server that reports each handshake's request URI and headers.
+    // tungstenite's handshake callback is forced to return its large error type.
+    #[allow(clippy::result_large_err)]
+    async fn spawn_handshake_recorder() -> (std::net::SocketAddr, mpsc::UnboundedReceiver<Handshake>)
+    {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (tx, rx) = mpsc::unbounded_channel();
+        tokio::spawn(async move {
+            while let Ok((sock, _)) = listener.accept().await {
+                let tx = tx.clone();
+                tokio::spawn(async move {
+                    let record =
+                        |req: &tokio_tungstenite::tungstenite::handshake::server::Request, resp| {
+                            let _ = tx.send((req.uri().to_string(), req.headers().clone()));
+                            Ok(resp)
+                        };
+                    let Ok(mut ws) = tokio_tungstenite::accept_hdr_async(sock, record).await else {
+                        return;
+                    };
+                    while let Some(Ok(_)) = ws.next().await {}
+                });
+            }
+        });
+        (addr, rx)
+    }
+
+    async fn next_handshake(rx: &mut mpsc::UnboundedReceiver<Handshake>) -> Handshake {
+        tokio::time::timeout(Duration::from_secs(5), rx.recv())
+            .await
+            .expect("no handshake within 5s")
+            .expect("recorder stopped")
+    }
+
+    fn connect_recording(
+        addr: std::net::SocketAddr,
+        headers: Option<HashMap<String, String>>,
+    ) -> IIIClient {
+        let iii = IIIClient::new(&format!("ws://{addr}"));
+        // Keep OTel's exporter from dialing the recorder too.
+        *iii.inner.otel_config.lock_or_recover() = Some(OtelConfig {
+            enabled: Some(false),
+            ..Default::default()
+        });
+        if let Some(headers) = headers {
+            iii.set_headers(headers);
+        }
+        iii.connect();
+        iii
+    }
+
+    fn channel_ref(direction: crate::channels::ChannelDirection) -> StreamChannelRef {
+        StreamChannelRef {
+            channel_id: "chan".into(),
+            access_key: "key".into(),
+            direction,
+        }
+    }
+
+    /// `III_TOKEN` alone authenticates the main connection and both channel
+    /// ends, and an explicit `Authorization` wins on each of them. Sync because
+    /// the env guard is a std mutex that must not be held across an await.
+    #[test]
+    fn iii_token_authenticates_the_handshake_of_the_connection_and_channels() {
+        use crate::channels::ChannelDirection::{Read, Write};
+
+        let env = ScopedEnvVar::new("III_TOKEN");
+        env.set("secret");
+        let explicit =
+            HashMap::from([("authorization".to_string(), "Bearer explicit".to_string())]);
+
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            let (addr, mut rx) = spawn_handshake_recorder().await;
+            let auth = |h: &Handshake| {
+                h.1.get("authorization")
+                    .map(|v| v.to_str().unwrap().to_string())
+            };
+
+            let iii = connect_recording(addr, None);
+            assert_eq!(
+                auth(&next_handshake(&mut rx).await).as_deref(),
+                Some("Bearer secret")
+            );
+            iii.shutdown_async().await;
+
+            let iii = connect_recording(addr, Some(explicit.clone()));
+            assert_eq!(
+                auth(&next_handshake(&mut rx).await).as_deref(),
+                Some("Bearer explicit")
+            );
+            iii.shutdown_async().await;
+
+            // The base query survives, and the channel's own params follow it.
+            let base = format!("ws://{addr}/?token=abc");
+            let writer = ChannelWriter::new(&base, &channel_ref(Write));
+            writer.send_message("hi").await.unwrap();
+            let handshake = next_handshake(&mut rx).await;
+            assert_eq!(handshake.0, "/ws/channels/chan?token=abc&key=key&dir=write");
+            assert_eq!(auth(&handshake).as_deref(), Some("Bearer secret"));
+
+            let reader = ChannelReader::new(&base, &channel_ref(Read));
+            let _ = tokio::time::timeout(Duration::from_millis(500), reader.next_binary()).await;
+            let handshake = next_handshake(&mut rx).await;
+            assert_eq!(handshake.0, "/ws/channels/chan?token=abc&key=key&dir=read");
+            assert_eq!(auth(&handshake).as_deref(), Some("Bearer secret"));
+
+            let writer =
+                ChannelWriter::new(&base, &channel_ref(Write)).with_headers(Some(explicit));
+            writer.send_message("hi").await.unwrap();
+            assert_eq!(
+                auth(&next_handshake(&mut rx).await).as_deref(),
+                Some("Bearer explicit")
+            );
+        });
+    }
+
+    /// Telemetry dials the engine too, so it gets the connection's handshake
+    /// headers unless the caller set its own.
+    #[test]
+    fn telemetry_config_gets_the_handshake_headers() {
+        let env = ScopedEnvVar::new("III_TOKEN");
+        env.set("secret");
+        let iii = IIIClient::new("ws://engine.test");
+        iii.set_headers(HashMap::from([("x-other".into(), "kept".into())]));
+
+        let headers = iii.take_otel_config().engine_ws_headers.unwrap();
+        assert_eq!(headers["x-other"], "kept");
+        assert_eq!(headers["Authorization"], "Bearer secret");
+
+        let own = HashMap::from([("x-own".to_string(), "1".to_string())]);
+        iii.set_otel_config(OtelConfig {
+            engine_ws_headers: Some(own.clone()),
+            ..Default::default()
+        });
+        assert_eq!(iii.take_otel_config().engine_ws_headers, Some(own));
+    }
+
+    #[test]
+    fn handshake_headers_add_a_bearer_only_for_a_non_blank_token() {
+        let env = ScopedEnvVar::new("III_TOKEN");
+        let kept = HashMap::from([("x-other".to_string(), "kept".to_string())]);
+
+        env.remove();
+        assert_eq!(handshake_headers(None), HashMap::new());
+        for blank in ["", "  \t "] {
+            env.set(blank);
+            assert_eq!(handshake_headers(Some(kept.clone())), kept);
+        }
+
+        env.set(" secret\n");
+        let mut with_bearer = kept.clone();
+        with_bearer.insert("Authorization".to_string(), "Bearer secret".to_string());
+        assert_eq!(handshake_headers(Some(kept)), with_bearer);
+
+        let explicit =
+            HashMap::from([("AUTHORIZATION".to_string(), "Bearer explicit".to_string())]);
+        assert_eq!(handshake_headers(Some(explicit.clone())), explicit);
     }
 
     struct NoopTriggerHandler;
@@ -3528,17 +3749,13 @@ mod tests {
         let mut rx = iii.inner.receiver.lock().unwrap().take().expect("receiver");
         let sent = rx.try_recv().expect("sent invoke");
         match sent {
-            Outbound::Message(Message::InvokeFunction {
-                function_id,
-                data,
-                metadata,
-                action,
-                ..
-            }) => {
-                assert_eq!(function_id, "svc::work");
-                assert_eq!(data, json!({ "x": 1 }));
-                assert_eq!(metadata, Some(json!({ "tenant": "acme" })));
-                assert!(matches!(action, Some(TriggerAction::Void)));
+            Outbound::Message(envelope) => {
+                let wire: Value = serde_json::from_str(envelope.payload.as_str()).unwrap();
+                assert_eq!(wire["type"], "invokefunction");
+                assert_eq!(wire["function_id"], "svc::work");
+                assert_eq!(wire["data"], json!({ "x": 1 }));
+                assert_eq!(wire["metadata"], json!({ "tenant": "acme" }));
+                assert_eq!(wire["action"]["type"], "void");
             }
             _ => panic!("expected InvokeFunction"),
         }
@@ -3564,13 +3781,11 @@ mod tests {
         let mut rx = iii.inner.receiver.lock().unwrap().take().expect("receiver");
         let sent = rx.try_recv().expect("sent invoke");
         match sent {
-            Outbound::Message(Message::InvokeFunction {
-                function_id,
-                metadata,
-                ..
-            }) => {
-                assert_eq!(function_id, "svc::work");
-                assert!(metadata.is_none());
+            Outbound::Message(envelope) => {
+                let wire: Value = serde_json::from_str(envelope.payload.as_str()).unwrap();
+                assert_eq!(wire["type"], "invokefunction");
+                assert_eq!(wire["function_id"], "svc::work");
+                assert!(wire.get("metadata").is_none());
             }
             _ => panic!("expected invoke"),
         }
@@ -3887,16 +4102,30 @@ mod tests {
     async fn drain_pre_connect_duplicates_drops_only_known_register_ids() {
         let (tx, mut rx) = mpsc::unbounded_channel::<Outbound>();
 
-        tx.send(Outbound::Message(make_register_function("dup-fn")))
-            .unwrap();
-        tx.send(Outbound::Message(make_invoke("some::fn"))).unwrap();
-        tx.send(Outbound::Message(make_register_function("new-fn")))
-            .unwrap();
-        tx.send(Outbound::Message(Message::Pong)).unwrap();
-        tx.send(Outbound::Message(make_register_trigger("dup-trig")))
-            .unwrap();
-        tx.send(Outbound::Message(make_register_trigger("new-trig")))
-            .unwrap();
+        tx.send(Outbound::Message(
+            IIIClient::prepare_envelope(&make_register_function("dup-fn")).unwrap(),
+        ))
+        .unwrap();
+        tx.send(Outbound::Message(
+            IIIClient::prepare_envelope(&make_invoke("some::fn")).unwrap(),
+        ))
+        .unwrap();
+        tx.send(Outbound::Message(
+            IIIClient::prepare_envelope(&make_register_function("new-fn")).unwrap(),
+        ))
+        .unwrap();
+        tx.send(Outbound::Message(
+            IIIClient::prepare_envelope(&Message::Pong).unwrap(),
+        ))
+        .unwrap();
+        tx.send(Outbound::Message(
+            IIIClient::prepare_envelope(&make_register_trigger("dup-trig")).unwrap(),
+        ))
+        .unwrap();
+        tx.send(Outbound::Message(
+            IIIClient::prepare_envelope(&make_register_trigger("new-trig")).unwrap(),
+        ))
+        .unwrap();
 
         let snapshot_ids: HashSet<String> = [
             "function:dup-fn".to_string(),
@@ -3905,12 +4134,14 @@ mod tests {
         .into_iter()
         .collect();
 
-        let mut queue: Vec<Message> = Vec::new();
+        let mut queue: Vec<PreparedEnvelope> = Vec::new();
         let shutdown = IIIClient::drain_pre_connect_duplicates(&mut rx, &mut queue, &snapshot_ids);
 
         assert!(!shutdown);
-        let kept_keys: Vec<Option<String>> =
-            queue.iter().map(IIIClient::registration_key).collect();
+        let kept_keys: Vec<Option<String>> = queue
+            .iter()
+            .map(|message| message.registration_key.clone())
+            .collect();
         assert_eq!(
             kept_keys,
             vec![
@@ -3927,14 +4158,18 @@ mod tests {
     async fn drain_pre_connect_duplicates_signals_shutdown() {
         let (tx, mut rx) = mpsc::unbounded_channel::<Outbound>();
 
-        tx.send(Outbound::Message(make_register_function("a")))
-            .unwrap();
+        tx.send(Outbound::Message(
+            IIIClient::prepare_envelope(&make_register_function("a")).unwrap(),
+        ))
+        .unwrap();
         tx.send(Outbound::Shutdown).unwrap();
-        tx.send(Outbound::Message(make_register_function("b")))
-            .unwrap();
+        tx.send(Outbound::Message(
+            IIIClient::prepare_envelope(&make_register_function("b")).unwrap(),
+        ))
+        .unwrap();
 
         let snapshot_ids: HashSet<String> = ["function:a".to_string()].into_iter().collect();
-        let mut queue: Vec<Message> = Vec::new();
+        let mut queue: Vec<PreparedEnvelope> = Vec::new();
         let shutdown = IIIClient::drain_pre_connect_duplicates(&mut rx, &mut queue, &snapshot_ids);
 
         assert!(shutdown, "expected shutdown signal to be reported");
@@ -3948,7 +4183,7 @@ mod tests {
     async fn drain_pre_connect_duplicates_returns_false_on_empty_channel() {
         let (_tx, mut rx) = mpsc::unbounded_channel::<Outbound>();
         let snapshot_ids: HashSet<String> = HashSet::new();
-        let mut queue: Vec<Message> = Vec::new();
+        let mut queue: Vec<PreparedEnvelope> = Vec::new();
 
         let shutdown = IIIClient::drain_pre_connect_duplicates(&mut rx, &mut queue, &snapshot_ids);
 
@@ -4046,13 +4281,11 @@ mod tests {
         let mut rx = iii.inner.receiver.lock().unwrap().take().expect("receiver");
         let sent = rx.try_recv().expect("sent invoke");
         match sent {
-            Outbound::Message(msg @ Message::InvokeFunction { .. }) => {
-                let Message::InvokeFunction { namespace, .. } = &msg else {
-                    unreachable!()
-                };
-                assert_eq!(namespace.as_deref(), Some("orders"));
-                // And it actually reaches the wire.
-                let wire = serde_json::to_string(&msg).unwrap();
+            Outbound::Message(envelope) => {
+                let wire = envelope.payload.as_str();
+                let parsed: Value = serde_json::from_str(wire).unwrap();
+                assert_eq!(parsed["type"], "invokefunction");
+                assert_eq!(parsed["namespace"], "orders");
                 assert!(wire.contains(r#""namespace":"orders""#), "wire: {wire}");
             }
             _ => panic!("expected InvokeFunction"),
@@ -4079,12 +4312,11 @@ mod tests {
         let mut rx = iii.inner.receiver.lock().unwrap().take().expect("receiver");
         let sent = rx.try_recv().expect("sent invoke");
         match sent {
-            Outbound::Message(msg @ Message::InvokeFunction { .. }) => {
-                let Message::InvokeFunction { namespace, .. } = &msg else {
-                    unreachable!()
-                };
-                assert!(namespace.is_none());
-                let wire = serde_json::to_string(&msg).unwrap();
+            Outbound::Message(envelope) => {
+                let wire = envelope.payload.as_str();
+                let parsed: Value = serde_json::from_str(wire).unwrap();
+                assert_eq!(parsed["type"], "invokefunction");
+                assert!(parsed.get("namespace").is_none());
                 assert!(!wire.contains("namespace"), "wire: {wire}");
             }
             _ => panic!("expected InvokeFunction"),
@@ -4235,5 +4467,44 @@ mod tests {
         }))
         .unwrap();
         assert!(without_ns.namespace.is_none());
+    }
+}
+
+#[cfg(test)]
+mod nodelay_tests {
+    use super::*;
+    use crate::transport::test_engine;
+
+    /// Connects through `connect_socket` to a stand-in engine and reports
+    /// whether the client socket ended up with `TCP_NODELAY`.
+    async fn client_nodelay(headers: Option<HashMap<String, String>>, advertise: bool) -> bool {
+        let (address, server) = test_engine::spawn(advertise).await;
+        let client = IIIClient::new(&format!("ws://{address}"));
+        if let Some(headers) = headers {
+            client.set_headers(headers);
+        }
+        let (stream, _) = tokio::time::timeout(Duration::from_secs(5), client.connect_socket())
+            .await
+            .unwrap()
+            .unwrap();
+        let nodelay = test_engine::nodelay(&stream);
+        drop(server.await.unwrap());
+        nodelay
+    }
+
+    #[tokio::test]
+    async fn worker_socket_has_tcp_nodelay_when_engine_advertises_it() {
+        assert!(client_nodelay(None, true).await);
+    }
+
+    #[tokio::test]
+    async fn worker_socket_with_headers_has_tcp_nodelay_when_engine_advertises_it() {
+        let headers = HashMap::from([("x-test".into(), "nodelay".into())]);
+        assert!(client_nodelay(Some(headers), true).await);
+    }
+
+    #[tokio::test]
+    async fn worker_socket_keeps_nagle_when_engine_does_not_advertise_it() {
+        assert!(!client_nodelay(None, false).await);
     }
 }

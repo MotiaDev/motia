@@ -44,6 +44,14 @@ registrations it holds in memory (each `RegisterFunction`, `RegisterTrigger`, an
 metadata (runtime, version, OS, PID, isolation, optional `namespace`, and an optional one-line
 `description`), which the engine acknowledges with a `RegisterWorkerResult`.
 
+The engine answers every request on the worker listener (`/`, `/otel`, `/ws/channels/{id}`),
+including the WebSocket upgrade, with an `x-iii-capabilities` response header: optional transport
+capabilities as comma-separated tokens. Clients ignore tokens they do not know. `tcp-nodelay` means
+the engine's end of the socket has `TCP_NODELAY` set, so the worker may disable Nagle on its end too.
+A worker must not disable Nagle without this token: with Nagle on the engine's end only, a worker
+that answers immediately leaves the engine's next small frame waiting for the worker's delayed ACK
+(~40 ms on Linux), which is slower than keeping Nagle on both ends. Older engines send no header.
+
 The connection is bidirectional from that point on: the engine pushes `InvokeFunction` frames at the
 worker, and the worker pushes `InvocationResult`, additional registrations, or unregistrations back.
 

@@ -25,15 +25,15 @@ export async function Landing() {
       <SiteHeader />
       <main>
         <Hero />
+        {/* Use cases and Numbers lead, right under the hero: what you can build, then how fast it runs (2026-10-08). */}
+        <UseCases />
+        <Numbers />
         <Overview />
         {/* Ownership sits before the Live demo: the 2026-10-05 sync moved it up as a top-level value prop. */}
         <Ownership stats={stats} />
         <LiveDemo />
         <Story />
         <Proof />
-        <UseCases />
-        {/* Numbers keeps the doc's slot after Use cases: the engine benchmarks, with the runner in a footnote. */}
-        <Numbers />
         <Faq
           container={wideContainer}
           lede={

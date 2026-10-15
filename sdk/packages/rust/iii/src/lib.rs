@@ -7,6 +7,7 @@ pub mod iii;
 pub mod protocol;
 pub mod stream_provider;
 pub mod structs;
+mod transport;
 pub mod triggers;
 pub mod types;
 
@@ -68,7 +69,9 @@ pub struct InitOptions {
     /// Custom worker metadata. Auto-detected if `None`. In managed identity
     /// mode, process-wide identity variables override matching fields.
     pub metadata: Option<iii::WorkerMetadata>,
-    /// Custom HTTP headers sent during the WebSocket handshake.
+    /// Custom HTTP headers sent during the WebSocket handshake, on the main
+    /// connection and on channels from `create_channel`. `Authorization: Bearer
+    /// $III_TOKEN` is added unless you set `Authorization` here.
     pub headers: Option<std::collections::HashMap<String, String>>,
     /// OpenTelemetry configuration.
     pub otel: Option<iii_helpers::observability::OtelConfig>,

@@ -43,9 +43,15 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: max(740px, 88svh);
+  /* Tall enough to read one chapter while its animation plays, short enough that the next one arrives soon. */
+  min-height: max(600px, 70svh);
   padding-block: 64px;
   scroll-margin-block-start: 90px;
+}
+/* The first chapter follows the intro directly: top-aligned, so no empty band opens under the heading. */
+.chapter:first-child {
+  justify-content: flex-start;
+  padding-block-start: 48px;
 }
 .chapterLetter {
   font-family: var(--font-pixel);
