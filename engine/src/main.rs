@@ -399,6 +399,12 @@ fn nofile_target(soft: libc::rlim_t, hard: libc::rlim_t) -> Option<libc::rlim_t>
 }
 
 fn main() -> anyhow::Result<()> {
+    // Started by compose to stop its children if it dies; never a CLI call.
+    #[cfg(unix)]
+    if iii_compose::process::reaper::requested() {
+        iii_compose::process::reaper::run();
+    }
+
     let argv: Vec<String> = std::env::args().collect();
     let cli_args = match Cli::try_parse_from(&argv) {
         Ok(c) => c,
@@ -510,6 +516,10 @@ async fn run(cli_args: Cli) -> anyhow::Result<()> {
             }
             cli::telemetry::install_compose_reporter();
             iii_compose::set_host_version(env!("CARGO_PKG_VERSION"));
+            #[cfg(unix)]
+            if let Ok(exe) = std::env::current_exe() {
+                iii_compose::process::reaper::set_program(exe, Vec::new());
+            }
             let exit_code = iii_compose::run(args.clone()).await;
             std::process::exit(exit_code);
         }
