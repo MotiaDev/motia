@@ -61,7 +61,9 @@ their behalf, or your employer must have waived such rights for your contributio
 
 ### Prerequisites
 
-- Rust 1.80+ (edition 2024)
+- Rust (current stable toolchain, via rustup; the workspace uses edition 2024)
+- Node.js >= 20 and pnpm 10.19.0 (pinned in `package.json`)
+- Python >= 3.10 and uv (for Python SDK work)
 - Redis (only if you enable the event/cron/stream workers)
 
 ### Setting Up Your Development Environment
@@ -76,11 +78,28 @@ their behalf, or your employer must have waived such rights for your contributio
    ```bash
    git checkout -b my-feature
    ```
-4. Make your changes and verify they build and pass lint:
+4. Install the JavaScript/TypeScript dependencies. The engine build may also
+   rebuild its embedded observability UI, which uses these dependencies:
    ```bash
-   cargo fmt
+   pnpm install
+   ```
+5. Build the packages you are working on:
+   ```bash
+   pnpm build                  # JavaScript/TypeScript packages
+   cargo build --release       # Rust workspace
+   ```
+6. Make your changes and run the relevant tests from the Development Commands
+   section below, plus formatting and lint checks:
+   ```bash
+   cargo fmt --all
    cargo clippy -- -D warnings
    ```
+
+Optionally install the pre-commit hook to check Rust formatting before each commit:
+
+```bash
+make install-hooks
+```
 
 ### License Headers
 
@@ -133,29 +152,6 @@ list changes).
 If you have questions about contributing, licensing, or anything else, feel free to open
 an issue for discussion.
 This is a unified monorepo containing the iii Engine, SDKs, Console, documentation, and website.
-
-## Prerequisites
-
-- **Rust** (stable, via [rustup](https://rustup.rs/))
-- **Node.js** >= 20 with **pnpm** >= 10
-- **Python** >= 3.10 with **uv**
-
-## Getting Started
-
-```bash
-# Install JS/TS dependencies
-pnpm install
-
-# Build everything (JS/TS via Turborepo)
-pnpm build
-
-# Build Rust workspace (engine + SDK + console)
-cargo build --release
-
-# Install the pre-commit hook (runs `cargo fmt --check` before each commit
-# so that CI's format gate never bites mid-PR). Optional but recommended.
-make install-hooks
-```
 
 ## Development Commands
 
@@ -260,4 +256,5 @@ For pre-releases, add a suffix: `release/v0.7.0-alpha`, `release/v0.7.0-beta`, `
 
 ## Project Structure
 
-See [STRUCTURE.md](STRUCTURE.md) for the full directory layout and dependency chain.
+See the [Project Map in AGENTS.md](AGENTS.md#project-map) for the directory layout
+and workspace configuration files.
