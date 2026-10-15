@@ -139,6 +139,7 @@ pub fn scan() -> Vec<IiiProcess> {
         .processes()
         .values()
         .filter(|process| me.is_none() || process.user_id() == me.as_ref())
+        .filter(|process| process.status() != sysinfo::ProcessStatus::Zombie)
         .filter_map(|process| classify(process, &markers))
         .collect();
     link(&mut found);
@@ -431,7 +432,28 @@ pub async fn stop(targets: &[IiiProcess], grace: Duration, force: bool) -> Vec<u
 }
 
 fn is_running(process: &IiiProcess) -> bool {
-    crate::process::is_running(process.pid) && process.birth.matches(&birth_identity(process.pid))
+    crate::process::is_running(process.pid)
+        && process.birth.matches(&birth_identity(process.pid))
+        && !is_zombie(process.pid)
+}
+
+/// A zombie has exited and only waits for its parent to collect it. Signal 0
+/// still answers for it, and under a PID 1 that never collects orphans (a
+/// container without an init) it answers forever. macOS cannot read a
+/// zombie's start time, so there it already fails the birth check.
+fn is_zombie(pid: u32) -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        std::fs::read_to_string(format!("/proc/{pid}/stat"))
+            .ok()
+            .and_then(|stat| Some(stat.rsplit_once(')')?.1.trim_start().starts_with('Z')))
+            .unwrap_or(false)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = pid;
+        false
+    }
 }
 
 async fn wait_gone(batch: &[&IiiProcess], grace: Duration) -> bool {
@@ -538,6 +560,34 @@ mod tests {
             compose_file_arg(cwd, &args("compose --up --file=/abs/c.yaml")),
             PathBuf::from("/abs/c.yaml")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_exited_process_nobody_collected_is_not_running() {
+        let mut child = std::process::Command::new("sleep")
+            .arg("0.2")
+            .spawn()
+            .unwrap();
+        let pid = child.id();
+        let birth = birth_identity(pid);
+        // Exited but not waited for: a zombie until `wait` below.
+        std::thread::sleep(Duration::from_millis(600));
+        assert!(crate::process::is_running(pid), "signal 0 still answers");
+        let zombie = IiiProcess {
+            pid,
+            ppid: None,
+            kind: Kind::Worker,
+            name: None,
+            ports: Vec::new(),
+            compose_file: None,
+            orphan: false,
+            started_at: 0,
+            command: String::new(),
+            birth,
+        };
+        assert!(!is_running(&zombie));
+        child.wait().unwrap();
     }
 
     #[test]
