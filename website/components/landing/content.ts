@@ -17,7 +17,7 @@ export const hero = {
   secondary: { label: 'View GitHub', href: 'https://github.com/iii-hq/iii' },
   updates: 'Release notes and new workers, by email',
   /* The install block replaces the two CTA buttons. Commands and notes come from iii.dev/docs/install.
-     2026-10-05 sync: no `workers` tab, it is internal jargon to a newcomer. */
+     2026-10-05 sync: no `workers` tab, it is internal jargon to a newcomer. 2026-10-09: no `no llm` tab either. */
   install: {
     tabs: [
       {
@@ -29,18 +29,6 @@ export const hero = {
             command: 'curl -fsSL https://install.iii.dev/iii/main/install.sh | sh',
           },
           { note: 'Then open http://127.0.0.1:3113' },
-        ],
-      },
-      {
-        id: 'no-llm',
-        label: 'no llm',
-        steps: [
-          {
-            note: 'Install the engine. Press n at the harness prompt.',
-            command: 'curl -fsSL https://install.iii.dev/iii/main/install.sh | sh',
-          },
-          { note: 'Create a project', command: 'iii project init my-app && cd my-app' },
-          { note: 'Start it, then open http://127.0.0.1:3113', command: 'iii compose --up' },
         ],
       },
       {
@@ -74,11 +62,12 @@ export const overview = {
   eyebrow: 'Overview',
   title: "Code shouldn't care where code runs.",
   subtitle: 'One engine. Any workload.',
-  /* Anthony (2026-10-05 sync): no problem / cost / solution labels, just three plain paragraphs. */
+  /* Anthony (2026-10-08): the problem, what it costs, then what iii changes. Plain paragraphs, no labels. */
   paragraphs: [
-    'Functions are stuck inside the language, process, cloud, and sometimes the machine they were written for.',
-    'Connecting them means integrating discovery, invocation, retries, error handling, and tracing by hand, again and again, for every new boundary.',
-    'Functions can live in different languages, processes, runtimes, and machines. iii makes them callable as if they were local.',
+    'Services are tightly coupled to the languages, clouds, and platforms they were written for.',
+    'Getting services to work together means endless integration work: error handling, gateways, sync, tracing, and maintenance that never stops.',
+    "It's estimated that up to 70% of development time is dedicated to integrations. 40% is the lowest estimate we could find.",
+    'With iii services can run in different languages, clouds, and platforms. Integration time is zero. Deployment details are free to change at any time.',
   ],
 }
 

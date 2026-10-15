@@ -8,13 +8,14 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use dashmap::DashMap;
+use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use crate::{
     builtins::pubsub_lite::Subscriber,
-    engine::{Engine, EngineTrait},
+    engine::Engine,
     function::FunctionResult,
     workers::stream::{
         StreamIncomingMessage, StreamOutboundMessage, StreamWorker, StreamWrapperMessage,
@@ -66,7 +67,14 @@ impl SocketStreamConnection {
                     .read()
                     .await
                     .iter()
-                    .cloned()
+                    .filter(|trigger| trigger.trigger_type == JOIN_TRIGGER_TYPE)
+                    .map(|trigger| {
+                        (
+                            trigger.function_id.clone(),
+                            trigger.namespace.clone(),
+                            trigger.metadata.clone(),
+                        )
+                    })
                     .collect();
                 (
                     data.stream_name.clone(),
@@ -84,7 +92,14 @@ impl SocketStreamConnection {
                     .read()
                     .await
                     .iter()
-                    .cloned()
+                    .filter(|trigger| trigger.trigger_type == LEAVE_TRIGGER_TYPE)
+                    .map(|trigger| {
+                        (
+                            trigger.function_id.clone(),
+                            trigger.namespace.clone(),
+                            trigger.metadata.clone(),
+                        )
+                    })
                     .collect();
                 (
                     data.stream_name.clone(),
@@ -111,7 +126,7 @@ impl SocketStreamConnection {
             unauthorized: false,
         };
 
-        let event_value = match serde_json::to_value(event) {
+        let mut event_value = match serde_json::to_value(event) {
             Ok(event_value) => event_value,
             Err(e) => {
                 tracing::error!(error = ?e, "Failed to convert event to value");
@@ -119,49 +134,52 @@ impl SocketStreamConnection {
             }
         };
 
-        for trigger in triggers {
-            if trigger.trigger_type == event_type {
-                tracing::debug!(function_id = %trigger.function_id, event_type = ?event_type, "Invoking trigger");
+        let trigger_count = triggers.len();
+        for (index, (function_id, namespace, metadata)) in triggers.into_iter().enumerate() {
+            tracing::debug!(function_id = %function_id, event_type = ?event_type, "Invoking trigger");
 
-                let call_result = self
-                    .engine
-                    .call_with_metadata_ns(
-                        &trigger.namespace,
-                        &trigger.function_id,
-                        event_value.clone(),
-                        trigger.metadata.clone(),
-                    )
-                    .await;
+            let call_result = self
+                .engine
+                .call_value_with_metadata_ns(
+                    &namespace,
+                    &function_id,
+                    if index + 1 == trigger_count {
+                        event_value.take()
+                    } else {
+                        event_value.clone()
+                    },
+                    metadata,
+                )
+                .await;
 
-                tracing::debug!(call_result = ?call_result, "Call result");
+            tracing::debug!(call_result = ?call_result, "Call result");
 
-                match call_result {
-                    Ok(Some(call_result)) => {
-                        if event_type == JOIN_TRIGGER_TYPE {
-                            let unauthorized =
-                                match call_result.get("unauthorized").and_then(|v| v.as_bool()) {
-                                    Some(unauthorized) => unauthorized,
-                                    None => {
-                                        if event_type == JOIN_TRIGGER_TYPE {
-                                            tracing::error!(
-                                                error = "unauthorized must be a boolean",
-                                                "Failed to get unauthorized from result"
-                                            );
-                                        }
-                                        false
+            match call_result {
+                Ok(Some(call_result)) => {
+                    if event_type == JOIN_TRIGGER_TYPE {
+                        let unauthorized =
+                            match call_result.get("unauthorized").and_then(|v| v.as_bool()) {
+                                Some(unauthorized) => unauthorized,
+                                None => {
+                                    if event_type == JOIN_TRIGGER_TYPE {
+                                        tracing::error!(
+                                            error = "unauthorized must be a boolean",
+                                            "Failed to get unauthorized from result"
+                                        );
                                     }
-                                };
+                                    false
+                                }
+                            };
 
-                            if unauthorized {
-                                result = StreamJoinResult { unauthorized: true };
-                            }
+                        if unauthorized {
+                            result = StreamJoinResult { unauthorized: true };
                         }
                     }
-                    Err(e) if event_type == JOIN_TRIGGER_TYPE => {
-                        tracing::error!(error = ?e, "Failed to invoke trigger function");
-                    }
-                    _ => {}
                 }
+                Err(e) if event_type == JOIN_TRIGGER_TYPE => {
+                    tracing::error!(error = ?e, "Failed to invoke trigger function");
+                }
+                _ => {}
             }
         }
 
@@ -351,7 +369,7 @@ impl StreamConnection for SocketStreamConnection {
 #[async_trait]
 impl Subscriber for SocketStreamConnection {
     async fn handle_message(&self, message: Arc<Value>) -> anyhow::Result<()> {
-        let message = match serde_json::from_value::<StreamWrapperMessage>((*message).clone()) {
+        let message = match StreamWrapperMessage::deserialize(message.as_ref()) {
             Ok(msg) => msg,
             Err(e) => {
                 tracing::error!(error = ?e, "Failed to deserialize stream message");
@@ -374,7 +392,7 @@ mod tests {
     };
 
     use crate::{
-        engine::{Handler, RegisterFunctionRequest},
+        engine::{EngineTrait, Handler, RegisterFunctionRequest},
         function::FunctionResult,
         protocol::ErrorBody,
         trigger::Trigger,

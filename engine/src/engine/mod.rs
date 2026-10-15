@@ -24,7 +24,7 @@ use crate::{
     function::{Function, FunctionHandler, FunctionResult, FunctionsRegistry},
     invocation::{InvocationHandler, http_function::HttpFunctionConfig},
     protocol::{
-        DEFAULT_NAMESPACE, ErrorBody, FUNCTION_NAMESPACE_CONFLICT, Message,
+        DEFAULT_NAMESPACE, ErrorBody, FUNCTION_NAMESPACE_CONFLICT, Message, NAMESPACE_FORBIDDEN,
         WORKER_NAMESPACE_CONFLICT, effective_namespace,
     },
     services::{Service, ServicesRegistry},
@@ -298,8 +298,7 @@ pub trait EngineTrait: Send + Sync {
         self.call_with_metadata(function_id, input, None).await
     }
 
-    /// Engine-orchestration call in the default namespace. Hooks and middleware
-    /// use this: they are engine-internal and not namespace-aware.
+    /// Engine-orchestration call in the default namespace.
     async fn call_with_metadata(
         &self,
         function_id: &str,
@@ -311,9 +310,7 @@ pub trait EngineTrait: Send + Sync {
     }
 
     /// Like [`Self::call_with_metadata`] but resolves the target function in an
-    /// explicit `namespace`. `fire_triggers` uses this to run a trigger's target
-    /// in the namespace the trigger named (explicit, or `default` when absent),
-    /// rather than unconditionally in `default`.
+    /// explicit `namespace`, rather than unconditionally in `default`.
     async fn call_with_metadata_ns(
         &self,
         namespace: &str,
@@ -667,13 +664,57 @@ impl Engine {
     /// A miss keeps the pre-existing `function_not_found` code (SDKs and the
     /// `Enqueue` provider-missing DX branch both match on it) and only enriches
     /// the message with the namespaces where the id *does* exist.
+    #[cfg(test)]
     fn resolve_function(
         &self,
         requested_ns: Option<&str>,
         function_id: &str,
     ) -> Result<Function, ErrorBody> {
+        self.resolve_function_with(requested_ns, function_id, FunctionsRegistry::get)
+    }
+
+    fn resolve_function_handler(
+        &self,
+        requested_ns: Option<&str>,
+        function_id: &str,
+    ) -> Result<Arc<crate::function::HandlerFn>, ErrorBody> {
+        self.resolve_function_with(requested_ns, function_id, FunctionsRegistry::get_handler)
+    }
+
+    fn is_function_allowed(
+        &self,
+        session: &crate::workers::worker::rbac_session::Session,
+        requested_ns: Option<&str>,
+        function_id: &str,
+    ) -> bool {
         let namespace = requested_ns.unwrap_or(DEFAULT_NAMESPACE);
-        if let Some(function) = self.functions.get(namespace, function_id) {
+        let check = |function: Option<&Function>| {
+            crate::workers::worker::rbac_config::is_function_allowed_ref(
+                function_id,
+                namespace,
+                session.config.rbac.as_ref(),
+                &session.namespaces,
+                &session.allowed_functions,
+                &session.forbidden_functions,
+                function,
+            )
+        };
+        self.resolve_function_with(requested_ns, function_id, |registry, namespace, id| {
+            registry.with_function(namespace, id, |function| {
+                function.map(|function| check(Some(function)))
+            })
+        })
+        .unwrap_or_else(|_| check(None))
+    }
+
+    fn resolve_function_with<T>(
+        &self,
+        requested_ns: Option<&str>,
+        function_id: &str,
+        lookup: impl Fn(&FunctionsRegistry, &str, &str) -> Option<T>,
+    ) -> Result<T, ErrorBody> {
+        let namespace = requested_ns.unwrap_or(DEFAULT_NAMESPACE);
+        if let Some(function) = lookup(&self.functions, namespace, function_id) {
             return Ok(function);
         }
 
@@ -685,7 +726,7 @@ impl Engine {
         // isolation for any other function.
         if namespace != DEFAULT_NAMESPACE
             && function_id == crate::workers::observability::ui::CONTENT_FUNCTION_ID
-            && let Some(function) = self.functions.get(DEFAULT_NAMESPACE, function_id)
+            && let Some(function) = lookup(&self.functions, DEFAULT_NAMESPACE, function_id)
         {
             return Ok(function);
         }
@@ -731,22 +772,18 @@ impl Engine {
             "Remembering invocation for worker"
         );
 
-        match self.resolve_function(namespace, function_id) {
+        match self.resolve_function_handler(namespace, function_id) {
             Ok(function) => {
                 if !crate::workers::telemetry::is_iii_builtin_function_id(function_id) {
                     crate::workers::telemetry::collector::mark_user_function_invoked();
                 }
 
-                if let Some(invocation_id) = invocation_id {
-                    worker.add_invocation(invocation_id).await;
-                }
-
                 let session = worker.session.clone();
 
                 self.invocations
-                    .handle_invocation(
+                    .handle_invocation_with_handler(
                         invocation_id,
-                        Some(worker.id),
+                        Some(worker),
                         function_id.to_string(),
                         body,
                         function,
@@ -830,8 +867,8 @@ impl Engine {
                         &function_id,
                         namespace.as_deref(),
                         data,
-                        downstream_traceparent.clone(),
-                        downstream_baggage.clone(),
+                        downstream_traceparent,
+                        downstream_baggage,
                         metadata,
                     )
                     .await;
@@ -852,11 +889,11 @@ impl Engine {
                                         &worker,
                                         Message::InvocationResult {
                                             invocation_id,
-                                            function_id: function_id.clone(),
-                                            result: result.clone(),
+                                            function_id,
+                                            result,
                                             error: None,
-                                            traceparent: response_traceparent.clone(),
-                                            baggage: response_baggage.clone(),
+                                            traceparent: response_traceparent,
+                                            baggage: response_baggage,
                                         },
                                     )
                                     .await;
@@ -868,11 +905,11 @@ impl Engine {
                                         &worker,
                                         Message::InvocationResult {
                                             invocation_id,
-                                            function_id: function_id.clone(),
+                                            function_id,
                                             result: None,
-                                            error: Some(err.clone()),
-                                            traceparent: response_traceparent.clone(),
-                                            baggage: response_baggage.clone(),
+                                            error: Some(err),
+                                            traceparent: response_traceparent,
+                                            baggage: response_baggage,
                                         },
                                     )
                                     .await;
@@ -886,7 +923,7 @@ impl Engine {
                                     &worker,
                                     Message::InvocationResult {
                                         invocation_id,
-                                        function_id: function_id.clone(),
+                                        function_id,
                                         result: None,
                                         error: Some(ErrorBody {
                                             code: "invocation_error".into(),
@@ -1296,7 +1333,15 @@ impl Engine {
                             "description": description,
                             "context": session.context,
                         });
-                        match self.call(hook_fn_id, hook_input).await {
+                        match self
+                            .call_value_with_metadata_ns(
+                                DEFAULT_NAMESPACE,
+                                hook_fn_id,
+                                hook_input,
+                                None,
+                            )
+                            .await
+                        {
                             Ok(Some(v)) if v.is_object() => {
                                 if let Some(s) = v.get("trigger_type_id").and_then(|v| v.as_str()) {
                                     reg_id = s.to_string();
@@ -1453,7 +1498,15 @@ impl Engine {
                             "namespace": crate::protocol::effective_namespace(namespace),
                             "context": session.context,
                         });
-                        match self.call(hook_fn_id, hook_input).await {
+                        match self
+                            .call_value_with_metadata_ns(
+                                DEFAULT_NAMESPACE,
+                                hook_fn_id,
+                                hook_input,
+                                None,
+                            )
+                            .await
+                        {
                             Ok(Some(v)) if v.is_object() => {
                                 if let Some(s) = v.get("trigger_id").and_then(|v| v.as_str()) {
                                     reg_trigger_id = s.to_string();
@@ -1508,45 +1561,31 @@ impl Engine {
                 // keyed by function id but inspects the `Function` this trigger
                 // would actually reach in `trigger_namespace`. Without this a
                 // worker could expose any namespace's function over a trigger.
-                if let Some(session) = &worker.session {
-                    let function = self
-                        .resolve_function(Some(&target_namespace), &reg_function_id)
-                        .ok();
-                    if !crate::workers::worker::rbac_config::is_function_allowed(
-                        &reg_function_id,
-                        &target_namespace,
-                        session.config.rbac.clone(),
-                        &session.namespaces,
-                        &session.allowed_functions,
-                        &session.forbidden_functions,
-                        function.as_ref(),
-                    ) {
-                        tracing::warn!(
-                            worker_id = %worker.id,
-                            trigger_id = %reg_trigger_id,
-                            function_id = %reg_function_id,
-                            namespace = %target_namespace,
-                            "trigger registration denied by RBAC"
-                        );
-                        // Name the id that was actually authorized (post-prefix),
-                        // matching the result's `function_id`; `reg_function_id`
-                        // is moved into the struct below, so build the text first.
-                        let denied_message = format!(
-                            "function '{}' not allowed in namespace '{}'",
-                            reg_function_id, target_namespace
-                        );
-                        let result_msg = Message::TriggerRegistrationResult {
-                            id: reg_trigger_id,
-                            trigger_type: reg_trigger_type,
-                            function_id: reg_function_id,
-                            error: Some(crate::protocol::ErrorBody::new(
-                                "FORBIDDEN",
-                                denied_message,
-                            )),
-                        };
-                        let _ = self.send_msg(worker, result_msg).await;
-                        return Ok(());
-                    }
+                if let Some(session) = &worker.session
+                    && !self.is_function_allowed(session, Some(&target_namespace), &reg_function_id)
+                {
+                    tracing::warn!(
+                        worker_id = %worker.id,
+                        trigger_id = %reg_trigger_id,
+                        function_id = %reg_function_id,
+                        namespace = %target_namespace,
+                        "trigger registration denied by RBAC"
+                    );
+                    // Name the id that was actually authorized (post-prefix),
+                    // matching the result's `function_id`; `reg_function_id`
+                    // is moved into the struct below, so build the text first.
+                    let denied_message = format!(
+                        "function '{}' not allowed in namespace '{}'",
+                        reg_function_id, target_namespace
+                    );
+                    let result_msg = Message::TriggerRegistrationResult {
+                        id: reg_trigger_id,
+                        trigger_type: reg_trigger_type,
+                        function_id: reg_function_id,
+                        error: Some(crate::protocol::ErrorBody::new("FORBIDDEN", denied_message)),
+                    };
+                    let _ = self.send_msg(worker, result_msg).await;
+                    return Ok(());
                 }
 
                 match self
@@ -1666,18 +1705,7 @@ impl Engine {
                     // hands RBAC `None` exactly as before, so a forbidden id that
                     // does not exist still answers FORBIDDEN rather than leaking
                     // its absence.
-                    let function = self
-                        .resolve_function(namespace.as_deref(), function_id)
-                        .ok();
-                    if !crate::workers::worker::rbac_config::is_function_allowed(
-                        function_id,
-                        crate::protocol::effective_namespace(namespace),
-                        session.config.rbac.clone(),
-                        &session.namespaces,
-                        &session.allowed_functions,
-                        &session.forbidden_functions,
-                        function.as_ref(),
-                    ) {
+                    if !self.is_function_allowed(session, namespace.as_deref(), function_id) {
                         let inv_id = (*invocation_id).unwrap_or_else(Uuid::new_v4);
                         let explicitly_forbidden =
                             session.forbidden_functions.iter().any(|f| f == function_id);
@@ -1721,30 +1749,58 @@ impl Engine {
                             .and_then(|v| v.as_str())
                             .unwrap_or(crate::protocol::DEFAULT_NAMESPACE);
                         if !session.namespaces.contains_key(declared) {
-                            let inv_id = (*invocation_id).unwrap_or_else(Uuid::new_v4);
                             let mut permitted: Vec<&str> =
                                 session.namespaces.keys().map(String::as_str).collect();
                             permitted.sort_unstable();
+                            // A caller that awaits the call still gets its error.
+                            if let Some(inv_id) = *invocation_id {
+                                self.send_msg(
+                                    worker,
+                                    Message::InvocationResult {
+                                        invocation_id: inv_id,
+                                        function_id: function_id.clone(),
+                                        result: None,
+                                        error: Some(ErrorBody::new(
+                                            "FORBIDDEN",
+                                            format!(
+                                                "namespace '{}' not allowed for this session \
+                                                 (permitted: {})",
+                                                declared,
+                                                permitted.join(", ")
+                                            ),
+                                        )),
+                                        traceparent: traceparent.clone(),
+                                        baggage: baggage.clone(),
+                                    },
+                                )
+                                .await;
+                            }
+                            // SDKs register fire-and-forget, so the refusal must
+                            // also end the connection: otherwise the worker keeps
+                            // running, and registering, in `default`. Drop what it
+                            // buffered and anything it sends next first, so a peer
+                            // that never acknowledges the Close can't have the grace
+                            // timer drain its registrations into `default`.
+                            self.cancel_namespace_grace_timer(&worker.id);
+                            self.abort_namespace_resolution(worker);
                             self.send_msg(
                                 worker,
-                                Message::InvocationResult {
-                                    invocation_id: inv_id,
-                                    function_id: function_id.clone(),
-                                    result: None,
-                                    error: Some(ErrorBody::new(
-                                        "FORBIDDEN",
-                                        format!(
-                                            "namespace '{}' not allowed for this session \
-                                             (permitted: {})",
-                                            declared,
-                                            permitted.join(", ")
-                                        ),
-                                    )),
-                                    traceparent: traceparent.clone(),
-                                    baggage: baggage.clone(),
+                                Message::RegistrationRejected {
+                                    code: NAMESPACE_FORBIDDEN.to_string(),
+                                    namespace: declared.to_string(),
+                                    worker_name: data
+                                        .get("name")
+                                        .and_then(|v| v.as_str())
+                                        .map(str::to_string),
+                                    function_id: None,
+                                    owner_worker_id: String::new(),
                                 },
                             )
                             .await;
+                            let _ = worker
+                                .channel
+                                .send(Outbound::Raw(WsMessage::Close(None)))
+                                .await;
                             return Ok(());
                         }
                     }
@@ -1783,7 +1839,7 @@ impl Engine {
 
                         tokio::spawn(async move {
                             let response = match engine
-                                .call_with_metadata_ns(
+                                .call_value_with_metadata_ns(
                                     &ns,
                                     &middleware_id,
                                     middleware_input,
@@ -1905,7 +1961,7 @@ impl Engine {
                                             Value::String(target_namespace.clone());
                                     }
                                     engine
-                                        .call_with_metadata_ns(
+                                        .call_value_with_metadata_ns(
                                             &target_namespace,
                                             ENQUEUE_PROVIDER_FUNCTION_ID,
                                             enqueue_input,
@@ -2171,7 +2227,15 @@ impl Engine {
                             "namespace": self.connection_namespace(worker),
                             "context": session.context,
                         });
-                        match self.call(hook_fn_id, hook_input).await {
+                        match self
+                            .call_value_with_metadata_ns(
+                                DEFAULT_NAMESPACE,
+                                hook_fn_id,
+                                hook_input,
+                                None,
+                            )
+                            .await
+                        {
                             Ok(Some(v)) if v.is_object() => {
                                 if let Some(s) = v.get("function_id").and_then(|v| v.as_str()) {
                                     reg_id = s.to_string();
@@ -2453,29 +2517,90 @@ impl Engine {
         }
     }
 
-    pub async fn fire_triggers(&self, trigger_type: &str, data: Value) {
-        let triggers: Vec<crate::trigger::Trigger> = self
+    // Callers that already own a JSON value do not need to serialize its tree again.
+    pub(crate) async fn call_value_with_metadata_ns(
+        &self,
+        namespace: &str,
+        function_id: &str,
+        input: Value,
+        metadata: Option<Value>,
+    ) -> Result<Option<Value>, ErrorBody> {
+        let function_opt = self.functions.get_handler(namespace, function_id);
+
+        if let Some(function) = function_opt {
+            // Use the current tracing context to preserve parent-child links.
+            let ctx = tracing::Span::current().context();
+            let traceparent = inject_traceparent_from_context(&ctx);
+            let baggage = inject_baggage_from_context(&ctx);
+
+            let result = self
+                .invocations
+                .handle_invocation_with_handler(
+                    None,
+                    None,
+                    function_id.to_string(),
+                    input,
+                    function,
+                    traceparent,
+                    baggage,
+                    None,
+                    metadata,
+                )
+                .await;
+
+            match result {
+                Ok(result) => result,
+                Err(err) => Err(ErrorBody {
+                    code: "invocation_error".into(),
+                    message: err.to_string(),
+                    stacktrace: None,
+                }),
+            }
+        } else {
+            Err(ErrorBody {
+                code: "function_not_found".into(),
+                message: format!(
+                    "Function {} not found in namespace {}",
+                    function_id, namespace
+                ),
+                stacktrace: None,
+            })
+        }
+    }
+
+    pub async fn fire_triggers(&self, trigger_type: &str, mut data: Value) {
+        let triggers: Vec<_> = self
             .trigger_registry
             .triggers
             .iter()
             .filter(|entry| entry.value().trigger_type == trigger_type)
-            .map(|entry| entry.value().clone())
+            .map(|entry| {
+                let trigger = entry.value();
+                (
+                    trigger.function_id.clone(),
+                    trigger.namespace.clone(),
+                    trigger.metadata.clone(),
+                )
+            })
             .collect();
 
         let current_span = tracing::Span::current();
 
-        for trigger in triggers {
+        let trigger_count = triggers.len();
+        for (index, (function_id, namespace, metadata)) in triggers.into_iter().enumerate() {
             let engine = self.clone();
-            let function_id = trigger.function_id.clone();
-            let namespace = trigger.namespace.clone();
-            let metadata = trigger.metadata.clone();
-            let data = data.clone();
+            // Only additional destinations need a copy; the last takes the original.
+            let data = if index + 1 == trigger_count {
+                data.take()
+            } else {
+                data.clone()
+            };
             let parent = current_span.clone();
             let span_function_id = function_id.clone();
             tokio::spawn(
                 async move {
                     match engine
-                        .call_with_metadata_ns(&namespace, &function_id, data, metadata)
+                        .call_value_with_metadata_ns(&namespace, &function_id, data, metadata)
                         .await
                     {
                         Ok(_) => { tracing::Span::current().record("otel.status_code", "OK"); }
@@ -2824,11 +2949,13 @@ impl Engine {
             }
         }
 
-        let worker_invocations = worker.invocations.read().await;
-        tracing::debug!(worker_id = %worker.id, invocations = ?worker_invocations, "Worker invocations");
-        for invocation_id in worker_invocations.iter() {
-            tracing::debug!(invocation_id = %invocation_id, "Halting invocation");
-            self.invocations.halt_invocation(invocation_id);
+        {
+            let mut worker_invocations = worker.invocations.write().await;
+            tracing::debug!(worker_id = %worker.id, invocations = ?worker_invocations, "Worker invocations");
+            for invocation_id in worker_invocations.drain() {
+                tracing::debug!(invocation_id = %invocation_id, "Halting invocation");
+                self.invocations.halt_invocation(&invocation_id);
+            }
         }
 
         self.trigger_registry.unregister_worker(&worker.id).await;
@@ -3173,48 +3300,8 @@ impl EngineTrait for Engine {
             message: e.to_string(),
             stacktrace: None,
         })?;
-        let function_opt = self.functions.get(namespace, function_id);
-
-        if let Some(function) = function_opt {
-            // Inject current trace context and baggage to link spans as parent-child
-            // Use the tracing span's context directly to ensure proper propagation in async code
-            let ctx = tracing::Span::current().context();
-            let traceparent = inject_traceparent_from_context(&ctx);
-            let baggage = inject_baggage_from_context(&ctx);
-
-            let result = self
-                .invocations
-                .handle_invocation(
-                    None,
-                    None,
-                    function_id.to_string(),
-                    input,
-                    function,
-                    traceparent,
-                    baggage,
-                    None,
-                    metadata,
-                )
-                .await;
-
-            match result {
-                Ok(result) => result,
-                Err(err) => Err(ErrorBody {
-                    code: "invocation_error".into(),
-                    message: err.to_string(),
-                    stacktrace: None,
-                }),
-            }
-        } else {
-            Err(ErrorBody {
-                code: "function_not_found".into(),
-                message: format!(
-                    "Function {} not found in namespace {}",
-                    function_id, namespace
-                ),
-                stacktrace: None,
-            })
-        }
+        self.call_value_with_metadata_ns(namespace, function_id, input, metadata)
+            .await
     }
 
     async fn register_trigger_type(&self, trigger_type: TriggerType) {
@@ -8176,9 +8263,8 @@ mod tests {
 
         engine.cleanup_worker(&worker).await;
 
-        // cleanup_worker halts each invocation but does not clear the worker's
-        // invocation list, so the count remains unchanged.
-        assert_eq!(worker.invocation_count().await, 2);
+        // Cleanup releases worker-local tracking as well as global waiters.
+        assert_eq!(worker.invocation_count().await, 0);
     }
 
     // =========================================================================

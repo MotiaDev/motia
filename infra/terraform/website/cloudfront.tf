@@ -7,7 +7,7 @@ locals {
     "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com",
     "img-src 'self' data: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://api.cr-relay.com https://api.mailmodo.com https://${var.search_api_origin}",
+    "connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://api.cr-relay.com https://api.mailmodo.com https://${var.search_api_origin} https://api.github.com https://discord.com",
     # 'self': the landing page embeds its own /console-demo/index.html.
     "frame-src 'self' https://www.googletagmanager.com",
     "form-action 'self' https://api.mailmodo.com",

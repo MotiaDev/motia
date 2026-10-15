@@ -10245,6 +10245,315 @@ mod tests {
         }
     }
 
+    #[test]
+    #[serial]
+    fn test_metadata_query_projections_do_not_call_full_snapshot_apis() {
+        reset_observability_test_state();
+        let storage = otel::get_span_storage().expect("span storage should exist");
+        storage.clear();
+
+        let mut span = make_span(
+            "t-projection",
+            "root-projection",
+            None,
+            "root",
+            "svc",
+            10,
+            20,
+            "OK",
+            vec![("iii.tag.message", "hello")],
+        );
+        span.events = vec![otel::StoredSpanEvent {
+            name: "large-event-name".repeat(8 * 1024),
+            timestamp_unix_nano: 11,
+            attributes: vec![("payload".to_string(), "large-event-value".repeat(8 * 1024))],
+        }];
+        span.links = vec![otel::StoredSpanLink {
+            trace_id: "linked-trace".to_string(),
+            span_id: "linked-span".to_string(),
+            trace_state: Some("large-trace-state".repeat(8 * 1024)),
+            attributes: vec![("payload".to_string(), "large-link-value".repeat(8 * 1024))],
+        }];
+        storage.add_spans(vec![span]);
+
+        let before = storage.full_payload_snapshot_reads();
+        let roots = otel::get_query_root_span_keys();
+        assert_eq!(
+            roots
+                .iter()
+                .map(|root| root.trace_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["t-projection"]
+        );
+        let tags = otel::get_query_trace_tags_by_trace_ids(&["t-projection".to_string()]);
+        assert_eq!(tags["t-projection"]["iii.tag.message"], "hello");
+        assert_eq!(
+            storage.full_payload_snapshot_reads(),
+            before,
+            "metadata projections must not call full-payload snapshot APIs"
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn test_root_page_snapshot_clones_only_possible_roots() {
+        reset_observability_test_state();
+        let storage = otel::get_span_storage().expect("span storage should exist");
+        storage.clear();
+
+        // The older root is replaced by a newer row with a hot parent. The
+        // child has a large payload but is discarded by the hot-parent rule.
+        let mut old_root = make_span(
+            "t-root-page",
+            "root",
+            None,
+            "old root",
+            "svc",
+            1,
+            2,
+            "OK",
+            vec![],
+        );
+        old_root.events = vec![otel::StoredSpanEvent {
+            name: "old root payload".to_string(),
+            timestamp_unix_nano: 1,
+            attributes: vec![("payload".to_string(), "x".repeat(4096))],
+        }];
+        let mut replacement = make_span(
+            "t-root-page",
+            "root",
+            Some("parent"),
+            "replacement",
+            "svc",
+            3,
+            4,
+            "OK",
+            vec![],
+        );
+        replacement.events = old_root.events.clone();
+        let parent = make_span(
+            "t-root-page",
+            "parent",
+            None,
+            "parent",
+            "svc",
+            0,
+            5,
+            "OK",
+            vec![],
+        );
+        let mut child = make_span(
+            "t-root-page",
+            "child",
+            Some("parent"),
+            "child",
+            "svc",
+            6,
+            7,
+            "OK",
+            vec![],
+        );
+        child.events = vec![otel::StoredSpanEvent {
+            name: "discarded child payload".to_string(),
+            timestamp_unix_nano: 6,
+            attributes: vec![("payload".to_string(), "x".repeat(4096))],
+        }];
+        storage.add_spans(vec![old_root, replacement, parent, child]);
+
+        let before = storage.full_payload_snapshot_reads();
+        let page = otel::get_query_root_spans_page_by_start_time(0, 10, true, true);
+        assert_eq!(
+            page.spans
+                .iter()
+                .map(|span| span.span_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["parent"],
+            "newest duplicate with a hot parent and its child must not be roots"
+        );
+        assert_eq!(page.total, 1);
+        assert_eq!(
+            storage.full_payload_snapshot_reads(),
+            before,
+            "root paging must not use the full hot payload snapshot API"
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn test_indexed_hot_trace_visitor_visits_only_requested_slots_and_empty_request_is_noop() {
+        reset_observability_test_state();
+        let storage = otel::get_span_storage().expect("span storage should exist");
+        storage.clear();
+        storage.add_spans(vec![
+            make_span(
+                "t-indexed",
+                "span-requested",
+                None,
+                "requested",
+                "svc",
+                10,
+                20,
+                "OK",
+                vec![("iii.tag.requested", "yes")],
+            ),
+            make_span(
+                "t-unrelated",
+                "span-unrelated",
+                None,
+                "unrelated",
+                "svc",
+                30,
+                40,
+                "OK",
+                vec![("iii.tag.unrelated", "must not visit")],
+            ),
+        ]);
+
+        let requested = ["t-indexed"].into_iter().collect::<HashSet<_>>();
+        let mut visited = Vec::new();
+        storage.for_each_span_in_traces(requested.iter().copied(), |span| {
+            visited.push((span.trace_id.clone(), span.span_id.clone()));
+        });
+        assert_eq!(
+            visited,
+            vec![("t-indexed".to_string(), "span-requested".to_string())]
+        );
+
+        let mut empty_visits = 0;
+        storage.for_each_span_in_traces(std::iter::empty::<&str>(), |_| empty_visits += 1);
+        assert_eq!(
+            empty_visits, 0,
+            "empty trace requests must not project hot slots"
+        );
+        assert!(otel::get_query_trace_tags_by_trace_ids(&[]).is_empty());
+    }
+
+    #[test]
+    #[serial]
+    fn test_trace_tag_projection_replaces_duplicate_hot_span_metadata() {
+        reset_observability_test_state();
+        let storage = otel::get_span_storage().expect("span storage should exist");
+        storage.clear();
+        storage.add_spans(vec![
+            make_span(
+                "t-duplicate",
+                "span-duplicate",
+                None,
+                "duplicate",
+                "svc",
+                10,
+                20,
+                "OK",
+                vec![("iii.tag.value", "old"), ("iii.tag.stale", "remove-me")],
+            ),
+            make_span(
+                "t-duplicate",
+                "span-duplicate",
+                None,
+                "duplicate",
+                "svc",
+                30,
+                40,
+                "OK",
+                vec![("iii.tag.value", "new")],
+            ),
+        ]);
+
+        let tags = otel::get_query_trace_tags_by_trace_ids(&[
+            "t-duplicate".to_string(),
+            "t-duplicate".to_string(),
+        ]);
+        assert_eq!(tags["t-duplicate"]["iii.tag.value"], "new");
+        assert!(
+            !tags["t-duplicate"].contains_key("iii.tag.stale"),
+            "the newest duplicate hot slot must remove stale-only tags"
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn test_trace_tag_projection_hot_replacement_shadows_archived_tags() {
+        reset_observability_test_state();
+        let directory = tempfile::tempdir().expect("temp trace directory");
+        let _guard = attach_test_archive(directory.path());
+        let storage = otel::get_span_storage().expect("span storage should exist");
+
+        storage.clear();
+        storage.add_spans(vec![make_span(
+            "t-overlay",
+            "span-overlay",
+            None,
+            "root",
+            "svc",
+            10,
+            20,
+            "OK",
+            vec![("iii.tag.old", "archived"), ("iii.session.id", "session-1")],
+        )]);
+        flush_test_archive();
+        storage.clear();
+        storage.add_spans(vec![make_span(
+            "t-overlay",
+            "span-overlay",
+            None,
+            "root",
+            "svc",
+            30,
+            40,
+            "OK",
+            vec![("iii.tag.new", "hot"), ("iii.session.id", "session-2")],
+        )]);
+
+        let tags = otel::get_query_trace_tags_by_trace_ids(&["t-overlay".to_string()]);
+        assert_eq!(tags["t-overlay"]["iii.tag.new"], "hot");
+        assert_eq!(tags["t-overlay"]["iii.session.id"], "session-2");
+        assert!(
+            !tags["t-overlay"].contains_key("iii.tag.old"),
+            "a hot replacement must shadow all archived attributes"
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn test_trace_tag_projection_tagless_hot_replacement_shadows_archived_tags() {
+        reset_observability_test_state();
+        let directory = tempfile::tempdir().expect("temp trace directory");
+        let _guard = attach_test_archive(directory.path());
+        let storage = otel::get_span_storage().expect("span storage should exist");
+
+        storage.clear();
+        storage.add_spans(vec![make_span(
+            "t-tagless-overlay",
+            "span-tagless-overlay",
+            None,
+            "root",
+            "svc",
+            10,
+            20,
+            "OK",
+            vec![("iii.tag.old", "archived")],
+        )]);
+        flush_test_archive();
+        storage.clear();
+        storage.add_spans(vec![make_span(
+            "t-tagless-overlay",
+            "span-tagless-overlay",
+            None,
+            "root",
+            "svc",
+            30,
+            40,
+            "OK",
+            vec![],
+        )]);
+
+        let tags = otel::get_query_trace_tags_by_trace_ids(&["t-tagless-overlay".to_string()]);
+        assert!(
+            !tags.contains_key("t-tagless-overlay"),
+            "a tagless hot replacement must shadow archived tags"
+        );
+    }
+
     #[tokio::test]
     #[serial]
     async fn test_otel_module_initialize_start_background_tasks_and_destroy() {
