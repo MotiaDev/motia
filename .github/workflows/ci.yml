@@ -850,6 +850,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Derived observe files match the Node SDK
+        run: python3 scripts/sync-browser-observe.py --check
+
       - name: Type check
         run: pnpm --filter iii-browser-sdk exec tsc --noEmit
 
