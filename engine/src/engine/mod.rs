@@ -2333,15 +2333,19 @@ impl Engine {
                 if worker.has_external_function_id(&resolved_id).await {
                     worker.remove_external_function_id(&resolved_id).await;
                     // Only tear down the engine-global registration if this
-                    // worker is still the recorded owner. Without the gate,
-                    // an Unregister from a worker whose id was already
-                    // hijacked by a fresher worker would wipe the live
-                    // worker's http_module + service_registry entries — the
-                    // same bug shape `cleanup_worker` guards against.
-                    if !self.release_external_function_if_owner(
+                    // worker is still the recorded owner, checked and removed
+                    // under the owner entry's lock, then released: a fresher
+                    // worker that took the id over keeps its http_module and
+                    // service_registry entries and its observe descriptor —
+                    // the same bug shape `cleanup_worker` guards against.
+                    let http_module = self
+                        .service_registry
+                        .get_service::<HttpFunctionsWorker>("http_functions");
+                    if !self.remove_external_function_if_owner(
                         &worker.id,
                         &namespace,
                         &resolved_id,
+                        http_module.as_deref(),
                     ) {
                         tracing::debug!(
                             worker_id = %worker.id,
@@ -2350,35 +2354,16 @@ impl Engine {
                         );
                         return Ok(());
                     }
-                    if let Some(http_module) = self
-                        .service_registry
-                        .get_service::<HttpFunctionsWorker>("http_functions")
-                    {
-                        match http_module
-                            .unregister_http_function(&namespace, &resolved_id)
-                            .await
-                        {
-                            Ok(()) => {
-                                tracing::debug!(
-                                    worker_id = %worker.id,
-                                    function_id = %id,
-                                    "Unregistered external function"
-                                );
-                            }
-                            Err(err) => {
-                                tracing::error!(
-                                    worker_id = %worker.id,
-                                    function_id = %id,
-                                    error = ?err,
-                                    "Failed to unregister external function"
-                                );
-                            }
-                        }
+                    if http_module.is_some() {
                         self.service_registry
                             .remove_function_from_services(&namespace, &resolved_id);
-                    } else {
-                        self.remove_function_from_engine(&namespace, &resolved_id);
                     }
+                    self.release_external_function_if_owner(&worker.id, &namespace, &resolved_id);
+                    tracing::debug!(
+                        worker_id = %worker.id,
+                        function_id = %id,
+                        "Unregistered external function"
+                    );
                 } else {
                     worker.remove_function_id(&resolved_id).await;
                     // Same ownership gate as the external branch above.
@@ -3409,18 +3394,19 @@ impl Engine {
             let namespace = self.connection_namespace(worker);
             for function_id in external_functions.iter() {
                 let owner_key = (namespace.clone(), function_id.clone());
-                // Snapshot ownership without releasing — releasing first would
-                // open a window where a racing `RegisterFunction` can claim
-                // ownership mid-teardown, and the remaining teardown steps
-                // (service_registry + http_module) would then wipe the new
-                // owner's fresh state. Keep ownership through teardown and
-                // CAS-release at the end so a racing claim reliably aborts
-                // us at the next ownership check.
-                if self
-                    .function_owners
-                    .get(&owner_key)
-                    .is_none_or(|r| r.0 != worker.id)
-                {
+                // The ownership check and the removal happen under the owner
+                // entry's lock (as `release_function_if_owner`): a racing
+                // `RegisterFunction` claim waits for it, so the new owner's
+                // registration — and its observe descriptor — is never what
+                // goes. Ownership itself is kept through the rest of the
+                // teardown and CAS-released at the end, so a claim landing
+                // after this aborts the remaining steps.
+                if !self.remove_external_function_if_owner(
+                    &worker.id,
+                    &namespace,
+                    function_id,
+                    http_module.as_deref(),
+                ) {
                     tracing::debug!(
                         worker_id = %worker.id,
                         function_id = %function_id,
@@ -3428,35 +3414,13 @@ impl Engine {
                     );
                     continue;
                 }
-                match &http_module {
-                    Some(module) => {
-                        if let Err(err) = module
-                            .unregister_http_function(&namespace, function_id)
-                            .await
-                        {
-                            tracing::error!(
-                                worker_id = %worker.id,
-                                function_id = %function_id,
-                                error = ?err,
-                                "Failed to unregister external function during worker cleanup"
-                            );
-                            self.remove_function(&namespace, function_id);
-                        }
-                        // Re-check before wiping service_registry: the
-                        // `.await` above is a yield point a racing claim can
-                        // slip through, and service_registry is shared with
-                        // the claimant's setup path (router_msg populates it
-                        // before claim completes).
-                        if self
-                            .function_owners
-                            .get(&owner_key)
-                            .is_some_and(|r| r.0 == worker.id)
-                        {
-                            self.service_registry
-                                .remove_function_from_services(&namespace, function_id);
-                        }
-                    }
-                    None => self.remove_function_from_engine(&namespace, function_id),
+                if self
+                    .function_owners
+                    .get(&owner_key)
+                    .is_some_and(|r| r.0 == worker.id)
+                {
+                    self.service_registry
+                        .remove_function_from_services(&namespace, function_id);
                 }
                 // CAS-release ownership. A racing claim will have overwritten
                 // the entry with a new owner id; that predicate fails and we
@@ -3771,6 +3735,38 @@ impl Engine {
             dashmap::mapref::entry::Entry::Occupied(entry) if entry.get().0 == *worker_id => {
                 self.remove_function_from_engine(namespace, function_id);
                 entry.remove();
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Removes an HTTP-invoked registration (the `http_functions` entry and
+    /// the function) only if `worker_id` still owns it, while holding the
+    /// owner entry, as [`Self::release_function_if_owner`] does; ownership
+    /// itself is kept. Returns whether it removed. Without the module, the
+    /// function is removed from the engine directly.
+    fn remove_external_function_if_owner(
+        &self,
+        worker_id: &Uuid,
+        namespace: &str,
+        function_id: &str,
+        http_module: Option<&HttpFunctionsWorker>,
+    ) -> bool {
+        match self
+            .function_owners
+            .entry((namespace.to_string(), function_id.to_string()))
+        {
+            dashmap::mapref::entry::Entry::Occupied(entry) if entry.get().0 == *worker_id => {
+                match http_module {
+                    Some(module) => {
+                        module
+                            .http_functions()
+                            .remove(&(namespace.to_string(), function_id.to_string()));
+                        self.remove_function(namespace, function_id);
+                    }
+                    None => self.remove_function_from_engine(namespace, function_id),
+                }
                 true
             }
             _ => false,

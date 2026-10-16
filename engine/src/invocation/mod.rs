@@ -190,6 +190,12 @@ impl InvocationHandler {
         // case — it costs one atomic load and copies nothing; observed, it
         // keeps only what the active observers need.
         let observers = self.observers.get();
+        // An owner-delivered function is invoked by its owner only.
+        if let Some(registry) = observers
+            && let Err(refused) = registry.may_invoke(namespace, &function_id, worker_id)
+        {
+            return Ok(Err(refused));
+        }
         let observed = observers.and_then(|registry| {
             registry
                 .watch_routed(namespace, &function_id)

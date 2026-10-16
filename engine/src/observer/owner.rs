@@ -21,7 +21,7 @@
 //! its own `observeradded`, never both and never neither.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
@@ -271,6 +271,12 @@ impl ObserverRegistry {
         descriptor: Option<ObserveDescriptor>,
     ) {
         let key = (namespace.to_string(), function_id.to_string());
+        self.mark_owner_delivered(
+            &key,
+            descriptor
+                .as_ref()
+                .is_some_and(|descriptor| descriptor.delivery() == Delivery::Owner),
+        );
         match descriptor {
             Some(descriptor) => {
                 self.with_live_entry(&key, |entry, _| {
@@ -284,6 +290,73 @@ impl ObserverRegistry {
                 self.drop_entry_if_unused(&key);
             }
         }
+    }
+
+    fn mark_owner_delivered(&self, key: &FnKey, owner_delivered: bool) {
+        let current = self.owner_delivered.load();
+        if current.contains(key) == owner_delivered {
+            return;
+        }
+        let _serialized = lock(&self.rebuild);
+        let current = self.owner_delivered.load();
+        let mut next: HashSet<FnKey> = HashSet::clone(&current);
+        if owner_delivered {
+            next.insert(key.clone());
+        } else {
+            next.remove(key);
+        }
+        self.owner_delivered.store(Arc::new(next));
+    }
+
+    /// Whether `caller` (the calling connection, `None` for the engine
+    /// itself) may invoke `(namespace, function_id)`. An owner-delivered
+    /// function only by its owner (calling itself remotely, when it does not
+    /// dispatch locally): its events are what the owner reports, stamped with
+    /// the owner's identity, so a call from anyone else would let them forge
+    /// events that look like the owner's (README §4.2, protocol.md §5). Every
+    /// other function: no restriction here. One atomic load when no function
+    /// is owner-delivered.
+    #[inline]
+    pub fn may_invoke(
+        &self,
+        namespace: &str,
+        function_id: &str,
+        caller: Option<Uuid>,
+    ) -> Result<(), ErrorBody> {
+        let owner_delivered = self.owner_delivered.load();
+        if owner_delivered.is_empty()
+            || !owner_delivered
+                .contains(&(namespace, function_id) as &dyn crate::function::FunctionKey)
+        {
+            return Ok(());
+        }
+        let key: FnKey = (namespace.to_string(), function_id.to_string());
+        let owner = self.owner_of(&key).map(|owner| owner.connection);
+        if owner.is_some() && owner == caller {
+            return Ok(());
+        }
+        Err(ErrorBody::new(
+            observe_codes::FORBIDDEN,
+            format!(
+                "`{function_id}` is owner-delivered: only the worker that hosts it invokes it; \
+                 observe it instead"
+            ),
+        ))
+    }
+
+    /// `FORBIDDEN` when `target` is owner-delivered: only its owner invokes
+    /// it, so every activation would be refused (protocol.md §5).
+    pub(crate) fn check_target_invocable(&self, target: &FnKey) -> Result<(), ErrorBody> {
+        if self.owner_delivered.load().contains(target) {
+            return Err(ErrorBody::new(
+                observe_codes::FORBIDDEN,
+                format!(
+                    "the target `{}` is owner-delivered: only the worker that hosts it invokes it",
+                    target.1
+                ),
+            ));
+        }
+        Ok(())
     }
 
     pub(crate) fn function_entry(&self, key: &FnKey) -> Option<Arc<FunctionEntry>> {
@@ -469,6 +542,7 @@ impl ObserverRegistry {
             if !registered {
                 // The descriptor belongs to the registration that just ended.
                 *lock(&entry.descriptor) = None;
+                self.mark_owner_delivered(&key, false);
             }
             // Only a registration reads `function_owners`: a release calls
             // this while holding the function's shard.
@@ -508,8 +582,13 @@ impl ObserverRegistry {
             if let Some(observer) = self.by_id.get(&id).map(|o| o.clone()) {
                 // A different worker may now host the target: it gets the
                 // observed input, output and caller only if the observing
-                // worker may invoke it.
-                if registered && let Err(error) = self.check_session_allows(&observer, &key) {
+                // worker may invoke it, and only if anyone but its owner may
+                // (an owner-delivered target refuses every activation).
+                if registered
+                    && let Err(error) = self
+                        .check_session_allows(&observer, &key)
+                        .and_then(|()| self.check_target_invocable(&key))
+                {
                     self.fail(&observer, error);
                     continue;
                 }

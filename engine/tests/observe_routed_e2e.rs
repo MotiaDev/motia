@@ -1179,7 +1179,6 @@ async fn an_owner_delivered_function_is_not_evaluated_on_routed_calls() {
     registered(&t.engine, "default", "http::on-request").await;
     let _users = host(&t, "users", true, &["users::get"]).await;
     let mut watcher = connect(&t, "watcher", true).await;
-    let mut caller = connect(&t, "caller", true).await;
     watcher
         .observe_active(observer(
             "route",
@@ -1195,15 +1194,12 @@ async fn an_owner_delivered_function_is_not_evaluated_on_routed_calls() {
             .is_none(),
         "the owner picks this function's events"
     );
-    round_trip(
-        &t,
-        &mut caller,
-        &mut http,
-        "http::on-request",
-        json!({ "path": "/" }),
-        json!({}),
-    )
-    .await;
+    // Only its owner invokes it (calling itself remotely); the routed hook
+    // leaves the call alone.
+    let call = http.call("http::on-request", json!({ "path": "/" })).await;
+    http.serve("http::on-request", json!({})).await;
+    http.result(call).await;
+    assert_eq!(t.engine.observers.evaluated(), 0);
     assert_eq!(fires(&t, "route"), 0);
 }
 

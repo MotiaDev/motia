@@ -489,7 +489,7 @@ These strings are the wire contract (`engine/src/protocol.rs`, `observe_codes`).
 | `INVALID_FILTER` / `INVALID_FILTER_PATH` | Filter validation fails, including a literal where an operator object is expected ([`filters.md`](filters.md) §4). |
 | `INVALID_NAMESPACE` | `source.namespace` or `target.namespace` is present and blank. Absent means `default`. |
 | `NOT_OBSERVABLE` | The function registered `observe.allow: false`. |
-| `FORBIDDEN` | RBAC on the observed function or the target, or the registration hook; also a direct call to an engine-hosted event source (§3.7). |
+| `FORBIDDEN` | RBAC on the observed function or the target, or the registration hook; also a direct call to an engine-hosted event source (§3.7), and a call to an owner-delivered function from anyone but its owner (§5). |
 | `SELF_TARGET` | The target equals the observed function. |
 | `LIMIT_EXCEEDED` | Per-connection or per-function caps. |
 | `OBSERVER_ID_CONFLICT` | A replay with the same id but a different spec. |
@@ -514,6 +514,20 @@ These strings are the wire contract (`engine/src/protocol.rs`, `observe_codes`).
 - **Owners can only report and deliver for their own functions.** Both are
   checked against `function_owners`. An owner can fabricate invocations of its
   own function, but it already controls everything that function returns.
+- **Only the owner invokes an owner-delivered function.** Its events are what
+  the owner reports, with `caller.worker_*` stamped from the owner's
+  connection, so a call from anyone else would let a worker forge events that
+  look like the owner's (a row change "from" the database worker) and that no
+  `caller` filter could tell apart. The engine refuses an `InvokeFunction` of
+  a function registered with `observe.delivery: owner` from any connection
+  but the one that owns it, with `FORBIDDEN`; the owner may call itself (it
+  does when it does not dispatch locally). Engine-internal calls (hooks,
+  middleware, an old trigger bound to it) are refused the same way: the
+  engine has no reason to originate such an event. Auto functions are not
+  restricted. For the same reason an owner-delivered function cannot be an
+  observer's target: `observe` refuses it with `FORBIDDEN`, and an observer
+  whose target later registers as owner-delivered moves to `error`
+  (`FORBIDDEN`).
 - **Owner-delivered functions are entry points.** Observing `http::on-request`
   registers a route; calling it runs the router. RBAC must not expose it to
   untrusted sessions, and observing it may need a permission of its own
@@ -582,6 +596,12 @@ Related rules:
   old-style provider).
 - **Owner leaving.** The observer waits and is replayed like any other
   observer when the owner registers again.
+- **Introspection.** Shim bindings are listed by
+  `engine::registered-triggers::list` / `::info` like old bindings, from the
+  moment they are stored (also while the owner's ack is in flight), with
+  `served_by` (the stand-in function) and `observer_state`; `status` is
+  `active` while the stand-in is registered and `pending` while it is away. A
+  type a stand-in serves stays in `engine::triggers::list` / `::info`.
 
 Workers that still call `registerTrigger` keep working, and the provider
 deletes its `TriggerHandler`, binding table and fan-out in the same release that

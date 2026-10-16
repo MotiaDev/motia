@@ -388,6 +388,15 @@ pub struct RegisteredTriggerSummary {
     /// backward compatibility — do not parse it.
     pub config: Value,
     pub config_summary: String,
+    /// Set for a binding the legacy shim serves (protocol.md §6): the
+    /// function standing in for the trigger type. Absent for a binding of an
+    /// old-style provider.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub served_by: Option<String>,
+    /// For a binding the legacy shim serves: its observer's state (`pending`
+    /// while the stand-in's owner has not acked it yet, then `active`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub observer_state: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -406,6 +415,12 @@ pub struct RegisteredTriggerDetail {
     /// Full function detail; `None` if the target function was
     /// unregistered after the instance was created.
     pub function: Option<FunctionDetail>,
+    /// Set for a binding the legacy shim serves: the stand-in function.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub served_by: Option<String>,
+    /// For a binding the legacy shim serves: its observer's state.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub observer_state: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -1017,7 +1032,8 @@ impl EngineFunctionsWorker {
     }
 
     fn list_trigger_type_summaries(&self) -> Vec<TriggerTypeSummary> {
-        self.engine
+        let mut summaries: Vec<TriggerTypeSummary> = self
+            .engine
             .trigger_registry
             .trigger_types
             .iter()
@@ -1031,7 +1047,24 @@ impl EngineFunctionsWorker {
                     description: tt._description.clone(),
                 }
             })
-            .collect()
+            .collect();
+        // A trigger type a stand-in function serves is still listed (one
+        // entry per namespace; a live provider's entry wins).
+        for shim in self.engine.observers.shim_types() {
+            let listed = summaries
+                .iter()
+                .any(|t| t.id == shim.trigger_type && t.namespace == shim.function.0);
+            if !listed {
+                let detail = self.shim_type_detail(&shim);
+                summaries.push(TriggerTypeSummary {
+                    id: detail.id,
+                    namespace: detail.namespace,
+                    worker_name: detail.worker_name,
+                    description: detail.description,
+                });
+            }
+        }
+        summaries
     }
 
     fn registered_trigger_summary(
@@ -1047,6 +1080,64 @@ impl EngineFunctionsWorker {
             status,
             config: t.config.clone(),
             config_summary: Self::config_summary(&t.config),
+            served_by: None,
+            observer_state: None,
+        }
+    }
+
+    fn shim_binding_summary(
+        index: &HashMap<(String, String), String>,
+        binding: &crate::observer::ShimBinding,
+    ) -> RegisteredTriggerSummary {
+        RegisteredTriggerSummary {
+            id: binding.id.clone(),
+            trigger_type: binding.trigger_type.clone(),
+            function_id: binding.target.1.clone(),
+            worker_name: Self::worker_name_for_function_id(
+                index,
+                &binding.target.0,
+                &binding.target.1,
+            ),
+            status: Self::shim_status(binding),
+            config: binding.config.clone(),
+            config_summary: Self::config_summary(&binding.config),
+            served_by: Some(binding.served_by.1.clone()),
+            observer_state: Some(binding.state.to_string()),
+        }
+    }
+
+    fn shim_status(binding: &crate::observer::ShimBinding) -> RegisteredTriggerStatus {
+        if binding.served {
+            RegisteredTriggerStatus::Active
+        } else {
+            RegisteredTriggerStatus::Pending
+        }
+    }
+
+    /// A trigger type a stand-in function serves, in the shape of a
+    /// provider's (protocol.md §6).
+    fn shim_type_detail(&self, shim: &crate::observer::ShimType) -> TriggerTypeDetail {
+        TriggerTypeDetail {
+            id: shim.trigger_type.clone(),
+            namespace: shim.function.0.clone(),
+            worker_name: shim
+                .owner
+                .and_then(|owner| self.engine.worker_registry.get_worker_name(&owner))
+                .unwrap_or_else(|| Self::first_segment(&shim.function.1)),
+            description: format!(
+                "Served by `{}`, which stands in for this trigger type (observe)",
+                shim.function.1
+            ),
+            configuration_schema: shim.config_format.clone(),
+            request_schema: shim.request_format.clone(),
+            response_schema: None,
+            instance_count: self
+                .engine
+                .observers
+                .shim_bindings()
+                .iter()
+                .filter(|binding| binding.served_by == shim.function)
+                .count(),
         }
     }
 
@@ -1079,6 +1170,18 @@ impl EngineFunctionsWorker {
                 )
             }));
         }
+        // The bindings the legacy shim serves are registrations too, listed
+        // from the moment they are stored (as old triggers were), also while
+        // the owner's ack is in flight; parked (the stand-in away) only with
+        // the pending ones.
+        rows.extend(
+            self.engine
+                .observers
+                .shim_bindings()
+                .iter()
+                .filter(|binding| include_pending || binding.served)
+                .map(|binding| Self::shim_binding_summary(&index, binding)),
+        );
         rows
     }
 
@@ -1245,12 +1348,15 @@ impl EngineFunctionsWorker {
 
     async fn build_registered_trigger_detail(&self, id: &str) -> Option<RegisteredTriggerDetail> {
         let registry = &self.engine.trigger_registry;
-        let (trigger, status) = match registry.triggers.get(id) {
-            Some(entry) => (entry.value().clone(), RegisteredTriggerStatus::Active),
-            None => (
-                registry.pending_triggers.get(id)?.value().clone(),
-                RegisteredTriggerStatus::Pending,
-            ),
+        let found = match registry.triggers.get(id) {
+            Some(entry) => Some((entry.value().clone(), RegisteredTriggerStatus::Active)),
+            None => registry
+                .pending_triggers
+                .get(id)
+                .map(|entry| (entry.value().clone(), RegisteredTriggerStatus::Pending)),
+        };
+        let Some((trigger, status)) = found else {
+            return self.build_shim_binding_detail(id).await;
         };
 
         let index = self.function_owner_index().await;
@@ -1272,6 +1378,42 @@ impl EngineFunctionsWorker {
             metadata: trigger.metadata.clone(),
             trigger: trigger_detail,
             function: function_detail,
+            served_by: None,
+            observer_state: None,
+        })
+    }
+
+    /// [`Self::build_registered_trigger_detail`] for a binding the legacy
+    /// shim serves.
+    async fn build_shim_binding_detail(&self, id: &str) -> Option<RegisteredTriggerDetail> {
+        let binding = self.engine.observers.shim_binding(id)?;
+        let index = self.function_owner_index().await;
+        let trigger = self
+            .engine
+            .observers
+            .shim_types()
+            .into_iter()
+            .find(|shim| shim.function == binding.served_by)
+            .map(|shim| self.shim_type_detail(&shim));
+        let function = self
+            .build_function_detail(&binding.target.0, &binding.target.1)
+            .await;
+        Some(RegisteredTriggerDetail {
+            id: binding.id.clone(),
+            trigger_type: binding.trigger_type.clone(),
+            function_id: binding.target.1.clone(),
+            worker_name: Self::worker_name_for_function_id(
+                &index,
+                &binding.target.0,
+                &binding.target.1,
+            ),
+            status: Self::shim_status(&binding),
+            config: binding.config.clone(),
+            metadata: binding.metadata.clone(),
+            trigger,
+            function,
+            served_by: Some(binding.served_by.1.clone()),
+            observer_state: Some(binding.state.to_string()),
         })
     }
 
@@ -1999,9 +2141,19 @@ impl EngineFunctionsWorker {
             ],
         };
         candidates.dedup();
-        let found = candidates.iter().find_map(|ns| {
-            self.build_trigger_type_detail(&crate::trigger::type_key(ns, &input.id))
-        });
+        // A live provider first, then a function standing in for the type.
+        let found = candidates
+            .iter()
+            .find_map(|ns| self.build_trigger_type_detail(&crate::trigger::type_key(ns, &input.id)))
+            .or_else(|| {
+                let shims = self.engine.observers.shim_types();
+                candidates.iter().find_map(|ns| {
+                    shims
+                        .iter()
+                        .find(|shim| shim.trigger_type == input.id && shim.function.0 == *ns)
+                        .map(|shim| self.shim_type_detail(shim))
+                })
+            });
         match found {
             Some(detail) => FunctionResult::Success(detail),
             None => FunctionResult::Failure(ErrorBody {
@@ -3430,6 +3582,8 @@ mod tests {
             status: RegisteredTriggerStatus::Active,
             config: serde_json::json!({ "x": 1 }),
             config_summary: "{\"x\":1}".to_string(),
+            served_by: None,
+            observer_state: None,
         };
         let json = serde_json::to_value(&summary).expect("serialize");
         assert_eq!(json["id"], "t-1");

@@ -154,6 +154,7 @@ impl ObserverRegistry {
                 format!("`{}` cannot be the target of its own observer", function.1),
             ));
         }
+        self.check_target_invocable(&target)?;
         if let Some(descriptor) = self
             .function_entry(&function)
             .and_then(|entry| entry.descriptor())
@@ -388,6 +389,106 @@ impl ObserverRegistry {
             legacy_result(observer, error),
         );
     }
+}
+
+/// A binding the shim made, as the trigger builtins show it
+/// (`engine::registered-triggers::*`).
+#[derive(Debug, Clone)]
+pub struct ShimBinding {
+    pub id: String,
+    pub trigger_type: String,
+    /// The trigger's function.
+    pub target: FnKey,
+    pub config: Value,
+    pub metadata: Option<Value>,
+    /// The function standing in for the trigger type.
+    pub served_by: FnKey,
+    /// The stand-in is registered: the binding is live, as an old trigger
+    /// with a live provider was, from the moment it was stored (also while
+    /// the owner's ack is in flight). Not served (the owner away), it is
+    /// parked, as an old trigger whose provider left.
+    pub served: bool,
+    /// The observer's state (`pending` while the owner's ack is in flight).
+    pub state: crate::protocol::ObserverState,
+}
+
+/// A trigger type a stand-in function serves (`engine::triggers::*`).
+#[derive(Debug, Clone)]
+pub struct ShimType {
+    pub trigger_type: String,
+    pub function: FnKey,
+    /// The stand-in's owner connection.
+    pub owner: Option<uuid::Uuid>,
+    /// The stand-in's `request_format`: what its targets receive.
+    pub request_format: Option<Value>,
+    /// The stand-in's `args_format`: the old trigger config it reads.
+    pub config_format: Option<Value>,
+}
+
+impl ObserverRegistry {
+    /// The bindings the shim made, except the ones that failed (an owner
+    /// rejection: the registration did not happen).
+    pub fn shim_bindings(&self) -> Vec<ShimBinding> {
+        self.by_id
+            .iter()
+            .filter_map(|entry| shim_binding_of(entry.value()))
+            .collect()
+    }
+
+    pub fn shim_binding(&self, id: &str) -> Option<ShimBinding> {
+        self.get(id).as_deref().and_then(shim_binding_of)
+    }
+
+    /// The trigger types stand-in functions serve now: registered, by an
+    /// owner that speaks `observe.v1`.
+    pub fn shim_types(&self) -> Vec<ShimType> {
+        let declared: Vec<(FnKey, crate::protocol::ObserveDescriptor)> = self
+            .by_function
+            .iter()
+            .filter_map(|entry| {
+                let descriptor = entry.value().descriptor()?;
+                descriptor
+                    .legacy_trigger_type
+                    .is_some()
+                    .then(|| (entry.key().clone(), descriptor))
+            })
+            .collect();
+        declared
+            .into_iter()
+            .filter_map(|(key, descriptor)| {
+                let owner = self.owner_of(&key)?;
+                if !owner.speaks_observe || !self.is_registered(&key) {
+                    return None;
+                }
+                let request_format = self.function_formats(&key).and_then(|(request, _)| request);
+                Some(ShimType {
+                    trigger_type: descriptor.legacy_trigger_type.clone()?,
+                    function: key,
+                    owner: Some(owner.connection),
+                    request_format,
+                    config_format: descriptor.args_format.clone(),
+                })
+            })
+            .collect()
+    }
+}
+
+fn shim_binding_of(observer: &Observer) -> Option<ShimBinding> {
+    let binding = observer.legacy.as_ref()?;
+    let flags = observer.flags();
+    if flags.failed.is_some() || flags.disposed.is_some() {
+        return None;
+    }
+    Some(ShimBinding {
+        id: observer.id.clone(),
+        trigger_type: binding.trigger.trigger_type.clone(),
+        target: observer.target.clone(),
+        config: binding.trigger.config.clone(),
+        metadata: observer.metadata.clone(),
+        served_by: observer.function.clone(),
+        served: flags.function_available,
+        state: observer.state(),
+    })
 }
 
 /// Whether two bindings are the same registration (`Trigger` compares ids

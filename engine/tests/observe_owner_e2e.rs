@@ -1421,3 +1421,149 @@ async fn local_invocation_counts_saturate() {
         Some(u64::MAX)
     );
 }
+
+/// An owner-delivered function's events are what its owner reports, stamped
+/// with the owner's identity: only the owner invokes it, or anyone could
+/// forge them. Auto functions are not restricted.
+#[tokio::test]
+async fn only_the_owner_invokes_an_owner_delivered_function() {
+    use iii::engine::EngineTrait;
+
+    let t = spawn_engine(ObserversConfig::default()).await;
+    let mut http = http_owner(&t).await;
+    let mut other = connect(&t, "other", true).await;
+
+    let call = other
+        .call("http::on-request", json!({ "path": "/forged" }))
+        .await;
+    let refused = other.result(call).await;
+    assert_eq!(refused["error"]["code"], "FORBIDDEN", "{refused}");
+    assert!(
+        refused["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("owner-delivered")
+    );
+    let refused = t
+        .engine
+        .call("http::on-request", json!({ "path": "/engine" }))
+        .await
+        .unwrap_err();
+    assert_eq!(refused.code, "FORBIDDEN", "the engine itself too");
+
+    // Its owner, calling itself remotely.
+    let call = http.call("http::on-request", json!({ "path": "/" })).await;
+    http.serve("http::on-request", json!({ "status_code": 200 }))
+        .await;
+    assert_eq!(
+        http.result(call).await["result"],
+        json!({ "status_code": 200 })
+    );
+
+    // An auto function: anyone.
+    let call = other.call("http::auto", json!({})).await;
+    http.serve("http::auto", json!("auto")).await;
+    assert_eq!(other.result(call).await["result"], "auto");
+    assert!(!http.has_seen(|f| f["type"] == "invokefunction" && f["data"]["path"] == "/forged"));
+}
+
+/// An owner-delivered function cannot be an observer's target: every
+/// activation would be refused. Refused at `observe`, and when the target
+/// registers as owner-delivered later.
+#[tokio::test]
+async fn an_owner_delivered_function_is_no_target() {
+    let t = spawn_engine(ObserversConfig::default()).await;
+    let _http = http_owner(&t).await;
+    let _orders = host(&t, "orders", &["orders::create"]).await;
+    let mut watcher = connect(&t, "watcher", true).await;
+    let refused = watcher
+        .observe(observer(
+            "into-http",
+            json!({ "function_id": "orders::create" }),
+            "http::on-request",
+        ))
+        .await;
+    assert_eq!(refused["error"]["code"], "FORBIDDEN", "{refused}");
+
+    let pending = watcher
+        .observe(observer(
+            "into-later",
+            json!({ "function_id": "orders::create" }),
+            "late::router",
+        ))
+        .await;
+    assert_eq!(pending["state"], "pending");
+    let mut late = connect(&t, "late", true).await;
+    late.register_function_with(json!({
+        "type": "registerfunction",
+        "id": "late::router",
+        "observe": { "delivery": "owner" }
+    }))
+    .await;
+    let error = watcher.state_becomes("into-later", "error").await;
+    assert_eq!(error["reason"]["code"], "FORBIDDEN");
+}
+
+/// The owner-only rule holds for every way a call reaches the function: a
+/// fire-and-forget call, and an old provider firing a trigger bound to it.
+#[tokio::test]
+async fn void_calls_and_trigger_fan_out_cannot_reach_an_owner_delivered_function() {
+    let t = spawn_engine(ObserversConfig::default()).await;
+    let mut http = http_owner(&t).await;
+    let mut other = connect(&t, "other", true).await;
+    other
+        .send(json!({
+            "type": "invokefunction",
+            "function_id": "http::on-request",
+            "data": { "path": "/void" },
+            "action": { "type": "void" }
+        }))
+        .await;
+
+    // An old-style provider fires a binding to it, as old providers do: by
+    // invoking the bound function.
+    let mut provider = connect(&t, "ticker", false).await;
+    provider
+        .send(json!({ "type": "registertriggertype", "id": "tick", "description": "old ticks" }))
+        .await;
+    assert!(
+        eventually(|| t
+            .engine
+            .trigger_registry
+            .trigger_types
+            .contains_key(&iii::trigger::type_key("default", "tick")))
+        .await
+    );
+    other
+        .send(json!({
+            "type": "registertrigger",
+            "id": "t-tick",
+            "trigger_type": "tick",
+            "function_id": "http::on-request",
+            "config": {}
+        }))
+        .await;
+    let binding = provider
+        .expect("registertrigger", |f| {
+            f["type"] == "registertrigger" && f["id"] == "t-tick"
+        })
+        .await;
+    let fire = provider
+        .call(
+            binding["function_id"].as_str().unwrap(),
+            json!({ "path": "/tick" }),
+        )
+        .await;
+    assert_eq!(provider.result(fire).await["error"]["code"], "FORBIDDEN");
+
+    // The void call was handled before `other`'s later call; neither reached
+    // the owner.
+    let call = other
+        .call("http::on-request", json!({ "path": "/after" }))
+        .await;
+    assert_eq!(other.result(call).await["error"]["code"], "FORBIDDEN");
+    get(&mut http, "barrier").await;
+    assert!(
+        !http.has_seen(|f| f["type"] == "invokefunction" && f["function_id"] == "http::on-request")
+    );
+}

@@ -360,6 +360,7 @@ impl ObserverRegistry {
                 format!("`{}` cannot be the target of its own observer", function.1),
             ));
         }
+        self.check_target_invocable(&target_key)?;
 
         // `null` is absent, and absent matches every event.
         let filter = match &filters {

@@ -126,6 +126,9 @@ code decides which observers each event is for, from their `args`, and hands it 
 | Returns         | `true` when the event was handed over, `false` when the filters rejected it                                                          | the target's result                                                     |
 | Wire cost       | one batched report item, then one activation from the engine                                                                         | one invocation through the engine                                       |
 
+Only your worker may invoke an owner-delivered function: the engine refuses a call to it from any
+other worker (or from the engine itself) with `FORBIDDEN`, so nobody can pass off an event as yours.
+
 The SDK applies the observer's filters in both: `emit` returns `false`, and `call` fails with
 `FILTERS_NOT_MATCHED`, without sending anything. Use `obs.matches({ input })` when you want to know
 first. Both go through the engine, which applies the observer's policy (`max_fires`, expiry,

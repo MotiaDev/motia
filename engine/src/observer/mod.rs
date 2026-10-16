@@ -42,7 +42,7 @@ use uuid::Uuid;
 pub use config::ObserversConfig;
 pub use context::{ENGINE_CALLER_NAME, InvocationCtx};
 pub use dispatch::{Emission, ObservedCall, OwnerCall};
-pub use legacy::LegacyRegistration;
+pub use legacy::{LegacyRegistration, ShimBinding, ShimType};
 pub use lifecycle::Observer;
 pub use owner::{ActiveSet, validate_descriptor};
 pub use registry::ObserveRequest;
@@ -110,6 +110,10 @@ pub struct ObserverRegistry {
     tombstone_order: Mutex<std::collections::VecDeque<(std::time::Instant, String)>>,
     /// Engine-hosted event sources (see [`events`]).
     event_sources: DashMap<FnKey, ()>,
+    /// Functions registered with `observe.delivery: owner`: only their owner
+    /// invokes them (see [`ObserverRegistry::may_invoke`]). Read on every
+    /// invocation with one atomic load; replaced (copy-on-write) on change.
+    owner_delivered: ArcSwap<HashSet<FnKey>>,
     /// Owner announcements made so far: each one's generation.
     announcements: AtomicU64,
     /// The last revision of functions whose entry was dropped as unused:
@@ -150,6 +154,7 @@ impl ObserverRegistry {
             tombstones: DashMap::new(),
             tombstone_order: Mutex::new(std::collections::VecDeque::new()),
             event_sources: DashMap::new(),
+            owner_delivered: ArcSwap::from_pointee(HashSet::new()),
             announcements: AtomicU64::new(0),
             revisions: DashMap::new(),
             revision_order: Mutex::new(std::collections::VecDeque::new()),

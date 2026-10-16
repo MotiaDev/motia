@@ -542,3 +542,76 @@ async fn shim_bindings_keep_old_trigger_semantics() {
     );
     assert_eq!(state(&t, "t-one"), Some(ObserverState::Active));
 }
+
+/// Shim bindings show in the trigger builtins as old bindings did, listed
+/// from the moment they are stored (also while the owner's ack is in
+/// flight), marked with the function serving them; the legacy type stays
+/// listed while a stand-in serves it.
+#[tokio::test]
+async fn shim_bindings_show_in_the_trigger_builtins() {
+    let t = spawn_engine(ObserversConfig::default()).await;
+    let mut cron = cron_owner(&t, "cron").await;
+    let mut billing = legacy_consumer(&t).await;
+    let mut admin = connect(&t, "admin", true).await;
+    async fn call(admin: &mut Client, function_id: &str, data: Value) -> Value {
+        let id = admin.call(function_id, data).await;
+        admin.result(id).await
+    }
+
+    billing
+        .send(register_trigger("t-listed", "0 * * * * *"))
+        .await;
+    let added = added(&mut cron, "t-listed").await;
+    // Not acked yet: already listed.
+    let listed = call(&mut admin, "engine::registered-triggers::list", json!({})).await;
+    let row = listed["result"]["registered_triggers"]
+        .as_array()
+        .expect("rows")
+        .iter()
+        .find(|row| row["id"] == "t-listed")
+        .cloned()
+        .unwrap_or_else(|| panic!("not listed: {listed}"));
+    assert_eq!(row["trigger_type"], "cron");
+    assert_eq!(row["function_id"], "billing::remind");
+    assert_eq!(row["status"], "active");
+    assert_eq!(row["served_by"], "cron::on-tick");
+    assert_eq!(row["observer_state"], "pending");
+    assert_eq!(row["config"], json!({ "expression": "0 * * * * *" }));
+
+    ack(&mut cron, "t-listed", &added["revision"], None).await;
+    result(&mut billing, "t-listed").await;
+    let info = call(
+        &mut admin,
+        "engine::registered-triggers::info",
+        json!({ "id": "t-listed" }),
+    )
+    .await;
+    let detail = &info["result"];
+    assert_eq!(detail["trigger_type"], "cron", "{info}");
+    assert_eq!(detail["observer_state"], "active");
+    assert_eq!(detail["served_by"], "cron::on-tick");
+    assert_eq!(
+        detail["metadata"],
+        json!({ "__binding": "binding-t-listed" })
+    );
+    assert_eq!(detail["trigger"]["id"], "cron");
+    assert_eq!(detail["trigger"]["instance_count"], 1);
+    assert_eq!(detail["function"]["function_id"], "billing::remind");
+
+    let types = call(&mut admin, "engine::triggers::list", json!({})).await;
+    assert!(
+        types["result"]["triggers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|t| t["id"] == "cron" && t["worker_name"] == "cron"),
+        "{types}"
+    );
+    let type_info = call(
+        &mut admin,
+        "engine::triggers::info",
+        json!({ "id": "cron" }),
+    )
+    .await;
+    assert_eq!(type_info["result"]["instance_count"], 1, "{type_info}");
+}
