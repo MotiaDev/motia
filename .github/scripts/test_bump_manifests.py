@@ -154,7 +154,6 @@ def test_rewrite_all_updates_every_target_file(tmp_path: Path):
         '[tool.uv.sources]\niii-helpers = { path = "../helpers", editable = true }\n'
     ))
     _write(root / "sdk/packages/python/helpers/pyproject.toml", '[project]\nname = "iii-helpers"\nversion = "0.13.0.dev1"\n')
-    _write(root / "console/packages/console-rust/Cargo.toml", '[package]\nname = "console-rust"\nversion = "0.15.0-next.1"\n')
     _write(root / "sdk/packages/go/iii/client.go", 'package iii\n\nconst sdkVersion = "0.1.0"\n')
 
     rewrite_all(root=root, new_version="0.16.0-next.2", new_py_version="0.16.0.dev2")
@@ -181,7 +180,6 @@ def test_rewrite_all_updates_every_target_file(tmp_path: Path):
     assert '"iii-helpers==0.16.0.dev2"' in py_obs
     assert '"iii-helpers==0.13.0.dev1"' not in py_obs
     assert 'version = "0.16.0.dev2"' in (root / "sdk/packages/python/helpers/pyproject.toml").read_text()
-    assert 'version = "0.16.0-next.2"' in (root / "console/packages/console-rust/Cargo.toml").read_text()
     assert 'const sdkVersion = "0.16.0-next.2"' in (root / "sdk/packages/go/iii/client.go").read_text()
 
 
@@ -214,7 +212,6 @@ def test_cli_invokes_rewrite_all(tmp_path: Path):
         '[tool.uv.sources]\niii-helpers = { path = "../helpers", editable = true }\n'
     ))
     _write(root / "sdk/packages/python/helpers/pyproject.toml", 'version = "0.13.0.dev1"\n')
-    _write(root / "console/packages/console-rust/Cargo.toml", 'version = "0.15.0-next.1"\n')
     _write(root / "sdk/packages/go/iii/client.go", 'package iii\n\nconst sdkVersion = "0.1.0"\n')
 
     script = Path(__file__).parent / "bump_manifests.py"

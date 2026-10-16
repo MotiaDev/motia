@@ -11,7 +11,7 @@ name: Alpha Release
 #     prerelease on the iii-alpha/v* tag.
 #   * Builtin workers + skills — to the workers registry under a dedicated
 #     `alpha` tag (never rc/latest).
-#   Console, docker and homebrew are intentionally excluded.
+#   Docker and homebrew are intentionally excluded.
 #
 # Isolation guarantees:
 #   * Tags live under the iii-alpha/v* namespace, so release-iii.yml
@@ -266,7 +266,7 @@ jobs:
   # Engine pipeline (isolated): binaries -> GitHub prerelease on the
   # iii-alpha/v* tag, builtin workers -> dedicated `alpha` registry tag.
   # Nothing here touches the official iii/v* releases or the rc/latest
-  # worker channels. Console, docker and homebrew are intentionally out.
+  # worker channels. Docker and homebrew are intentionally out.
   # ──────────────────────────────────────────────────────────────
 
   create-alpha-release:

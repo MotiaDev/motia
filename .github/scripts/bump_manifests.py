@@ -94,7 +94,6 @@ _CARGO_PACKAGE_FILES = (
     "sdk/packages/rust/iii/Cargo.toml",
     "sdk/packages/rust/observability/Cargo.toml",
     "sdk/packages/rust/helpers/Cargo.toml",
-    "console/packages/console-rust/Cargo.toml",
 )
 _JSON_PACKAGE_FILES = (
     "sdk/packages/node/iii/package.json",

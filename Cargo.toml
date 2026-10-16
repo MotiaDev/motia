@@ -7,7 +7,6 @@ members = [
   "sdk/packages/rust/iii-example",
   "sdk/packages/rust/observability",
   "sdk/packages/rust/helpers",
-  "console/packages/console-rust",
   "crates/iii-clap-docs",
   "crates/iii-compose",
   "crates/iii-init",
