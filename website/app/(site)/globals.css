@@ -450,6 +450,141 @@
   margin-top: 0.6em;
   font-size: 0.85em;
 }
+
+/*
+ * Comparison posts. Two blocks a post can opt into from its markdown: a verdict grid of picks (`<div class="verdict">`
+ * with one `.verdict-card` per tool) and a `<div class="compare">` wrapper that turns the GFM table inside it into a
+ * matrix with a label column. Both are plain HTML in the source so the markdown twin at /blog/<slug>.md keeps the
+ * same text.
+ */
+.prose .verdict {
+  display: grid;
+  gap: 12px;
+  margin: 1.75em 0 2em;
+}
+.prose .verdict-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  font-size: 0.9em;
+  line-height: 1.55;
+  transition: border-color var(--motion-fast) var(--motion-ease-out);
+}
+.prose .verdict-card[data-highlight] {
+  border-color: color-mix(in oklab, var(--hero-accent) 55%, var(--border));
+  background: linear-gradient(180deg, color-mix(in oklab, var(--hero-accent) 14%, var(--card)), var(--card));
+}
+.prose .verdict-card p {
+  margin: 0;
+}
+.prose .verdict-pick {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.prose .verdict-tool {
+  font-size: 1.3em;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--foreground);
+}
+.prose .verdict-reason {
+  flex: 1;
+}
+.prose .verdict-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--foreground);
+  text-decoration: none;
+  transition:
+    border-color var(--motion-fast) var(--motion-ease-out),
+    background-color var(--motion-fast) var(--motion-ease-out);
+}
+.prose .verdict-cta::after {
+  content: "→";
+  transition: transform var(--motion-fast) var(--motion-ease-out);
+}
+.prose .verdict-card[data-highlight] .verdict-cta {
+  border-color: var(--foreground);
+  background: var(--foreground);
+  color: var(--background);
+}
+.prose .verdict-cta:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+.prose .compare .table-scroll {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+.prose .compare table {
+  min-width: 640px;
+  font-size: 0.86em;
+  line-height: 1.5;
+}
+.prose .compare :is(th, td) {
+  padding: 0.75em 0.9em;
+  min-width: 10em;
+}
+.prose .compare th {
+  background: var(--secondary);
+  font-size: 0.92em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.prose .compare :is(th, td):not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+.prose .compare tr:last-child td {
+  border-bottom: 0;
+}
+.prose .compare td:first-child {
+  color: var(--foreground);
+  font-weight: 500;
+}
+.prose .compare td:last-child {
+  background: color-mix(in oklab, var(--hero-accent) 5%, transparent);
+}
+
+@media (min-width: 640px) {
+  .prose .verdict {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .prose .verdict-card:hover {
+    border-color: var(--line-strong);
+  }
+  .prose .verdict-cta:hover {
+    border-color: var(--line-strong);
+    background: var(--secondary);
+  }
+  .prose .verdict-card[data-highlight] .verdict-cta:hover {
+    background: var(--foreground);
+    opacity: 0.9;
+  }
+  .prose .verdict-cta:hover::after {
+    transform: translateX(2px);
+  }
+}
 @media (max-width: 640px) {
   .prose {
     font-size: 16px;

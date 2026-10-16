@@ -15,7 +15,7 @@ import { formatDate, getPost, getPosts, publicImage } from '@/lib/blog'
 import { isoDateTime, postOgImage, postUrl, splitBanner } from '@/lib/blog-post'
 import { publicImageSize } from '@/lib/image-size'
 import { renderMarkdown } from '@/lib/markdown'
-import { site } from '@/lib/seo'
+import { faqJsonLd, site } from '@/lib/seo'
 import { links } from '@/lib/site'
 import { cn } from '@/lib/utils'
 
@@ -35,9 +35,11 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const url = postUrl(slug)
   const image = postOgImage(post)
   const size = post.image ? publicImageSize(post.image) : { width: 1200, height: 630 }
+  const title = post.seoTitle ?? post.title
 
   return {
-    title: { absolute: post.title },
+    title: { absolute: title },
+    keywords: post.tags.length ? post.tags : undefined,
     description: post.description,
     authors: post.author ? [{ name: post.author }] : undefined,
     alternates: {
@@ -49,7 +51,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
       siteName: site.name,
       locale: site.locale,
       url,
-      title: post.title,
+      title,
       description: post.description,
       publishedTime: isoDateTime(post.date),
       modifiedTime: post.updated ? isoDateTime(post.updated) : undefined,
@@ -61,7 +63,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
       card: 'summary_large_image',
       site: site.twitter,
       creator: site.twitter,
-      title: post.title,
+      title,
       description: post.description,
       images: [image],
     },
@@ -89,23 +91,32 @@ export default async function BlogPost({ params }: { params: Promise<Params> }) 
   const outline = candidates.length >= 2 ? candidates : []
   const url = postUrl(slug)
 
+  const publisher = {
+    '@type': 'Organization',
+    name: 'III, Inc.',
+    url: `${site.url}/`,
+    logo: { '@type': 'ImageObject', url: `${site.url}/favicon.svg` },
+  }
+
+  // A post with no named author is written by the team: the publisher is the author too, so the entry is never
+  // without one. Keywords, word count and language give answer engines the same facets the page shows.
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     headline: post.title,
+    ...(post.seoTitle ? { alternativeHeadline: post.seoTitle } : {}),
     description: post.description,
     datePublished: isoDateTime(post.date),
-    ...(post.updated ? { dateModified: isoDateTime(post.updated) } : {}),
-    ...(post.author ? { author: { '@type': 'Person', name: post.author } } : {}),
-    publisher: {
-      '@type': 'Organization',
-      name: 'III, Inc.',
-      url: `${site.url}/`,
-      logo: { '@type': 'ImageObject', url: `${site.url}/favicon.svg` },
-    },
+    dateModified: isoDateTime(post.updated ?? post.date),
+    author: post.author ? { '@type': 'Person', name: post.author } : publisher,
+    publisher,
     image: postOgImage(post),
     url,
     mainEntityOfPage: url,
+    inLanguage: 'en',
+    isAccessibleForFree: true,
+    wordCount: post.wordCount,
+    ...(post.tags.length ? { keywords: post.tags.join(', ') } : {}),
   }
 
   return (
@@ -158,6 +169,7 @@ export default async function BlogPost({ params }: { params: Promise<Params> }) 
       </main>
       <Footer container={wideContainer} />
       <JsonLd data={jsonLd} />
+      {post.faq.length ? <JsonLd data={faqJsonLd(post.faq)} /> : null}
     </>
   )
 }

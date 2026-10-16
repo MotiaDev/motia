@@ -66,8 +66,17 @@ draft: false
 ---
 ```
 
+Optional SEO fields: `seoTitle` replaces the `<title>` and share-card title when it should differ from the on-page
+heading (the heading stays `title`); `faq` is a list of `{ q, a }` entries emitted as FAQPage JSON-LD next to the
+BlogPosting entry, so keep the answers plain text and in sync with the section they summarise.
+
 Images: put the files in `public/blog/<slug>/` and reference them as `../../assets/blog/<slug>/<file>` in the
 markdown (the historical path, rewritten at render time and in the `.md` export).
+
+Comparison posts can use two HTML blocks styled in `globals.css` (under `.prose .verdict` and `.prose .compare`):
+a `<div class="verdict">` of `.verdict-card`s (eyebrow `.verdict-pick`, `.verdict-tool`, `.verdict-reason`,
+`.verdict-cta` link; `data-highlight` marks the recommended pick), and a `<div class="compare">` wrapped around a
+GFM table (blank lines on both sides) to render it as a matrix. See `content/blog/opencode-vs-claude-code-vs-iii.md`.
 
 ## Adding a tech spec or a deck
 

@@ -163,11 +163,15 @@ function toText(node: Nodes): string {
   return ''
 }
 
-/** Reading time from the raw markdown, rounded up, at 220 words a minute. */
-export function readingTime(markdown: string) {
-  const words = markdown
+/** Words in the raw markdown, code blocks excluded. */
+export function wordCount(markdown: string) {
+  return markdown
     .replace(/```[\s\S]*?```/g, '')
     .split(/\s+/)
     .filter(Boolean).length
-  return Math.max(1, Math.ceil(words / 220))
+}
+
+/** Reading time from the raw markdown, rounded up, at 220 words a minute. */
+export function readingTime(markdown: string) {
+  return Math.max(1, Math.ceil(wordCount(markdown) / 220))
 }
