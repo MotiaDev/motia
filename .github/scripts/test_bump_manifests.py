@@ -228,3 +228,52 @@ def test_cli_invokes_rewrite_all(tmp_path: Path):
     assert 'version = "0.16.0-next.2"' in (root / "Cargo.toml").read_text()
     assert 'iii-helpers==0.16.0.dev2' in (root / "sdk/packages/python/iii/pyproject.toml").read_text()
     assert 'iii-helpers==0.16.0.dev2' in (root / "sdk/packages/python/observability/pyproject.toml").read_text()
+
+
+def test_exact_internal_pins_pin_rust_workspace_deps(tmp_path: Path):
+    root = tmp_path
+    _write(root / "Cargo.toml", (
+        '[workspace.package]\n'
+        'version = "0.24.6-rc.5"\n\n'
+        '[workspace.dependencies]\n'
+        'iii-observability = { path = "sdk/packages/rust/observability", version = "0.24.6-rc.5" }\n'
+        'iii-helpers = { path = "sdk/packages/rust/helpers", version = "0.24.6-rc.5" }\n'
+        'iii-filter = { path = "crates/iii-filter", version = "0.24.6-rc.5" }\n'
+    ))
+    _write(root / "engine" / "Cargo.toml", 'version = "0.24.6-rc.5"\n')
+    _write(root / "sdk/packages/rust/iii/Cargo.toml", 'version = "0.24.6-rc.5"\n')
+    _write(root / "sdk/packages/rust/observability/Cargo.toml", 'version = "0.24.6-rc.5"\n')
+    _write(root / "sdk/packages/rust/helpers/Cargo.toml", 'version = "0.24.6-rc.5"\n')
+    _write(root / "sdk/packages/node/iii/package.json", '{\n  "version": "0.24.6-rc.5"\n}\n')
+    _write(root / "sdk/packages/node/iii-browser/package.json", '{\n  "version": "0.24.6-rc.5"\n}\n')
+    _write(root / "sdk/packages/node/observability/package.json", '{\n  "version": "0.24.6-rc.5"\n}\n')
+    _write(root / "sdk/packages/node/helpers/package.json", '{\n  "version": "0.24.6-rc.5"\n}\n')
+    _write(root / "sdk/packages/python/iii/pyproject.toml", (
+        'version = "0.24.6rc5"\n'
+        'dependencies = [\n    "iii-helpers==0.24.6rc5",\n]\n'
+    ))
+    _write(root / "sdk/packages/python/observability/pyproject.toml", (
+        'version = "0.24.6rc5"\n'
+        'dependencies = [\n    "iii-helpers==0.24.6rc5",\n]\n'
+    ))
+    _write(root / "sdk/packages/python/helpers/pyproject.toml", 'version = "0.24.6rc5"\n')
+    _write(root / "sdk/packages/go/iii/client.go", 'package iii\n\nconst sdkVersion = "0.24.6-rc.5"\n')
+
+    script = Path(__file__).parent / "bump_manifests.py"
+    subprocess.run(
+        [sys.executable, str(script), "--root", str(root),
+         "--version", "0.24.5-alpha.1", "--python-version", "0.24.5a1",
+         "--exact-internal-pins"],
+        check=True, capture_output=True, text=True,
+    )
+
+    # ^0.24.5-alpha.1 would also accept the stable 0.24.5; =0.24.5-alpha.1 does not.
+    workspace = (root / "Cargo.toml").read_text()
+    assert 'version = "0.24.5-alpha.1"' in workspace
+    assert 'iii-observability = { path = "sdk/packages/rust/observability", version = "=0.24.5-alpha.1" }' in workspace
+    assert 'iii-helpers = { path = "sdk/packages/rust/helpers", version = "=0.24.5-alpha.1" }' in workspace
+    assert 'iii-filter = { path = "crates/iii-filter", version = "=0.24.5-alpha.1" }' in workspace
+    # Package versions themselves are never prefixed.
+    assert 'version = "0.24.5-alpha.1"' in (root / "sdk/packages/rust/iii/Cargo.toml").read_text()
+    assert '"version": "0.24.5-alpha.1"' in (root / "sdk/packages/node/iii/package.json").read_text()
+    assert 'iii-helpers==0.24.5a1' in (root / "sdk/packages/python/iii/pyproject.toml").read_text()

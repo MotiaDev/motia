@@ -85,6 +85,9 @@ jobs:
           git config user.name "iii-ci[bot]"
           git config user.email "iii-ci[bot]@users.noreply.github.com"
 
+      # Exact Rust pins: an alpha anchors on the latest stable, and a caret
+      # requirement on it (^0.24.5-alpha.1) also accepts that stable, so
+      # iii-sdk would build against the stable iii-helpers instead.
       - name: Bump all manifests in lockstep
         env:
           VERSION: ${{ steps.versions.outputs.version }}
@@ -93,7 +96,8 @@ jobs:
           python3 .github/scripts/bump_manifests.py \
             --root . \
             --version "$VERSION" \
-            --python-version "$PY_VERSION"
+            --python-version "$PY_VERSION" \
+            --exact-internal-pins
 
       - name: Sync Cargo.lock
         run: cargo update --workspace
