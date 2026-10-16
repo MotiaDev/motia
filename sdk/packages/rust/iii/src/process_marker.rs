@@ -1,6 +1,7 @@
-//! `~/.iii/run/worker-<pid>.json`: how `iii ps` finds a worker however it was
-//! started. Compose already marks its children through their environment;
-//! this covers a worker run straight from a terminal or a service manager.
+//! `~/.iii/run/worker-<pid>-<n>.json`: how `iii ps` finds a worker however it
+//! was started, one file per client. Compose already marks its children
+//! through their environment; this covers a worker run straight from a
+//! terminal or a service manager.
 //!
 //! Best effort, and never an error: a home directory that cannot be written
 //! only makes the worker harder to find. A process that exits without
@@ -10,8 +11,6 @@
 use std::path::PathBuf;
 
 /// Removes the marker when the connection loop that wrote it ends.
-// ponytail: one file per process, so the first of several clients in one
-// process to shut down removes it; count clients if that case ever matters.
 pub(crate) struct Marker(Option<PathBuf>);
 
 impl Marker {
@@ -29,6 +28,8 @@ impl Drop for Marker {
     }
 }
 
+static ANNOUNCED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 fn write(dir: &std::path::Path, url: &str, name: Option<&str>) -> Option<PathBuf> {
     std::fs::create_dir_all(dir).ok()?;
     let pid = std::process::id();
@@ -43,7 +44,8 @@ fn write(dir: &std::path::Path, url: &str, name: Option<&str>) -> Option<PathBuf
         "sdk": "rust",
         "started_at": started_at,
     });
-    let path = dir.join(format!("worker-{pid}.json"));
+    let n = ANNOUNCED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let path = dir.join(format!("worker-{pid}-{n}.json"));
     std::fs::write(&path, marker.to_string()).ok()?;
     Some(path)
 }
@@ -54,10 +56,8 @@ mod tests {
     fn a_marker_names_this_process_until_it_is_dropped() {
         let dir = std::env::temp_dir().join(format!("iii-marker-{}", uuid::Uuid::new_v4()));
         let path = super::write(&dir, "ws://127.0.0.1:49134", Some("orders")).unwrap();
-        assert_eq!(
-            path.file_name().unwrap().to_str().unwrap(),
-            format!("worker-{}.json", std::process::id())
-        );
+        let file = path.file_name().unwrap().to_str().unwrap();
+        assert!(file.starts_with(&format!("worker-{}-", std::process::id())));
         let written: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(written["pid"], std::process::id());
@@ -65,8 +65,11 @@ mod tests {
         assert_eq!(written["url"], "ws://127.0.0.1:49134");
         assert_eq!(written["sdk"], "rust");
 
+        // A second client in the same process keeps its own file.
+        let other = super::write(&dir, "ws://127.0.0.1:49134", Some("billing")).unwrap();
         drop(super::Marker(Some(path.clone())));
         assert!(!path.exists());
+        assert!(other.exists());
         let _ = std::fs::remove_dir_all(dir);
     }
 }

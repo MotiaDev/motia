@@ -29,7 +29,6 @@ from websockets.asyncio.client import ClientConnection
 from .channels import ChannelReader, ChannelWriter, resolve_headers
 from .errors import InvocationError, RegistrationRejectedError, _wrap_wire_error
 from .format_utils import extract_request_format, extract_response_format
-from .process_marker import announce_process
 from .iii_constants import (
     DEFAULT_ENGINE_URL,
     DEFAULT_RECONNECTION_CONFIG,
@@ -58,6 +57,7 @@ from .iii_types import (
     UnregisterTriggerMessage,
     UnregisterTriggerTypeMessage,
 )
+from .process_marker import announce_process
 from .stream import IStream
 from .triggers import Trigger, TriggerConfig, TriggerHandler, TriggerTypeRef
 from .types import Channel, RemoteFunctionData, RemoteTriggerTypeData, is_channel_ref

@@ -3,9 +3,10 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 
 /**
- * Writes `~/.iii/run/worker-<pid>.json` so `iii ps` can find this worker
- * however it was started. Compose already marks its children through their
- * environment; this covers a worker run straight from a terminal.
+ * Writes `~/.iii/run/worker-<pid>-<n>.json` so `iii ps` can find this worker
+ * however it was started, one file per client. Compose already marks its
+ * children through their environment; this covers a worker run straight from
+ * a terminal.
  *
  * Best effort: a home directory that cannot be written only makes the worker
  * harder to find. A process killed before it removes the marker leaves it
@@ -18,7 +19,7 @@ export function announceProcess(
   name: string,
   dir = path.join(os.homedir(), '.iii', 'run'),
 ): () => void {
-  const file = path.join(dir, `worker-${process.pid}.json`)
+  const file = path.join(dir, `worker-${process.pid}-${++announced}.json`)
   try {
     fs.mkdirSync(dir, { recursive: true })
     fs.writeFileSync(
@@ -39,6 +40,7 @@ export function announceProcess(
 }
 
 const markers = new Set<string>()
+let announced = 0
 
 function remove(file: string): void {
   try {

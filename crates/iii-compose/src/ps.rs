@@ -221,7 +221,7 @@ fn classify(process: &sysinfo::Process, markers: &Markers) -> Option<IiiProcess>
     Some(found)
 }
 
-/// Orphans, managed engines' projects, and each daemon's engine port.
+/// Orphans, managed engines' projects, and each daemon's engine ports.
 fn link(found: &mut [IiiProcess]) {
     let daemons: BTreeMap<u32, PathBuf> = found
         .iter()
@@ -229,9 +229,8 @@ fn link(found: &mut [IiiProcess]) {
         .filter_map(|process| Some((process.pid, process.compose_file.clone()?)))
         .collect();
     let live: BTreeSet<&PathBuf> = daemons.values().collect();
-    // A worker's port is its project's; a managed engine's first listener is
-    // the one its workers were given.
-    let mut ports: BTreeMap<PathBuf, u16> = BTreeMap::new();
+    // Every port a project's engine listens on or its workers dial.
+    let mut ports: BTreeMap<PathBuf, BTreeSet<u16>> = BTreeMap::new();
 
     for process in found.iter_mut() {
         match process.kind {
@@ -247,8 +246,11 @@ fn link(found: &mut [IiiProcess]) {
             }
             Kind::Compose => continue,
         }
-        if let (Some(file), Some(port)) = (&process.compose_file, process.ports.first()) {
-            ports.entry(file.clone()).or_insert(*port);
+        if let Some(file) = &process.compose_file {
+            ports
+                .entry(file.clone())
+                .or_default()
+                .extend(&process.ports);
         }
     }
     for process in found
@@ -258,9 +260,9 @@ fn link(found: &mut [IiiProcess]) {
         process.ports = process
             .compose_file
             .as_ref()
-            .and_then(|file| ports.get(file).copied())
-            .into_iter()
-            .collect();
+            .and_then(|file| ports.get(file))
+            .map(|ports| ports.iter().copied().collect())
+            .unwrap_or_default();
     }
 }
 
@@ -608,15 +610,18 @@ mod tests {
             process(1, Kind::Compose, "/live.yaml"),
             process(2, Kind::Worker, "/live.yaml"),
             process(3, Kind::Worker, "/dead.yaml"),
+            // The daemon's managed engine, with a second listener.
+            process(4, Kind::Engine, ""),
         ];
         found[0].ports.clear();
+        found[3].ports.push(5001);
         link(&mut found);
         assert!(!found[1].orphan);
         assert!(found[2].orphan);
         assert_eq!(
             found[0].ports,
-            [5000],
-            "a daemon reports its project's port"
+            [5000, 5001],
+            "a daemon reports every port of its project"
         );
     }
 }

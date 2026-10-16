@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 )
 
-// announceProcess writes ~/.iii/run/worker-<pid>.json so `iii ps` can find this
-// worker however it was started (or under dir, when given). Compose already
-// marks its children through their environment; this covers a worker run
-// straight from a terminal.
+var announced atomic.Int64
+
+// announceProcess writes ~/.iii/run/worker-<pid>-<n>.json so `iii ps` can find
+// this worker however it was started (or under dir, when given), one file per
+// client. Compose already marks its children through their environment; this
+// covers a worker run straight from a terminal.
 //
 // Best effort: a home directory that cannot be written only makes the worker
 // harder to find. A process killed before it removes the marker leaves it
@@ -25,7 +28,7 @@ func announceProcess(url, name, dir string) func() {
 		}
 		dir = filepath.Join(home, ".iii", "run")
 	}
-	file := filepath.Join(dir, fmt.Sprintf("worker-%d.json", os.Getpid()))
+	file := filepath.Join(dir, fmt.Sprintf("worker-%d-%d.json", os.Getpid(), announced.Add(1)))
 	data, err := json.Marshal(map[string]any{
 		"pid":        os.Getpid(),
 		"url":        url,
