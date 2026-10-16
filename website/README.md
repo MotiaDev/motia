@@ -73,10 +73,13 @@ BlogPosting entry, so keep the answers plain text and in sync with the section t
 Images: put the files in `public/blog/<slug>/` and reference them as `../../assets/blog/<slug>/<file>` in the
 markdown (the historical path, rewritten at render time and in the `.md` export).
 
-Comparison posts can use two HTML blocks styled in `globals.css` (under `.prose .verdict` and `.prose .compare`):
-a `<div class="verdict">` of `.verdict-card`s (eyebrow `.verdict-pick`, `.verdict-tool`, `.verdict-reason`,
-`.verdict-cta` link; `data-highlight` marks the recommended pick), and a `<div class="compare">` wrapped around a
-GFM table (blank lines on both sides) to render it as a matrix. See `content/blog/opencode-vs-claude-code-vs-iii.md`.
+Blocks a post can opt into, all plain HTML around ordinary markdown (blank lines on both sides) and styled in
+`globals.css` under `.prose`: `<figure>` with an `<img>` and a `<figcaption>` for a captioned screenshot (the
+`../../assets/...` path is rewritten like a markdown image); `<div class="facts">` around a bullet list of
+`**Label:** value` items to show them as rows in a card; `<div class="verdict">` of `.verdict-card`s (eyebrow
+`.verdict-pick`, `.verdict-tool`, `.verdict-reason`, `.verdict-cta` link; `data-highlight` marks the recommended
+pick); and `<div class="compare">` around a GFM table to render it as a matrix. `####` headings are label-style
+(small caps) and stay out of the contents list. See `content/blog/opencode-vs-claude-code-vs-iii.md`.
 
 ## Adding a tech spec or a deck
 

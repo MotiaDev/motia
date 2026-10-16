@@ -152,12 +152,12 @@ export default async function BlogPost({ params }: { params: Promise<Params> }) 
                 src={banner.src}
                 alt={banner.alt}
                 priority
-                sizes="(min-width: 800px) 720px, 90vw"
-                className="mt-10"
+                sizes="(min-width: 800px) 760px, 90vw"
+                className="mt-12"
               />
             ) : null}
 
-            <Prose className="mt-10">{content}</Prose>
+            <Prose className="mt-14">{content}</Prose>
 
             <PostNav older={older} newer={newer} />
           </article>

@@ -82,15 +82,9 @@ const processor = unified()
  * tree is turned into elements directly, so no HTML string is ever injected.
  */
 export async function renderMarkdown(markdown: string, options: Options = {}): Promise<Rendered> {
-  const source = options.image
-    ? markdown.replace(
-        /!\[([^\]]*)\]\(([^)\s]+)([^)]*)\)/g,
-        (_m, alt, src, rest) => `![${alt}](${options.image?.(src) ?? src}${rest})`,
-      )
-    : markdown
-  const tree = (await processor.run(processor.parse(source))) as Root
+  const tree = (await processor.run(processor.parse(markdown))) as Root
   wrapTables(tree)
-  lazyImages(tree)
+  lazyImages(tree, options.image)
   if (options.idPrefix) prefixIds(tree, options.idPrefix)
   const content = toJsxRuntime(tree, { Fragment, jsx, jsxs, development: false })
   return { content, headings: extractHeadings(tree) }
@@ -120,13 +114,16 @@ function wrapTables(tree: Root) {
 }
 
 /**
- * Article images load lazily. They sit below the fold in long posts, and React
- * only emits preload hints for eager images, so this also keeps a post's RSC
- * payload from preloading every picture when the index prefetches it.
+ * Article images get their public URL and load lazily. They sit below the fold
+ * in long posts, and React only emits preload hints for eager images, so this
+ * also keeps a post's RSC payload from preloading every picture when the index
+ * prefetches it.
  */
-function lazyImages(tree: Root) {
+function lazyImages(tree: Root, image?: (src: string) => string) {
   visit(tree, (node) => {
     if (node.tagName !== 'img') return
+    // Markdown images and raw <img> (inside a <figure>) both get the public URL.
+    if (image && typeof node.properties.src === 'string') node.properties.src = image(node.properties.src)
     node.properties.loading ??= 'lazy'
     node.properties.decoding ??= 'async'
   })

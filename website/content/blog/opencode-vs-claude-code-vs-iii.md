@@ -30,7 +30,7 @@ That's what we test in this article. We created a single `set_flag` action that 
 
 For iii, it ran as a worker Function (`release::set_flag`). For OpenCode, we also built a real OpenCode v2 native plugin to confirm a documented behavior delta. None of the 3 writes does its own permission checking, so every result reflects the host's enforcement.
 
-**Versions tested, checked 2026-10-07:** OpenCode v2.0.24, Claude Code v2.1.292, iii engine 0.24.4 / AI Agent Harness 1.8.44 / approval-gate 1.0.22. All three used claude-sonnet-5 with the same Anthropic API key.
+> **Versions tested, checked 2026-10-07.** OpenCode v2.0.24, Claude Code v2.1.292, iii engine 0.24.4 / AI Agent Harness 1.8.44 / approval-gate 1.0.22. All three used claude-sonnet-5 with the same Anthropic API key.
 
 ## Quick verdict by workload
 
@@ -93,7 +93,9 @@ OpenCode is an open-source coding agent from Anomaly (MIT license) with terminal
 
 Among the 2 terminal agents here, it offers the widest model access, with 75+ providers and a v2 plugin API. For custom tools that need a gated write, the MCP route is the one that actually works.
 
-**Key facts.**
+#### Key facts
+
+<div class="facts">
 
 - **Version tested:** v2.0.24 (v2 track, with v1 still shipping in parallel as 1.18.x, and v1.18.35 shipped the same day)
 - **License:** MIT
@@ -101,13 +103,15 @@ Among the 2 terminal agents here, it offers the widest model access, with 75+ pr
 - **Where custom tools come from:** v2 plugins or MCP servers
 - **Where the approval decision is recorded:** a local SQLite database at `~/.local/share/opencode/opencode.db`, permission table
 
-**Why it stands out.**
+</div>
+
+#### Why it stands out
 
 OpenCode's background service architecture means multiple clients can connect to the same session, and an approved "Allow always" rule takes effect project-wide immediately.
 
 Rules are an ordered list of allow, ask, and deny entries where the last match wins. The base policy allows most operations except external directory access and `.env` reads, which trigger ask, so a new MCP tool runs without prompting until you add a rule in `opencode.jsonc`.
 
-**Limitation.**
+#### Limitation
 
 The v2 [plugin](https://opencode.ai/v2/docs/plugins) route does not pause on ask at all, confirmed by the write landing unprompted, and only hides the tool from the model's catalog on an explicit deny.
 
@@ -119,7 +123,7 @@ Also relevant for team choices, OpenCode 1 plugins do not run in OpenCode 2. The
 
 Both versions install as the `opencode` command, so check which version is active before assuming v2 features are available.
 
-**Best for.**
+#### Best for
 
 Teams that want to pick their own models and own the extension code. For the gated write tested here, use the MCP route with an explicit ask rule.
 
@@ -129,7 +133,9 @@ Claude Code is Anthropic's agentic coding tool for terminal, IDE, desktop, and b
 
 Its approval controls are the best-documented of the 3, with layered rules, permission modes, MCP approval flags, and hooks all designed for one developer's session. It is proprietary, with use governed by Anthropic's commercial or consumer terms.
 
-**Key facts.**
+#### Key facts
+
+<div class="facts">
 
 - **Version tested:** v2.1.292
 - **License:** proprietary (Anthropic terms)
@@ -137,13 +143,15 @@ Its approval controls are the best-documented of the 3, with layered rules, perm
 - **Where custom tools come from:** MCP servers, often packaged in plugins
 - **Where the approval decision is recorded:** `.claude/settings.local.json` (durable, per-repository) for persisted rules, with file-modification approvals lasting only until session end
 
-**Why it stands out.**
+</div>
+
+#### Why it stands out
 
 Auto mode (the default from v2.1.283+ for interactive terminal/VS Code sessions) classifies tool calls and decides whether to proceed without prompting. An explicit ask rule overrides auto mode, confirmed in our run.
 
 Setting `_meta["anthropic/requiresUserInteraction"]` (available from v2.1.199+) removes the "don't ask again" option entirely, and the prompt drops from 3 options to 2 ("Yes" / "No" only, no persistent-approval path). Rule edits in `/permissions` apply from the next tool call with no restart required.
 
-**Limitation.**
+#### Limitation
 
 Approvals are answered inside a live session. An unanswered interactive prompt just blocks indefinitely, and killing and resuming the process abandons the stuck call with no re-prompt.
 
@@ -153,7 +161,7 @@ Treat defer as a working pause, not a dependable resume. Session files are delet
 
 Current US plan prices, checked 2026-10-07: Pro $20/month or $200/year (advertised as $17/month billed annually); Max starts at $100/month (5x) or $200/month (20x); Team Standard is $25/seat/month monthly or $20/seat/month billed annually with a minimum of two seats. Taxes extra. Claude Code is not included in the Free plan.
 
-**Best for.**
+#### Best for
 
 Developers already paying for Claude who want documented approval controls without writing enforcement code. Auto mode decides on the user's behalf.
 
@@ -167,7 +175,9 @@ The AI Agent Harness is a thin, durable turn loop whose tools are Functions.
 
 Compared to the two terminal agents here, iii can handle approval gates for any connected client.
 
-**Key facts.**
+#### Key facts
+
+<div class="facts">
 
 - **Version tested:** engine 0.24.4, AI Agent Harness 1.8.44, approval-gate 1.0.22
 - **License:** engine under Elastic License 2.0 (not OSI-approved); SDKs, CLI, console, and published workers under Apache 2.0
@@ -175,7 +185,9 @@ Compared to the two terminal agents here, iii can handle approval gates for any 
 - **Where custom tools come from:** Functions a worker registers with the Node, Browser, Python, Rust, or Go SDK
 - **Where the approval decision is recorded:** a record in shared engine state, visible via the console, `approval::list-pending`, or any other connected client
 
-**Why it stands out.**
+</div>
+
+#### Why it stands out
 
 Approval-gate's manual mode holds any call matching no configured rule. We wrote no explicit rule for `release::set_flag` at all, and its absence was sufficient to gate it.
 
@@ -183,13 +195,13 @@ The standout result of the whole test was that the held call survived both an AI
 
 The other two tools' pending state did not survive restart. But in iii, our pending call was visible to and answerable from a second client attached to the same engine. OpenCode also supports multiple clients through its background service; the distinction in this test was that iii's pending state survived a full engine restart. This means you can loop a human into the approval process without having to worry about keeping the iii session running.
 
-**Limitation.**
+#### Limitation
 
 Getting to a gated workflow meant adding two workers (release-flag and approval-gate) to a compose file.
 
 No native Windows support (WSL2 only). The harness also makes a separate, gated `engine::functions::info` lookup before the real call, resulting in two sequential approval prompts that added friction to this specific strict enforcement test. This could be avoided by adding `engine::functions::info` to the approval gate.
 
-**Best for.**
+#### Best for
 
 Teams that need strict approval gating across agents and teams, or that need approval gates from development through production. Follow [our install guide](https://iii.dev/docs/install) to start the AI Agent Harness, then [add the approval-gate worker](https://github.com/iii-hq/workers/blob/main/approval-gate/README.md) for harness-dispatched calls. Configure a separate access boundary for direct application calls.
 
@@ -199,7 +211,10 @@ Teams that need strict approval gating across agents and teams, or that need app
 
 OpenCode's MCP route produces a native "Permission required" card (Deny / Allow always / Allow once) inside the client attached to the background service.
 
-![OpenCode's browser client showing a pending "Permission required" card for release_set_flag, with Deny, Allow always, and Allow once buttons.](../../assets/blog/opencode-vs-claude-code-vs-iii/opencode-permission-required.png)
+<figure>
+  <img src="../../assets/blog/opencode-vs-claude-code-vs-iii/opencode-permission-required.png" alt="OpenCode's browser client showing a pending Permission required card for release_set_flag, with Deny, Allow always, and Allow once buttons." width="2048" height="1007" />
+  <figcaption>OpenCode's pending approval card in the browser client: "Permission required" with Deny, Allow once, and Allow always.</figcaption>
+</figure>
 
 Its v2 plugin route, tested separately by building a real plugin, does not pause on ask at all, confirmed by the write landing unprompted, and only hides the tool from the model's catalog on an explicit deny.
 
@@ -211,7 +226,10 @@ iii's approval-gate held the call by default, confirmed via approval-gate hook b
 
 A pending call raised in one browser tab was visible to, and answerable from, a second browser tab attached to the same engine, with no state transfer required.
 
-![The iii console with the chat and traces panes side by side: release::set_flag is paused with approve, deny, and approve-always buttons, and the traces pane shows the held harness::send call with its spans across the harness, approval-gate, and provider workers.](../../assets/blog/opencode-vs-claude-code-vs-iii/iii-pending-approval-console.png)
+<figure>
+  <img src="../../assets/blog/opencode-vs-claude-code-vs-iii/iii-pending-approval-console.png" alt="The iii console with the chat and traces panes side by side: release::set_flag is paused with approve, deny, and approve-always buttons, and the traces pane shows the held harness::send call with its spans across the harness, approval-gate, and provider workers." width="2048" height="1056" />
+  <figcaption>The same pending call in the iii console, seen from a second connected client: the held record with Approve and Deny, and the full trace of the harness dispatch beside it.</figcaption>
+</figure>
 
 Who else can answer a pending call follows from where the hold lives. OpenCode's background-service clients can all see a pending card because they share the service, so the hold is local to that service.
 
@@ -238,7 +256,12 @@ Claude Code depends on whether a reason was typed. No reason stops the turn outr
 iii returns a structured JSON error as an ordinary Function result, and the model explained the rejection in plain language without stopping:
 
 ```json
-{ "error": { "message": "Rejected by operator.", "details": { "denied_by": "user", "status": "denied" } } }
+{
+  "error": {
+    "message": "Rejected by operator.",
+    "details": { "denied_by": "user", "status": "denied" }
+  }
+}
 ```
 
 The web console's "deny" button uses a fixed "Rejected by operator." message with no free-text field, though the underlying `approval::resolve` Function does accept a custom reason parameter, confirmed via direct CLI testing, so a custom denial reason is available at the API level, just not from that particular button.
