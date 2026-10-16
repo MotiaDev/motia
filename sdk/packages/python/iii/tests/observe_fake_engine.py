@@ -318,9 +318,13 @@ def connect(quiet_otel: None, engine_factory: Callable[..., FakeEngine]) -> Iter
             "reconnection_config": ReconnectionConfig(initial_delay_ms=20, max_delay_ms=50, jitter_factor=0.0),
             **options,
         }
+        accepted = len(engine.sockets)
         client = III(engine.url, InitOptions(**opts))
         clients.append(client)
         client._wait_until_connected()
+        # The client can see its handshake complete before the engine's handler has filed the socket; deliver()
+        # needs it filed.
+        wait_until(lambda: len(engine.sockets) > accepted, what="the engine to accept the connection")
         if wait_registered:
             wait_until(lambda: client._registered_on_connection, what="workerregistered")
         return client

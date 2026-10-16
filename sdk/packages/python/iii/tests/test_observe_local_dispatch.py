@@ -38,6 +38,14 @@ def _confirm(
     wait_until(lambda: state.confirmed, what=f"functionregistered for {function_id}")
     if observers:
         wait_until(lambda: len(state.compiled) == len(observers), what="the observers")
+        # The acks go out after the filters compile; wait for them so a test that clears the frames next does not
+        # see them arrive late.
+        ids = {o["id"] for o in observers}
+
+        def acked() -> set[str]:
+            return {f.get("id") for f in engine.frames_of("observerack") if f.get("function_id") == function_id}
+
+        wait_until(lambda: ids <= acked(), what=f"the observers' acks for {function_id}")
 
 
 def _invocations(engine: FakeEngine) -> list[dict[str, Any]]:
