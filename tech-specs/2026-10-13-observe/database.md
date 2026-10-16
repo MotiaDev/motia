@@ -3,7 +3,8 @@
 Source: `workers/database` at `079611a1f` (workers `origin/main`; the
 `database/` tree is unchanged since `a1b51cac9`). Delivery: **owner**
 (`obs.emit`): the database routes each event to the observers whose args
-name its db, table and op.
+name its db, table and op. The migration plan, checked against the 0.25 engine
+and SDKs with a prototype, is [`transition-database.md`](transition-database.md).
 
 ## 1. Today
 
@@ -58,27 +59,33 @@ pub struct RowChangedArgs {
     pub ops: Option<Vec<Op>>,            // insert | update | delete | other
 }
 
-let capture = NativeCapture::new(config.clone());              // native capture + the routing index (§2.4)
+let capture = Arc::new(NativeCapture::new(iii.clone(), config.clone(), pools.clone())); // §2.4
 
 let row_changed = iii.register_function(
     ROW_CHANGED_FN,
-    RegisterFunction::new({ let capture = capture.clone();
-                            move |event: RowChangedEvent| capture.route(event) })   // §2.3
-        .description("Invoked once per committed write statement. Observe it with args \
+    // An event source, not a callable: the bus routes each event in-process (§2.3)
+    RegisterFunction::new(|_event: RowChangedEvent| Err::<(), _>(forbidden("observe it instead")))
+        .description("One event per committed write statement. Observe it with args \
                       { db, table?, ops? } and filter on input.returning / caller.")
-        // request_format / response_format come from the handler's argument and return types
-        // (JsonSchema); .request_format(json!({ … })) overrides them with a Value
+        // request_format comes from the handler's argument type, so RowChangedEvent derives
+        // Deserialize + JsonSchema: the engine checks filter paths against it
         .observe(Observe::owner()                                         // the database picks who gets each event
             .args_format::<RowChangedArgs>()                               // was the trigger config
             .legacy_trigger_type("database::row-changed")
             .handler(capture.clone())),
 );
+capture.attach(row_changed.clone());   // the hooks hold the capture, so it exists before the FunctionRef
 ```
 
-The handler is the router: it hands the event to the observers whose args
-match it, with `obs.emit(event)`. The target receives the `Observed` envelope
-(`capture: ['input']`, or the event itself with `deliver: 'input'`). Locally
-dispatched, it costs one function call and one index lookup.
+The function is what observers name, not a router anyone calls. The 0.25
+engine refuses a routed call of an owner-delivered function from any
+connection but its owner (`FORBIDDEN`), and the function's own handler refuses
+every invocation as well, which also covers an engine older than 0.25. A
+handler that routed would otherwise let any worker allowed to invoke it forge
+events, and their reports would carry the database's identity. `RowChangeBus`
+routes each event in-process instead (§2.3): the target receives the
+`Observed` envelope (`capture: ['input']`, or the event itself with
+`deliver: 'input'`), and an event costs one index lookup.
 
 The trigger config becomes the observer's `args`. `args_format`
 (`deny_unknown_fields`) rejects argument typos and a missing `db` at creation
@@ -112,52 +119,75 @@ into the **event**:
 - `onObserverAdded` rejects a non-canonical `args.table` (`"Orders"`,
   `"public.orders"`) with a hint naming the canonical value, so the mismatch
   fails at creation instead of matching nothing.
+- `RowChangedEvent` derives `Deserialize` as well as `JsonSchema`: it is the
+  function's input type, so its schema is the `request_format` that filter
+  paths are checked against (`input.tabel` → `INVALID_FILTER_PATH`).
+- **What canonical args cannot say.** `args.table` is a bare lowercase name,
+  so a new observer cannot name a Postgres schema or a quoted mixed-case table
+  (`"Orders"`). The migration does not guess:
+  - on the statements path nothing is installed, and the canonical name
+    matches every spelling of the table, as `same_table` does today; an
+    observer that cares about the schema filters on `input.schema`;
+  - on a native database the capture installs on `args.table` as given. That
+    works for a lowercase table on the connection's search path; any other
+    table fails at install (`CAPTURE_INSTALL_FAILED`, with today's "quoted
+    identifiers are case-sensitive" hint), so the observer's `ready()` says
+    why instead of listening to nothing;
+  - a legacy binding keeps installing on the spelling it was written with
+    (§2.5), so its behavior does not change.
+
+  Native tables outside the search path need a later, optional `schema` arg,
+  resolved against `pg_class` (an ambiguous match refused).
 
 ### 2.3 Emitting
 
 `RowChangeBus` keeps the transaction buffer (`stage` / `commit` / `rollback`)
 and loses `Subscriber`, `SubscriberFilter` and `targets_for`. The per-event
-routing moves into the function's handler, over an index the hooks maintain.
+routing moves into `NativeCapture`, over an index the hooks maintain, and the
+bus calls it in-process from the invocation that made the write.
 
 ```rust
 pub struct RowChangeBus {
     iii: Arc<IIIClient>,
-    row_changed: FunctionRef,                 // from register_function
+    capture: Arc<NativeCapture>,              // holds the FunctionRef and the index
     pending: Mutex<HashMap<String, Vec<Pending>>>,
 }
 
 async fn fan_out(&self, event: RowChangedEvent) {
-    if !self.row_changed.is_observed() {       // nobody observing: no serialization, no call, no frames
+    if !self.capture.is_listened() {           // row_changed.is_observed(): no serialization, no call, no frames
         return;
     }
-    let payload = match serde_json::to_value(&event) { Ok(v) => v, Err(_) => return };
-    // Local dispatch: the handler (NativeCapture::route) runs in-process and emits to the routed
-    // observers; the SDK checks their filters and reports only matches. Awaited (not Void), so a
-    // transaction's statements are reported in commit order.
-    if let Err(e) = self.iii.trigger(TriggerRequest::new(ROW_CHANGED_FN, payload)).await {
-        tracing::warn!(error = %e, "on-row-changed emit failed");
-    }
+    // In-process, on the task of the invocation that made the write: the SDK checks the routed
+    // observers' filters and reports only matches. Awaited, so a transaction's statements are
+    // reported in commit order.
+    self.capture.route(&event).await;
 }
 
 impl NativeCapture {
-    /// The function's handler: the args-based match RowChangeBus used to do per subscriber.
-    fn route(&self, event: RowChangedEvent) -> Result<(), Error> {
-        for obs in self.index.matching(&event.db, event.table.as_deref(), event.op) {
-            obs.emit(&event)?;     // the observer's filters run here; a miss sends nothing. Ok(false) on a miss or a
-                                   // removed observer, so the routing loop needs no guard
+    /// The args-based match RowChangeBus used to do per subscriber.
+    async fn route(&self, event: &RowChangedEvent) {
+        for route in self.index.matching(&event.db, event.table.as_deref(), event.op) {
+            // the observer's filters run here; a miss sends nothing. Ok(false) on a miss or a removed
+            // observer, so the loop needs no guard; an error is logged and the loop goes on
+            let sent = if route.legacy { route.obs.emit(&event.legacy_view()) }   // §2.5
+                       else { route.obs.emit(event) };
+            if let Err(e) = sent { tracing::warn!(error = %e, "row-changed emit failed"); }
         }
-        Ok(())
     }
 }
 ```
+
+`route` is async because, against an engine older than 0.25, the same index
+also holds the bindings of the fallback trigger type, which are called with
+`void` as today ([`transition-database.md`](transition-database.md) §5.2).
 
 - **Staging stays unconditional.** Skipping `stage()` while nothing is observed
   would miss an observer that becomes active between a statement and its
   commit. The commit *is* the invocation, so that observer is owed the
   event.
-- **Caller context comes for free.** On the statements path the local call
-  runs inside the `database::execute` (or `database::commit_transaction`)
-  handler, and `emit` runs inside that call, so the event carries:
+- **Caller context comes for free.** On the statements path `route` runs
+  inside the `database::execute` (or `database::commitTransaction`) handler,
+  on its task, and `emit` takes that invocation as the event's caller:
 
   ```jsonc
   "caller": { "worker_name": "database", "function_id": "database::execute", "invocation_id": "…",
@@ -165,16 +195,21 @@ impl NativeCapture {
   ```
 
   `caller.parent` answers "who changed this row".
-- **The native path has no invocation context.** It has only
+- **The native path has no invocation context.** The listener tasks run
+  outside any handler, so the event has only
   `caller: { worker_name: "database" }`. `caller.parent.*` is absent there, so
   `{"caller.parent.worker_name": {"$ne": "x"}}` still matches: we don't know,
   so we don't exclude.
 - **Loop protection is automatic on the statements path.** A target that
   writes back runs at `observe_depth` 1, its `database::execute` call
-  carries it, and the emitted invocation reports it. The engine stops the chain
+  carries it, and the emit inside that call reports it. The engine stops the chain
   at the configured depth. A write from the native path, or by another client,
   has no depth: the same blind spot as today. A `caller.parent` filter is the
   explicit tool there.
+- **No local dispatch involved.** Routing does not go through `trigger`, so it
+  is the same with `observers.local_dispatch: false` or under RBAC middleware,
+  where a local call of the function would turn into a round trip through the
+  engine for every observed write.
 
 ### 2.4 Native capture and the routing index, driven by `onObserverAdded`
 
@@ -185,33 +220,38 @@ impl NativeCapture {
 #[async_trait]
 impl ObserveHandler for NativeCapture {
     async fn on_observer_added(&self, obs: &Observer) -> Result<(), ObserveRejection> {
-        let args = match obs.legacy() {
-            Some(legacy) => self.legacy_args(&legacy.config)?,        // phase 5 shim, §2.5: canonicalizes
+        // `install` is the table as the DDL will name it
+        let (args, install, legacy) = match obs.legacy() {
+            Some(legacy) => {                                           // phase 5 shim, §2.5
+                let (args, install) = self.legacy_args(&legacy.config)?;   // canonical args, the binding's spelling
+                (args, install, true)
+            }
             None => {
                 let args = obs.args::<RowChangedArgs>()?;               // db required: checked by the engine
                 if let Some(t) = &args.table { self.check_canonical(t)?; }   // "Orders" → hint "orders"
-                args
+                let install = args.table.clone();
+                (args, install, false)
             }
         };
         let cfg = self.config.read().await;
         let db_cfg = cfg.databases.get(&args.db)
             .ok_or_else(|| ObserveRejection::new("UNKNOWN_DB", format!("unknown db `{}`", args.db)))?;
+        let mut installed = None;
         if db_cfg.capture == CaptureMode::Native {
-            let Some(t) = &args.table else {
+            let Some(t) = &install else {
                 return Err(ObserveRejection::new("NATIVE_CAPTURE_REQUIRES_TABLE",
                     format!("db `{}` uses capture: native; pass args.table", args.db)));
             };
-            // resolve against the catalog (quoted PG identifiers are case-sensitive), then the
-            // existing install path: advisory lock + DDL / changelog / binlog checks
-            self.retain(&args.db, t, obs.id()).await.map_err(ObserveRejection::from)?;
+            // the existing install path (advisory lock + DDL / changelog / binlog checks), once per
+            // (db, table as installed); see §2.2 for what the name can be
+            installed = Some(self.retain(&args.db, t).await?);
         }
-        self.index.insert(&args, obs.clone());                    // (db, table) → observers, with their ops
+        self.index.insert(obs.id(), &args, obs.clone(), legacy, installed);  // (db, table) → observers, with their ops
         Ok(())
     }
 
     async fn on_observer_removed(&self, obs: &Observer) {
-        self.index.remove(obs.id());
-        self.release(obs.id()).await;                              // refcount per (db, table)
+        self.index.remove(obs.id());                               // and release its hold on the install
     }
 }
 ```
@@ -224,8 +264,12 @@ filters half now belongs to the observers.
 - **Rejections.** A rejection moves that observer to `error`, and its
   observer's `ready()` rejects with the same message the trigger registration
   gives today.
-- **One installer per table.** Capture is refcounted per `(db, table)` across
-  all observers ("first activates, last releases"), not once per binding.
+- **One installer per table.** Capture is refcounted per `(db, table as
+  installed)` across all observers ("first activates, last releases"), not
+  once per binding. The key is the spelling the DDL used, not the canonical
+  name: on Postgres `"ORDERS"` and `"orders"` are different relations, and a
+  legacy binding spelled in the wrong case must fail its own install, as it
+  does today, instead of riding on another binding's.
 - **Indexed before the ack.** The observer is in the index before
   `on_observer_added` returns, so the first commit after the engine marks it `active`
   reaches it.
@@ -234,7 +278,9 @@ filters half now belongs to the observers.
 - **Hot config reload** (`apply_config`) re-checks `row_changed.observers()`
   against the new config and sends a late rejection (`obs.reject(code, msg)`)
   for each observer that is no longer valid, e.g. one on a database that
-  was removed.
+  was removed. Legacy observers are not rejected: they stay filed and match
+  again if their database comes back, as bindings do today. A rejection would
+  remove them for good, and their registrant would never hear why.
 
 ### 2.5 Legacy callers
 
@@ -248,13 +294,21 @@ becomes an observer with `obs.legacy.config` set
    observer);
 2. returns `RowChangedArgs` with the **canonical** table, so the legacy
    observer joins the index exactly as a new observer with those args
-   would.
+   would, and the table **as the binding spelled it**, which native capture
+   installs on (§2.4).
 
 Because both the index and the event use the canonical name, a binding
 written as `"Orders"` or `"public.orders"` keeps matching exactly what it
-matches today. No dual emit and no second code path. The target receives the
-event as before (`deliver: "input"`), with the trigger metadata as the sidecar,
-so harness bindings keep working until they move to `observe`.
+matches today. One index and one routing loop serve both kinds.
+
+The shim delivers `deliver: "input"`, so a legacy target receives whatever the
+owner emits to it. To receive the event as before, `route` emits
+`event.legacy_view()` to a legacy observer: the pre-0.25 shape, without
+`schema`, its `table` schema-qualified when a schema is known (`public.orders`
+from Postgres native capture, as today). One difference remains: on the
+statements path the table is lowercase (`INSERT INTO ORDERS` used to report
+`ORDERS`). The trigger metadata is the sidecar, so harness bindings keep
+working until they move to `observe`.
 
 ## 3. Observer examples
 
@@ -315,7 +369,9 @@ iii.observe(
   - canonical `table` / `schema` in events, and a non-canonical `args.table` rejected with a hint;
   - `INVALID_ARGS` for a missing `db` and for unknown args (`tabel`);
   - routing: an observer on `orders` never receives `payments` events, `ops` restricts the operations, and an observer with no table receives every table of its db;
-  - legacy routing: `"Orders"` and `"public.orders"` bindings receive `orders` events;
+  - legacy routing: `"Orders"` and `"public.orders"` bindings receive `orders` events, in the pre-0.25 shape (`public.orders` on Postgres native capture, no `schema`), with their metadata;
+  - a wrong-case legacy binding on Postgres native capture fails its install while a correct one is live;
+  - a direct invocation of `database::on-row-changed` is refused and reaches no observer;
   - a filter miss on `emit` sends nothing;
   - a native-capture rejection reaches the observer's `ready()`;
   - `onObserverAdded` installs once per table and indexes the observer; `onObserverRemoved` removes it and decrements;
