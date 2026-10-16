@@ -97,8 +97,8 @@ class Observer:
     ``FunctionRef.observers()``): its args, filters, target, capture and
     ``on``. Never its metadata, policy or the observing worker.
 
-    The object stays the same while the observer lives, so owners keep it in
-    their own index (expression → observers, route table, ...).
+    The object stays the same for the observer's whole lifetime, so owners
+    keep it in their own index (expression → observers, route table, ...).
 
     Attributes:
         id: The observer's id.

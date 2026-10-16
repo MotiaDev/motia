@@ -358,7 +358,7 @@ impl ObserverEntry {
 
 /// Handle to an observer created by [`IIIClient::observe`]. Cheap to clone.
 ///
-/// The observer lives until [`dispose`](Self::dispose) (or its policy runs
+/// The observer exists until [`dispose`](Self::dispose) (or its policy runs
 /// out); dropping the handle does not remove it. It works before the
 /// connection is up and is replayed with the same id after a reconnect.
 #[derive(Clone)]

@@ -331,8 +331,8 @@ Every SDK has always sent this frame when a provider retires a trigger type, but
 did not decode it and dropped it with a decode warning. A 0.25 engine handles it: it removes the
 trigger type when the sending connection is its provider, and ignores the frame (with a `debug` log)
 otherwise. Bindings of that type then move to a fallback provider, are taken by a function that
-declares the type as its `legacy_trigger_type` (see [Legacy shim](#legacy-shim)), or are parked
-until a provider returns.
+declares the type as its `legacy_trigger_type` (see [Legacy shim](#legacy-shim)), or stay stored,
+unserved, until a provider returns.
 
 `namespace` is optional and names the namespace the provider was filed under. If it is not present,
 the engine uses the sending connection's namespace, as for `RegisterTriggerType`. Like the other
@@ -1021,7 +1021,7 @@ A live old-style provider always wins for new registrations: the shim is a fallb
 observers it made stay where they are when such a provider registers later. A new `RegisterTrigger`
 with the same id replaces the observer, as it replaces a trigger. Only an owner that declared
 `observe.v1` stands in for a trigger type; `legacy_trigger_type` on any other owner is ignored.
-Bindings parked while no provider existed convert when a stand-in registers. When the owner leaves,
+Bindings stored while no provider existed convert when a stand-in registers. When the owner leaves,
 its legacy observers wait and are replayed like any other observer.
 
 ### Error codes
