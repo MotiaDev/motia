@@ -77,6 +77,7 @@ fn span(trace_id: &str, span_id: &str, start_time: u64, payload_bytes: usize) ->
         flags: None,
         trace_state: None,
         pending: false,
+        observe_depth: 0,
     }
 }
 

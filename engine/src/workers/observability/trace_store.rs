@@ -3360,6 +3360,7 @@ mod tests {
             flags: None,
             trace_state: None,
             pending: false,
+            observe_depth: 0,
         }
     }
 

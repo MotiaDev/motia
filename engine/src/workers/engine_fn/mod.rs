@@ -527,6 +527,12 @@ pub struct RegisterWorkerInput {
     /// SDKs keep registering unchanged.
     #[serde(default)]
     pub namespace: Option<String>,
+    /// Protocol features the SDK supports (`observe.v1`,
+    /// `local-dispatch.v1`). Absent from SDKs older than 0.25. Read
+    /// leniently: a malformed list declares nothing instead of failing the
+    /// registration.
+    #[serde(default, deserialize_with = "crate::protocol::deserialize_features")]
+    pub features: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -976,15 +982,19 @@ impl EngineFunctionsWorker {
             .collect()
     }
 
-    async fn functions_changed_payload(&self) -> Option<Value> {
+    /// The `functions_changed` event, when anything listens: a
+    /// `engine::functions-available` trigger, or (`observed`) an observer of
+    /// `engine::on-functions-changed`.
+    async fn functions_changed_payload(&self, observed: bool) -> Option<Value> {
         // Check after coalescing so a subscriber added during the delay still
         // receives the change. Release registry guards before snapshot awaits.
-        if !self
-            .engine
-            .trigger_registry
-            .triggers
-            .iter()
-            .any(|entry| entry.value().trigger_type == TRIGGER_FUNCTIONS_AVAILABLE)
+        if !observed
+            && !self
+                .engine
+                .trigger_registry
+                .triggers
+                .iter()
+                .any(|entry| entry.value().trigger_type == TRIGGER_FUNCTIONS_AVAILABLE)
         {
             return None;
         }
@@ -1499,16 +1509,32 @@ impl EngineFunctionsWorker {
         })
     }
 
-    async fn register_worker_metadata(&self, input: RegisterWorkerInput) {
+    /// Returns whether this call fixed the connection's protocol features.
+    async fn register_worker_metadata(&self, input: RegisterWorkerInput) -> bool {
         let worker_id = match uuid::Uuid::parse_str(&input.worker_id) {
             Ok(id) => id,
             Err(_) => {
                 tracing::error!(worker_id = %input.worker_id, "Invalid worker_id format");
-                return;
+                return false;
             }
         };
 
         let runtime = input.runtime.unwrap_or_else(|| "unknown".to_string());
+
+        // Before the buffered registrations drain (the caller drains right
+        // after this returns): what the engine sends for them depends on
+        // whether the connection speaks observe.
+        let features_fixed = !input.features.is_empty()
+            && self
+                .engine
+                .worker_registry
+                .set_worker_features(&worker_id, &input.features);
+        if !input.features.is_empty() && !features_fixed {
+            tracing::debug!(
+                worker_id = %worker_id,
+                "features already fixed for this connection; ignoring a later declaration"
+            );
+        }
 
         // A CLI command connects only long enough to do its work, so it cannot
         // wait for a heartbeat to report itself. It marks the name it registers
@@ -1532,6 +1558,7 @@ impl EngineFunctionsWorker {
             input.namespace,
         );
         crate::workers::telemetry::collector::track_worker_registered();
+        features_fixed
     }
 }
 
@@ -1609,31 +1636,57 @@ impl Worker for EngineFunctionsWorker {
         // and public, so a change can come from a thread with no current
         // runtime, and it must still produce an event.
         let runtime = tokio::runtime::Handle::current();
-        let scheduled = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        // Whether a send is scheduled, and the deepest observe depth among the
+        // changes it carries: a change made inside an activation (an
+        // in-process registration, or one a worker made while handling it) is
+        // part of that chain, and so is the event
+        // `engine::on-functions-changed` observers get for it. One lock, so a
+        // change's depth goes with the event that carries the change.
+        let burst = Arc::new(std::sync::Mutex::new((false, 0u32)));
         self.engine.functions.set_change_listener(Arc::new(
             move |_change: crate::function::FunctionChange,
                   _namespace: &str,
                   _function_id: &str| {
-                use std::sync::atomic::Ordering;
-                if scheduled.swap(true, Ordering::AcqRel) {
-                    return;
+                {
+                    let mut burst = burst.lock().unwrap_or_else(|e| e.into_inner());
+                    burst.1 = burst.1.max(crate::observer::InvocationCtx::current_depth());
+                    if std::mem::replace(&mut burst.0, true) {
+                        return;
+                    }
                 }
                 let engine = engine.clone();
-                let scheduled = scheduled.clone();
+                let burst = burst.clone();
                 runtime.spawn(async move {
                     tokio::time::sleep(FUNCTIONS_CHANGED_COALESCE).await;
                     // Clear before snapshotting: a change landing from here on
                     // schedules its own event, so none is lost.
-                    scheduled.store(false, Ordering::Release);
+                    let depth = {
+                        let mut burst = burst.lock().unwrap_or_else(|e| e.into_inner());
+                        burst.0 = false;
+                        std::mem::take(&mut burst.1)
+                    };
                     let Some(engine) = engine.upgrade() else {
                         return;
                     };
+                    let observed = engine.observers.is_observed(
+                        crate::protocol::DEFAULT_NAMESPACE,
+                        crate::observer::events::ON_FUNCTIONS_CHANGED,
+                    );
                     let Some(payload) = EngineFunctionsWorker::new(engine.clone())
-                        .functions_changed_payload()
+                        .functions_changed_payload(observed)
                         .await
                     else {
                         return;
                     };
+                    engine.observers.emit_with(
+                        crate::protocol::DEFAULT_NAMESPACE,
+                        crate::observer::events::ON_FUNCTIONS_CHANGED,
+                        crate::observer::Emission {
+                            depth: Some(depth),
+                            traceparent: None,
+                        },
+                        || Some(payload.clone()),
+                    );
                     engine
                         .fire_triggers(TRIGGER_FUNCTIONS_AVAILABLE, payload)
                         .await;
@@ -1648,6 +1701,9 @@ impl Worker for EngineFunctionsWorker {
             None,
         );
         let _ = self.engine.register_trigger_type(workers_trigger).await;
+
+        // The functions replacing both trigger types (README §9).
+        crate::observer::events::register_engine_event_sources(&self.engine);
 
         Ok(())
     }
@@ -2117,10 +2173,11 @@ impl EngineFunctionsWorker {
         // connection was actually fixed to, and warn on a mismatch. While the
         // namespace is still `Pending` (the normal, in-time case) this is `None`
         // and the declared namespace is used verbatim.
-        let namespace = match uuid::Uuid::parse_str(&worker_id)
+        let already_fixed = uuid::Uuid::parse_str(&worker_id)
             .ok()
-            .and_then(|uuid| self.engine.already_fixed_namespace(&uuid))
-        {
+            .and_then(|uuid| self.engine.already_fixed_namespace(&uuid));
+        let namespace_was_fixed = already_fixed.is_some();
+        let namespace = match already_fixed {
             Some(fixed) if fixed != declared => {
                 tracing::warn!(
                     worker_id = %worker_id,
@@ -2156,7 +2213,28 @@ impl EngineFunctionsWorker {
             return FunctionResult::Success(RegisterWorkerResult { success: false });
         }
 
-        self.register_worker_metadata(input).await;
+        let features_fixed = self.register_worker_metadata(input).await;
+
+        // Registrations that drained before this connection declared its
+        // features were handled as a legacy connection's; the observer
+        // registry catches up on them. The grace timer may have fixed the
+        // namespace (and drained) while this call ran, so it is read again
+        // now that the features are stored: from here on a drain announces
+        // its registrations itself, and one announced twice is sent once.
+        let fixed_now = uuid::Uuid::parse_str(&worker_id)
+            .ok()
+            .and_then(|uuid| self.engine.already_fixed_namespace(&uuid));
+        if features_fixed
+            && (namespace_was_fixed || fixed_now.is_some())
+            && let Ok(uuid) = uuid::Uuid::parse_str(&worker_id)
+            && let Some(worker) = self.engine.worker_registry.get_worker(&uuid)
+        {
+            let fixed = fixed_now.unwrap_or_else(|| namespace.clone());
+            self.engine
+                .observers
+                .features_declared_late(&self.engine, &worker, &fixed)
+                .await;
+        }
 
         // This call is the only moment the connection's namespace becomes
         // known. Registrations the worker sent ahead of it are queued on the
@@ -2176,6 +2254,11 @@ impl EngineFunctionsWorker {
             "event": "worker_metadata_updated",
             "worker_id": worker_id,
         });
+        self.engine.observers.emit(
+            crate::protocol::DEFAULT_NAMESPACE,
+            crate::observer::events::ON_WORKERS_CHANGED,
+            || Some(data.clone()),
+        );
         self.engine
             .fire_triggers(TRIGGER_WORKERS_AVAILABLE, data)
             .await;
@@ -2278,6 +2361,8 @@ impl EngineFunctionsWorker {
         &self,
         input: UnregisterTriggerInput,
     ) -> FunctionResult<UnregisterTriggerResult, ErrorBody> {
+        // A trigger the legacy shim made into an observer (protocol.md §6).
+        let shim = self.engine.observers.unregister_legacy(&input.id);
         let removed = match self
             .engine
             .trigger_registry
@@ -2294,7 +2379,63 @@ impl EngineFunctionsWorker {
             }
         };
 
-        FunctionResult::Success(UnregisterTriggerResult { removed })
+        FunctionResult::Success(UnregisterTriggerResult {
+            removed: removed || shim,
+        })
+    }
+
+    #[function(
+        id = "engine::observers::list",
+        description = "List observers (iii.observe): function, args, filters, target, observing worker, delivery, state, reason, fires and drops by reason. Only observers of functions the caller may invoke are listed."
+    )]
+    pub async fn observers_list(
+        &self,
+        input: crate::observer::builtins::ListObserversInput,
+        session: Option<Arc<Session>>,
+    ) -> FunctionResult<crate::observer::builtins::ObserversListResult, ErrorBody> {
+        FunctionResult::Success(self.engine.observers.list_infos(
+            &self.engine,
+            session.as_ref(),
+            &input,
+        ))
+    }
+
+    #[function(
+        id = "engine::observers::get",
+        description = "Get one observer by id. OBSERVER_NOT_FOUND when it does not exist or its function is not visible to the caller."
+    )]
+    pub async fn observers_get(
+        &self,
+        input: crate::observer::builtins::ObserverIdInput,
+        session: Option<Arc<Session>>,
+    ) -> FunctionResult<crate::observer::builtins::ObserverInfo, ErrorBody> {
+        match self
+            .engine
+            .observers
+            .get_info(&self.engine, session.as_ref(), &input.id)
+        {
+            Ok(info) => FunctionResult::Success(info),
+            Err(err) => FunctionResult::Failure(err),
+        }
+    }
+
+    #[function(
+        id = "engine::observers::dispose",
+        description = "Dispose an observer by id. Allowed for the worker that created it, or for a caller no RBAC restricts."
+    )]
+    pub async fn observers_dispose(
+        &self,
+        input: crate::observer::builtins::ObserverIdInput,
+        session: Option<Arc<Session>>,
+    ) -> FunctionResult<crate::observer::builtins::DisposeObserverResult, ErrorBody> {
+        match self
+            .engine
+            .observers
+            .dispose_by_caller(&self.engine, session.as_ref(), &input)
+        {
+            Ok(result) => FunctionResult::Success(result),
+            Err(err) => FunctionResult::Failure(err),
+        }
     }
 }
 
@@ -2451,6 +2592,38 @@ mod tests {
         });
         let input: RegisterWorkerInput = serde_json::from_value(json).expect("deserialize");
         assert_eq!(input.namespace.as_deref(), Some("orders"));
+    }
+
+    #[test]
+    fn register_worker_input_reads_features() {
+        let json = serde_json::json!({
+            "_caller_worker_id": "550e8400-e29b-41d4-a716-446655440000",
+            "features": ["observe.v1", "local-dispatch.v1"]
+        });
+        let input: RegisterWorkerInput = serde_json::from_value(json).expect("deserialize");
+        assert_eq!(input.features, vec!["observe.v1", "local-dispatch.v1"]);
+    }
+
+    /// A pre-0.25 SDK sends no features; a malformed list costs the worker its
+    /// features, never its registration.
+    #[test]
+    fn register_worker_input_without_or_with_malformed_features_still_deserializes() {
+        for features in [
+            None,
+            Some(serde_json::json!("observe.v1")),
+            Some(serde_json::json!(7)),
+        ] {
+            let mut json = serde_json::json!({
+                "_caller_worker_id": "550e8400-e29b-41d4-a716-446655440000",
+                "namespace": "orders"
+            });
+            if let Some(features) = features {
+                json["features"] = features;
+            }
+            let input: RegisterWorkerInput = serde_json::from_value(json).expect("deserialize");
+            assert!(input.features.is_empty());
+            assert_eq!(input.namespace.as_deref(), Some("orders"));
+        }
     }
 
     #[test]
@@ -2673,6 +2846,7 @@ mod tests {
             pid: None,
             isolation: None,
             namespace: None,
+            features: Vec::new(),
         };
         module.register_worker_metadata(input).await;
     }
@@ -2696,6 +2870,7 @@ mod tests {
             pid: None,
             isolation: Some("libkrun".to_string()),
             namespace: None,
+            features: Vec::new(),
         };
 
         module.register_worker_metadata(input).await;
@@ -2707,6 +2882,54 @@ mod tests {
         assert_eq!(workers[0].name.as_deref(), Some("my-worker"));
         assert_eq!(workers[0].os.as_deref(), Some("darwin"));
         assert_eq!(workers[0].isolation.as_deref(), Some("libkrun"));
+    }
+
+    /// The features ride on the registry's copy of the connection, but every
+    /// clone shares them: `router_msg` holds the connect-time snapshot.
+    #[tokio::test]
+    async fn register_worker_metadata_records_the_declared_features() {
+        let (engine, module) = setup_engine_and_module();
+        let (tx, _rx) = tokio::sync::mpsc::channel(1);
+        let worker = crate::worker_connections::WorkerConnection::new(tx);
+        let snapshot = worker.clone();
+        engine.worker_registry.register_worker(worker);
+        assert!(!snapshot.features.observe_v1());
+
+        let mut input = register_worker_input_with_namespace(&snapshot.id.to_string(), None);
+        input.features = vec![
+            "observe.v1".to_string(),
+            "local-dispatch.v1".to_string(),
+            "telepathy.v9".to_string(),
+        ];
+        module.register_worker_metadata(input).await;
+
+        assert!(snapshot.features.observe_v1());
+        assert!(snapshot.features.local_dispatch_v1());
+        assert_eq!(
+            snapshot.features.declared(),
+            vec!["observe.v1", "local-dispatch.v1", "telepathy.v9"],
+            "unknown features are kept as declared"
+        );
+    }
+
+    #[tokio::test]
+    async fn register_worker_metadata_without_features_leaves_the_connection_legacy() {
+        let (engine, module) = setup_engine_and_module();
+        let (tx, _rx) = tokio::sync::mpsc::channel(1);
+        let worker = crate::worker_connections::WorkerConnection::new(tx);
+        let snapshot = worker.clone();
+        engine.worker_registry.register_worker(worker);
+
+        module
+            .register_worker_metadata(register_worker_input_with_namespace(
+                &snapshot.id.to_string(),
+                None,
+            ))
+            .await;
+
+        assert!(!snapshot.features.observe_v1());
+        assert!(!snapshot.features.local_dispatch_v1());
+        assert!(snapshot.features.declared().is_empty());
     }
 
     fn register_worker_input_with_namespace(
@@ -2724,6 +2947,7 @@ mod tests {
             pid: None,
             isolation: None,
             namespace,
+            features: Vec::new(),
         }
     }
 
@@ -2793,6 +3017,7 @@ mod tests {
                     response_format: None,
                     metadata: None,
                     invocation: None,
+                    observe: None,
                 },
             )
             .await
@@ -2839,6 +3064,7 @@ mod tests {
                     response_format: None,
                     metadata: None,
                     invocation: None,
+                    observe: None,
                 },
             )
             .await
@@ -2913,6 +3139,7 @@ mod tests {
                     response_format: None,
                     metadata: None,
                     invocation: None,
+                    observe: None,
                 },
             )
             .await
@@ -4766,6 +4993,7 @@ mod tests {
                 pid: None,
                 isolation: None,
                 namespace: None,
+                features: Vec::new(),
             })
             .await;
         assert!(matches!(

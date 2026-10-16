@@ -2746,6 +2746,7 @@ name = "iii"
 version = "0.24.6-rc.5"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "async-trait",
  "axum",
  "base64 0.22.1",
@@ -2771,6 +2772,7 @@ dependencies = [
  "iii",
  "iii-clap-docs",
  "iii-compose",
+ "iii-filter",
  "iii-helpers",
  "iii-sdk",
  "indexmap 2.14.0",
