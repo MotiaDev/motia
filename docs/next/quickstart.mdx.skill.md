@@ -231,7 +231,7 @@ changes to the handlers themselves.
 <Note>
   The worker logs a deprecation warning for `registerTrigger` once. In 0.25 it is still the way to
   bind HTTP routes, because the http worker publishes the `http` trigger type; the warning is
-  informational. See [Upgrading from 0.24.x](./upgrading/from-0-24-x#built-in-providers-not-migrated-yet).
+  informational. See [Upgrading from 0.24.x](./upgrading/from-0-24-x#providers-not-migrated-yet).
 </Note>
 
 ## How it works

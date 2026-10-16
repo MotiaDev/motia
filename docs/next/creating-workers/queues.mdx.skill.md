@@ -113,8 +113,8 @@ dead-lettered.
 <Note>
   `registerTrigger` is deprecated in 0.25, but the queue worker still publishes the
   `durable:subscriber` trigger type, so it remains the way to consume messages. It logs one warning
-  per process. See [Built-in providers not migrated
-  yet](../upgrading/from-0-24-x#built-in-providers-not-migrated-yet).
+  per process. See [Providers not migrated
+  yet](../upgrading/from-0-24-x#providers-not-migrated-yet).
 </Note>
 
 In a worker, register the consumer function and subscribe it to the topic. If you do not have a

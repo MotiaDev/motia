@@ -16,8 +16,8 @@ calls they keep, and code that calls `unregisterTriggerType`, which now takes ef
 
 <Note>
   The http, cron, queue, state, stream, pubsub, and database workers still publish trigger types in
-  0.25. Keep using `registerTrigger` for them; see [Built-in providers not migrated
-  yet](#built-in-providers-not-migrated-yet).
+  0.25. Keep using `registerTrigger` for them; see [Providers not migrated
+  yet](#providers-not-migrated-yet).
 </Note>
 
 ## What changes for existing workers
@@ -839,7 +839,7 @@ keep working with no change, as long as no worker registers the `timer` trigger 
 See [Accept old triggers](../creating-workers/observable-functions#accept-old-triggers) for the
 lookup rules.
 
-## Built-in providers not migrated yet
+## Providers not migrated yet
 
 The http, cron, queue (`durable:subscriber`), state, stream, pubsub (`subscribe`), and database
 workers live in the workers repository and still register trigger types in 0.25. Until they ship

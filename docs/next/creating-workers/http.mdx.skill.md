@@ -38,8 +38,8 @@ endpoint.
 
 <Note>
   `registerTrigger` is deprecated in 0.25, but the http worker still publishes the `http` trigger
-  type, so it remains the way to create endpoints. It logs one warning per process. See [Built-in
-  providers not migrated yet](../upgrading/from-0-24-x#built-in-providers-not-migrated-yet).
+  type, so it remains the way to create endpoints. It logs one warning per process. See [Providers
+  not migrated yet](../upgrading/from-0-24-x#providers-not-migrated-yet).
 </Note>
 
 1. In a worker, register the function you want to expose and bind an `http` trigger to it. If you do
