@@ -65,7 +65,7 @@ Runs the full test suite across the monorepo. Cancels in-progress runs for PRs.
 | `sdk-node-ci` | `engine-build` | Build + test `@iii-dev/helpers`, type check, build, start engines, run `iii-sdk` tests |
 | `sdk-node-browser-ci` | `engine-build` | Type check, build, unit tests, start engine, run `iii-browser-sdk` integration tests |
 | `sdk-python-ci` | `engine-build` | Lint (ruff), type check (mypy), start engine, run pytest. Matrix: Python 3.10/3.11/3.12 |
-| `sdk-rust-ci` | `engine-build` | Fmt, clippy and tests for `iii-sdk`, `iii-helpers`, `iii-observability` against a live engine |
+| `sdk-rust-ci` | `engine-build` | Fmt, clippy and tests for `iii-sdk`, `iii-helpers`, `iii-observability`, `iii-filter` against a live engine |
 | `sdk-go-ci` | `engine-build` | gofmt, vet, race unit tests, start engine, run `-tags integration` tests |
 
 All SDK tests download the engine binary artifact and start a live engine instance before running.
@@ -189,7 +189,10 @@ setup (parse tag metadata, Slack notification)
   │     │
   │     ├─► sdk-npm ─────────────► _npm.yml
   │     ├─► sdk-py ──────────────► _py.yml
-  │     ├─► sdk-rust ────────────► _rust-cargo.yml
+  │     ├─► helpers-rust ────────► _rust-cargo.yml
+  │     │     └─► observability-rust ► _rust-cargo.yml
+  │     ├─► filter-rust ─────────► _rust-cargo.yml (crates/iii-filter)
+  │     ├─► sdk-rust ────────────► _rust-cargo.yml (after helpers-rust, observability-rust, filter-rust)
   │     └─► sdk-go ──────────────► _go.yml (pushes subdir-scoped module tag)
   │
   ├─► publish-builtin-workers ► _publish-engine-workers.yml

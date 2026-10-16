@@ -961,10 +961,10 @@ jobs:
           shared-key: sdk-rust
 
       - name: Check formatting
-        run: cargo fmt -p iii-sdk -p iii-helpers -p iii-observability -- --check
+        run: cargo fmt -p iii-sdk -p iii-helpers -p iii-observability -p iii-filter -- --check
 
       - name: Run clippy
-        run: cargo clippy --locked -p iii-sdk -p iii-helpers -p iii-observability --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked -p iii-sdk -p iii-helpers -p iii-observability -p iii-filter --all-targets --all-features -- -D warnings
 
       - name: Download III binary
         uses: actions/download-artifact@v4
@@ -982,7 +982,7 @@ jobs:
         env:
           III_URL: ws://localhost:49199
           III_HTTP_URL: http://localhost:3199
-        run: cargo test --locked -p iii-sdk -p iii-helpers -p iii-observability --all-features
+        run: cargo test --locked -p iii-sdk -p iii-helpers -p iii-observability -p iii-filter --all-features
 
       - name: Stop III Engine
         if: always()

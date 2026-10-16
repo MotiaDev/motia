@@ -118,6 +118,8 @@ def rewrite_all(root: Path, new_version: str, new_py_version: str) -> None:
     body = bump_cargo_package_version(workspace_path.read_text(), new_version)
     body = bump_cargo_workspace_dep_version(body, "iii-observability", new_version)
     body = bump_cargo_workspace_dep_version(body, "iii-helpers", new_version)
+    # iii-filter inherits workspace.package.version; only its pin moves here.
+    body = bump_cargo_workspace_dep_version(body, "iii-filter", new_version)
     workspace_path.write_text(body)
 
     # JSON package versions

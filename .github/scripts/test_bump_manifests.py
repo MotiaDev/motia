@@ -133,6 +133,7 @@ def test_rewrite_all_updates_every_target_file(tmp_path: Path):
         '[workspace.dependencies]\n'
         'iii-observability = { path = "sdk/packages/rust/observability", version = "0.13.0-next.1" }\n'
         'iii-helpers = { path = "sdk/packages/rust/helpers", version = "0.13.0-next.1" }\n'
+        'iii-filter = { path = "crates/iii-filter", version = "0.13.0-next.1" }\n'
     ))
     _write(root / "engine" / "Cargo.toml", '[package]\nname = "iii"\nversion = "0.15.0-next.1"\n')
     _write(root / "sdk/packages/rust/iii/Cargo.toml", '[package]\nname = "iii-sdk"\nversion = "0.15.0-next.1"\n')
@@ -161,6 +162,7 @@ def test_rewrite_all_updates_every_target_file(tmp_path: Path):
     assert 'version = "0.16.0-next.2"' in (root / "Cargo.toml").read_text()
     assert 'iii-observability = { path = "sdk/packages/rust/observability", version = "0.16.0-next.2" }' in (root / "Cargo.toml").read_text()
     assert 'iii-helpers = { path = "sdk/packages/rust/helpers", version = "0.16.0-next.2" }' in (root / "Cargo.toml").read_text()
+    assert 'iii-filter = { path = "crates/iii-filter", version = "0.16.0-next.2" }' in (root / "Cargo.toml").read_text()
     assert 'version = "0.16.0-next.2"' in (root / "engine" / "Cargo.toml").read_text()
     assert 'version = "0.16.0-next.2"' in (root / "sdk/packages/rust/iii/Cargo.toml").read_text()
     assert 'version = "0.16.0-next.2"' in (root / "sdk/packages/rust/observability/Cargo.toml").read_text()
@@ -191,6 +193,7 @@ def test_cli_invokes_rewrite_all(tmp_path: Path):
         '[workspace.dependencies]\n'
         'iii-observability = { path = "sdk/packages/rust/observability", version = "0.13.0-next.1" }\n'
         'iii-helpers = { path = "sdk/packages/rust/helpers", version = "0.13.0-next.1" }\n'
+        'iii-filter = { path = "crates/iii-filter", version = "0.13.0-next.1" }\n'
     ))
     _write(root / "engine" / "Cargo.toml", 'version = "0.15.0-next.1"\n')
     _write(root / "sdk/packages/rust/iii/Cargo.toml", 'version = "0.15.0-next.1"\n')

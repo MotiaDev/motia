@@ -452,7 +452,10 @@ jobs:
 
   sdk-rust:
     name: SDK Rust Publish
-    needs: [setup, create-iii-release, observability-rust]
+    # iii-sdk depends on iii-helpers and iii-filter; cargo publish resolves
+    # them from crates.io, so they must be published first. Waiting for
+    # iii-observability as well keeps one order for the Rust crates.
+    needs: [setup, create-iii-release, helpers-rust, observability-rust, filter-rust]
     if: ${{ !failure() && !cancelled() }}
     uses: ./.github/workflows/_rust-cargo.yml
     with:
@@ -511,6 +514,21 @@ jobs:
       dry_run: ${{ needs.setup.outputs.dry_run == 'true' }}
       slack_thread_ts: ${{ needs.setup.outputs.slack_ts }}
       slack_label: Helpers Rust (cargo)
+    secrets:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+
+  filter-rust:
+    name: Filter Rust Publish
+    needs: [setup, create-iii-release]
+    if: ${{ !failure() && !cancelled() }}
+    uses: ./.github/workflows/_rust-cargo.yml
+    with:
+      package_path: crates/iii-filter
+      dry_run: ${{ needs.setup.outputs.dry_run == 'true' }}
+      slack_thread_ts: ${{ needs.setup.outputs.slack_ts }}
+      slack_label: Filter Rust (cargo)
     secrets:
       CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -627,6 +645,8 @@ jobs:
       - observability-npm
       - observability-py
       - observability-rust
+      - helpers-rust
+      - filter-rust
       - publish-builtin-workers
       - publish-worker-skills
     if: ${{ !cancelled() && !failure() && needs.setup.outputs.dry_run != 'true' }}
@@ -680,6 +700,8 @@ jobs:
       - observability-npm
       - observability-py
       - observability-rust
+      - helpers-rust
+      - filter-rust
       - publish-builtin-workers
       - publish-worker-skills
     if: ${{ !cancelled() && !failure() && needs.setup.outputs.dry_run != 'true' }}
@@ -770,6 +792,7 @@ jobs:
       - helpers-npm
       - helpers-py
       - helpers-rust
+      - filter-rust
       - docker-engine
       - homebrew-engine
       - publish-builtin-workers
@@ -798,6 +821,7 @@ jobs:
           HELPERS_NPM_RESULT: ${{ needs.helpers-npm.result }}
           HELPERS_PY_RESULT: ${{ needs.helpers-py.result }}
           HELPERS_RUST_RESULT: ${{ needs.helpers-rust.result }}
+          FILTER_RUST_RESULT: ${{ needs.filter-rust.result }}
           DOCKER_RESULT: ${{ needs.docker-engine.result }}
           BREW_ENGINE_RESULT: ${{ needs.homebrew-engine.result }}
           BUILTIN_WORKERS_RESULT: ${{ needs.publish-builtin-workers.result }}
@@ -829,6 +853,7 @@ jobs:
           LINES="$LINES$(icon "$HELPERS_NPM_RESULT") Helpers Node\n"
           LINES="$LINES$(icon "$HELPERS_PY_RESULT") Helpers Python\n"
           LINES="$LINES$(icon "$HELPERS_RUST_RESULT") Helpers Rust\n"
+          LINES="$LINES$(icon "$FILTER_RUST_RESULT") Filter Rust\n"
           LINES="$LINES$(icon "$BUILTIN_WORKERS_RESULT") Builtin Workers Registry\n"
           LINES="$LINES$(icon "$WORKER_SKILLS_RESULT") Worker Skills Registry\n"
 
@@ -837,7 +862,7 @@ jobs:
             LINES="$LINES$(icon "$BREW_ENGINE_RESULT") Homebrew (iii)\n"
           fi
 
-          for r in "$INIT_RESULT" "$FIRMWARE_RESULT" "$ENGINE_RESULT" "$WORKER_RESULT" "$SDK_NPM_RESULT" "$SDK_NPM_BROWSER_RESULT" "$SDK_PY_RESULT" "$SDK_RUST_RESULT" "$OBS_NPM_RESULT" "$OBS_PY_RESULT" "$OBS_RUST_RESULT" "$HELPERS_NPM_RESULT" "$HELPERS_PY_RESULT" "$HELPERS_RUST_RESULT" "$BUILTIN_WORKERS_RESULT" "$WORKER_SKILLS_RESULT"; do
+          for r in "$INIT_RESULT" "$FIRMWARE_RESULT" "$ENGINE_RESULT" "$WORKER_RESULT" "$SDK_NPM_RESULT" "$SDK_NPM_BROWSER_RESULT" "$SDK_PY_RESULT" "$SDK_RUST_RESULT" "$OBS_NPM_RESULT" "$OBS_PY_RESULT" "$OBS_RUST_RESULT" "$HELPERS_NPM_RESULT" "$HELPERS_PY_RESULT" "$HELPERS_RUST_RESULT" "$FILTER_RUST_RESULT" "$BUILTIN_WORKERS_RESULT" "$WORKER_SKILLS_RESULT"; do
             [[ "$r" != "success" && "$r" != "skipped" ]] && OVERALL="failure"
           done
 

@@ -58,14 +58,25 @@ Clause    := "<path>": { "$op": operand, ... }   // AND of operators on that pat
            | "$and": [Filters, ...]
            | "$or":  [Filters, ...]
            | "$not": Filters
-Path      := root ("." segment)*                 // root ∈ input | output | error | caller | metadata
-segment   := key | index                         // index = decimal digits; "\." and "\\" escape inside keys
+Path      := root ("." segment)*                 // root ∈ input | output | error | caller | metadata; @ inside $any
+segment   := key | index                         // index = "0" or a decimal without a leading zero
 ```
 
 A path clause always takes an **operator object**. There is no literal
 shorthand: `{ "input.op": "insert" }` is `INVALID_FILTER`; write
 `{ "input.op": { "$eq": "insert" } }`. One form keeps every filter a 1:1
 image of an iii lang predicate (§2.2).
+
+- `$and` and `$or` take a non-empty array of filters (`[]` is
+  `INVALID_FILTER`, as in MongoDB). `$not` takes a filter; `{}` is allowed
+  there and matches nothing.
+- A key may hold any character. `\.` (a dot) and `\\` (a backslash) are the
+  only escapes; any other backslash, an empty path and an empty segment are
+  `INVALID_FILTER`.
+- An index is `0` or a decimal without a leading zero. Any other segment is a
+  key: `01` and `-1` are keys.
+- `@` is a root only inside `$any`, where every path starts at it (§2.1).
+  After the root, `@` is an ordinary key.
 
 ### 2.1 Operators
 
@@ -127,7 +138,11 @@ functions in the predicate language.
 - **Path resolution.** A path yields a value or *absent*.
   - Stepping into a non-container, a missing key or an out-of-range index
     yields absent.
-  - A numeric segment indexes an array, and looks up a key on an object.
+  - An index segment (`0`, `1`, `12`, never `01`) indexes an array, and
+    looks up a key on an object. Any other segment is a key, so on an array
+    it is absent.
+  - Only own keys exist: `constructor` or `__proto__` resolve only when the
+    document holds them.
   - There is **no implicit fan-out over arrays** (unlike MongoDB). Use `$any`.
 - **Absent.** Only `$exists: false`, `$ne` and `$nin` match an absent path.
   Every other operator is false. `$not` negates the whole sub-filter.
@@ -139,9 +154,9 @@ functions in the predicate language.
   - Numbers compare numerically.
   - Strings compare by Unicode code point, which is UTF-8 byte order.
   - Mixed types → false. There is no coercion.
-- **Numbers.** Integer literals outside ±2^53 are rejected at validation, so
-  JavaScript evaluates the same way as Rust. Payload integers above 2^53
-  compare as f64 in every implementation.
+- **Numbers.** Numeric literals outside ±2^53 are rejected at validation,
+  floats included (`1e16`), so JavaScript evaluates the same way as Rust.
+  Payload integers above 2^53 compare as f64 in every implementation.
 - **Host-language values (SDK evaluation).** The SDK must evaluate as if on
   `JSON.parse(JSON.stringify(doc))`:
   - `undefined` counts as absent;
@@ -156,11 +171,28 @@ functions in the predicate language.
 ## 4. Validation (in the engine, at `Observe`)
 
 - **Structural limits:**
-  - nesting depth ≤ 8;
-  - ≤ 64 operator/clause nodes;
+  - nesting depth ≤ 8: the top-level filter is level 1; each `$or` member,
+    the `$not` operand and the `$any` operand (both forms) are one level
+    deeper than the object holding them; `$and` members stay at the level of
+    the object holding the `$and`;
+  - ≤ 64 nodes: each operator (`$eq` … `$any`) and each `$or` / `$not`
+    counts one; paths and `$and` are free;
   - `$in`/`$nin` ≤ 256 items;
-  - ≤ 16 path segments;
-  - encoded size ≤ 8 KiB.
+  - ≤ 16 path segments after the root;
+  - literal depth ≤ 32: arrays and objects nested in one `$eq` / `$ne`
+    operand or one `$in` / `$nin` item (a scalar is 0, `[1]` is 1; the `$in`
+    array itself does not count);
+  - JSON depth ≤ 120: arrays and objects nested in the whole filter value,
+    `$and` wrappers and literals included (the engine's JSON decoder stops at
+    128 levels per message); this is what bounds a chain of `$and`s;
+  - encoded size ≤ 8 KiB: UTF-8 bytes of the compact JSON of the filter
+    **as written**.
+- Normalizing (§5) never increases the filter depth, nodes, `$in` items,
+  path segments or literal depth. It wraps every clause in its own object, so
+  the JSON depth can grow, but the normal form of a valid filter stays far
+  below 120 (65 levels at most). The encoded size can grow too, so hosts
+  compile the normal forms the engine pushes without the size limit; every
+  other rule still applies.
 - **Roots and operators.** Unknown roots or operators, or a path clause whose
   value is not an operator object → `INVALID_FILTER`.
 - **Schema checks.** When the function registered `request_format` (for
@@ -168,7 +200,13 @@ functions in the predicate language.
   against the JSON Schema `properties`/`items`.
   - An unknown property under a closed schema (`additionalProperties: false`)
     → `INVALID_FILTER_PATH`.
-  - Under an open schema it is a warning on the `ObserveResult`.
+  - Under an open schema it is a warning on the `ObserveResult`. So is a
+    construct the check cannot follow: a remote `$ref`, `anyOf` / `oneOf` /
+    `allOf` with several branches, `patternProperties`, `if`. Local `$ref`s
+    and nullable wrappers are followed.
+  - A path that reaches a `false` schema is `INVALID_FILTER_PATH`.
+  - `@` paths inside `$any` are checked against the array's `items`.
+  - Schema checks run in the engine only, at `observe`.
   - This replaces the `deny_unknown_fields` protection that trigger configs
     have today: a typo like `input.tabel` fails at creation instead of
     matching nothing forever.
@@ -184,9 +222,18 @@ functions in the predicate language.
 
 The engine normalizes every filter before storing it or pushing it to a host:
 
-- implicit ANDs become an explicit `$and`;
-- clauses are sorted by path;
+- every filter, nested ones included (`$or` members, `$not`, the filter form
+  of `$any`), becomes `{}` or `{ "$and": [ … ] }` with one clause per object;
+- explicit `$and`s are flattened into the filter that holds them;
+- clauses are sorted by key in byte order (`$not` and `$or` before paths),
+  then by the compact JSON of their operand, and exact duplicates are
+  dropped;
+- the keys of an operator object are sorted; operands, `$in`/`$nin` items
+  and paths are kept as written; `$or` members keep their order;
 - `$ne`/`$nin` stay as they are, keeping their absent-matching semantics.
+
+Normalizing is idempotent, and a normal form matches exactly the documents
+its source matches.
 
 The normalized form is what `functionregistered` / `observeradded` carry and
 what SDKs compile, once per added observer, into a closure tree.
@@ -227,3 +274,8 @@ what SDKs compile, once per added observer, into a closure tree.
 Invalid filters live in `sdk/fixtures/filters/invalid/` together with the
 expected error code (a literal shorthand such as `{ "input.op": "insert" }` is
 one of them). Every implementation, engine included, runs the full set in CI.
+`normalize/` holds normal-form vectors for the engine (other implementations
+only check that each normal form compiles), and `diff/` a differential corpus
+generated by the Rust evaluator, which the Node, Python and Go evaluators
+replay. The vectors' `README.md` defines the formats and spells out every rule
+above that an implementation must reproduce.

@@ -2895,6 +2895,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "iii-filter"
+version = "0.24.6-rc.5"
+dependencies = [
+ "criterion",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "iii-helpers"
 version = "0.24.6-rc.5"
 dependencies = [
