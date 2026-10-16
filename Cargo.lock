@@ -2967,10 +2967,13 @@ dependencies = [
 name = "iii-sdk"
 version = "0.24.6-rc.5"
 dependencies = [
+ "arc-swap",
  "async-trait",
+ "criterion",
  "ctor",
  "futures-util",
  "hostname",
+ "iii-filter",
  "iii-helpers",
  "opentelemetry",
  "opentelemetry_sdk",
