@@ -78,8 +78,10 @@ Blocks a post can opt into, all plain HTML around ordinary markdown (blank lines
 `../../assets/...` path is rewritten like a markdown image); `<div class="facts">` around a bullet list of
 `**Label:** value` items to show them as rows in a card; `<div class="verdict">` of `.verdict-card`s (eyebrow
 `.verdict-pick`, `.verdict-tool`, `.verdict-reason`, `.verdict-cta` link; `data-highlight` marks the recommended
-pick); and `<div class="compare">` around a GFM table to render it as a matrix. `####` headings are label-style
-(small caps) and stay out of the contents list. See `content/blog/opencode-vs-claude-code-vs-iii.md`.
+pick); and `<div class="compare">` around a GFM table to render it as a matrix, with the last column (iii, by
+convention) in the accent. `data-highlight` on a `.facts` div or a `<figure>` gives it the same accent frame. `####`
+headings are label-style (small caps) and stay out of the contents list. See
+`content/blog/opencode-vs-claude-code-vs-iii.md`.
 
 ## Adding a tech spec or a deck
 

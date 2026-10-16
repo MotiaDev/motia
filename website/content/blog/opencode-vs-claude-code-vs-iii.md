@@ -177,7 +177,7 @@ Compared to the two terminal agents here, iii can handle approval gates for any 
 
 #### Key facts
 
-<div class="facts">
+<div class="facts" data-highlight>
 
 - **Version tested:** engine 0.24.4, AI Agent Harness 1.8.44, approval-gate 1.0.22
 - **License:** engine under Elastic License 2.0 (not OSI-approved); SDKs, CLI, console, and published workers under Apache 2.0
@@ -226,7 +226,7 @@ iii's approval-gate held the call by default, confirmed via approval-gate hook b
 
 A pending call raised in one browser tab was visible to, and answerable from, a second browser tab attached to the same engine, with no state transfer required.
 
-<figure>
+<figure data-highlight>
   <img src="../../assets/blog/opencode-vs-claude-code-vs-iii/iii-pending-approval-console.png" alt="The iii console with the chat and traces panes side by side: release::set_flag is paused with approve, deny, and approve-always buttons, and the traces pane shows the held harness::send call with its spans across the harness, approval-gate, and provider workers." width="2048" height="1056" />
   <figcaption>The same pending call in the iii console, seen from a second connected client: the held record with Approve and Deny, and the full trace of the harness dispatch beside it.</figcaption>
 </figure>
