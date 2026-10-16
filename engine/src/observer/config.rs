@@ -25,6 +25,13 @@ pub struct ObserversConfig {
     /// How long an observer outlives its observing worker's connection,
     /// waiting for a `Reattach`.
     pub observer_grace_ms: u64,
+    /// How long the engine remembers the observers it disposed because their
+    /// observing worker did not reattach within `observer_grace_ms`. A worker
+    /// that reattaches later than the grace period but within this time has
+    /// its replayed observers answered with their disposal; one that comes
+    /// back after it replays them as new observers, as after an engine
+    /// restart. `0` forgets them at once.
+    pub disposed_retention_ms: u64,
     /// An added observer the owner does not ack in time fails with
     /// `OWNER_TIMEOUT`.
     pub owner_ack_timeout_ms: u64,
@@ -48,6 +55,7 @@ impl Default for ObserversConfig {
             max_per_function: 4096,
             max_observe_depth: 8,
             observer_grace_ms: 30_000,
+            disposed_retention_ms: 3_600_000,
             owner_ack_timeout_ms: 30_000,
             default_max_in_flight: 64,
             max_queue_per_observer: 1024,
@@ -109,6 +117,7 @@ mod tests {
                 max_per_function: 4096,
                 max_observe_depth: 8,
                 observer_grace_ms: 30_000,
+                disposed_retention_ms: 3_600_000,
                 owner_ack_timeout_ms: 30_000,
                 default_max_in_flight: 64,
                 max_queue_per_observer: 1024,

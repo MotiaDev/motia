@@ -258,7 +258,7 @@ Files:
 | `engine/mod.rs` `router_msg` | New arms for `Observe`, `Unobserve`, `ObserverAck`, `InvocationsObserved`, `LocalInvocationStats`. `InvokeFunction` reads `caller`, `observe_depth`, `activation`. |
 | `RegisterFunction` accepted (after the `function_owners` claim) | Validate the descriptor: `args_format` with `delivery: auto` → `registrationrejected { INVALID_OBSERVE_DESCRIPTOR }`. Store it. `registry.on_function_registered(key, conn)`: send `functionregistered` (if the connection has `observe.v1`) with every pending and active observer, mark them `pending` awaiting acks; for a legacy connection, move them straight to `active`. Functions are unique per `(namespace, id)` (`FUNCTION_NAMESPACE_CONFLICT`), so there is exactly one owner. |
 | `UnregisterFunction`, `cleanup_worker` | Observers **on** the owner's functions go back to `pending` (replayed when the function registers again). Observers **created by** the connection go `suspended(OBSERVER_DISCONNECTED)` and start the grace timer. Observers **targeting** its functions go `suspended(TARGET_UNAVAILABLE)`. |
-| `Reattach` | Re-parent `by_connection[previous]` to the new connection and resume. A replayed `observe` with the same id and spec is a no-op returning the current state; a different spec → `OBSERVER_ID_CONFLICT`. The owner side needs nothing special: the replayed `RegisterFunction` gets a fresh `functionregistered`. |
+| `Reattach` | Re-parent `by_connection[previous]` to the new connection and resume. A replayed `observe` with the same id and spec is a no-op returning the current state; a different spec → `OBSERVER_ID_CONFLICT`. The owner side needs nothing special: the replayed `RegisterFunction` gets a fresh `functionregistered`. A `Reattach` after the grace period, with the right token and within `disposed_retention_ms`, gets the disposed observers' tombstones instead: each replayed `observe` answers `disposed` with its reason, so `max_fires` and `expires_in_ms` are not reset. |
 | worker connections / RBAC session | `local_dispatch` per function: global config ∧ the session has no `middleware_function_id` ∧ the connection may invoke the function itself. |
 | `engine/src/trigger.rs` | Phase 5: shrinks to the legacy shim (§6). Phase 6: deleted. |
 | engine-defined trigger types (`engine::functions-available`, `engine::workers-available`) | Become engine-hosted auto functions (`engine::on-functions-changed`, `engine::on-workers-changed`), evaluated by the engine itself (§3.7). The same holds for the trigger types of the engine workers still in use (`configuration`, `log`, `trace`). |
@@ -397,6 +397,7 @@ observers:
   max_per_function: 4096
   max_observe_depth: 8
   observer_grace_ms: 30000
+  disposed_retention_ms: 3600000  # a Reattach after the grace period still learns the disposal
   owner_ack_timeout_ms: 30000     # an add not acked in time → error(OWNER_TIMEOUT)
   activation_timeout_ms: 30000    # an activation or obs.call unanswered in time frees its slot (TIMEOUT)
   default_max_in_flight: 64

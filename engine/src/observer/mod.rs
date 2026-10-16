@@ -108,6 +108,11 @@ pub struct ObserverRegistry {
     tombstones: DashMap<String, lifecycle::Tombstone>,
     /// Tombstones by expiry, oldest first.
     tombstone_order: Mutex<std::collections::VecDeque<(std::time::Instant, String)>>,
+    /// Observing connections whose grace period ended, by connection: a
+    /// late `Reattach` learns their observers are disposed.
+    expired: DashMap<Uuid, lifecycle::Expired>,
+    /// `expired` by expiry, oldest first.
+    expired_order: Mutex<lifecycle::ExpiredOrder>,
     /// Engine-hosted event sources (see [`events`]).
     event_sources: DashMap<FnKey, ()>,
     /// Functions registered with `observe.delivery: owner`: only their owner
@@ -153,6 +158,8 @@ impl ObserverRegistry {
             evaluator_bytes: std::sync::atomic::AtomicUsize::new(dispatch::EVALUATOR_BYTES),
             tombstones: DashMap::new(),
             tombstone_order: Mutex::new(std::collections::VecDeque::new()),
+            expired: DashMap::new(),
+            expired_order: Mutex::new(lifecycle::ExpiredOrder::default()),
             event_sources: DashMap::new(),
             owner_delivered: ArcSwap::from_pointee(HashSet::new()),
             announcements: AtomicU64::new(0),

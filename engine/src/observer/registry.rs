@@ -18,7 +18,9 @@ use uuid::Uuid;
 
 use super::{
     Departed, FnKey, ObserverRegistry,
-    lifecycle::{CaptureSet, Flags, NewObserver, ObserveSpec, Observer, Observing, Policy},
+    lifecycle::{
+        CaptureSet, Flags, NewObserver, ObserveSpec, Observer, Observing, Policy, Tombstone,
+    },
     owner::check_descriptor,
 };
 use crate::{
@@ -641,9 +643,9 @@ impl ObserverRegistry {
 
     fn grace_elapsed(&self, connection: Uuid) {
         // A `Reattach` that claimed the record first owns these observers now.
-        if self.departed.remove(&connection).is_none() {
+        let Some((_, departed)) = self.departed.remove(&connection) else {
             return;
-        }
+        };
         let observers: Vec<Arc<Observer>> = self
             .by_connection
             .get(&connection)
@@ -660,12 +662,25 @@ impl ObserverRegistry {
                 );
             }
         }
+        // Every observer the connection owned is disposed now, each with a
+        // tombstone: the ones just disposed and any disposed while it was
+        // away. A tombstone lasts one grace period; the record outlives it
+        // for a worker that comes back late.
+        let now = Instant::now();
+        let disposed: Vec<(String, ErrorBody)> = self
+            .tombstones
+            .iter()
+            .filter(|tombstone| tombstone.connection == connection && tombstone.until > now)
+            .map(|tombstone| (tombstone.key().clone(), tombstone.reason.clone()))
+            .collect();
+        self.remember_expired(connection, departed.token, disposed);
     }
 
     /// `Reattach` from `connection`, presenting `token` for `previous`:
     /// re-parents `previous`'s suspended observers, counters intact. Returns
     /// whether it did. Works whether `previous` is still being torn down or
-    /// is long gone, as long as its grace period has not ended.
+    /// is long gone, as long as its grace period has not ended. After that,
+    /// see [`Self::reattach_late`].
     ///
     /// Re-parenting never rejects an observer: `max_per_connection` applies
     /// when observers are created, and these were created already.
@@ -684,6 +699,7 @@ impl ObserverRegistry {
             .departed
             .remove_if(&previous, |_, d| d.token.to_string() == token)
         else {
+            self.reattach_late(previous, token, connection);
             return false;
         };
         departed.timer.abort();
@@ -737,6 +753,38 @@ impl ObserverRegistry {
             "Reattach: observers re-parented to the new connection"
         );
         true
+    }
+
+    /// `Reattach` after `previous`'s grace period ended: its observers are
+    /// disposed, and the replay that follows on `connection` must not create
+    /// them again with fresh counters (`max_fires`, `expires_in_ms`). Each one
+    /// gets a tombstone on `connection`, so its replayed `observe` is answered
+    /// with its disposal, as it would have been within the grace period.
+    fn reattach_late(&self, previous: Uuid, token: &str, connection: Uuid) {
+        let now = Instant::now();
+        let Some((_, expired)) = self.expired.remove_if(&previous, |_, expired| {
+            expired.until > now && expired.token.to_string() == token
+        }) else {
+            return;
+        };
+        let count = expired.disposed.len();
+        let until = now + Duration::from_millis(self.config().observer_grace_ms);
+        for (id, reason) in expired.disposed {
+            self.remember_tombstone(
+                id,
+                Tombstone {
+                    connection,
+                    reason,
+                    until,
+                },
+            );
+        }
+        tracing::info!(
+            previous = %previous,
+            connection = %connection,
+            observers = count,
+            "Reattach after the grace period: the observers stay disposed"
+        );
     }
 
     /// Live observers, in any state but `disposed`.
@@ -859,5 +907,72 @@ mod tests {
         let (third, _third_socket) = test_support::worker(&engine);
         let token = second.reattach_token.to_string();
         assert!(!registry.reattach(second.id, Some(&token), &third));
+    }
+
+    /// A worker that reattaches after its grace period ended finds its
+    /// observers disposed: its replay does not create them again with fresh
+    /// counters. A wrong token neither learns that nor uses up the record.
+    #[tokio::test]
+    async fn a_late_reattach_keeps_the_observers_disposed() {
+        let engine = engine_with_functions();
+        let registry = engine.observers.clone();
+        let (first, _first_socket) = test_support::worker(&engine);
+        let mut request = test_support::request("obs", "test::src", "test::dst", None);
+        request.max_fires = Some(3);
+        test_support::observe_request(&engine, &first, request.clone()).await;
+        registry.connection_closed(first.id, first.reattach_token);
+        registry.grace_elapsed(first.id);
+        assert!(registry.get("obs").is_none(), "disposed");
+
+        let (intruder, _intruder_socket) = test_support::worker(&engine);
+        assert!(!registry.reattach(first.id, Some("not-the-token"), &intruder));
+        assert!(
+            registry
+                .tombstones
+                .get("obs")
+                .is_none_or(|t| t.connection != intruder.id)
+        );
+
+        let (second, _second_socket) = test_support::worker(&engine);
+        let token = first.reattach_token.to_string();
+        assert!(
+            !registry.reattach(first.id, Some(&token), &second),
+            "nothing to re-parent"
+        );
+        registry.observe(&engine, &second, request).await;
+        assert!(
+            registry.get("obs").is_none(),
+            "the replay did not create it"
+        );
+        let tombstone = registry.tombstones.get("obs").unwrap();
+        assert_eq!(tombstone.connection, second.id);
+        assert_eq!(tombstone.reason.code, observe_codes::OBSERVER_DISCONNECTED);
+    }
+
+    /// With `disposed_retention_ms: 0` nothing is remembered past the grace
+    /// period: a late replay creates the observer again, as after an engine
+    /// restart.
+    #[tokio::test]
+    async fn without_retention_a_late_replay_creates_the_observer_again() {
+        let engine = engine_with_functions();
+        let registry = engine.observers.clone();
+        registry.set_config(ObserversConfig {
+            disposed_retention_ms: 0,
+            ..(*registry.config()).clone()
+        });
+        let (first, _first_socket) = test_support::worker(&engine);
+        let request = test_support::request("obs", "test::src", "test::dst", None);
+        test_support::observe_request(&engine, &first, request.clone()).await;
+        registry.connection_closed(first.id, first.reattach_token);
+        registry.grace_elapsed(first.id);
+
+        let (second, _second_socket) = test_support::worker(&engine);
+        let token = first.reattach_token.to_string();
+        registry.reattach(first.id, Some(&token), &second);
+        test_support::observe_request(&engine, &second, request).await;
+        assert_eq!(
+            registry.get("obs").unwrap().observing().connection,
+            second.id
+        );
     }
 }

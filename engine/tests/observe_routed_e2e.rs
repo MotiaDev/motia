@@ -21,6 +21,8 @@ use observe_support::{
     registered, spawn, spawn_engine, spawn_engine_with,
 };
 use serde_json::{Value, json};
+use std::time::Duration;
+use uuid::Uuid;
 
 const FIXTURES: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -919,6 +921,156 @@ async fn a_disposed_observer_is_not_resurrected_by_a_replay() {
     assert!(t.engine.observers.get("obs-once").is_none());
 }
 
+/// A worker that comes back after `observer_grace_ms` reattaches and replays
+/// its observers, as the SDKs do. The grace period disposed them, so the
+/// replay is answered with that disposal: re-creating them with fresh
+/// counters would let `max_fires` fire again and an observer outlive its
+/// `expires_in_ms` (found by the 0.24.5-alpha.2 e2e run,
+/// `repro/max-fires-after-grace.ts`).
+#[tokio::test]
+async fn a_worker_back_after_the_grace_period_does_not_resurrect_its_observers() {
+    let t = spawn_engine(ObserversConfig {
+        observer_grace_ms: 100,
+        ..ObserversConfig::default()
+    })
+    .await;
+    let mut orders = host(&t, "orders", true, &["orders::create"]).await;
+    let mut sink = host(&t, "sink", true, &["sink::orders"]).await;
+    let mut checkout = connect(&t, "checkout", true).await;
+    let mut watcher = connect(&t, "watcher", true).await;
+
+    let source = json!({ "function_id": "orders::create" });
+    let mut capped = observer("obs-capped", source.clone(), "sink::orders");
+    capped["max_fires"] = json!(3);
+    let mut expiring = observer("obs-expiring", source, "sink::orders");
+    expiring["expires_in_ms"] = json!(60_000);
+    watcher.observe_active(capped.clone()).await;
+    watcher.observe_active(expiring.clone()).await;
+    for _ in 0..2 {
+        round_trip(
+            &t,
+            &mut checkout,
+            &mut orders,
+            "orders::create",
+            json!({}),
+            json!({}),
+        )
+        .await;
+        for _ in 0..2 {
+            let activation = sink.invoked("sink::orders").await;
+            sink.reply(&activation, Value::Null).await;
+        }
+    }
+    assert_eq!(fires(&t, "obs-capped"), 2, "one fire left before max_fires");
+
+    let (previous, token) = (watcher.worker_id, watcher.reattach_token.clone());
+    watcher.disconnect().await;
+    assert!(
+        eventually(|| t.engine.observers.get("obs-capped").is_none()
+            && t.engine.observers.get("obs-expiring").is_none())
+        .await,
+        "disposed when the grace period ended"
+    );
+    tokio::time::sleep(Duration::from_millis(250)).await;
+
+    let mut watcher = Client::connect_with(t.port, "watcher", true, Some((previous, token))).await;
+    for frame in [capped, expiring] {
+        let replay = watcher.observe(frame).await;
+        assert_eq!(replay["state"], "disposed", "{replay}");
+        assert_eq!(replay["error"]["code"], "OBSERVER_DISCONNECTED");
+    }
+    assert!(t.engine.observers.get("obs-capped").is_none());
+    assert!(t.engine.observers.get("obs-expiring").is_none());
+
+    for _ in 0..5 {
+        round_trip(
+            &t,
+            &mut checkout,
+            &mut orders,
+            "orders::create",
+            json!({}),
+            json!({}),
+        )
+        .await;
+    }
+    assert!(
+        t.engine
+            .observers
+            .watch("default", "orders::create")
+            .is_none(),
+        "nothing observes orders::create any more"
+    );
+    assert!(!sink.has_seen(|frame| frame["function_id"] == "sink::orders"));
+}
+
+/// Observer ids are client-generated: a worker that cannot prove it is the
+/// one that left (a restarted process, with no reattach token) creates its
+/// observers again under the same ids.
+#[tokio::test]
+async fn a_restarted_worker_creates_its_observers_again_with_the_same_ids() {
+    let t = spawn_engine(ObserversConfig {
+        observer_grace_ms: 100,
+        ..ObserversConfig::default()
+    })
+    .await;
+    let _orders = host(&t, "orders", true, &["orders::create"]).await;
+    let _sink = host(&t, "sink", true, &["sink::orders"]).await;
+    let mut watcher = connect(&t, "watcher", true).await;
+    let frame = observer(
+        "obs-stable-id",
+        json!({ "function_id": "orders::create" }),
+        "sink::orders",
+    );
+    watcher.observe_active(frame.clone()).await;
+    let previous = watcher.worker_id;
+    watcher.disconnect().await;
+    assert!(eventually(|| t.engine.observers.get("obs-stable-id").is_none()).await);
+
+    // A wrong token proves nothing: no reattach, and the record stays.
+    let mut restarted = Client::connect_with(
+        t.port,
+        "watcher",
+        true,
+        Some((previous, Uuid::new_v4().to_string())),
+    )
+    .await;
+    restarted.observe_active(frame).await;
+    assert_eq!(
+        info(&t, "obs-stable-id").unwrap().worker.worker_id,
+        restarted.worker_id.to_string()
+    );
+}
+
+/// After `observers.disposed_retention_ms` the engine has forgotten the
+/// disposal: a worker that comes back even later replays its observers as
+/// new ones, as after an engine restart.
+#[tokio::test]
+async fn past_the_retention_a_late_worker_replays_its_observers_as_new() {
+    let t = spawn_engine(ObserversConfig {
+        observer_grace_ms: 100,
+        disposed_retention_ms: 100,
+        ..ObserversConfig::default()
+    })
+    .await;
+    let _orders = host(&t, "orders", true, &["orders::create"]).await;
+    let _sink = host(&t, "sink", true, &["sink::orders"]).await;
+    let mut watcher = connect(&t, "watcher", true).await;
+    let frame = observer(
+        "obs-forgotten",
+        json!({ "function_id": "orders::create" }),
+        "sink::orders",
+    );
+    watcher.observe_active(frame.clone()).await;
+    let (previous, token) = (watcher.worker_id, watcher.reattach_token.clone());
+    watcher.disconnect().await;
+    assert!(eventually(|| t.engine.observers.get("obs-forgotten").is_none()).await);
+    // Past the grace period's tombstones and the retention.
+    tokio::time::sleep(Duration::from_millis(400)).await;
+
+    let mut watcher = Client::connect_with(t.port, "watcher", true, Some((previous, token))).await;
+    watcher.observe_active(frame).await;
+}
+
 #[tokio::test]
 async fn observe_rejections() {
     let t = spawn_engine(ObserversConfig {
@@ -1252,7 +1404,7 @@ async fn an_undecodable_observe_is_answered_not_dropped() {
     assert_eq!(result["state"], "error");
     assert_eq!(result["error"]["code"], "INVALID_ARGS");
 
-    let id = uuid::Uuid::new_v4();
+    let id = Uuid::new_v4();
     watcher
         .send(json!({
             "type": "invokefunction", "invocation_id": id.to_string(),

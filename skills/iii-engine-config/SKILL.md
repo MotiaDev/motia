@@ -81,6 +81,7 @@ observers:
   max_per_function: 4096          # observers one function may have (LIMIT_EXCEEDED)
   max_observe_depth: 8            # deeper activations are dropped (LOOP_GUARD)
   observer_grace_ms: 30000        # suspended observers of a disconnected worker wait this long
+  disposed_retention_ms: 3600000  # a worker back after the grace period is told they were disposed
   owner_ack_timeout_ms: 30000     # an unacknowledged add fails with OWNER_TIMEOUT
   activation_timeout_ms: 30000    # an unanswered activation frees its slot and counts as TIMEOUT
   default_max_in_flight: 64       # max_in_flight of an observer that sets none

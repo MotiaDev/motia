@@ -226,6 +226,29 @@ pub(crate) struct Tombstone {
     pub until: Instant,
 }
 
+/// Observers held in `Expired` records at most, across all of them.
+pub(crate) const MAX_EXPIRED_OBSERVERS: usize = 10_000;
+
+/// An observing connection whose grace period ended, remembered for
+/// `observers.disposed_retention_ms`: a worker that reattaches later,
+/// presenting `token`, has its replayed observers answered with their
+/// disposal instead of creating them again with fresh counters.
+pub(crate) struct Expired {
+    pub token: Uuid,
+    /// Each observer the connection owned, with why it was disposed.
+    pub disposed: Vec<(String, ErrorBody)>,
+    pub until: Instant,
+}
+
+/// `Expired` records by expiry, oldest first, and the observers they hold.
+#[derive(Default)]
+pub(crate) struct ExpiredOrder {
+    pub queue: std::collections::VecDeque<(Instant, Uuid, usize)>,
+    /// Observers counted in `queue`; a record a reattach consumed still
+    /// counts until its entry is dropped.
+    pub held: usize,
+}
+
 /// Events dropped for one observer, by drop reason (protocol.md §4).
 #[derive(Debug, Default)]
 pub(crate) struct DropCounters {
@@ -718,7 +741,7 @@ impl ObserverRegistry {
     /// when there are more than [`MAX_TOMBSTONES`]: amortized constant work
     /// per disposal, however many observers churn. One that expired and was
     /// not dropped yet is ignored where it is read.
-    fn remember_tombstone(&self, id: String, tombstone: Tombstone) {
+    pub(super) fn remember_tombstone(&self, id: String, tombstone: Tombstone) {
         let until = tombstone.until;
         self.tombstones.insert(id.clone(), tombstone);
         let mut order = lock(&self.tombstone_order);
@@ -734,6 +757,47 @@ impl ObserverRegistry {
             // A newer tombstone for the same id stays.
             self.tombstones
                 .remove_if(&id, |_, current| current.until == oldest);
+        }
+    }
+
+    /// Keeps what `connection`'s observers became when its grace period
+    /// ended (see [`Expired`]), for `observers.disposed_retention_ms`. Like
+    /// tombstones, records expire oldest first, and the oldest are dropped
+    /// early when they hold more than [`MAX_EXPIRED_OBSERVERS`] observers.
+    pub(crate) fn remember_expired(
+        &self,
+        connection: Uuid,
+        token: Uuid,
+        disposed: Vec<(String, ErrorBody)>,
+    ) {
+        let retention = std::time::Duration::from_millis(self.config().disposed_retention_ms);
+        if disposed.is_empty() || retention.is_zero() {
+            return;
+        }
+        let now = Instant::now();
+        let until = now + retention;
+        let count = disposed.len();
+        self.expired.insert(
+            connection,
+            Expired {
+                token,
+                disposed,
+                until,
+            },
+        );
+        let mut order = lock(&self.expired_order);
+        order.queue.push_back((until, connection, count));
+        order.held += count;
+        while let Some((oldest, _, _)) = order.queue.front() {
+            if *oldest > now && order.held <= MAX_EXPIRED_OBSERVERS {
+                break;
+            }
+            let Some((oldest, connection, count)) = order.queue.pop_front() else {
+                break;
+            };
+            order.held -= count;
+            self.expired
+                .remove_if(&connection, |_, current| current.until == oldest);
         }
     }
 

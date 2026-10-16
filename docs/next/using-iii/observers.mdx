@@ -346,7 +346,10 @@ dropped event is counted per function and reason in the `iii.observer.dropped.to
 - `dispose()` removes the observer. A disposed observer is not replayed.
 - An observer belongs to the connection that created it. When that worker disconnects, its observers
   are `suspended` for `observers.observer_grace_ms` (30 s by default); a worker that reconnects in
-  time keeps them, with their counters. After that they are `disposed`.
+  time keeps them, with their counters. After that they are `disposed`, and a worker that reconnects
+  later gets that answer when its SDK replays them, so `max_fires` and `expires_in_ms` still hold.
+  The engine keeps the answer for `observers.disposed_retention_ms` (1 hour by default). After that,
+  a returning worker's replay creates its observers again, as after an engine restart.
 - When the observed function's worker disconnects, its observers go back to `pending` and become
   `active` again when the function is registered again.
 

@@ -783,7 +783,7 @@ States:
 | `active`    | Delivering. On a function hosted with local dispatch, `active` means the owner acked the observer.          |
 | `suspended` | The observing worker disconnected (`OBSERVER_DISCONNECTED`, resumed by a `Reattach` within `observers.observer_grace_ms`), or a target that was available went away (`TARGET_UNAVAILABLE`). |
 | `error`     | Rejected (invalid args or filters, RBAC, an owner rejection). See `reason`.                                 |
-| `disposed`  | Gone for good: `Unobserve`, `max_fires` reached, expired, or the grace period elapsed.                      |
+| `disposed`  | Gone for good: `Unobserve`, `max_fires` reached, expired, or the grace period elapsed. A replayed `Observe` of a disposed observer is answered with `disposed` and its reason, also after a `Reattach` that comes later than the grace period (within `observers.disposed_retention_ms`). |
 
 ### `FunctionRegistered`
 
