@@ -64,8 +64,9 @@ a.eyebrow:focus-visible {
 }
 
 /* ---------- Contents ---------- */
-/* The rail: a 20px column at the list's left edge holds the SVG track and its nodes; the links start at 32px so
-   each label sits beside its node. Everything about the rail's geometry is measured from the links at runtime. */
+/* The thread: a 24px gutter at the list's left edge holds one SVG path that traces every entry (bending where the
+   outline nests); links start at 28px so each label sits beside its run of the line. Geometry is measured from the
+   links at runtime. */
 .toc {
   position: sticky;
   top: 112px;
@@ -75,26 +76,26 @@ a.eyebrow:focus-visible {
 }
 .tocTitle {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-block-end: 14px;
-  padding-inline: 32px 12px;
-}
-.tocPercent {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  align-items: center;
+  gap: 10px;
+  margin-block-end: 10px;
+  padding-inline-start: 2px;
+  font-size: 13px;
+  line-height: 1.4;
   color: var(--muted-foreground);
-  font-variant-numeric: tabular-nums;
+}
+.tocIcon {
+  width: 15px;
+  height: 15px;
+  flex: none;
   opacity: 0.8;
 }
 .tocList {
   position: relative;
 }
 .tocGroupLabel {
-  margin-block: 20px 6px;
-  padding-inline-start: 32px;
+  margin-block: 18px 4px;
+  padding-inline-start: 28px;
   font-size: 12px;
   color: var(--muted-foreground);
   opacity: 0.8;
@@ -102,35 +103,32 @@ a.eyebrow:focus-visible {
 .toc ul {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 .tocLink {
   position: relative;
   display: block;
-  padding: 8px 12px 8px 32px;
-  border-radius: 8px;
-  font-size: 13px;
+  padding: 7px 10px 7px 28px;
+  font-size: 13.5px;
   line-height: 1.45;
   color: var(--muted-foreground);
-  opacity: 0.7;
+  opacity: 0.75;
   text-wrap: pretty;
   transition:
     color var(--motion-base) var(--motion-ease-out),
-    opacity var(--motion-base) var(--motion-ease-out),
-    translate var(--motion-base) var(--motion-ease-out);
+    opacity var(--motion-base) var(--motion-ease-out);
 }
 .tocLink[data-depth="3"] {
-  padding-inline-start: 44px;
-  font-size: 12.5px;
+  padding-inline-start: 50px;
+  font-size: 13px;
 }
 .tocLink[aria-current] {
   color: var(--foreground);
   opacity: 1;
-  translate: 2px 0;
 }
 .tocLink:focus-visible {
   outline: 2px solid var(--foreground);
-  outline-offset: 2px;
+  outline-offset: -2px;
+  border-radius: 6px;
 }
 
 /* The SVG overlays the list; nothing in it takes the pointer. */
@@ -141,67 +139,25 @@ a.eyebrow:focus-visible {
   overflow: visible;
   pointer-events: none;
 }
-.tocTrack {
+.tocThread {
   fill: none;
   stroke: var(--line-strong);
-  stroke-width: 1.5;
+  stroke-width: 1;
   stroke-linecap: round;
-  opacity: 0.7;
 }
 .tocLit {
   fill: none;
-  stroke: var(--hero-accent);
+  stroke: var(--foreground);
   stroke-width: 1.5;
   stroke-linecap: round;
 }
-.tocDot {
-  fill: var(--background);
-  stroke: var(--line-strong);
-  stroke-width: 1.5;
-  transition:
-    fill var(--motion-base) var(--motion-ease-out),
-    stroke var(--motion-base) var(--motion-ease-out);
+.tocEnd {
+  fill: var(--line-strong);
 }
-.tocNode[data-state="passed"] .tocDot {
-  fill: color-mix(in oklab, var(--hero-accent) 55%, var(--background));
-  stroke: var(--hero-accent);
-}
-.tocNode[data-state="current"] .tocDot {
-  fill: var(--hero-accent);
-  stroke: var(--hero-accent);
-}
-.tocHalo {
-  fill: none;
-  stroke: var(--hero-accent);
-  stroke-width: 1;
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: opacity var(--motion-base) var(--motion-ease-out);
-}
-.tocNode[data-state="current"] .tocHalo {
-  opacity: 0.45;
-  animation: tocBreathe 2.6s var(--motion-ease-in-out) infinite;
-}
-.tocHead {
-  fill: var(--hero-accent);
-  filter: drop-shadow(0 0 4px var(--hero-accent));
-}
-@keyframes tocBreathe {
-  0%,
-  100% {
-    opacity: 0.25;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.6;
-    transform: scale(1.2);
-  }
+.tocTip rect {
+  fill: var(--foreground);
 }
 @media (prefers-reduced-motion: reduce) {
-  .tocNode[data-state="current"] .tocHalo {
-    animation: none;
-  }
   .tocLink {
     transition: none;
   }

@@ -1,9 +1,10 @@
 'use client'
 
-import { motion, useMotionValue, useMotionValueEvent, useReducedMotion, useSpring, useTransform } from 'motion/react'
+import { AlignLeftIcon } from 'lucide-react'
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { duration, easeOut, stagger } from '@/lib/motion'
+import { duration, easeOut } from '@/lib/motion'
 import styles from './article.module.css'
 
 export type TocItem = { id: string; text: string; depth?: 2 | 3 }
@@ -17,48 +18,76 @@ export type TocGroup = {
 /** Headings at or above this line (the floating header plus a little room) count as passed. */
 const LINE = 120
 
-/** The rail's column: nodes sit on its centre line, the list text starts to its right. */
-const RAIL_X = 10
+/** Where the line runs for each depth, in px from the list's left edge. Nested entries jog it to the right. */
+const X: Record<2 | 3, number> = { 2: 1.5, 3: 17.5 }
 
-type Node = { id: string; y: number; depth: 2 | 3 }
+/** How far into an entry's padding the line starts bending towards the next depth. */
+const BEND = 10
+
+type Entry = { id: string; top: number; bottom: number; depth: 2 | 3 }
 
 /**
- * A contents list beside a long document, drawn as a rail. Every heading is a node on a vertical track; a lit
- * segment runs down the track to the reader's position, interpolated between the headings on either side of it, and
- * a point travels on its leading edge. Passed headings keep their node lit, the current one carries a halo, and the
- * ones still to come stay hollow. The track draws itself in once when the page opens. Everything follows the OS
- * reduced-motion setting: springs become jumps and the halo stops breathing.
+ * Builds the thread: one path that runs down the left of the list, hugging each entry at its depth's x and bending
+ * smoothly where the depth changes, like a subway line. Straight runs stay straight so the dash-based progress
+ * stroke reads cleanly.
+ */
+function thread(entries: Entry[]): string {
+  if (!entries.length) return ''
+  let d = `M${X[entries[0].depth]} ${entries[0].top}`
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i]
+    const next = entries[i + 1]
+    const x = X[e.depth]
+    if (!next || X[next.depth] === x) {
+      d += ` V${next ? next.top : e.bottom}`
+      continue
+    }
+    const nx = X[next.depth]
+    const y0 = e.bottom - BEND
+    const y1 = next.top + BEND
+    const mid = (y0 + y1) / 2
+    d += ` V${y0} C${x} ${mid} ${nx} ${mid} ${nx} ${y1}`
+  }
+  return d
+}
+
+/**
+ * A contents list beside a long document, with a thread running down its left edge. A faint line traces every
+ * entry, bending where the outline nests. As the reader scrolls, a bright stroke draws along the thread from the
+ * top to the heading being read, and a small diamond rides its tip; both glide on a spring when the section
+ * changes. The thread draws itself in once when the page opens. The OS reduced-motion setting turns the glide and
+ * the draw-in into plain jumps.
  */
 export function TocRail({ title = 'On this page', groups }: { title?: string; groups: TocGroup[] }) {
   const key = groups.flatMap((g) => g.items.map((i) => i.id)).join('\n')
   const listRef = useRef<HTMLDivElement>(null)
-  const [nodes, setNodes] = useState<Node[]>([])
+  const pathRef = useRef<SVGPathElement>(null)
+  const [entries, setEntries] = useState<Entry[]>([])
   const [active, setActive] = useState<string | null>(null)
-  const [percent, setPercent] = useState(0)
+  const [total, setTotal] = useState(0)
+  const [marks, setMarks] = useState<number[]>([])
   const reduced = useReducedMotion()
 
-  // Where the lit segment ends, in rail pixels. The spring smooths the scroll position into a glide.
-  const head = useMotionValue(0)
-  const glide = useSpring(
-    head,
-    reduced ? { stiffness: 1200, damping: 100 } : { stiffness: 140, damping: 26, mass: 0.7 },
-  )
+  // Length of the bright stroke along the thread. The spring turns a change of section into a glide.
+  const target = useMotionValue(0)
+  const lit = useSpring(target, reduced ? { stiffness: 1200, damping: 100 } : { stiffness: 170, damping: 28 })
+  const dashOffset = useTransform(lit, (v) => total - v)
+  const tipX = useTransform(lit, (v) => pathRef.current?.getPointAtLength(v).x ?? 0)
+  const tipY = useTransform(lit, (v) => pathRef.current?.getPointAtLength(v).y ?? 0)
 
-  const first = nodes[0]?.y ?? 0
-  const last = nodes[nodes.length - 1]?.y ?? 0
-  const span = Math.max(1, last - first)
-  const lit = useTransform(glide, (y) => Math.min(1, Math.max(0, (y - first) / span)))
+  const d = thread(entries)
 
-  // The list is the measuring stick: each link's centre is a node's y.
+  // The list is the measuring stick: every link's box becomes one run of the thread.
   useLayoutEffect(() => {
     const list = listRef.current
     if (!list) return
     const measure = () => {
       const anchors = Array.from(list.querySelectorAll<HTMLAnchorElement>('a[data-toc-id]'))
-      setNodes(
+      setEntries(
         anchors.map((a) => ({
           id: a.dataset.tocId ?? '',
-          y: a.offsetTop + a.offsetHeight / 2,
+          top: a.offsetTop,
+          bottom: a.offsetTop + a.offsetHeight,
           depth: a.dataset.depth === '3' ? 3 : 2,
         })),
       )
@@ -69,37 +98,42 @@ export function TocRail({ title = 'On this page', groups }: { title?: string; gr
     return () => ro.disconnect()
   }, [])
 
+  // Where along the thread each entry's centre line sits, found on the rendered path so the bends are exact.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `d` is derived from `entries` and is what the path draws
+  useLayoutEffect(() => {
+    const path = pathRef.current
+    if (!path || !entries.length) return
+    const length = path.getTotalLength()
+    const at = (y: number) => {
+      let lo = 0
+      let hi = length
+      for (let i = 0; i < 24; i++) {
+        const mid = (lo + hi) / 2
+        if (path.getPointAtLength(mid).y < y) lo = mid
+        else hi = mid
+      }
+      return (lo + hi) / 2
+    }
+    setTotal(length)
+    setMarks(entries.map((e) => at((e.top + e.bottom) / 2)))
+  }, [d])
+
   useEffect(() => {
-    if (!nodes.length) return
-    const headings = nodes
-      .map((n) => ({ node: n, el: document.getElementById(n.id) }))
-      .filter((h): h is { node: Node; el: HTMLElement } => h.el !== null)
+    if (!entries.length || !marks.length) return
+    const headings = entries
+      .map((e, i) => ({ id: e.id, mark: marks[i], el: document.getElementById(e.id) }))
+      .filter((h): h is { id: string; mark: number; el: HTMLElement } => h.el !== null)
     if (!headings.length) return
     let frame = 0
     const pick = () => {
       frame = 0
-      const line = window.scrollY + LINE
-      const tops = headings.map((h) => h.el.getBoundingClientRect().top + window.scrollY)
-
-      // The current heading: the last one above the line.
       let index = 0
-      for (let i = 0; i < tops.length; i++) {
-        if (tops[i] <= line) index = i
+      for (let i = 0; i < headings.length; i++) {
+        if (headings[i].el.getBoundingClientRect().top <= LINE) index = i
         else break
       }
-      setActive(headings[index].node.id)
-
-      // The reader's position on the rail: between this heading's node and the next one's.
-      const from = headings[index].node.y
-      let y = from
-      if (tops[index] <= line && index + 1 < tops.length) {
-        const t = (line - tops[index]) / Math.max(1, tops[index + 1] - tops[index])
-        y = from + Math.min(1, Math.max(0, t)) * (headings[index + 1].node.y - from)
-      }
-      head.set(y)
-
-      const scrollable = document.documentElement.scrollHeight - window.innerHeight
-      setPercent(scrollable > 0 ? Math.round((100 * window.scrollY) / scrollable) : 100)
+      setActive(headings[index].id)
+      target.set(headings[index].mark)
     }
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(pick)
@@ -112,73 +146,39 @@ export function TocRail({ title = 'On this page', groups }: { title?: string; gr
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
     }
-  }, [nodes, head])
-
-  // Nodes light as the glide passes them, not on the discrete heading change, so they and the segment agree.
-  const [litCount, setLitCount] = useState(0)
-  useMotionValueEvent(glide, 'change', (y) => {
-    let n = 0
-    for (const node of nodes) if (node.y <= y + 1) n++
-    setLitCount(n)
-  })
+  }, [entries, marks, target])
 
   if (!key) return null
 
-  const activeIndex = nodes.findIndex((n) => n.id === active)
+  const end = entries[entries.length - 1]
 
   return (
     <nav aria-label={title} className={styles.toc}>
       <p className={styles.tocTitle}>
-        <span className={styles.eyebrow}>{title}</span>
-        <span className={styles.tocPercent}>
-          <span className="sr-only">Read </span>
-          {percent}%
-        </span>
+        <AlignLeftIcon aria-hidden strokeWidth={1.75} className={styles.tocIcon} />
+        <span>{title}</span>
       </p>
       <div ref={listRef} className={styles.tocList}>
-        {nodes.length >= 2 ? (
-          <svg className={styles.tocRail} width={RAIL_X * 2} height={last + RAIL_X} aria-hidden="true">
+        {entries.length ? (
+          <svg className={styles.tocRail} width={24} height={end.bottom} aria-hidden="true">
             <motion.path
-              className={styles.tocTrack}
-              d={`M${RAIL_X} ${first} V${last}`}
+              ref={pathRef}
+              className={styles.tocThread}
+              d={d}
               initial={reduced ? false : { pathLength: 0 }}
               animate={{ pathLength: 1 }}
               transition={{ duration: duration.print, ease: easeOut }}
             />
-            <motion.path className={styles.tocLit} d={`M${RAIL_X} ${first} V${last}`} style={{ pathLength: lit }} />
-            {nodes.map((node, i) => {
-              const size = node.depth === 3 ? 5 : 8
-              const state = i === activeIndex ? 'current' : i < litCount ? 'passed' : 'upcoming'
-              return (
-                <motion.g
-                  key={node.id}
-                  data-state={state}
-                  className={styles.tocNode}
-                  initial={reduced ? false : { opacity: 0, scale: 0.4 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: duration.base, delay: 0.15 + i * stagger, ease: easeOut }}
-                  style={{ transformOrigin: `${RAIL_X}px ${node.y}px` }}
-                >
-                  <rect
-                    className={styles.tocHalo}
-                    x={RAIL_X - size / 2 - 5}
-                    y={node.y - size / 2 - 5}
-                    width={size + 10}
-                    height={size + 10}
-                    rx={4}
-                  />
-                  <rect
-                    className={styles.tocDot}
-                    x={RAIL_X - size / 2}
-                    y={node.y - size / 2}
-                    width={size}
-                    height={size}
-                    rx={node.depth === 3 ? 1.5 : 2}
-                  />
-                </motion.g>
-              )
-            })}
-            <motion.circle className={styles.tocHead} cx={RAIL_X} cy={glide} r={3} />
+            <motion.path
+              className={styles.tocLit}
+              d={d}
+              strokeDasharray={total}
+              style={{ strokeDashoffset: dashOffset }}
+            />
+            <circle className={styles.tocEnd} cx={X[end.depth]} cy={end.bottom} r={2.5} />
+            <motion.g className={styles.tocTip} style={{ x: tipX, y: tipY }}>
+              <rect x={-3.5} y={-3.5} width={7} height={7} rx={1} transform="rotate(45)" />
+            </motion.g>
           </svg>
         ) : null}
         {groups.map((group, gi) => (
