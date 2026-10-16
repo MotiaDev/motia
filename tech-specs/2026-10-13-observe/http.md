@@ -60,8 +60,7 @@ iii.register_function(
                                   move |req: HttpRequest| router.clone().route(req) })
         .description("One invocation per HTTP request. Observe it with args { method, path } \
                       to serve that route; your target's return value is the response.")
-        .request_format::<HttpRequest>()
-        .response_format::<HttpResponse>()
+        // request_format / response_format come from the handler's HttpRequest / HttpResponse types
         .observe(Observe::owner()
             .args_format::<HttpRouteArgs>()           // engine: INVALID_ARGS when method or path is missing
             .legacy_trigger_type("http")
@@ -83,23 +82,23 @@ payload.
 #[async_trait]
 impl ObserveHandler for RouteObserver {
     async fn on_observer_added(&self, obs: &Observer) -> Result<(), ObserveRejection> {
-        let args = match &obs.legacy {
+        let args = match obs.legacy() {
             Some(l) => from_legacy(&l.config)?,                         // §2.5
             None => obs.args::<HttpRouteArgs>()?,                       // method and path: checked by the engine
         };
         self.routes.write().await
-            .insert(Route::new(&obs.id, &args.method, &normalize_api_path(&args.path), &args))   // same conflict rule as today
+            .insert(Route::new(obs.clone(), &args.method, &normalize_api_path(&args.path), &args))   // same conflict rule as today
             .map_err(|msg| ObserveRejection::new("HTTP_ROUTE_CONFLICT", msg))?;
         Ok(())                                                          // the route is how this owner routes by args
     }
 
     async fn on_observer_removed(&self, obs: &Observer) {
-        self.routes.write().await.remove_by_observer_id(&obs.id);
+        self.routes.write().await.remove_by_observer_id(obs.id());
     }
 }
 ```
 
-- `RouteTable` is keyed by observer id instead of trigger id. Matching,
+- `RouteTable` is keyed by observer id instead of trigger id, and each `Route` holds its `Observer` (a cheap clone), so the router calls `matches` and `call` on it directly. Matching,
   precedence, 405 handling and the restricted listener (`public_webhook`) do not
   change.
 - One route per observer. To serve a target on two methods or paths,
@@ -122,8 +121,9 @@ impl Router {
         };
         req.route = Some(route.http_path.clone());
         req.path_params = params;
-        let obs = self.iii.observer(ON_REQUEST_FN, &route.observer_id)?;
-        if !obs.matches(&Doc::input(&req)) {                                   // the observer's filters
+        let obs = &route.observer;                                             // the Observer kept in the route at insert
+        let input = serde_json::to_value(&req)?;
+        if !obs.matches(&Doc { input: Some(&input), ..Doc::default() }) {      // the observer's filters
             return Ok(condition_not_met());                                    // 422, as today
         }
         if let Some(cond) = &route.condition_function_id { /* as today */ }

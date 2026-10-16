@@ -3,12 +3,14 @@ title: observe — every function is observable
 tagline: "register_trigger_type folds into register_function and register_trigger becomes iii.observe(source, target): any function can be observed with args for its owner and declarative filters owned by the engine, a function's owner can react when it is observed, and a worker calls its own functions in-process, touching the wire only when someone is listening."
 date: 2026-10-13
 tags: [engine, sdk, protocol, triggers]
-status: draft
+status: live
 ---
 
 # observe — every function is observable
 
-> Execution plan. Status: **draft for review**. Companion documents:
+> Execution plan. Status: **implemented in iii 0.25** (see
+> [Implementation status](#implementation-status-025)); this document stays
+> the design reference. Companion documents:
 > [`filters.md`](filters.md) (filter language), [`protocol.md`](protocol.md)
 > (wire + engine internals), [`sdk.md`](sdk.md) (SDK API and internals), and
 > three worked examples: [`database.md`](database.md)
@@ -23,6 +25,53 @@ creates and `dispose()` removes: a source function with its args and filters,
 a target, and policy. The **owner** is the worker that hosts the observed
 function. The **observing worker** is the one that called `observe`; it can
 create many observers, and each one is added, routed and removed on its own.
+
+## Implementation status (0.25)
+
+**Shipped in iii 0.25**
+
+- **Phase 0.** The `iii-filter` crate ([`crates/iii-filter/`](../../crates/iii-filter/))
+  and the shared conformance vectors (`sdk/fixtures/filters/`); evaluators in
+  Node (shared with the browser SDK), Python and Go; protocol types for every
+  new message and field, with golden JSON for each in
+  [`sdk/fixtures/protocol/observe/`](../../sdk/fixtures/protocol/observe/README.md),
+  which is the wire contract; `functionregistered`; `UnregisterTriggerType`
+  is now decoded and honored by the engine.
+- **Phases 1 and 2.** The engine module
+  [`engine/src/observer/`](../../engine/src/observer/) (registry, lifecycle,
+  routed-path hook, owner sync, reports, owner delivery, loop guard, builtins,
+  metrics, RBAC hook, `observers:` config); `observe()`, hooks, `Observer`,
+  `FunctionRef.isObserved()` / `observers()`, local dispatch, reporter,
+  current-invocation context and reconnect diffing in the Node and Rust SDKs.
+- **Phase 4.** The same API in Python, Go and the browser (the browser SDK
+  hosts local dispatch for its own functions and its `trigger` now sends
+  `metadata` / `traceparent` / `baggage`).
+- **Phase 5, without removal.** `registerTrigger` and `registerTriggerType`
+  are deprecated in every SDK and keep working; the engine legacy shim
+  ([`protocol.md`](protocol.md) §6); the engine-hosted sources
+  `engine::on-functions-changed`, `engine::on-workers-changed`,
+  `configuration::on-updated`, `observability::on-log` and
+  `observability::on-span` ([`protocol.md`](protocol.md) §3.7); docs for 0.25
+  (`docs/next/`, the changelog and the upgrade guide `from-0-24-x`).
+
+**Not shipped**
+
+- **Phase 3**, the worker migrations. cron, http and database (and queue,
+  state, stream, pubsub) still register trigger types in the workers repo, so
+  [`cron.md`](cron.md), [`http.md`](http.md) and [`database.md`](database.md)
+  remain designs. Until a worker ships its source function, consumers keep
+  using `registerTrigger` for it.
+- Harness bindings on observers, the rbac-proxy worker support for the new
+  variants (`tech-specs/2026-06-22-rbac-proxy-worker/`), and the Console
+  observers view (the old `console/` package is no longer built).
+- **Phase 6**: removal of the trigger APIs and durable observers.
+
+**Differences from the original plan** are recorded in §11 and in the
+documents they touch: `observers.activation_timeout_ms` is a new config key;
+activations carry an `invocation_id`; `unregisterTriggerType` is honored
+rather than removed; the reporter bound covers bytes not yet written to the
+socket; local dispatch has no 16 MiB limit and falls back to the engine past
+64 nested local calls.
 
 ## 1. Decision
 
@@ -301,11 +350,12 @@ where `options` carries `id`, `metadata` and the policy.
   `dispose()` or policy exhaustion → `disposed`.
 
 **Envelope (`Observed`)**, auto delivery: `{ observer_id, activation_id,
-function_id, invocation_id, status, input?, output?, error?, caller?,
+function_id, namespace, invocation_id, status, input?, output?, error?, caller?,
 metadata?, started_at_ms, duration_ms }`.
 
-**Caller**: `{ worker_id, worker_name, function_id?, invocation_id?, parent? }`.
-`worker_*` is stamped by the engine from the connection and cannot be forged.
+**Caller**: `{ worker_id?, worker_name?, function_id?, invocation_id?, parent? }`.
+`worker_*` is stamped by the engine from the connection and cannot be forged
+(an activation's caller is the engine itself: `worker_name: "iii-engine"`).
 `parent` is the caller of the handler the call was made from, one level only.
 That answers "which worker caused this row change" when the database emits from
 inside `database::execute` ([`database.md`](database.md) §2.3).
@@ -375,7 +425,7 @@ client        http SDK                                 engine                 us
 | Completeness | Once an observer is `active`, every later invocation of the function is evaluated: routed ones by the engine, local ones by the host, because `active` waits for the host's `observerack`. For owner delivery, every later event the owner routes to it, because the owner indexes the observer in `onObserverAdded`, before the ack. |
 | Ordering | None across observers. With `max_in_flight: 1`, activations of one observer run in engine arrival order. |
 | Isolation | An observer failure never affects the observed invocation. The host never blocks on reporting: its buffer is bounded and drops newest, counting what it drops. |
-| Loops | Every invocation carries `observe_depth`. Activations deeper than `max_observe_depth` (default 8) are dropped and counted. A self-target is rejected at creation. |
+| Loops | Every invocation carries `observe_depth`. Activations deeper than `max_observe_depth` (default 8) are dropped and counted. A self-target is rejected at creation. Through a worker without `observe.v1` the guard is advisory: the engine estimates the depth from that worker's in-flight activations ([`protocol.md`](protocol.md) §3.4). |
 | Ownership | An observer belongs to the connection that created it. When that connection drops, its observers go `suspended`; `Reattach` within 30 s re-parents them with counters intact; after that they are `disposed`. When the **function's owner** disconnects, its observers go back to `pending` and are replayed when the function registers again (today's `pending_triggers` behaviour). |
 | Persistence | In-memory, like triggers today. SDKs replay observers by id. Durable observers are phase 6. |
 | Authorization | To observe you must be allowed to invoke the observed function and the target (RBAC `expose_functions`). Hook: `on_observer_registration_function_id`. A function can opt out (`observe.allow: false`). |
@@ -391,7 +441,7 @@ every step through feature negotiation ([`protocol.md`](protocol.md) §1).
 - `sdk/fixtures/filters/*.json`: shared conformance vectors, the first shared protocol contract (today every SDK hand-copies the `Message` enum).
 - Protocol types for every new message and field, all additive.
 - `functionregistered`: the success ack `RegisterFunction` never had.
-- Fix or delete `UnregisterTriggerType`, which every SDK sends and no engine decodes.
+- Fix or delete `UnregisterTriggerType`, which every SDK sends and no engine decodes. (Built: fixed, the engine decodes it and removes the type when the sender is its provider.)
 - **Done when:** the engine and all SDKs pass the same vectors, and a differential fuzz test (Rust vs TS) agrees.
 
 ### Phase 1: every function is observable (routed path)
@@ -413,6 +463,7 @@ every step through feature negotiation ([`protocol.md`](protocol.md) §1).
   - benchmarks meet §8.
 
 ### Phase 3: migrate cron, database, http
+*Not shipped in 0.25: these workers live in the workers repo.*
 - [`cron.md`](cron.md): `cron::on-tick`, one job per distinct expression, ticks emitted to that expression's observers.
 - [`database.md`](database.md): `database::on-row-changed`, native capture and the args index driven by `onObserverAdded`.
 - [`http.md`](http.md): `http::on-request`, owner delivery, route table driven by `onObserverAdded`.
@@ -425,6 +476,7 @@ every step through feature negotiation ([`protocol.md`](protocol.md) §1).
 - Browser: `trigger` must start sending `metadata` / `traceparent`.
 
 ### Phase 5: deprecation
+*0.25 ships the deprecation warnings, the legacy shim, the engine-hosted sources, and the docs. Provider migrations, harness bindings and the Console view are not shipped.*
 - `registerTrigger` / `registerTriggerType` log a deprecation warning once per process.
 - Engine legacy shim ([`protocol.md`](protocol.md) §6).
 - Remaining providers move to functions (§9): queue, pubsub, state, stream, observability, configuration, engine sources, console.
@@ -432,6 +484,7 @@ every step through feature negotiation ([`protocol.md`](protocol.md) §1).
 - Console observers view (owner, function, args, filters, target, state, fires, drops); docs.
 
 ### Phase 6: removal and durability
+*Not shipped.*
 - Remove `registerTriggerType`, `registerTrigger`, the four trigger messages and `engine/src/trigger.rs`.
 - Durable observers (owned by a worker name or session, persisted across engine restarts), needed to retire the harness binding store.
 - Optional: `on: start`, wildcard `function_id`, an equality index for functions with hundreds of observers.
@@ -483,9 +536,9 @@ Node targets are set after the phase-2 baseline (`structuredClone` dominates).
 | `subscribe` (pubsub) | `pubsub::publish`, observed directly with a filter on `input.topic` | auto, no args |
 | `state` (state) | `state::on-changed` | auto, no args: filter on `input.scope` / `input.key` |
 | `stream`, `stream:join`, `stream:leave` (iii-stream) | `stream::on-changed`, `stream::on-join`, `stream::on-leave` | auto, no args: filter on `input.stream_name` / `input.group_id` |
-| `log`, `trace` (iii-observability) | `observability::on-log`, `observability::on-span` | auto, no args: filter on `input.level`, `input.service` |
-| `configuration` (configuration) | `configuration::on-updated` | auto, no args: filter on `input.worker` |
-| `engine::functions-available`, `engine::workers-available` | `engine::on-functions-changed`, `engine::on-workers-changed` | auto, engine-hosted |
+| `log`, `trace` (iii-observability) | `observability::on-log`, `observability::on-span` | auto, no args: `on-log` carries OTel fields, filter on `input.severity_text`, `input.service_name`; `on-span` carries `{ trace_ids }` per window of about 300 ms |
+| `configuration` (configuration) | `configuration::on-updated` | auto, no args: filter on `input.id`, `input.event_type` |
+| `engine::functions-available`, `engine::workers-available` | `engine::on-functions-changed`, `engine::on-workers-changed` | auto, engine-hosted (`on-workers-changed` emits `worker_connected`, `worker_disconnected` and `worker_metadata_updated`) |
 | `console:script`, `console:style` (console) | `console::on-asset` | owner (`obs.call`): args `{ kind }` |
 
 The rule: a source takes args, and is owner-delivered, only when the owner must
@@ -505,55 +558,69 @@ picks them in phase 5.
 Functions hosted by an old SDK are still observable: an old SDK never calls
 itself in-process, so every invocation is routed and the engine evaluates it.
 
-## 11. Decisions to confirm in review
+## 11. Decisions (taken in 0.25)
 
-1. **Default `on`.** Proposed `success`, matching lang spec 05 §7.1. `complete`
-   is the alternative.
-2. **Owner delivery goes through the engine.** `obs.call` is an
+Each point was open in review. The outcome is the one built; where it differs
+from the proposal, the difference is stated.
+
+1. **Default `on`: `success`**, matching lang spec 05 §7.1. Defaults are
+   `on: success`, `capture: ["input", "output", "caller"]`, `deliver: envelope`.
+   `capture: []` is valid (ids, status and timings only); an unknown `on` /
+   `capture[]` / `deliver` value is refused with `UNSUPPORTED`, never defaulted.
+2. **Owner delivery goes through the engine**, as proposed. `obs.call` is an
    `InvokeFunction` with `activation`, so policy, the metadata sidecar and the
-   loop guard are enforced in one place. The alternative, the owner calling the
-   target directly, would leak observer metadata to the owner and skip policy.
-3. **Owners route, observers filter.** The owner reads args and hands each
-   event to the observers it belongs to (`obs.emit`, `obs.call`). Filters
-   are the observer's alone, applied by the SDK; the owner never writes one.
-4. **What owners see:** the args, the observer's filters, the target id,
-   capture and `on`. Never the observer's metadata, policy or connection.
-5. **`condition_function_id`.** Kept as an HTTP arg (deprecated in favour of
-   filters, which run in-process); dropped for cron (use a filter, or check in
-   the target).
-6. **Cron tick payload** drops `job_id`; the observer id is in the handler
-   context (`activation.observer_id`).
-7. **Database granularity:** one invocation per committed write statement, not
-   per row. Row-level matching uses `$any` on `input.returning`.
-8. **Local dispatch value semantics:** the handler gets a clone (Rust
-   move/clone, Node `structuredClone`, Python deep copy).
-9. **Who may observe.** "May invoke ⇒ may observe". Observing an
-   owner-delivered function registers a route or a consumer, so it may need its
-   own permission.
+   loop guard are enforced in one place. The engine routes to the observer's
+   stored target and ignores any `namespace` on the request.
+3. **Owners route, observers filter**, as proposed.
+4. **What owners see:** `id`, args, the observer's filters (normalized), the
+   target function id, `capture`, `on` and `legacy`. Never `deliver`, the
+   observer's metadata, policy or connection.
+5. **`condition_function_id`.** Not decided in this repo: it belongs to the
+   worker migrations (phase 3), which are not shipped. The recommendation
+   stands (kept as a deprecated HTTP arg, dropped for cron).
+6. **Cron tick payload** without `job_id`: same, decided with the cron
+   migration (phase 3, not shipped).
+7. **Database granularity:** per committed write statement, row-level matching
+   with `$any`: same, decided with the database migration (phase 3, not
+   shipped).
+8. **Local dispatch value semantics:** as proposed. The handler gets a deep
+   copy and the caller a deep copy of the result. A local call has no 16 MiB
+   limit and no engine-side `call` span; nesting deeper than 64 local calls
+   falls back to the engine.
+9. **Who may observe.** "May invoke implies may observe", as proposed: creating
+   an observer requires the session may invoke the observed function and the
+   target, and the check is repeated when the target registers on another
+   connection. No separate permission was added; `observe.allow: false` and the
+   `on_observer_registration_function_id` hook cover the rest.
 10. **Local dispatch under RBAC middleware** is disabled for sessions with a
-    `middleware_function_id`, because a local call would bypass the middleware.
-11. **Naming:** `<worker>::on-<event>` for source functions. The unit is the
-    **observer**: what `iii.observe()` creates and `dispose()` removes. The
-    owner's hooks are `onObserverAdded` / `onObserverRemoved` (Rust and
-    Python `on_observer_added` / `on_observer_removed`, Go `OnObserverAdded` /
-    `OnObserverRemoved`), called once per observer, like the wire messages
-    `observeradded` / `observerremoved`. Nothing is called "observation".
-12. **Opt-out:** functions may refuse observers with `observe.allow: false`.
-13. **Two sides.** The left side is the source (`function_id`, `args`,
-    `filters`, and the facet: `on` / `capture` / `deliver`), the right side is
-    the target function id, and an optional third argument carries the policy
-    and metadata. It mirrors `source(args) | predicate ~> target`.
-14. **Args are setup, filters are selection.** Args go to the owner and exist
-    only on owner-delivered functions: what to set up (which schedule, which
-    capture, which route). Filters say which events reach the target and stay
-    with the engine and the SDK. An event source that needs no setup takes no
-    args and is observed with filters (pubsub, state, logs).
-15. **No inline handlers.** The target is always a registered function id, so
-    the SDK no longer registers internal `observer` functions. The iii lang
-    compiler does the same for a lambda on the right of `~>`.
-16. **Explicit operators only in filters.** No literal shorthand
-    (`{ 'input.op': 'insert' }`), so a filter maps 1:1 to an iii lang
-    predicate ([`filters.md`](filters.md) §2.2).
+    `middleware_function_id`, and for functions the connection may not invoke.
+    The global switch is `observers.local_dispatch`.
+11. **Naming:** as proposed (`<worker>::on-<event>`, `onObserverAdded` /
+    `onObserverRemoved`). The unit is the observer.
+12. **Opt-out:** `observe.allow: false` yields `NOT_OBSERVABLE`.
+13. **Two sides plus options:** as proposed.
+14. **Args are setup, filters are selection:** as proposed. A function without
+    `args_format` takes no args (`INVALID_ARGS` otherwise).
+15. **No inline handlers:** as proposed.
+16. **Explicit operators only in filters:** as proposed; a literal where an
+    operator object is expected is `INVALID_FILTER`.
+
+Also decided during the build (not in the original list):
+
+- **Features** are `observe.v1` and `local-dispatch.v1`, set once per
+  connection (at most 32 entries of 64 bytes); the engine pushes the new
+  variants, and adds `caller`, `observe_depth` and `activation`, only to
+  `observe.v1` connections.
+- **Observer ids** are client-generated UUID v4 strings, stable across replays.
+- **Activations carry an `invocation_id`**; the target's reply frees the
+  observer's `max_in_flight` slot, and `observers.activation_timeout_ms` (30 s)
+  frees it for an activation never answered.
+- **Hooks** time out after 30 s (`OWNER_TIMEOUT`); a plain error is
+  `OBSERVE_REJECTED`; the next hook of the function may then overlap.
+- **Deprecation** in 0.25: `registerTrigger` / `registerTriggerType` keep
+  working with a language marker and one runtime warning per process per API.
+  `unregisterTriggerType` gets the marker only, and the engine now honors the
+  frame.
 
 ## 12. Relation to the iii language spec (v12)
 

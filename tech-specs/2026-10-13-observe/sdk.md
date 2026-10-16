@@ -5,10 +5,16 @@ They are written `N:` for `node/iii/src/iii.ts`, `R:` for
 `rust/iii/src/iii.rs`, `PY:` for `python/iii/src/iii/iii.py` and `GO:` for
 `go/iii/client.go`.
 
+These references are to the tree the plan was written against; the 0.25
+implementation moved the code (`observe*.ts`, `observable.*`, `reporter.*`,
+`invocation-context.*` in each SDK). Where this file and the code differ, the code
+wins and the difference is a decision recorded in the README.
+
 ## 1. Provider API: observable functions
 
-`registerTriggerType` is gone. A function that wants to know who observes it
-passes an `observe` descriptor to `registerFunction`.
+`registerTriggerType` is replaced (in 0.25 it keeps working, deprecated; phase 6
+removes it). A function that wants to know who observes it passes an `observe`
+descriptor to `registerFunction`.
 
 ### TypeScript (node, browser)
 
@@ -22,10 +28,10 @@ interface Observer {
   readonly capture: Capture[]
   readonly on: 'success' | 'error' | 'complete'          // auto only
   readonly legacy?: { trigger_type: string; config: unknown }   // phase 5 shim
-  matches(doc: { input?: unknown; output?: unknown; caller?: Caller; metadata?: unknown }): boolean
-  emit(event: unknown): boolean                          // owner only: fire-and-forget; false when the filters said no
+  matches(doc: { input?: unknown; output?: unknown; error?: unknown; caller?: Caller; metadata?: unknown }): boolean
+  emit(event: unknown): boolean                          // owner only: fire-and-forget; false when the filters said no or the observer is no longer active
   call<R = unknown>(payload: unknown, opts?: { timeoutMs?: number; metadata?: never }): Promise<R>   // owner only: request/response
-  reject(code: string, message: string): void            // late rejection of an active observer
+  reject(code: string, message: string): void            // late rejection of an active observer; returns nothing
 }
 
 class ObserveRejection extends Error {
@@ -37,7 +43,7 @@ interface ObserveHooks {
   args_format?: JSONSchema                               // owner only; validates observe args in the engine (INVALID_ARGS)
   legacy_trigger_type?: string
   allow?: boolean                                        // default true
-  onObserverAdded?(obs: Observer): void | Promise<void>  // throw → rejected
+  onObserverAdded?(obs: Observer): void | Promise<void>  // throw → rejected; after 30 s → OWNER_TIMEOUT
   onObserverRemoved?(obs: Observer): void | Promise<void>
 }
 
@@ -136,25 +142,44 @@ Rules:
   in place when the ack is sent, so the first event after the engine marks the
   observer `active` reaches it.
 - `obs.emit(event)`:
+  - returns `false` and sends nothing when the observer is no longer active
+    (removed or rejected meanwhile), so an owner's fan-out loop needs no guard
+    and never aborts because one observer went away concurrently;
   - builds `{ input: event, caller, metadata }`; `caller` is what a call made at
     that point would carry: inside the observed function's own handler the
     event **is** that invocation (its id, its caller); inside another handler,
     that handler is the caller; outside any handler, `{ worker_name }` only;
   - returns `false` and sends nothing when the observer's filters reject it;
-  - otherwise pushes a report item (§4.4), returns `true`, and the engine
+  - otherwise pushes a report item (§4.4), carrying the current invocation's
+    `traceparent` / `baggage` so the target's activation joins the observed
+    trace, returns `true`, and the engine
     activates the target with the `Observed` envelope (per `capture` /
     `deliver`), fire-and-forget, at most once.
 - `obs.call(payload)` checks the filters too: a miss rejects with
-  `FILTERS_NOT_MATCHED` and sends nothing. Otherwise it is an `InvokeFunction`
-  to the target with `activation`, and resolves with the target's result.
+  `FILTERS_NOT_MATCHED` and sends nothing. On a removed or rejected observer it
+  rejects with `OBSERVER_NOT_ACTIVE`. Otherwise it is an `InvokeFunction`
+  to the target with `activation` (and no `namespace`), and resolves with the
+  target's result.
 - `obs.emit()` and `obs.call()` throw `NOT_OWNER_DELIVERED` on an auto function.
 - Callbacks for one function run one at a time, in revision order. Callbacks
   of different functions may run concurrently.
 - A callback still running after 30 s is treated as a rejection with
-  `OWNER_TIMEOUT` (the engine enforces the same timeout).
+  `OWNER_TIMEOUT` (the engine enforces the same timeout) and the next callback
+  starts, so a hung callback cannot stall its function forever. Callbacks of
+  one function may therefore overlap after an `OWNER_TIMEOUT` (document it on the
+  hooks type); if the timed-out `onObserverAdded` completes later,
+  `onObserverRemoved` runs for that observer.
 - `onObserverRemoved` cannot fail; errors are logged.
 - `obs.reject(code, message)` sends a late rejection for an active observer
-  (e.g. after a config reload).
+  (e.g. after a config reload) and returns nothing, in every language. The
+  observer leaves the compiled set at once; `onObserverRemoved` runs when the
+  engine's `observerremoved` arrives. The rejection is stored on the observer,
+  so it survives a reconnect: if the socket was down, or a later
+  `functionregistered` lists the observer again, the SDK acks again with that
+  error, using the revision the engine last announced for the observer (an
+  older one is ignored as stale), and does not reactivate it until a fresh
+  `observeradded`. A rejection made while `onObserverAdded` is still running
+  wins: after the hook returns, the SDK acks with it instead of activating.
 - `args_format` with `delivery: 'auto'` throws at `registerFunction`
   (`INVALID_OBSERVE_DESCRIPTOR`): an auto function's events are its
   invocations, offered to every observer, so there is nothing to route by.
@@ -181,17 +206,18 @@ impl ObserveHandler for Schedules {
         self.scheduler.retain(&expression, obs.clone()).await           // one job per distinct expression
             .map_err(|e| ObserveRejection::new("INVALID_CRON_EXPRESSION", e.to_string()))
     }
-    async fn on_observer_removed(&self, obs: &Observer) { self.scheduler.release(&obs.id).await }
+    async fn on_observer_removed(&self, obs: &Observer) { self.scheduler.release(obs.id()).await }
 }
 
 let on_tick = iii.register_function(
     "cron::on-tick",
     RegisterFunction::new({ let s = schedules.clone(); move |tick: CronTick| {
-            for obs in s.observers(&tick.expression) { obs.emit(&tick)?; }      // filters checked here
+            for obs in s.observers(&tick.expression) { obs.emit(&tick)?; }      // filters checked here; Ok(false) on a removed observer
             Ok::<_, Error>(())
         }})
         .description("Fires on a cron schedule. Observe it with args { expression }.")
-        .request_format::<CronTick>()
+        // request_format is taken from the handler's input type (CronTick: JsonSchema);
+        // .request_format(json!({ … })) overrides it with a Value
         .observe(Observe::owner().args_format::<CronArgs>().handler(schedules.clone())),
 );
 
@@ -213,9 +239,16 @@ iii.register_function(
 
 `Observer::args<T: DeserializeOwned>() -> Result<T, ObserveRejection>`
 (`args_value() -> &Value` for the raw JSON), `filters() -> &Value`,
-`matches(&Doc) -> bool`, `emit<T: Serialize>(&T) -> Result<bool, Error>`,
-`call<T: DeserializeOwned>(payload) -> Result<T, Error>`. `Observer` is a
-cheap clone (an `Arc`), so owners keep it in their own index.
+`matches(&Doc) -> bool`, `emit<T: Serialize + ?Sized>(&T) -> Result<bool, Error>`
+(`Ok(false)` when the filters say no or the observer is inactive),
+`call<R: DeserializeOwned>(payload: impl Serialize) -> Result<R, Error>`,
+`reject(code, message)` (returns `()`). `id()`, `function_id()`,
+`namespace()`, `target()`, `capture()`, `on()`, `legacy() -> Option<&LegacyTrigger>`
+and `is_active()` are methods, not fields. `Observer` is a cheap clone (an
+`Arc`), so owners keep it in their own index. `Observe::args_format::<T>()`
+builds the schema from `T: JsonSchema`; `args_format_value(Value)` takes a
+schema as is. `RegisterFunction::local_dispatch(false)` opts out of local
+dispatch.
 
 ### Python
 
@@ -237,17 +270,18 @@ def on_tick(tick):
 
 iii.register_function("cron::on-tick", on_tick, observe=CronHooks())
 # once per fire: await iii.trigger_async({"function_id": "cron::on-tick", "payload": tick})
+# handlers and hooks may be sync or async; obs.emit() is sync, obs.call() / obs.call_async() return the target's result
 ```
 
 ### Go
 
 ```go
-client.RegisterFunction("cron::on-tick", func(ctx context.Context, tick CronTick) error {
+iii.RegisterFunctionTyped(client, "cron::on-tick", func(ctx context.Context, tick CronTick) (any, error) {
     for _, obs := range scheduler.Observers(tick.Expression) {
-        obs.Emit(ctx, tick)                                       // filters checked here
+        obs.Emit(ctx, tick)                                       // (bool, error); false when filters say no or the observer is inactive
     }
-    return nil
-}, iii.FunctionOptions{
+    return nil, nil
+}, iii.FunctionOptions{                                           // = iii.RegisterFunctionOptions
     Observe: &iii.ObserveHooks{
         Delivery:   iii.DeliveryOwner,
         ArgsFormat: cronArgsSchema,
@@ -261,7 +295,9 @@ client.RegisterFunction("cron::on-tick", func(ctx context.Context, tick CronTick
         OnObserverRemoved: func(ctx context.Context, obs *iii.Observer) { scheduler.Release(obs.ID) },
     },
 })
-// once per fire: _, err = client.Trigger(ctx, "cron::on-tick", tick)
+// once per fire: _, err = client.Trigger(ctx, iii.TriggerRequest{FunctionID: "cron::on-tick", Data: tickJSON})
+// obs.Args is a map (numbers are float64); obs.DecodeArgs(&v) fills a struct. obs.Reject(code, msg) returns nothing.
+// LocalDispatch: &false on the options opts a function out of local dispatch.
 ```
 
 ## 2. Observer API
@@ -281,7 +317,7 @@ type Filter = Record<string, unknown>                    // filters.md; explicit
 type Target = string | { function_id: string; namespace?: string }   // always a registered function
 
 interface Caller {
-  worker_id: string
+  worker_id?: string        // stamped by the engine; absent when the SDK built the caller before it knew its id, or for an engine caller
   worker_name?: string
   function_id?: string      // the handler the call was made from
   invocation_id?: string
@@ -326,7 +362,7 @@ interface ObserverHandle {
   readonly id: string
   readonly state: ObserverState
   readonly reason?: { code: string; message: string }
-  ready(): Promise<void>                // resolves on 'active'; rejects on 'error' / 'disposed'
+  ready(): Promise<void>                // resolves on 'active'; rejects with an ObserveRejection (carrying the code) on 'error' / 'disposed'
   onStateChange(listener: (state: ObserverState, reason?: { code: string; message: string }) => void): () => void
   dispose(): Promise<void>
 }
@@ -334,6 +370,9 @@ interface ObserverHandle {
 iii.observe(source: ObserveSource, target: Target, options?: ObserverOptions): ObserverHandle
 ```
 
+- `onStateChange` listeners never run on the connection's read loop (a listener
+  that calls the client would deadlock it): they are delivered asynchronously,
+  in order, per handle.
 - `observe()` returns a handle synchronously, like `registerTrigger` does
   today. It works before the connection is up and is replayed on reconnect with
   the same id.
@@ -395,6 +434,15 @@ The current invocation is available in every handler, both remote and local:
 const inv = iii.currentInvocation()   // { function_id, invocation_id, caller, activation?, observe_depth } | undefined
 ```
 
+In the browser SDK there is no `AsyncLocalStorage`: the context is a
+synchronous scope, set while a handler runs until its first `await`, and
+`iii.withInvocation(inv, fn)` re-enters a captured one. After an `await`, an
+outgoing call carries the `observe_depth` of the deepest running invocation and
+a `caller` only when that is unambiguous (exactly one invocation is running
+and it is part of an observe chain). The browser `trigger()` also sends
+`metadata`, `traceparent` and `baggage`, and handlers receive the metadata as
+their second argument.
+
 ### Rust
 
 ```rust
@@ -420,6 +468,7 @@ let route = iii.observe(
 );
 
 let inv = iii_sdk::current_invocation();   // Option<InvocationCtx>
+// iii.trigger(TriggerRequest::new(id, payload).dispatch(Dispatch::Remote)) forces the engine path
 ```
 
 ### Python
@@ -432,7 +481,7 @@ digest = iii.observe(
     "local::cron-handler",
     {"max_fires": 10},                    # optional third argument
 )
-await digest.ready()
+await digest.ready_async()                # ready() blocks in sync code
 ```
 
 ### Go
@@ -442,8 +491,10 @@ digest, err := client.Observe(iii.Source{
     FunctionID: "cron::on-tick",
     Args:       iii.Args{"expression": "0 0 9 * * Mon-Fri"},
     Filters:    iii.Filters{"input.scheduled_time": iii.Op{"$gte": "2026-11-01T00:00:00Z"}},
-}, "local::cron-handler")                 // optional: iii.ObserverOptions{MaxFires: 10}
+}, "local::cron-handler")                 // optional: iii.ObserverOptions{MaxFires: 10, TargetNamespace: …}
+err = digest.Ready(ctx)
 inv, ok := iii.InvocationFromContext(ctx)
+// client.IsObserved(id) / client.Observers(id) are the FunctionRef.isObserved() / observers() of Go
 ```
 
 ## 3. `trigger()` does not change for callers
@@ -462,9 +513,19 @@ The SDK takes the **local path** when every one of these holds:
    (`N:147-156`, `R:743-759`);
 4. `action` is not `enqueue` (the caller expects a queue receipt). `void` runs
    locally, fire-and-forget;
-5. `dispatch !== 'remote'`.
+5. `dispatch !== 'remote'`;
+6. the call is nested at most 64 local calls deep in the same task or async
+   context (re-entrancy guard). A deeper call takes the remote path, so
+   recursive self-calls cannot overflow the stack.
 
 Otherwise the call goes over the wire as today.
+
+Differences from the remote path, all documented in the upgrade guide:
+nothing is serialized, so a local call has **no 16 MiB frame limit** (a test
+that asserts `payload_too_large` on a call to a function hosted by the same
+instance must force `dispatch: 'remote'`); the engine records no `call` span
+or metrics for it (counts arrive through `localinvocationstats`); the handler
+gets a copy of the payload and the caller a copy of the result.
 
 ## 4. Internals
 
@@ -500,7 +561,9 @@ on functionregistered(fn, rev, list):
   diff list against fn.observers:
     for removed ids → onObserverRemoved(obs)        // e.g. after an engine restart
     for new ids     → handleAdded(obs, rev)
-    for kept ids    → update args/filters if changed
+    for kept ids    → ack again with rev, without calling the hook (the engine holds a replayed set
+                      pending until acked); a stored late rejection is sent as that ack's error
+                      instead. An observer whose args changed is removed, then added.
   fn.revision = rev
 
 on observeradded(fn, rev, obs):  if rev <= fn.revision on this connection → ignore; else handleAdded(obs, rev)
@@ -509,8 +572,9 @@ on observerremoved(fn, rev, id): if rev <= fn.revision → ignore; else remove f
 handleAdded(obs, rev):                              // serialized per function
   await hooks.onObserverAdded?(obs)                 // throw → ack {error}; timeout 30 s → ack {error: OWNER_TIMEOUT}
                                                     // an owner indexes obs here (job, route, table)
+  if obs has a stored rejection (reject() ran meanwhile): send observerack { …, error } and stop   // a rejection wins over activation
   compiled += { id, match: compile(obs.filters), capture, on }   // before the ack
-  send observerack { function_id, id, revision: rev }
+  send observerack { function_id, id, revision: rev }            // rev: what the engine announced for this observer
   fn.revision = rev
 ```
 
@@ -518,6 +582,8 @@ handleAdded(obs, rev):                              // serialized per function
 
 ```
 invokeLocal(fn, req):
+  if local nesting depth >= 64: take the remote path     // re-entrancy guard
+  set      = fn.compiled                                 // captured at call start; empty for owner functions
   parent   = currentInvocation()                         // ALS / task_local / contextvar / ctx
   ctx      = { function_id: fn.id, invocation_id: uuid(),
                caller: { worker_id: self.workerId, worker_name: self.workerName,
@@ -525,14 +591,15 @@ invokeLocal(fn, req):
                          parent: strip(parent?.caller) },
                observe_depth: parent?.observe_depth ?? 0 }
   input    = clone(req.payload)                          // value semantics, README §11.8
+  snapshot = set non-empty ? clone(req.payload) : none   // what a report carries: the payload as the caller sent it
   started  = now()
   outcome  = run fn.wrapper(input, req.metadata) within ctx   // reuses the existing wrapper, so the
                                                              // `execute <fn>` span is still created
   (void → don't await; otherwise race the timeout → InvocationError{TIMEOUT}, same as remote)
   errors   → the same InvocationError shape as the remote path
   stats.count(fn.id, outcome)
-  set = fn.compiled                                      // empty for owner functions
-  if set is non-empty:
+  if set is non-empty:                                   // the set captured at call start: if it was empty the call
+                                                         // is not reported and its input was never cloned for reporting
       doc     = lazy view { input, output | error, caller, metadata }
       matched = [o.id for o in set if o.on accepts outcome and o.match(doc)]
       if matched: reporter.push(item(fn, ctx, outcome, union of matched captures))   // never blocks
@@ -544,15 +611,15 @@ the handler itself picks observers and calls `obs.emit()` or `obs.call()`.
 
 ```
 emit(obs, event):                                        // owner functions only, else NOT_OWNER_DELIVERED
-  c       = fn.compiled[obs.id]                          // absent → OBSERVER_NOT_ACTIVE
+  c       = fn.compiled[obs.id]                          // absent (removed, rejected) → return false, nothing sent
   cur     = currentInvocation()
   caller  = cur?.function_id == fn.id ? cur.caller       // inside the function's own handler: that invocation
           : cur ? { function_id: cur.function_id, invocation_id: cur.invocation_id, parent: strip(cur.caller) }
           : {}                                           // outside any handler; the engine stamps worker_*
   doc     = lazy view { input: event, caller, metadata: cur?.metadata }
   if !c.match(doc): return false                         // nothing sent
-  reporter.push(item(fn, cur, event, caller, matched: [obs.id], captures of c))
-                                                         // same event value in one flush → one item, matched: [ids…]
+  reporter.push(item(fn, cur, event, caller, matched: [obs.id], captures of c))   // carries cur's traceparent / baggage
+                                                         // same event value, still in the buffer → one item, matched: [ids…]
   return true
 
 call(obs, payload):                                      // owner functions only
@@ -568,11 +635,13 @@ call(obs, payload):                                      // owner functions only
 
 **Current-invocation context.** No SDK has one today; this is new work.
 - Node: an `AsyncLocalStorage`, set in `onInvokeFunction` (`N:1276`) from the inbound `InvokeFunction.caller` / `activation` / `observe_depth`, and in `invokeLocal`.
+- Browser: no `AsyncLocalStorage`. A synchronous scope set around the handler call and restored when it returns, plus `iii.withInvocation(inv, fn)` to re-enter a captured context. Past an `await`, the ambient depth is that of the deepest running invocation and the caller is attached only when unambiguous (§2).
+  Outside a scope the browser estimates call depth from the running invocations: calls made in separate macrotasks while earlier local handlers still run may be counted as nested (past 64 levels some go remote while connected); offline, hosted functions run locally up to 256 levels, then fail with `LOCAL_DEPTH_EXCEEDED`.
 - Rust: a `tokio::task_local!`, set around the handler future in `handle_invoke_function` (`R:2729`) and in the local path. Code that `tokio::spawn`s from inside a handler loses it; `iii_sdk::scope(ctx, fut)` carries it explicitly.
 - Python: a `contextvars.ContextVar`. Sync handlers run on a raw `threading.Thread` (`PY:1481-1494`), so they must start with `contextvars.copy_context().run`, which also fixes OTel context loss there today.
 - Go: a `context.Context` value, which the handler already receives.
 
-Outgoing remote `trigger()` calls add `caller: {function_id, invocation_id, parent}` and `observe_depth` from the context.
+Outgoing remote `trigger()` calls add `caller: {function_id, invocation_id, parent}` and `observe_depth` from the context, only when the engine advertised `observe.v1`. Report and emit callers include the `worker_id` / `worker_name` the SDK knows; the engine overwrites them.
 
 **Execution context changes.**
 - In Rust, remote handlers run on the iii connection thread's runtime (`R:2787`). Local ones run on the caller's task, and a sync handler (`RegisterFunction::new`) runs inline. A function whose sync handler can block should be async or opt out (`localDispatch: false`).
@@ -581,10 +650,12 @@ Outgoing remote `trigger()` calls add `caller: {function_id, invocation_id, pare
 ### 4.4 The reporter
 
 - **One buffer for both modes.** It carries matched local calls of auto functions and `obs.emit` events of owner functions; the engine handles them the same way ([`protocol.md`](protocol.md) §3.4).
-- **Bounded.** The default is 10 000 items or 8 MiB. When full it drops the newest and counts it under `BUFFER_FULL`. It never blocks the invocation or the emit.
+- **Bounded.** The default is 10 000 items or 8 MiB, and the 8 MiB covers the bytes already flushed but not yet written to the socket (Node `ws.bufferedAmount`, Rust bytes in the outbound channel or held frames, Python and Go their send queue). When full it drops the newest and counts it under `BUFFER_FULL` (or defers the flush), so a peer that stops reading cannot grow memory without bound. It never blocks the invocation or the emit.
 - **Flushing.** At 256 items or after 5 ms linger, whichever comes first. A flush is split to stay under the 16 MiB frame limit (`N:1041-1064`, `R:2063-2124`). An item too large on its own is dropped and counted as `TOO_LARGE`.
-- **While disconnected.** Items stay in the same bounded buffer and are flushed after reconnect. The engine delivers those whose observers are active when they arrive; the rest are dropped as `INACTIVE`.
-- **Stats.** Drop counters and per-function local invocation counts go out in `localinvocationstats` every 10 s, only when non-zero.
+- **Held until confirmed.** Items of a function are held until `functionregistered` arrived for it on the current connection. A function that cannot be confirmed (`FUNCTION_NAMESPACE_CONFLICT`, unregister) has its held items discarded and counted as `INACTIVE`, and an item pushed after the function was released is counted `INACTIVE`, never held. Held items of a function confirmed on the current connection are never expired or discarded while its hooks are still running.
+- **Coalescing.** An emit item enters the coalescing index only while it is in the buffer; an item already flushed is never merged into.
+- **While disconnected.** Items stay in the same bounded buffer. What happens to them is decided at flush time, per connection: nothing is sent unless the engine of the new connection advertised `observe.v1`, and items are sent once their function is confirmed on it. Observe-family frames queued while disconnected (`observe`, `unobserve`, `observerack`, `invocationsobserved`, `localinvocationstats`) are dropped at flush time under the same rule. The engine delivers the items whose observers are active when they arrive; the rest are dropped as `INACTIVE`.
+- **Stats.** Drop counters and per-function local invocation counts go out in `localinvocationstats` every 10 s, only when non-zero. The counts include every local invocation, observed or not, because they feed the engine's invocation metrics. "Zero wire" therefore means no per-call frames: it excludes this periodic frame.
 
 ### 4.5 Reconnect
 
@@ -594,7 +665,8 @@ Outgoing remote `trigger()` calls add `caller: {function_id, invocation_id, pare
 - **The observer set is replaced only by the engine.** On reconnect the
   replayed `RegisterFunction` gets a fresh `functionregistered` with the full
   set, and the SDK diffs it (§4.2): `onObserverRemoved` for what disappeared,
-  `onObserverAdded` for what is new. This is safe: the engine never marks an
+  `onObserverAdded` for what is new, and a plain re-ack for what it already
+  holds. A late rejection (`obs.reject`) is stored and re-sent here. This is safe: the engine never marks an
   observer `active` before the owner acked it, so a stale set cannot miss an
   active observer.
 - **What gets replayed.** Functions (with their `observe` descriptor) and
@@ -614,7 +686,7 @@ New branches for `functionregistered`, `observeradded`,
 - Python: `PYT:10-25` and `PY:681-715`;
 - Go: `GOP:35-50` and `GOP:389-441`.
 
-The SDK advertises `features` in the `engine::workers::register` payload:
+Unknown fields and message types are ignored. The SDK advertises `features` in the `engine::workers::register` payload:
 Node `N:715-734`; Rust `WorkerMetadata`, `R:575-599`; Python `PY:1674-1725`;
 Go `GO:894-902`.
 
@@ -631,12 +703,16 @@ Go `GO:894-902`.
 | `call_request_format` | `request_format` of the function | 5 / 6 |
 | `registerTrigger({type, function_id, config, metadata})` | `observe({ function_id, args, filters }, target, { metadata })` | deprecated 5, removed 6 |
 | `TriggerTypeRef.registerTrigger / registerFunction` helpers | `observe` | 5 / 6 |
-| `unregisterTriggerType` | removed (no engine variant decodes it today) | 0 |
+| `unregisterTriggerType` | engine now decodes and honors it (0.25); the SDKs keep sending `{id, namespace?}`; language marker only, removed in phase 6 | 0 |
 | Rust `RegisterTriggerType::new(..)`, `iii.register_trigger(RegisterTriggerInput{..})` | `RegisterFunction::observe(..)`, `iii.observe(Source::function(..).args(..), target)` | 5 / 6 |
 
-- The deprecated calls log once per process in phase 5 and keep working
-  through either a live old-style provider or the engine legacy shim
-  ([`protocol.md`](protocol.md) §6).
+- `registerTrigger` and `registerTriggerType` (also through trigger-type helper
+  objects) log one warning per process per API in phase 5, pointing to the
+  migration guide, and keep working through either a live old-style provider
+  or the engine legacy shim ([`protocol.md`](protocol.md) §6). The other
+  deprecated names carry the language-level marker only
+  (`@deprecated`, `#[deprecated(since = "0.25.0")]`, `DeprecationWarning`
+  docs, `// Deprecated:`).
 - `iii.interest()` from the previous draft of this plan is dropped: hooks plus
   `FunctionRef.isObserved()` / `observers()` cover it.
 
@@ -647,7 +723,11 @@ Go `GO:894-902`.
   again with `'remote'`. The observer-visible envelopes must be identical, apart
   from `invocation_id` / `activation_id` and timings.
 - **Zero-wire.** Install a frame counter on the socket. 1M local calls of an
-  unobserved function must send zero frames.
+  unobserved function must send zero per-call frames: the counter excludes the
+  periodic `localinvocationstats` (drive its timer with fake or paused time),
+  and it must see sends made during the loop (yield periodically, or count
+  synchronously at the socket write). Include a positive control: an observed
+  function in the same harness produces a non-zero count.
 - **Activation race.** Call `observe()`, await `ready()`, then make N local
   calls. Exactly N activations must arrive (with `max_in_flight` large enough).
 - **Args.** `obs.args` equals what the observer sent; a missing required
@@ -672,7 +752,11 @@ Go `GO:894-902`.
     event to N observers in one flush are one report item.
   - `obs.call()` returns the target's result; it rejects with
     `FILTERS_NOT_MATCHED` and no frame when the filters reject the payload, and
-    with `OBSERVER_NOT_ACTIVE` after dispose.
+    with `OBSERVER_NOT_ACTIVE` after dispose; `obs.emit()` after dispose
+    returns `false` without throwing.
+  - `obs.reject()` removes the observer from the compiled set at once, is
+    re-sent after a reconnect with the last announced revision, and wins over
+    a still-running `onObserverAdded`.
   - Both throw `NOT_OWNER_DELIVERED` on an auto function; the target sees the
     observer's metadata sidecar.
 - **Reconnect.** Drop the socket mid-stream, then check that local dispatch
@@ -681,3 +765,9 @@ Go `GO:894-902`.
   `FUNCTION_NAMESPACE_CONFLICT` on replay disables local dispatch.
 - **Value semantics.** A handler that mutates its input must not affect the
   caller's object, and the reverse.
+- **Local limits.** A local call has no 16 MiB limit (force `dispatch: 'remote'`
+  to test `payload_too_large`), and nesting deeper than 64 falls back to the
+  remote path.
+- **Listeners and hooks.** `onStateChange` listeners run asynchronously, in
+  order, never on the read loop; hooks of one function may overlap after an
+  `OWNER_TIMEOUT`.

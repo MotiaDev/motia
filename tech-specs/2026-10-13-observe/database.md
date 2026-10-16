@@ -66,7 +66,8 @@ let row_changed = iii.register_function(
                             move |event: RowChangedEvent| capture.route(event) })   // §2.3
         .description("Invoked once per committed write statement. Observe it with args \
                       { db, table?, ops? } and filter on input.returning / caller.")
-        .request_format::<RowChangedEvent>()
+        // request_format / response_format come from the handler's argument and return types
+        // (JsonSchema); .request_format(json!({ … })) overrides them with a Value
         .observe(Observe::owner()                                         // the database picks who gets each event
             .args_format::<RowChangedArgs>()                               // was the trigger config
             .legacy_trigger_type("database::row-changed")
@@ -142,7 +143,8 @@ impl NativeCapture {
     /// The function's handler: the args-based match RowChangeBus used to do per subscriber.
     fn route(&self, event: RowChangedEvent) -> Result<(), Error> {
         for obs in self.index.matching(&event.db, event.table.as_deref(), event.op) {
-            obs.emit(&event)?;     // the observer's filters run here; a miss sends nothing
+            obs.emit(&event)?;     // the observer's filters run here; a miss sends nothing. Ok(false) on a miss or a
+                                   // removed observer, so the routing loop needs no guard
         }
         Ok(())
     }
@@ -183,7 +185,7 @@ impl NativeCapture {
 #[async_trait]
 impl ObserveHandler for NativeCapture {
     async fn on_observer_added(&self, obs: &Observer) -> Result<(), ObserveRejection> {
-        let args = match &obs.legacy {
+        let args = match obs.legacy() {
             Some(legacy) => self.legacy_args(&legacy.config)?,        // phase 5 shim, §2.5: canonicalizes
             None => {
                 let args = obs.args::<RowChangedArgs>()?;               // db required: checked by the engine
@@ -201,15 +203,15 @@ impl ObserveHandler for NativeCapture {
             };
             // resolve against the catalog (quoted PG identifiers are case-sensitive), then the
             // existing install path: advisory lock + DDL / changelog / binlog checks
-            self.retain(&args.db, t, &obs.id).await.map_err(ObserveRejection::from)?;
+            self.retain(&args.db, t, obs.id()).await.map_err(ObserveRejection::from)?;
         }
         self.index.insert(&args, obs.clone());                    // (db, table) → observers, with their ops
         Ok(())
     }
 
     async fn on_observer_removed(&self, obs: &Observer) {
-        self.index.remove(&obs.id);
-        self.release(&obs.id).await;                              // refcount per (db, table)
+        self.index.remove(obs.id());
+        self.release(obs.id()).await;                              // refcount per (db, table)
     }
 }
 ```

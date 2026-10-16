@@ -54,7 +54,8 @@ let on_tick = iii.register_function(
                             move |tick: CronTick| schedules.dispatch(tick) })   // §2.3
         .description("Fires on a cron schedule. Observe it with args { expression } \
                       (UTC, 6 or 7 fields).")
-        .request_format::<CronTick>()
+        // request_format / response_format come from the handler's argument and return types
+        // (JsonSchema); .request_format(json!({ … })) overrides them with a Value
         .observe(Observe::owner()                                         // cron picks who gets each tick
             .args_format::<CronArgs>()                                    // engine: INVALID_ARGS
             .legacy_trigger_type("cron")
@@ -81,7 +82,7 @@ let on_tick = iii.register_function(
 #[async_trait]
 impl ObserveHandler for Schedules {
     async fn on_observer_added(&self, obs: &Observer) -> Result<(), ObserveRejection> {
-        let expression = match &obs.legacy {
+        let expression = match obs.legacy() {
             Some(l) => legacy_expression(&l.config)?,                    // §2.4
             None => obs.args::<CronArgs>()?.expression,                  // validated by the engine
         };
@@ -91,7 +92,7 @@ impl ObserveHandler for Schedules {
     }
 
     async fn on_observer_removed(&self, obs: &Observer) {
-        self.scheduler.read().await.release(&obs.id).await;              // job stops when its last observer leaves
+        self.scheduler.read().await.release(obs.id()).await;              // job stops when its last observer leaves
     }
 }
 ```
@@ -128,7 +129,8 @@ loop {
 impl Schedules {
     fn dispatch(&self, tick: CronTick) -> Result<(), Error> {
         for obs in self.observers(&tick.expression) {
-            obs.emit(&tick)?;     // the SDK checks this observer's filters; a match joins the batched report
+            obs.emit(&tick)?;     // the SDK checks this observer's filters; a match joins the batched report.
+                                  // Ok(false) on a miss or on an observer removed meanwhile: no guard needed
         }
         Ok(())
     }
