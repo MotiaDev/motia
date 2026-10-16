@@ -244,11 +244,11 @@ pub struct ObserverStatus {
 
 type Listener = Arc<dyn Fn(&ObserverState, Option<&ObserverReason>) + Send + Sync>;
 
-type Delivery = Box<dyn FnOnce() + Send>;
+pub(crate) type Delivery = Box<dyn FnOnce() + Send>;
 
 /// Runs state listeners on a thread of their own, in order: never on the
 /// connection's read loop, which a listener calling the client would stall.
-fn deliver(job: Delivery) {
+pub(crate) fn deliver(job: Delivery) {
     static QUEUE: OnceLock<Mutex<std::sync::mpsc::Sender<Delivery>>> = OnceLock::new();
     let queue = QUEUE.get_or_init(|| {
         let (tx, rx) = std::sync::mpsc::channel::<Delivery>();

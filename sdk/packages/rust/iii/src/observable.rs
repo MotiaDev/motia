@@ -1412,17 +1412,40 @@ mod tests {
         );
         let hello = json!({ "type": "workerregistered", "worker_id": "w" });
         feed(&iii, hello.clone());
-        feed(&iii, hello);
-        logs_assert(|lines: &[&str]| {
+        feed(&iii, hello.clone());
+        // registered once the engine said it has no observe: warned too
+        iii.register_function(
+            "o::late",
+            RegisterFunction::new(|v: Value| Ok::<_, Error>(v)).observe(Observe::owner()),
+        );
+        iii.register_function(
+            "o::late-plain",
+            RegisterFunction::new(|v: Value| Ok::<_, Error>(v)),
+        );
+        let warned = |lines: &[&str]| {
             let hits: Vec<&&str> = lines
                 .iter()
                 .filter(|l| l.contains("does not support observe"))
                 .collect();
             match hits.as_slice() {
-                [line] if line.contains("o::hooked") && !line.contains("o::plain") => Ok(()),
-                other => Err(format!("expected one line naming o::hooked, got {other:?}")),
+                [first, late]
+                    if first.contains("o::hooked")
+                        && !first.contains("o::plain")
+                        && late.contains("o::late")
+                        && !late.contains("o::late-plain")
+                        && !late.contains("o::hooked") =>
+                {
+                    Ok(())
+                }
+                other => Err(format!(
+                    "expected a line naming o::hooked, then one naming o::late, got {other:?}"
+                )),
             }
-        });
+        };
+        logs_assert(warned);
+        // a reconnect to the same engine says nothing new
+        feed(&iii, hello);
+        logs_assert(warned);
     }
 
     /// A peer that stops reading: flushed frames wait in the outbound channel,

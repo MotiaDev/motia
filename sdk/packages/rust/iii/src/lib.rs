@@ -54,7 +54,9 @@ pub mod errors {
 pub use context::{InvocationCtx, current_invocation, scope};
 pub use error::{Error, InvocationError};
 pub use iii::TelemetryOptions;
-pub use iii::{IIIClient, RegisterFunction, RegisterTriggerType, WorkerIdentityMode};
+pub use iii::{
+    IIIClient, ObserveSupportListener, RegisterFunction, RegisterTriggerType, WorkerIdentityMode,
+};
 pub use iii_filter::{Doc, Filter};
 pub use iii_helpers::queue::EnqueueResult;
 pub use observable::{Observe, ObserveHandler, ObserveRejection, Observer};

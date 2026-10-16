@@ -444,6 +444,69 @@ pub(crate) struct RemoteCall {
     pub activation: Option<Activation>,
 }
 
+type ObserveSupportFn = Arc<dyn Fn(bool) + Send + Sync>;
+
+/// A listener of [`IIIClient::on_engine_supports_observe`].
+struct SupportListener {
+    id: u64,
+    /// Cleared by `unsubscribe`: a call already queued does not start.
+    active: Arc<AtomicBool>,
+    /// The value it was last told (or found when added).
+    heard: Option<bool>,
+    call: ObserveSupportFn,
+}
+
+/// Listeners of the engine's observe support.
+#[derive(Default)]
+struct ObserveSupport {
+    next_id: u64,
+    listeners: Vec<SupportListener>,
+}
+
+impl ObserveSupport {
+    /// Tells each listener `observe`; enqueued under the lock, so listeners
+    /// hear changes in order.
+    fn notify(listeners: Vec<(Arc<AtomicBool>, ObserveSupportFn)>, observe: bool) {
+        crate::observe::deliver(Box::new(move || {
+            for (active, listener) in listeners {
+                if !active.load(Ordering::Acquire) {
+                    continue;
+                }
+                // one listener's panic does not cost the others the change
+                let call = std::panic::AssertUnwindSafe(|| listener(observe));
+                if let Err(panic) = std::panic::catch_unwind(call) {
+                    tracing::warn!(
+                        "engine observe support listener panicked: {}",
+                        crate::observable::panic_message(&panic)
+                    );
+                }
+            }
+        }));
+    }
+}
+
+/// A listener added with [`IIIClient::on_engine_supports_observe`].
+#[derive(Debug)]
+pub struct ObserveSupportListener {
+    support: std::sync::Weak<Mutex<ObserveSupport>>,
+    id: u64,
+    active: Arc<AtomicBool>,
+}
+
+impl ObserveSupportListener {
+    /// Stops calling the listener: once this returns no call starts, queued
+    /// ones included (a call already running finishes).
+    pub fn unsubscribe(self) {
+        self.active.store(false, Ordering::Release);
+        if let Some(support) = self.support.upgrade() {
+            support
+                .lock_or_recover()
+                .listeners
+                .retain(|listener| listener.id != self.id);
+        }
+    }
+}
+
 /// What the engine said it supports, on the current connection.
 const ENGINE_FEATURES_UNKNOWN: u8 = 0;
 const ENGINE_WITHOUT_OBSERVE: u8 = 1;
@@ -1567,8 +1630,11 @@ pub(crate) struct IIIInner {
     engine_features: AtomicU8,
     /// The last engine advertised observe: outgoing calls carry `caller`.
     engine_observe_last: AtomicBool,
-    /// Warned once that this engine leaves observe hooks inactive.
-    warned_no_observe: AtomicBool,
+    /// Listeners of [`IIIClient::on_engine_supports_observe`].
+    observe_support: Arc<Mutex<ObserveSupport>>,
+    /// Functions already named in the warning that the engine leaves their
+    /// observe hooks inactive; cleared by an engine that supports observe.
+    warned_no_observe: Mutex<HashSet<String>>,
     /// Incremented on every established connection; a function confirmed on
     /// an older one waits for its new `functionregistered`.
     pub(crate) connection_epoch: AtomicU64,
@@ -1643,7 +1709,8 @@ impl IIIClient {
             observers: Mutex::new(HashMap::new()),
             engine_features: AtomicU8::new(ENGINE_FEATURES_UNKNOWN),
             engine_observe_last: AtomicBool::new(false),
-            warned_no_observe: AtomicBool::new(false),
+            observe_support: Arc::default(),
+            warned_no_observe: Mutex::new(HashSet::new()),
             connection_epoch: AtomicU64::new(0),
             identity: ArcSwap::from_pointee(identity),
             reporter: Reporter::default(),
@@ -2009,6 +2076,13 @@ impl IIIClient {
         }
         drop(funcs);
         let _ = self.send_prepared(envelope);
+        // Registered after this engine said it has no observe: warned here,
+        // as `on_engine_features` did for the functions it found.
+        if state.needs_observe
+            && self.inner.engine_features.load(Ordering::SeqCst) == ENGINE_WITHOUT_OBSERVE
+        {
+            self.warn_no_observe(vec![id.clone()]);
+        }
 
         let iii = self.clone();
         let unregister_id = id.clone();
@@ -2538,6 +2612,89 @@ impl IIIClient {
     /// ```
     pub fn get_connection_state(&self) -> IIIConnectionState {
         *self.inner.connection_state.lock_or_recover()
+    }
+
+    /// Whether the engine on the current connection supports observe: it
+    /// advertised `observe.v1` in its `WorkerRegistered`. `None` until that
+    /// arrives, before the first connection and again while reconnecting.
+    ///
+    /// Without it, `observe()` fails with `UNSUPPORTED` and observable
+    /// functions register as plain functions whose hooks never run; a
+    /// worker can keep a fallback for older engines (its former trigger
+    /// type, say) when this is `Some(false)`. Pair it with
+    /// [`on_engine_supports_observe`](Self::on_engine_supports_observe) to
+    /// follow changes across reconnects.
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// # use iii_sdk::{register_worker, InitOptions};
+    /// # let worker = register_worker("ws://localhost:49134", InitOptions::default());
+    /// if worker.engine_supports_observe() == Some(false) {
+    ///     eprintln!("engine without observe: keeping the fallback");
+    /// }
+    /// ```
+    pub fn engine_supports_observe(&self) -> Option<bool> {
+        match self.inner.engine_features.load(Ordering::SeqCst) {
+            ENGINE_WITH_OBSERVE => Some(true),
+            ENGINE_WITHOUT_OBSERVE => Some(false),
+            _ => None,
+        }
+    }
+
+    /// Calls `listener` with the engine's observe support (see
+    /// [`engine_supports_observe`](Self::engine_supports_observe)) when it
+    /// becomes known and whenever a later connection's `WorkerRegistered`
+    /// changes it (an engine upgraded or rolled back between reconnects).
+    /// Not called for a reconnect to an engine that says the same, nor while
+    /// reconnecting (the value is unknown then, not changed).
+    ///
+    /// A listener is called with the current value right away when it is
+    /// known; one added while it is not (before the first connection,
+    /// while reconnecting) hears it from the next `WorkerRegistered`, the
+    /// same value or not. Either way it sees every value from the current
+    /// one on, in order. Listeners run on the same thread as
+    /// [`ObserverHandle::on_state_change`](crate::ObserverHandle::on_state_change)
+    /// listeners, never on the connection's read loop: one may call the
+    /// client.
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// # use iii_sdk::{register_worker, InitOptions};
+    /// # let worker = register_worker("ws://localhost:49134", InitOptions::default());
+    /// let listener = worker.on_engine_supports_observe(|observe| {
+    ///     if !observe {
+    ///         eprintln!("engine without observe: registering the fallback");
+    ///     }
+    /// });
+    /// // later
+    /// listener.unsubscribe();
+    /// ```
+    pub fn on_engine_supports_observe<F>(&self, listener: F) -> ObserveSupportListener
+    where
+        F: Fn(bool) + Send + Sync + 'static,
+    {
+        let call: ObserveSupportFn = Arc::new(listener);
+        let active = Arc::new(AtomicBool::new(true));
+        let mut support = self.inner.observe_support.lock_or_recover();
+        // read under the lock: `on_engine_features` stores the value before
+        // taking it, so a change either shows here or finds `heard` stale
+        let current = self.engine_supports_observe();
+        let id = support.next_id;
+        support.next_id += 1;
+        support.listeners.push(SupportListener {
+            id,
+            active: active.clone(),
+            heard: current,
+            call: call.clone(),
+        });
+        if let Some(observe) = current {
+            ObserveSupport::notify(vec![(active.clone(), call)], observe);
+        }
+        ObserveSupportListener {
+            support: Arc::downgrade(&self.inner.observe_support),
+            id,
+            active,
+        }
     }
 
     pub(crate) fn set_connection_state(&self, state: IIIConnectionState) {
@@ -3638,17 +3795,51 @@ impl IIIClient {
                 .filter(|data| data.observe.needs_observe)
                 .map(|data| data.message.id.clone())
                 .collect();
-            if !inactive.is_empty() && !self.inner.warned_no_observe.swap(true, Ordering::Relaxed) {
-                tracing::warn!(
-                    functions = ?inactive,
-                    "the engine does not support observe (no `observe.v1`): these functions are \
-                     registered as plain functions and their observe hooks will not run"
-                );
+            self.warn_no_observe(inactive);
+        }
+        if observe {
+            // a later engine without observe is worth saying again
+            self.inner.warned_no_observe.lock_or_recover().clear();
+        }
+        {
+            // each listener that has not heard this value yet: after a
+            // change, or added while reconnecting
+            let mut support = self.inner.observe_support.lock_or_recover();
+            let tell: Vec<(Arc<AtomicBool>, ObserveSupportFn)> = support
+                .listeners
+                .iter_mut()
+                .filter(|listener| listener.heard != Some(observe))
+                .map(|listener| {
+                    listener.heard = Some(observe);
+                    (listener.active.clone(), listener.call.clone())
+                })
+                .collect();
+            if !tell.is_empty() {
+                ObserveSupport::notify(tell, observe);
             }
         }
         // Reports buffered while disconnected wait for their functions'
         // confirmation; stats and anything else due go out now.
         self.inner.reporter.wake.notify_one();
+    }
+
+    /// Warns, once per function, that the engine leaves these functions'
+    /// observe hooks inactive.
+    fn warn_no_observe(&self, functions: Vec<String>) {
+        let fresh: Vec<String> = {
+            let mut warned = self.inner.warned_no_observe.lock_or_recover();
+            functions
+                .into_iter()
+                .filter(|id| warned.insert(id.clone()))
+                .collect()
+        };
+        if !fresh.is_empty() {
+            tracing::warn!(
+                functions = ?fresh,
+                "the engine does not support observe (no `observe.v1`): these functions are \
+                 registered as plain functions and their observe hooks will not run"
+            );
+        }
     }
 
     fn fail_unsupported(entry: &ObserverEntry) {
@@ -4952,6 +5143,111 @@ mod tests {
 
         assert!(!shutdown);
         assert!(queue.is_empty());
+    }
+
+    fn hello(iii: &IIIClient, observe: bool) {
+        let features: Vec<&str> = if observe { vec!["observe.v1"] } else { vec![] };
+        let message = serde_json::json!({ "type": "workerregistered", "worker_id": "w",
+            "features": features });
+        iii.handle_message(&message.to_string()).unwrap();
+    }
+
+    /// What `run_connection` does on a reconnect.
+    fn reconnecting(iii: &IIIClient) {
+        iii.inner
+            .engine_features
+            .store(ENGINE_FEATURES_UNKNOWN, Ordering::SeqCst);
+    }
+
+    type Heard = Arc<Mutex<Vec<bool>>>;
+
+    fn listen(iii: &IIIClient) -> (Heard, ObserveSupportListener) {
+        let heard: Heard = Arc::default();
+        let sink = heard.clone();
+        let listener =
+            iii.on_engine_supports_observe(move |observe| sink.lock().unwrap().push(observe));
+        (heard, listener)
+    }
+
+    fn wait_for(heard: &Heard, expected: Vec<bool>) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while heard.lock().unwrap().len() < expected.len() {
+            assert!(
+                Instant::now() < deadline,
+                "heard {:?}",
+                heard.lock().unwrap()
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        assert_eq!(*heard.lock().unwrap(), expected);
+    }
+
+    /// The engine's observe support: unknown until its `WorkerRegistered`,
+    /// and listeners hear each change, from the current value on.
+    #[test]
+    fn the_engines_observe_support_is_known_and_followed() {
+        let iii = IIIClient::new("ws://127.0.0.1:0");
+        assert_eq!(iii.engine_supports_observe(), None);
+        let _boom = iii.on_engine_supports_observe(|_| panic!("listener bug"));
+        let (early, early_listener) = listen(&iii);
+        hello(&iii, true);
+        assert_eq!(iii.engine_supports_observe(), Some(true));
+        wait_for(&early, vec![true]);
+
+        // added while reconnecting: told nothing until the engine says
+        reconnecting(&iii);
+        assert_eq!(iii.engine_supports_observe(), None);
+        let (during, _during) = listen(&iii);
+        hello(&iii, false);
+        assert_eq!(iii.engine_supports_observe(), Some(false));
+        wait_for(&during, vec![false]);
+        wait_for(&early, vec![true, false]);
+
+        // and told even when the engine says the same as before
+        reconnecting(&iii);
+        let (same, _same) = listen(&iii);
+        hello(&iii, false);
+        wait_for(&same, vec![false]);
+
+        // a listener added now hears the current value first
+        let (late, _late) = listen(&iii);
+        wait_for(&late, vec![false]);
+        early_listener.unsubscribe();
+        hello(&iii, true);
+        wait_for(&late, vec![false, true]);
+        wait_for(&during, vec![false, true]);
+        assert_eq!(*early.lock().unwrap(), vec![true, false]);
+        assert_eq!(*same.lock().unwrap(), vec![false, true]);
+    }
+
+    /// A change already queued when the listener unsubscribes does not call it.
+    #[test]
+    fn an_unsubscribed_listener_misses_a_queued_change() {
+        let iii = IIIClient::new("ws://127.0.0.1:0");
+        let (started_tx, started_rx) = std::sync::mpsc::channel::<()>();
+        let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+        let (started_tx, release_rx) = (Mutex::new(started_tx), Mutex::new(release_rx));
+        // holds the listener thread while the next listener's call waits
+        let _blocker = iii.on_engine_supports_observe(move |_| {
+            let _ = started_tx.lock().unwrap().send(());
+            let _ = release_rx
+                .lock()
+                .unwrap()
+                .recv_timeout(Duration::from_secs(5));
+        });
+        let (heard, listener) = listen(&iii);
+        hello(&iii, true);
+        started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        listener.unsubscribe();
+        release_tx.send(()).unwrap();
+        // runs after the queued change
+        let (after, _after) = listen(&iii);
+        wait_for(&after, vec![true]);
+        assert!(
+            heard.lock().unwrap().is_empty(),
+            "heard {:?}",
+            heard.lock().unwrap()
+        );
     }
 
     #[tokio::test]

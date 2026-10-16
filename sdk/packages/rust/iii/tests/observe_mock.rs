@@ -167,6 +167,38 @@ async fn features_are_declared_on_workers_register() {
     iii.shutdown_async().await;
 }
 
+/// A worker can tell whether the engine supports observe, and hears when a
+/// reconnect lands on one that differs.
+#[tokio::test]
+async fn the_engines_observe_support_follows_reconnects() {
+    let mock = MockEngine::start().await;
+    let iii = worker(&mock, "fallback");
+    let heard = Arc::new(Mutex::new(Vec::new()));
+    let listener = {
+        let heard = heard.clone();
+        iii.on_engine_supports_observe(move |observe| heard.lock().unwrap().push(observe))
+    };
+    assert_eq!(iii.engine_supports_observe(), None);
+    connected(&mock, &iii, false).await;
+    until("an old engine", || {
+        iii.engine_supports_observe() == Some(false)
+    })
+    .await;
+    until("told", || heard.lock().unwrap().len() == 1).await;
+
+    mock.clear();
+    mock.close_active_connection();
+    connected(&mock, &iii, true).await;
+    until("an upgraded engine", || {
+        iii.engine_supports_observe() == Some(true)
+    })
+    .await;
+    until("told again", || heard.lock().unwrap().len() == 2).await;
+    assert_eq!(*heard.lock().unwrap(), vec![false, true]);
+    listener.unsubscribe();
+    iii.shutdown_async().await;
+}
+
 #[tokio::test]
 async fn observe_against_an_engine_without_observe_is_unsupported() {
     let mock = MockEngine::start().await;
