@@ -95,10 +95,12 @@ describe('equivalence: local and routed calls look the same to observers', () =>
 
 describe('zero-wire and the activation race', () => {
   it('unobserved local calls send zero frames', { timeout: 60_000 }, async () => {
-    // 1M local calls take ~4 s against the fake engine; against a live engine
-    // the heartbeat and OTel run alongside, so the count is sized to stay
-    // under ~10 s (see the report).
-    const CALLS = 1_000_000
+    // Zero frames is the property under test; the unit suites already run 1M
+    // calls against the fake engine. Against a live engine the heartbeat and
+    // OTel run alongside, and 1M calls took 31.7 s on a shared CI runner, so
+    // this count keeps the run to a few seconds. The time bound still catches
+    // calls that took the engine round trip instead.
+    const CALLS = 100_000
     const owner = worker('zero-wire')
     owner.registerFunction(`zw::inc-${RUN}`, async (n: number) => n + 1)
     await localDispatchReady(owner, `zw::inc-${RUN}`)
