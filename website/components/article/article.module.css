@@ -64,9 +64,9 @@ a.eyebrow:focus-visible {
 }
 
 /* ---------- Contents ---------- */
-/* The thread: a 24px gutter at the list's left edge holds one SVG path that traces every entry (bending where the
-   outline nests); links start at 28px so each label sits beside its run of the line. Geometry is measured from the
-   links at runtime. */
+/* The thread: a 30px gutter at the list's left edge holds one SVG path that traces every entry (bending where the
+   outline nests); the line runs 6px in so the diamond on it clears the scroll container's edge, and links start at
+   32px so each label sits beside its run of the line. Geometry is measured from the links at runtime. */
 .toc {
   position: sticky;
   top: 112px;
@@ -79,7 +79,7 @@ a.eyebrow:focus-visible {
   align-items: center;
   gap: 10px;
   margin-block-end: 10px;
-  padding-inline-start: 2px;
+  padding-inline-start: 0;
   font-size: 13px;
   line-height: 1.4;
   color: var(--muted-foreground);
@@ -95,7 +95,7 @@ a.eyebrow:focus-visible {
 }
 .tocGroupLabel {
   margin-block: 18px 4px;
-  padding-inline-start: 28px;
+  padding-inline-start: 32px;
   font-size: 12px;
   color: var(--muted-foreground);
   opacity: 0.8;
@@ -107,7 +107,7 @@ a.eyebrow:focus-visible {
 .tocLink {
   position: relative;
   display: block;
-  padding: 7px 10px 7px 28px;
+  padding: 7px 10px 7px 32px;
   font-size: 13.5px;
   line-height: 1.45;
   color: var(--muted-foreground);
@@ -118,7 +118,7 @@ a.eyebrow:focus-visible {
     opacity var(--motion-base) var(--motion-ease-out);
 }
 .tocLink[data-depth="3"] {
-  padding-inline-start: 50px;
+  padding-inline-start: 54px;
   font-size: 13px;
 }
 .tocLink[aria-current] {
@@ -139,11 +139,13 @@ a.eyebrow:focus-visible {
   overflow: visible;
   pointer-events: none;
 }
+/* The track is dotted (zero-length dashes with round caps read as dots); the progress stroke over it is solid. */
 .tocThread {
   fill: none;
   stroke: var(--line-strong);
-  stroke-width: 1;
+  stroke-width: 1.5;
   stroke-linecap: round;
+  stroke-dasharray: 0.01 5;
 }
 .tocLit {
   fill: none;
@@ -154,8 +156,12 @@ a.eyebrow:focus-visible {
 .tocEnd {
   fill: var(--line-strong);
 }
+/* The diamond punches a gap out of the line with a background-coloured ring, so the two never merge. */
 .tocTip rect {
   fill: var(--foreground);
+  stroke: var(--background);
+  stroke-width: 3;
+  paint-order: stroke;
 }
 @media (prefers-reduced-motion: reduce) {
   .tocLink {

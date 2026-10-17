@@ -19,7 +19,7 @@ export type TocGroup = {
 const LINE = 120
 
 /** Where the line runs for each depth, in px from the list's left edge. Nested entries jog it to the right. */
-const X: Record<2 | 3, number> = { 2: 1.5, 3: 17.5 }
+const X: Record<2 | 3, number> = { 2: 6.5, 3: 22.5 }
 
 /** How far into an entry's padding the line starts bending towards the next depth. */
 const BEND = 10
@@ -53,9 +53,9 @@ function thread(entries: Entry[]): string {
 
 /**
  * A contents list beside a long document, with a thread running down its left edge. A faint line traces every
- * entry, bending where the outline nests. As the reader scrolls, a bright stroke draws along the thread from the
+ * entry as a dotted track, bending where the outline nests. As the reader scrolls, a bright stroke draws along the thread from the
  * top to the heading being read, and a small diamond rides its tip; both glide on a spring when the section
- * changes. The thread draws itself in once when the page opens. The OS reduced-motion setting turns the glide and
+ * changes. The track fades in once when the page opens. The OS reduced-motion setting turns the glide and
  * the draw-in into plain jumps.
  */
 export function TocRail({ title = 'On this page', groups }: { title?: string; groups: TocGroup[] }) {
@@ -160,14 +160,14 @@ export function TocRail({ title = 'On this page', groups }: { title?: string; gr
       </p>
       <div ref={listRef} className={styles.tocList}>
         {entries.length ? (
-          <svg className={styles.tocRail} width={24} height={end.bottom} aria-hidden="true">
+          <svg className={styles.tocRail} width={30} height={end.bottom} aria-hidden="true">
             <motion.path
               ref={pathRef}
               className={styles.tocThread}
               d={d}
-              initial={reduced ? false : { pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: duration.print, ease: easeOut }}
+              initial={reduced ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: duration.reveal, ease: easeOut }}
             />
             <motion.path
               className={styles.tocLit}
@@ -177,7 +177,7 @@ export function TocRail({ title = 'On this page', groups }: { title?: string; gr
             />
             <circle className={styles.tocEnd} cx={X[end.depth]} cy={end.bottom} r={2.5} />
             <motion.g className={styles.tocTip} style={{ x: tipX, y: tipY }}>
-              <rect x={-3.5} y={-3.5} width={7} height={7} rx={1} transform="rotate(45)" />
+              <rect x={-4} y={-4} width={8} height={8} rx={1.5} transform="rotate(45)" />
             </motion.g>
           </svg>
         ) : null}
