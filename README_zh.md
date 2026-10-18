@@ -184,7 +184,7 @@ iii 按如下方式授权：
 | `sdk/`     | [Apache License 2.0](sdk/LICENSE)     |
 | `console/` | [Apache License 2.0](console/LICENSE) |
 | `docs/`    | [Apache License 2.0](docs/LICENSE)    |
-| `website/` | [Apache License 2.0](website/LICENSE) |
+| `website/` | [Apache License 2.0](docs/LICENSE) |
 
 引擎运行时采用 Elastic License 2.0（ELv2）授权。所有 SDK、CLI、console、文档以及官网均采用 Apache License 2.0 授权。
 
