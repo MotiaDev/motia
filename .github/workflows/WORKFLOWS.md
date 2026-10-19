@@ -78,19 +78,19 @@ Every `cargo build|test|clippy|bench|nextest` invocation in CI passes `--locked`
 
 **Triggers:** manual dispatch only
 
-Entry point for all releases. Provides a form with:
+Entry point for stable and RC releases. Provides a form with:
 
 | Input | Options |
 |-------|---------|
 | `target` | `iii` |
 | `bump` | `patch`, `minor`, `major`, `none` (ignored with a nonempty override) |
 | `prerelease` | `none`, `rc` |
-| `version_override` | Optional exact version, e.g. `0.24.1` or `0.24.1-rc.1`; blank keeps automatic calculation |
+| `version_override` | Exact version, e.g. `0.25.0-rc.1`; required outside `main`; blank on `main` keeps automatic calculation |
 | `dry_run` | boolean |
 
 **What it does:**
 
-1. Validates it's running on `main` and all required manifest files exist
+1. Validates the selected source is a branch and all required manifests exist. Stable releases require `main`; other branches require `prerelease=rc` and an explicit `version_override`
 2. Reads the current version from the canonical manifest
 3. Calculates the next version, or validates and uses `version_override` when supplied; dry-run suffixes are applied afterward
 4. **Stable releases only** — validates docs are ready (`pin_docs.py validate`): `docs/docs.json` must have a `Next` block and the `docs/next/` folder must be non-empty (stable releases pull their docs from `docs/next/`). If not, the workflow posts a Slack alert and aborts **before** bumping or tagging. Runs even on dry runs.
@@ -101,7 +101,7 @@ Entry point for all releases. Provides a form with:
    - **patch** — syncs in place: replaces the root content with `docs/next/`. No archive, no `Next` bump, no version-block changes — it just refreshes the current Latest's docs.
    - **release candidates** (`rc`) leave docs untouched.
    - In-content links are version-relative, so files move verbatim; only `docs.json` nav paths carry the version prefix.
-8. Commits the version bump (including any docs changes), creates an annotated tag, and pushes both
+8. Commits the version bump (including any docs changes) and creates an annotated tag with the source branch and SHA. On `main`, pushes the branch and tag; on any other branch, pushes **only the tag**, leaving both the source branch and `main` unchanged
 9. Posts a Slack notification
 
 > **Docs layout:** `Latest` lives at the docs root (unprefixed paths); `Next` lives in the fixed `docs/next/` folder; archived versions live in `docs/MAJOR-MINOR-0/` folders. `docs/changelog/` is shared by all versions — it stays at the root, is never copied into a version folder, and every version's Changelog tab points at it. Rotation assumes this shape already exists (a `Latest` root block + a `Next` block pointing at `docs/next/`).
@@ -125,19 +125,59 @@ prevent selecting a lower base that is still above the latest stable. Keep an
 unused version: deleted Git tags do not reveal packages already published to
 npm, PyPI, crates.io, or Go, so operators must check those registries separately.
 
-The override changes version selection only. It publishes the checked-out
-`main` code, updates the release manifests and lockfile, and uses the normal
-documentation flow. It does **not** select an older source revision, backport
+The override changes version selection only, not the source branch chosen in
+the Actions form. On `main`, it publishes the checked-out `main` code, updates
+the release manifests and lockfile, and uses the normal documentation flow. It does **not** select an older source revision, backport
 changes, delete earlier packages, or preserve the previous manifest version on
 `main` after the release bump commits. Review the current code and `docs/next/`
-before using a maintenance-looking version number. A release from a historical
-maintenance branch remains a separate workflow capability.
+before using a maintenance-looking version number. Stable releases from
+maintenance branches remain unsupported; other branches can publish RCs only.
 
 A dry run retains the existing behavior: an override of `0.24.1` produces
 `iii/v0.24.1-dry-run.N`, builds without publishing packages, but still creates
 and pushes that dry-run tag. It is not a side-effect-free version preview.
 The calculation step validates the override before updating any manifests or
-creating a tag; the workflow summary records the selected version and tag.
+creating a tag; the workflow summary records the source branch and SHA, selected
+version, tag, and whether a branch will be updated.
+
+**RC from an unmerged branch:** run `Create Tag` with:
+
+```text
+Use workflow from: 0.25.0
+ target: iii
+ prerelease: rc
+ version_override: 0.25.0-rc.1
+ dry_run: false
+```
+
+`bump` is ignored when the override is supplied. The updated workflow must
+already exist on the selected branch: merge or cherry-pick the CI changes there
+without merging the product branch into `main` first.
+
+The workflow uses the source commit selected at dispatch, bumps manifests and
+`Cargo.lock` in a preparation commit, and pushes **only** `iii/v0.25.0-rc.1`.
+The preparation commit is reachable through that tag; neither `0.25.0` nor
+`main` is advanced. Subsequent candidates use explicit unused versions such as
+`0.25.0-rc.2`. Use the existing canonical `-rc.N` spelling (not `-rcN`); Python
+packages use the corresponding PEP 440 spelling, e.g. `0.25.0rc1`.
+
+The GitHub App token makes the tag push trigger `release-iii.yml`, reusing the
+normal RC pipeline: GitHub prerelease, SDK packages, binaries, builtin workers
+and skills. **This updates the shared `rc` channel** (including npm `@rc` and
+installer `--rc`), not a private channel for this branch. It does not update
+`latest`, rotate stable docs, bump templates, or publish Docker/Homebrew.
+For isolated experimentation without moving `rc`, keep using Alpha Release.
+
+Automatic train discovery in `Create Tag` considers only tags whose commits
+are reachable from the source checkout. An ephemeral branch RC therefore cannot
+redirect `main`'s `bump=none` selection. Stable-version discovery, counters and
+collision checks still use **all** tags; a version cannot be reused just because
+its tag is on another branch. Alpha retains its existing cross-branch behavior.
+Release preparation is serialized across branches to reduce tag-allocation races.
+
+After the product branch is approved and merged, publish stable from `main`
+with `prerelease=none` and `version_override=0.25.0`. Branch RC preparation does
+not change `main`'s manifest, so do not rely on implicit prerelease promotion.
 
 ---
 

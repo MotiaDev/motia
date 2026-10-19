@@ -158,6 +158,127 @@ type: "reference"
     released from this repository.
 </Update>
 
+<Update label="0.24.6" description="October 2026">
+  ## Compose worker cleanup and process management
+
+  - On Linux and macOS, Compose starts a reaper process that stops its workers and their process
+    groups if Compose crashes, receives `SIGKILL`, or exits on a second shutdown signal. The
+    reaper sends `SIGTERM`, waits up to 10 seconds, then sends `SIGKILL`. Windows behavior is
+    unchanged.
+  - Workers left running by a Compose process that is gone are stopped and started fresh on the
+    next startup instead of being reused with their old configuration. Workers owned by a live
+    Compose process can still be adopted.
+  - Shutdown signals received within 200 ms of the first count as one request. A wrapper such as
+    `dotenv --` forwarding the terminal's `Ctrl+C` no longer skips orderly shutdown. A later
+    second signal still exits immediately, leaving the reaper to stop the remaining workers.
+  - `iii ps` lists the current user's local engines, Compose daemons, and workers, with ports,
+    project ownership, uptime, and `orphan` or `no engine` status. Use `iii ps --json` for JSON.
+    `compose::ps` provides the daemon's view, optionally filtered by project, including processes
+    started by its workers.
+  - `iii kill --port <PORT>`, `iii kill --compose [PATH]`, and `iii kill --orphans` stop processes
+    by engine port, project, or orphan status. Compose daemons receive `SIGTERM` first so they
+    can stop their projects in reverse dependency order. Remaining processes receive `SIGTERM`,
+    then `SIGKILL` after 15 seconds; `--force` sends `SIGKILL` immediately.
+  - Engines and the Node, Python, Rust, and Go SDKs write process markers under `~/.iii/run` so
+    `iii ps` can also find workers started outside Compose. Compose workers are identified by
+    their environment, including workers built with older SDKs. Stale markers are removed when
+    listing processes; an unwritable marker directory does not prevent a worker from starting.
+
+  See [Worker Compose](/using-iii/compose#finding-and-stopping-iii-processes) and the
+  [CLI reference](/cli-reference/index).
+
+  ## Lower latency between the engine and Rust workers
+
+  - The engine enables `TCP_NODELAY` on accepted worker connections and advertises
+    `x-iii-capabilities: tcp-nodelay` on the worker listener, including WebSocket upgrades,
+    telemetry, and channel endpoints.
+  - The Rust SDK enables `TCP_NODELAY` on its worker and channel sockets only when the engine
+    advertises support. This removes delayed-ACK stalls on small messages while preserving the
+    existing behavior against older engines. Upgrading both the engine and Rust workers enables
+    both sides of the change; no particular upgrade order is required.
+  - In a Linux loopback benchmark with the engine and workers both updated, p95 latency fell
+    76–96% across the tested agentmemory routes. These are measured examples, not a guarantee
+    for every workload; bulk channel throughput was not benchmarked.
+
+  See [Engine protocol](/reference/engine-protocol) for capability negotiation and
+  [the benchmark results](https://github.com/iii-hq/iii/pull/2325) for the version comparisons.
+
+  ## SDK authentication without tokens in URLs
+
+  - The Node, Python, Rust, and Go SDKs send a nonblank `III_TOKEN` as an
+    `Authorization: Bearer <token>` header during the WebSocket handshake. An explicit
+    `Authorization` header takes precedence, regardless of its capitalization. Workers can
+    authenticate to an RBAC listener without adding the token to the engine URL.
+  - Channels created or resolved by the SDK send the client's handshake headers too. Channel
+    URLs preserve existing query parameters when adding the channel path, access key, and
+    direction, fixing connections that previously lost URL-based authentication.
+  - The Node, Python, and Rust SDKs also pass handshake headers to their telemetry connection.
+    Telemetry helpers accept explicit headers, and Python telemetry defaults to the worker's
+    engine address instead of a separate default address.
+  - Go adds `WithHeaders(http.Header)` for the main connection and channels created by the
+    client. Rust now returns a connection error instead of panicking when an invalid engine
+    address is used with custom headers.
+  - The browser SDK is unchanged because browsers cannot set WebSocket handshake headers.
+    Manually constructed Rust and Go channel endpoints use `III_TOKEN` but do not inherit a
+    client's explicit headers.
+
+  <Callout type="note">
+    Rust's `OtelConfig` adds `engine_ws_headers`. Code that constructs the struct by listing
+    every field must add it or use `..Default::default()`.
+  </Callout>
+
+  ## Trace sampling and archive limits
+
+  - Worker spans received over OTLP are sampled per trace before local storage and collector
+    export. Local roots now honor sampling ratios, operation rules, and rate limits instead of
+    bypassing them because the SDK marked its spans sampled. Parent-based sampling still honors
+    an explicitly remote parent's sampled decision.
+  - With operation rules, child spans arriving before their root can wait up to 2 seconds in a
+    bounded buffer so the root's operation determines the sampling decision. Sampling decisions
+    are retained across live and completed span snapshots and reset when the policy changes.
+  - SQLite archive capacity checks account for page and index costs. Existing archives gain
+    per-trace size accounting automatically. A span that can never fit is counted in
+    `known_dropped_spans`, and its trace reports `completeness: partial`; later smaller spans
+    can still be stored without deleting that trace's existing durable rows.
+  - Archive writes use bounded batches, retry backoff, and rate-limited warnings so a trace that
+    cannot currently fit, or encounters a storage error, does not stop unrelated writes. Flush
+    reports an error when spans remain unwritten rather than reporting success.
+  - Retention returns freed SQLite pages in checkpointed batches instead of creating a WAL as
+    large as the space being reclaimed. Archive and sampling configuration defaults are unchanged.
+  - Clearing metrics now updates both indexes and the total count atomically with respect to
+    concurrent writes, queries, and retention.
+
+  <Callout type="note">
+    The archive's committed SQLite image is bounded by the configured cap plus a tolerance of
+    the larger of 1% or 8 MiB. Temporary WAL and VACUUM space, readers holding snapshots, and
+    slow storage can still cause transient disk growth or control-call timeouts; this is not a
+    strict cap on every filesystem byte at every instant.
+  </Callout>
+
+  ## Lower memory use for queued HTTP bodies
+
+  - Queued binary channel messages retain only their payload instead of the WebSocket's entire
+    read buffer, typically 128 KiB. Small unread HTTP POST bodies no longer keep that buffer
+    alive until the channel expires.
+  - In six-minute tests at 20 requests per second with 100-byte POST bodies, engine RSS growth
+    fell from about 130 KiB per request to about 2 KiB. Channel lifetime, streaming behavior,
+    and delivery to readers that connect after the writer disconnects are unchanged. Unread
+    channels still expire normally; this fixes buffer amplification, not channel lifetime.
+
+  ## Python schema inference
+
+  - Bare `dict` and `list` annotations now produce object and array schemas for function inputs
+    and outputs. Nullable forms, including `Optional[dict]` and `list | None`, are supported.
+    Parameterized containers keep their existing behavior.
+
+  ## Other updates
+
+  - The engine's ZIP dependency moves from the yanked 2.x release line to 9.x, with deflate
+    decoding for Windows release archives. Invalid archive entry names return an extraction error.
+
+  [Compare 0.24.5 to 0.24.6](https://github.com/iii-hq/iii/compare/iii%2Fv0.24.5...iii%2Fv0.24.6).
+</Update>
+
 <Update label="0.24.5" description="October 2026">
   ## Namespace routing in the SDKs
 

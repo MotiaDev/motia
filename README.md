@@ -168,7 +168,8 @@ Compose workers. Install an engine skill with
 | `website/` | iii website                                             | [website/](website/)                   |
 | `docs/`    | Documentation site (Mintlify/MDX)                       | [docs/README.md](docs/README.md)       |
 
-See [STRUCTURE.md](STRUCTURE.md) for the full monorepo layout, dependency chain, and CI/CD details.
+See [CONTRIBUTING.md](CONTRIBUTING.md#how-dependencies-work) for workspace dependencies and
+[CI/CD details](CONTRIBUTING.md#cicd).
 
 ## Resources
 
@@ -198,7 +199,7 @@ The iii is licensed as such:
 | `engine/`  | [Elastic License 2.0](engine/LICENSE) |
 | `sdk/`     | [Apache License 2.0](sdk/LICENSE)     |
 | `docs/`    | [Apache License 2.0](docs/LICENSE)    |
-| `website/` | [Apache License 2.0](website/LICENSE) |
+| `website/` | [Apache License 2.0](docs/LICENSE) |
 
 The engine runtime is licensed under the Elastic License 2.0 (ELv2). All SDKs, CLI, documentation,
 and the website are licensed under the Apache License 2.0.
