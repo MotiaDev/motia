@@ -258,4 +258,5 @@ For pre-releases, add a suffix: `release/v0.7.0-alpha`, `release/v0.7.0-beta`, `
 
 ## Project Structure
 
-See [STRUCTURE.md](STRUCTURE.md) for the full directory layout and dependency chain.
+See [Repository Structure](README.md#repository-structure) for the directory overview and
+[How Dependencies Work](#how-dependencies-work) for workspace dependencies.
