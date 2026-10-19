@@ -123,7 +123,7 @@ export default async function BlogPost({ params }: { params: Promise<Params> }) 
     <>
       <SiteHeader />
       <main>
-        <div className={cn(wideContainer, styles.page, styles.layout)}>
+        <div className={cn(wideContainer, styles.page, styles.layout, styles.layoutTocStart)}>
           <article aria-labelledby="post-title" className={styles.main}>
             <PageHead eyebrow="Blog" eyebrowHref={links.blog} title={post.title} titleId="post-title">
               <p className={styles.meta}>

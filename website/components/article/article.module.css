@@ -62,6 +62,19 @@ a.eyebrow:focus-visible {
 .aside {
   min-width: 0;
 }
+/* Blog: contents on the left, article to its right, 15% of the row between them. The article stays first in the
+   source so reading order is unchanged; only the grid placement flips. */
+.layoutTocStart {
+  grid-template-columns: 220px minmax(0, 1fr);
+  column-gap: 15%;
+}
+.layoutTocStart .aside {
+  grid-column: 1;
+  grid-row: 1;
+}
+.layoutTocStart .main {
+  grid-column: 2;
+}
 
 /* ---------- Contents ---------- */
 /* The thread: a 30px gutter at the list's left edge holds one SVG path that traces every entry (bending where the
@@ -182,6 +195,9 @@ a.eyebrow:focus-visible {
 @media (max-width: 1023px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .layoutTocStart .main {
+    grid-column: 1;
   }
   .aside {
     display: none;
