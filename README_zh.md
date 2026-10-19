@@ -152,7 +152,7 @@ npx skills add iii-hq/workers --all         # 所有 worker skill
 | `website/` | iii 官网                                             | [website/](website/)                   |
 | `docs/`    | 文档站点（Mintlify/MDX）                       | [docs/README.md](docs/README.md)       |
 
-完整的 monorepo 布局、依赖链与 CI/CD 细节见 [STRUCTURE.md](STRUCTURE.md)。
+工作区依赖关系见 [CONTRIBUTING.md](CONTRIBUTING.md#how-dependencies-work)，持续集成与发布流程见 [CI/CD](CONTRIBUTING.md#cicd)。
 
 ## 资源
 
