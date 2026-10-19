@@ -450,7 +450,6 @@
   border-radius: 6px;
   background: var(--secondary);
   color: var(--foreground);
-  overflow-wrap: anywhere;
 }
 .prose pre {
   padding: 18px 20px;

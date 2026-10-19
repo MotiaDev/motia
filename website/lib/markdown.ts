@@ -84,6 +84,7 @@ const processor = unified()
 export async function renderMarkdown(markdown: string, options: Options = {}): Promise<Rendered> {
   const tree = (await processor.run(processor.parse(markdown))) as Root
   wrapTables(tree)
+  breakInlineCode(tree)
   lazyImages(tree, options.image)
   if (options.idPrefix) prefixIds(tree, options.idPrefix)
   const content = toJsxRuntime(tree, { Fragment, jsx, jsxs, development: false })
@@ -110,6 +111,26 @@ function wrapTables(tree: Root) {
       properties: { className: ['table-scroll'] },
       children: [node],
     }
+  })
+}
+
+/**
+ * Inline code may wrap only at its seams: before a `.`, after a `/`, after a `::`. A `<wbr>` at each one lets a
+ * narrow table column fold `options.functions.allow` into `options.functions` / `.allow` instead of splitting a word,
+ * and adds nothing to copied text.
+ */
+const CODE_SEAM = /(?<=.)(?=\.)|(?<=\/)(?=.)|(?<=::)(?=.)/
+
+function breakInlineCode(tree: Root) {
+  visit(tree, (node, _index, parent) => {
+    if (node.tagName !== 'code' || (parent.type === 'element' && parent.tagName === 'pre')) return
+    node.children = node.children.flatMap((child) => {
+      if (child.type !== 'text') return [child]
+      return child.value.split(CODE_SEAM).flatMap((value, i): Element['children'] => {
+        const text = { type: 'text' as const, value }
+        return i === 0 ? [text] : [{ type: 'element', tagName: 'wbr', properties: {}, children: [] }, text]
+      })
+    })
   })
 }
 
