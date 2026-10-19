@@ -856,7 +856,12 @@ func (c *Client) enqueueOutbound(frame []byte) {
 func (c *Client) startSupervisor() {
 	c.superviseOnce.Do(func() {
 		c.reporter.start()
-		go c.supervise()
+		// Lets `iii ps` find this worker until Close ends the supervisor.
+		remove := announceProcess(c.url, c.name, "")
+		go func() {
+			defer remove()
+			c.supervise()
+		}()
 	})
 }
 

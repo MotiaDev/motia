@@ -5,6 +5,7 @@ import { type Data, WebSocket } from 'ws'
 import { ChannelReader, ChannelWriter } from './channels'
 import { InvocationError, isErrorBody, RegistrationRejectedError } from './errors'
 import { compileFilter, FilterError } from './filter'
+import { announceProcess } from './process-marker'
 import {
   DEFAULT_BRIDGE_RECONNECTION_CONFIG,
   DEFAULT_INVOCATION_TIMEOUT_MS,
@@ -406,6 +407,7 @@ class Sdk implements IIIClient {
   private hooksInactiveWarned = new Set<string>()
   private readonly reporter: Reporter
   private readonly observeHost: ObserveHost
+  private removeProcessMarker: () => void
 
   constructor(
     private readonly address: string,
@@ -459,6 +461,9 @@ class Sdk implements IIIClient {
       engineWsUrl: this.address,
       engineWsHeaders: resolveHeaders(options?.headers),
     })
+
+    // Lets `iii ps` find this worker however it was started.
+    this.removeProcessMarker = announceProcess(this.address, this.workerName)
 
     this.reporter.start()
     this.connect()
@@ -1282,6 +1287,7 @@ class Sdk implements IIIClient {
    */
   shutdown = async (): Promise<void> => {
     this.isShuttingDown = true
+    this.removeProcessMarker()
 
     // Last chance for buffered reports and counters to reach the engine.
     try {
