@@ -1,7 +1,7 @@
 ---
-title: 'OpenCode vs Claude Code vs iii for custom coding workflows'
+title: 'OpenCode vs Claude Code vs iii for human in the loop workflows'
 seoTitle: 'OpenCode vs Claude Code vs iii: Hands-on Approval Tests'
-description: 'We tested the same sensitive tool call in OpenCode, Claude Code, and iii. See how approvals work and whether pending requests survive a restart.'
+description: 'We tested the same sensitive tool calls in OpenCode, Claude Code, and iii. See how approvals work and the strengths of each option.'
 pubDate: 2026-10-17
 tags: ['agents', 'comparison', 'claude-code', 'opencode', 'approvals', 'harness']
 ogImage: ../../assets/blog/opencode-vs-claude-code-vs-iii/banner.png
