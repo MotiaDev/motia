@@ -640,7 +640,14 @@ func (c *Client) enqueueOutbound(frame []byte) {
 // times Connect (or RegisterWorker) is called, so there is never more than one goroutine
 // driving the socket.
 func (c *Client) startSupervisor() {
-	c.superviseOnce.Do(func() { go c.supervise() })
+	c.superviseOnce.Do(func() {
+		// Lets `iii ps` find this worker until Close ends the supervisor.
+		remove := announceProcess(c.url, c.name, "")
+		go func() {
+			defer remove()
+			c.supervise()
+		}()
+	})
 }
 
 // Connect starts the connection lifecycle (if not already started) and blocks until the
@@ -936,7 +943,7 @@ type workerMetadata struct {
 
 // sdkVersion is reported in the worker metadata. Kept as a const for v1; a release
 // process can wire this to the module version later.
-const sdkVersion = "0.24.6-rc.5"
+const sdkVersion = "0.24.6"
 
 // writeLoop is the single writer for one connection. It drains the shared outbound
 // channel (connection-agnostic frames) and this connection's own reply channel
