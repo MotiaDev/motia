@@ -117,6 +117,13 @@ Set `namespace` on the invocation. The call resolves only in that namespace. Omi
 call resolves in the caller's own namespace, which is where a worker's neighbours are. A worker with
 no namespace of its own resolves in `default`, as before.
 
+Engine-owned builtins are the exception. An implicit call to an `engine::*` or `configuration::*`
+function always resolves in `default`, where the engine registers them. A worker in `orders` can call
+`configuration::get` without naming `default`. An explicit `namespace` still wins over this rule.
+
+The Node, browser, Python, Rust, and Go SDKs all apply the same rules. In Go, implicit `Trigger`
+calls and `RegisterTrigger` bindings inherit the namespace set by `III_NAMESPACE` or `WithNamespace`.
+
 <Tabs>
   <Tab title="CLI">
     ```bash
@@ -211,15 +218,19 @@ return an ambiguity when the name exists in multiple namespaces.
 ## Handle a rejected registration
 
 The engine sends `registrationrejected` when a live worker already owns the same identity in the
-same namespace.
+same namespace, or when a worker declares a namespace its session may not use.
 
 | Code                          | Effect                                                                                      |
 | ----------------------------- | ------------------------------------------------------------------------------------------- |
 | `WORKER_NAMESPACE_CONFLICT`   | Fatal. The engine closes the new connection. The SDK does not reconnect.                    |
 | `FUNCTION_NAMESPACE_CONFLICT` | The engine rejects one function. The worker stays connected and serves its other functions. |
+| `NAMESPACE_FORBIDDEN`         | Fatal. The engine closes the connection. The SDK does not reconnect.                        |
 
 For a worker-name conflict, change the worker name or namespace. For a function conflict, remove the
-duplicate function id or move one worker to another namespace.
+duplicate function id or move one worker to another namespace. For `NAMESPACE_FORBIDDEN`, the worker
+declared a namespace outside its RBAC session scope. Declare a namespace the session is scoped to, or
+widen the scope in the auth function. See
+[Scope a session to namespaces](/next/creating-workers/worker-manager#scope-a-session-to-namespaces).
 
 <Warning>
   A connected worker does not confirm that all its functions are registered. SDKs report a function

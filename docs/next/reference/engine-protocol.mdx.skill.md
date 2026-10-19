@@ -266,14 +266,17 @@ namespace(s): orders, analytics.`
 }
 ```
 
-The engine sends this message when a registration conflicts with a live worker in `namespace`.
-`owner_worker_id` identifies the worker that owns the identity. `code` specifies the identity field
+The engine sends this message when a registration conflicts with a live worker in `namespace`, or
+when a worker declares a `namespace` its RBAC session is not scoped to.
+`owner_worker_id` identifies the worker that owns the identity. It is empty for
+`NAMESPACE_FORBIDDEN`, which has no owning worker. `code` specifies the identity field
 and the severity. Each message contains only one identity field:
 
 | `code`                        | Identity field | Connection           | Severity                                                                                        |
 | ----------------------------- | -------------- | -------------------- | ----------------------------------------------------------------------------------------------- |
 | `WORKER_NAMESPACE_CONFLICT`   | `worker_name`  | closed by the engine | Fatal. The SDK stops the worker and does not reconnect.                                         |
 | `FUNCTION_NAMESPACE_CONFLICT` | `function_id`  | stays open           | Non-fatal. The engine refuses one function registration. The worker serves its other functions. |
+| `NAMESPACE_FORBIDDEN`         | `worker_name`  | closed by the engine | Fatal. The worker declared a namespace outside its RBAC session scope. The SDK does not reconnect. |
 
 A function conflict has this format:
 

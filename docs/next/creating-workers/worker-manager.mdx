@@ -235,7 +235,9 @@ uses:
 
 The keys carry a second meaning: they are the namespaces the session may declare on
 `engine::workers::register`. A session holding this result registers in `orders` or `analytics`;
-declaring `default`, or any other namespace, is refused with `FORBIDDEN`. An entry with an empty
+declaring `default`, or any other namespace, is rejected. The engine sends a `registrationrejected`
+message with code `NAMESPACE_FORBIDDEN` and closes the connection. The SDK does not reconnect, so the
+worker never ends up serving from `default`. An entry with an empty
 list, like `analytics` above, grants the namespace and no functions inside it -- the session may
 register there and reaches only what `expose_functions` exposes.
 
