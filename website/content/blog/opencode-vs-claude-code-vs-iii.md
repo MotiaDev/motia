@@ -18,7 +18,7 @@ faq:
     a: 'In our test only iii did. A held call in iii became a pending record in shared engine state and survived both an AI Agent Harness restart and a full engine restart. OpenCode lost a pending approval on a service restart, and killing Claude Code abandoned the stuck call with no re-prompt.'
 ---
 
-![OpenCode vs Claude Code vs iii: where the approval lives decides who can answer it. Claude Code holds it in one session, OpenCode in a shared local service, iii in shared engine state that survives restarts.](../../assets/blog/opencode-vs-claude-code-vs-iii/banner.png)
+![OpenCode vs Claude Code vs iii: how do they handle approvals? Claude Code handles single-user approvals. OpenCode handles single-user and multi-user approvals. iii handles single-user, multi-user, and cross-team, agent, and organization approvals.](../../assets/blog/opencode-vs-claude-code-vs-iii/banner.png)
 
 Your agent edits files and runs tests without any help. It can even call sensitive functions with potentially destructive results (for example, deleting files or changing production data).
 
