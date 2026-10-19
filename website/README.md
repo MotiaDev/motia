@@ -79,7 +79,8 @@ Blocks a post can opt into, all plain HTML around ordinary markdown (blank lines
 `**Label:** value` items to show them as rows in a card; `<div class="verdict">` of `.verdict-card`s (eyebrow
 `.verdict-pick`, `.verdict-tool`, `.verdict-reason`, `.verdict-cta` link; `data-highlight` marks the recommended
 pick); and `<div class="compare">` around a GFM table to render it as a matrix, with the last column (iii, by
-convention) emphasized. `data-highlight` on a `.facts` div or a `<figure>` gives it the same strong frame. Long-form
+convention) emphasized and its header shown as the iii logo. `data-highlight` on a `.facts` div or a `<figure>` gives
+it the same neutral-800 frame as the highlighted verdict card, whose name is also shown as the logo alone. Long-form
 pages are black and white only: no accent colour, no glow, and code blocks render in greys. `####`
 headings are label-style (small caps) and stay out of the contents list. See
 `content/blog/opencode-vs-claude-code-vs-iii.md`.

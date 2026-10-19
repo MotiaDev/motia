@@ -548,20 +548,11 @@
   transition: border-color var(--motion-fast) var(--motion-ease-out);
 }
 .prose .verdict-card[data-highlight] {
-  border-color: color-mix(in oklab, var(--foreground) 55%, var(--border));
+  border-color: var(--highlight-border);
+  background: color-mix(in oklab, var(--foreground) 3%, var(--card));
 }
 .prose .verdict-card[data-highlight] .verdict-pick {
   color: var(--foreground);
-}
-.prose .verdict-card[data-highlight] .verdict-tool::before {
-  content: "";
-  display: inline-block;
-  width: 0.85em;
-  height: 0.95em;
-  margin-right: 0.45em;
-  vertical-align: -0.05em;
-  background: var(--foreground);
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 933.61 1050.31'%3E%3Crect width='233.4' height='233.4'/%3E%3Crect y='350.1' width='233.4' height='700.21'/%3E%3Crect x='350.1' width='233.4' height='233.4'/%3E%3Crect x='350.1' y='350.1' width='233.4' height='700.21'/%3E%3Crect x='700.21' width='233.4' height='233.4'/%3E%3Crect x='700.21' y='350.1' width='233.4' height='700.21'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 .prose .verdict-card p {
   margin: 0;
@@ -645,27 +636,40 @@
 }
 
 /*
- * Elevating iii. The mark (three columns, a dot over a bar) is a CSS mask so it takes the current colour. It sits
- * before the iii column header, the highlighted verdict card's name and the highlighted figure's caption. The iii
- * column reads in the foreground on a faint lift with a strong rule on its leading edge; the highlighted facts card
- * and figure carry the same strong frame. Black and white only, no glow.
+ * Elevating iii. The iii column header and the highlighted verdict card's name show the mark (three columns, a dot
+ * over a bar) in place of the word, never both: the word stays in the markup for screen readers and copy, at
+ * font-size 0, and the mark is a CSS mask so it takes the foreground colour. The iii column reads in the foreground
+ * on a faint lift; the highlighted facts card, figure and verdict card share one neutral-800 frame. Black and white
+ * only, no glow.
  */
+.prose {
+  --highlight-border: oklch(0.269 0 0); /* neutral-800 */
+}
+.prose .compare th:last-child,
+.prose .verdict-card[data-highlight] .verdict-tool {
+  font-size: 0;
+}
+.prose .compare th:last-child::before,
+.prose .verdict-card[data-highlight] .verdict-tool::before {
+  content: "";
+  display: block;
+  height: 16px;
+  aspect-ratio: 933.61 / 1050.31;
+  background: var(--foreground);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 933.61 1050.31'%3E%3Crect width='233.4' height='233.4'/%3E%3Crect y='350.1' width='233.4' height='700.21'/%3E%3Crect x='350.1' width='233.4' height='233.4'/%3E%3Crect x='350.1' y='350.1' width='233.4' height='700.21'/%3E%3Crect x='700.21' width='233.4' height='233.4'/%3E%3Crect x='700.21' y='350.1' width='233.4' height='700.21'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.prose .verdict-card[data-highlight] .verdict-tool::before {
+  height: 28px;
+}
 .prose .compare th:last-child {
+  /* The other headers' em padding, in px, since this cell's font-size is 0. */
+  padding: 13px 16px;
+  vertical-align: middle;
   color: var(--foreground);
   background: color-mix(in oklab, var(--foreground) 6%, var(--secondary));
 }
-.prose .compare th:last-child::before {
-  content: "";
-  display: inline-block;
-  width: 0.85em;
-  height: 0.95em;
-  margin-right: 0.45em;
-  vertical-align: -0.1em;
-  background: currentColor;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 933.61 1050.31'%3E%3Crect width='233.4' height='233.4'/%3E%3Crect y='350.1' width='233.4' height='700.21'/%3E%3Crect x='350.1' width='233.4' height='233.4'/%3E%3Crect x='350.1' y='350.1' width='233.4' height='700.21'/%3E%3Crect x='700.21' width='233.4' height='233.4'/%3E%3Crect x='700.21' y='350.1' width='233.4' height='700.21'/%3E%3C/svg%3E") center / contain no-repeat;
-}
 .prose .compare :is(th, td):last-child {
-  border-left: 2px solid color-mix(in oklab, var(--foreground) 55%, var(--border));
+  border-left: 1px solid var(--highlight-border);
 }
 .prose .compare td:last-child {
   color: var(--foreground);
@@ -673,28 +677,18 @@
 }
 
 .prose .facts[data-highlight] ul {
-  border-color: color-mix(in oklab, var(--foreground) 55%, var(--border));
+  border-color: var(--highlight-border);
 }
 .prose .facts[data-highlight] li > strong:first-child {
   color: var(--foreground);
 }
 
 .prose figure[data-highlight] img {
-  outline: 1px solid color-mix(in oklab, var(--foreground) 55%, var(--border));
+  outline: 1px solid var(--highlight-border);
 }
 .prose figure[data-highlight] figcaption {
   color: var(--foreground);
   opacity: 1;
-}
-.prose figure[data-highlight] figcaption::before {
-  content: "";
-  display: inline-block;
-  width: 0.85em;
-  height: 0.95em;
-  margin-right: 0.45em;
-  vertical-align: -0.1em;
-  background: var(--foreground);
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 933.61 1050.31'%3E%3Crect width='233.4' height='233.4'/%3E%3Crect y='350.1' width='233.4' height='700.21'/%3E%3Crect x='350.1' width='233.4' height='233.4'/%3E%3Crect x='350.1' y='350.1' width='233.4' height='700.21'/%3E%3Crect x='700.21' width='233.4' height='233.4'/%3E%3Crect x='700.21' y='350.1' width='233.4' height='700.21'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 @media (min-width: 640px) {
@@ -723,7 +717,7 @@
   }
 }
 @media (hover: hover) and (pointer: fine) {
-  .prose .verdict-card:not([data-highlight]):hover {
+  .prose .verdict-card:hover {
     border-color: var(--line-strong);
   }
   .prose .verdict-cta:hover {
