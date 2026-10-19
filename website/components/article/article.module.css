@@ -49,11 +49,17 @@ a.eyebrow:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-/* Article beside its contents list. The list only shows where there is room for it. */
+/* Article beside its contents list. The list only shows where there is room for it. Long-form text uses a stronger
+   muted grey than the rest of the site: body copy and meta clear WCAG AAA (7:1), and the dimmer contents links and
+   captions still clear AA (4.5:1). */
 .layout {
+  --muted-foreground: oklch(0.42 0 0);
   display: grid;
   grid-template-columns: minmax(0, 1fr) 220px;
   gap: clamp(48px, 6vw, 96px);
+}
+:global(.dark) .layout {
+  --muted-foreground: oklch(0.71 0 0);
 }
 .main {
   min-width: 0;
@@ -124,7 +130,7 @@ a.eyebrow:focus-visible {
   font-size: 13.5px;
   line-height: 1.45;
   color: var(--muted-foreground);
-  opacity: 0.75;
+  opacity: 0.85;
   text-wrap: pretty;
   transition:
     color var(--motion-base) var(--motion-ease-out),
