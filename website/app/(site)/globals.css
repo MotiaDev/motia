@@ -391,11 +391,11 @@
 .prose li::marker {
   color: var(--line-strong);
 }
-/* Quoted or aside text reads as a card: a hairline box, a soft fill, an accent on the leading edge. */
+/* Quoted or aside text reads as a card: a hairline box, a soft fill, a strong rule on the leading edge. */
 .prose blockquote {
   padding: 1.1em 1.4em;
   border: 1px solid var(--border);
-  border-left: 3px solid var(--hero-accent);
+  border-left: 3px solid var(--foreground);
   border-radius: 0 12px 12px 0;
   background: var(--card);
   font-size: 0.95em;
@@ -461,10 +461,12 @@
   font-size: 14px;
   line-height: 1.8;
 }
+/* Long-form code stays black and white: the shared theme's hues drop to greys of the same weight. */
 .prose pre code {
   font-size: inherit;
   padding: 0;
   background: none;
+  filter: grayscale(1);
 }
 /* Tables scroll inside their own box on narrow screens (the renderer wraps each one). */
 .prose .table-scroll {
@@ -547,14 +549,10 @@
   transition: border-color var(--motion-fast) var(--motion-ease-out);
 }
 .prose .verdict-card[data-highlight] {
-  border-color: color-mix(in oklab, var(--hero-accent) 70%, var(--border));
-  background: linear-gradient(135deg, color-mix(in oklab, var(--hero-accent) 16%, var(--card)), var(--card) 70%);
-  box-shadow:
-    0 0 0 4px color-mix(in oklab, var(--hero-accent) 10%, transparent),
-    0 24px 60px -32px color-mix(in oklab, var(--hero-accent) 60%, transparent);
+  border-color: color-mix(in oklab, var(--foreground) 55%, var(--border));
 }
 .prose .verdict-card[data-highlight] .verdict-pick {
-  color: var(--hero-accent);
+  color: var(--foreground);
 }
 .prose .verdict-card[data-highlight] .verdict-tool::before {
   content: "";
@@ -563,7 +561,7 @@
   height: 0.95em;
   margin-right: 0.45em;
   vertical-align: -0.05em;
-  background: var(--hero-accent);
+  background: var(--foreground);
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 933.61 1050.31'%3E%3Crect width='233.4' height='233.4'/%3E%3Crect y='350.1' width='233.4' height='700.21'/%3E%3Crect x='350.1' width='233.4' height='233.4'/%3E%3Crect x='350.1' y='350.1' width='233.4' height='700.21'/%3E%3Crect x='700.21' width='233.4' height='233.4'/%3E%3Crect x='700.21' y='350.1' width='233.4' height='700.21'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 .prose .verdict-card p {
@@ -646,19 +644,16 @@
   color: var(--foreground);
   font-weight: 500;
 }
-.prose .compare td:last-child {
-  background: color-mix(in oklab, var(--hero-accent) 5%, transparent);
-}
 
 /*
  * Elevating iii. The mark (three columns, a dot over a bar) is a CSS mask so it takes the current colour. It sits
  * before the iii column header, the highlighted verdict card's name and the highlighted figure's caption. The iii
- * column reads in the foreground on an accent tint with an accent rule on its leading edge; the highlighted facts
- * card and figure carry the same accent frame.
+ * column reads in the foreground on a faint lift with a strong rule on its leading edge; the highlighted facts card
+ * and figure carry the same strong frame. Black and white only, no glow.
  */
 .prose .compare th:last-child {
-  color: var(--hero-accent);
-  background: color-mix(in oklab, var(--hero-accent) 12%, var(--secondary));
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 6%, var(--secondary));
 }
 .prose .compare th:last-child::before {
   content: "";
@@ -671,30 +666,22 @@
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 933.61 1050.31'%3E%3Crect width='233.4' height='233.4'/%3E%3Crect y='350.1' width='233.4' height='700.21'/%3E%3Crect x='350.1' width='233.4' height='233.4'/%3E%3Crect x='350.1' y='350.1' width='233.4' height='700.21'/%3E%3Crect x='700.21' width='233.4' height='233.4'/%3E%3Crect x='700.21' y='350.1' width='233.4' height='700.21'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 .prose .compare :is(th, td):last-child {
-  border-left: 2px solid color-mix(in oklab, var(--hero-accent) 60%, var(--border));
+  border-left: 2px solid color-mix(in oklab, var(--foreground) 55%, var(--border));
 }
 .prose .compare td:last-child {
   color: var(--foreground);
-  background: color-mix(in oklab, var(--hero-accent) 8%, transparent);
-}
-.prose .compare td:last-child code {
-  background: color-mix(in oklab, var(--hero-accent) 14%, var(--secondary));
+  background: color-mix(in oklab, var(--foreground) 3%, transparent);
 }
 
 .prose .facts[data-highlight] ul {
-  border-color: color-mix(in oklab, var(--hero-accent) 55%, var(--border));
-  background: linear-gradient(180deg, color-mix(in oklab, var(--hero-accent) 10%, var(--card)), var(--card) 60%);
-}
-.prose .facts[data-highlight] li {
-  border-color: color-mix(in oklab, var(--hero-accent) 25%, var(--border));
+  border-color: color-mix(in oklab, var(--foreground) 55%, var(--border));
 }
 .prose .facts[data-highlight] li > strong:first-child {
-  color: var(--hero-accent);
+  color: var(--foreground);
 }
 
 .prose figure[data-highlight] img {
-  outline: 1px solid color-mix(in oklab, var(--hero-accent) 60%, var(--border));
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--hero-accent) 12%, transparent);
+  outline: 1px solid color-mix(in oklab, var(--foreground) 55%, var(--border));
 }
 .prose figure[data-highlight] figcaption {
   color: var(--foreground);
@@ -707,7 +694,7 @@
   height: 0.95em;
   margin-right: 0.45em;
   vertical-align: -0.1em;
-  background: var(--hero-accent);
+  background: var(--foreground);
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 933.61 1050.31'%3E%3Crect width='233.4' height='233.4'/%3E%3Crect y='350.1' width='233.4' height='700.21'/%3E%3Crect x='350.1' width='233.4' height='233.4'/%3E%3Crect x='350.1' y='350.1' width='233.4' height='700.21'/%3E%3Crect x='700.21' width='233.4' height='233.4'/%3E%3Crect x='700.21' y='350.1' width='233.4' height='700.21'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
