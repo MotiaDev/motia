@@ -41,7 +41,7 @@ registerWorker(address?: string, options?: InitOptions) => IIIClient
       Enable worker metrics via OpenTelemetry. Defaults to `true`.
     </ParamField>
     <ParamField body="headers" type="Record<string, string>">
-      Custom HTTP headers sent during the WebSocket handshake.
+      Custom HTTP headers sent during the WebSocket handshake, on the main connection and on streaming channels. `Authorization: Bearer $III_TOKEN` is added unless you set `Authorization` here.
     </ParamField>
     <ParamField body="invocationTimeoutMs" type="number">
       Default timeout for `worker.trigger()` invocations in milliseconds. Defaults to `30000`.
@@ -49,8 +49,8 @@ registerWorker(address?: string, options?: InitOptions) => IIIClient
     <ParamField body="namespace" type="string">
       Namespace this worker belongs to. Resolution order: `options.namespace` -> `process.env.III_NAMESPACE` -> undefined. When undefined the engine applies its `default` namespace. It scopes more than the registration. The worker and its functions register here, so identically-named entries coexist across namespaces, and everything the worker does afterwards follows it: a `trigger` resolves its target here, and a `registerTrigger` binds here, unless the call names another namespace. One declaration places the whole worker.
     </ParamField>
-    <ParamField body="otel" type="Omit<OtelConfig, 'engineWsUrl'>">
-      OpenTelemetry configuration. OTel is initialized automatically by default. Set `{ enabled: false }` or env `OTEL_ENABLED=false/0/no/off` to disable. The `engineWsUrl` is set automatically from the III address.
+    <ParamField body="otel" type="Omit<OtelConfig, 'engineWsUrl' | 'engineWsHeaders'>">
+      OpenTelemetry configuration. OTel is initialized automatically by default. Set `{ enabled: false }` or env `OTEL_ENABLED=false/0/no/off` to disable. The `engineWsUrl` is set automatically from the III address, and `engineWsHeaders` from the handshake headers of the main connection.
     </ParamField>
     <ParamField body="reconnectionConfig" type="Partial<IIIReconnectionConfig>">
       WebSocket reconnection behavior.
@@ -81,6 +81,10 @@ const other = registerWorker('ws://localhost:49134', { workerName: 'my-worker' }
 
   </Tab>
 </Tabs>
+
+<Note>
+  Set the `III_TOKEN` environment variable to authenticate the worker. When `III_TOKEN` is set and not blank, the SDK sends `Authorization: Bearer <token>` on the WebSocket handshake of the main connection and of channel readers and writers. An `Authorization` header passed in `headers` wins (matched case-insensitively). The SDK never logs the token. See [Connect a backend worker](/creating-workers/worker-manager#connect-a-backend-worker).
+</Note>
 
 ## Methods
 
@@ -507,10 +511,10 @@ Configuration options passed to registerWorker.
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enableMetricsReporting` | `boolean` | No | Enable worker metrics via OpenTelemetry. Defaults to `true`. |
-| `headers` | `Record<string, string>` | No | Custom HTTP headers sent during the WebSocket handshake. |
+| `headers` | `Record<string, string>` | No | Custom HTTP headers sent during the WebSocket handshake, on the main connection and<br />on streaming channels. `Authorization: Bearer $III_TOKEN` is added unless you set<br />`Authorization` here. |
 | `invocationTimeoutMs` | `number` | No | Default timeout for `worker.trigger()` invocations in milliseconds. Defaults to `30000`. |
 | `namespace` | `string` | No | Namespace this worker belongs to. Resolution order:<br />`options.namespace` -> `process.env.III_NAMESPACE` -> undefined. When<br />undefined the engine applies its `default` namespace.<br /><br />It scopes more than the registration. The worker and its functions<br />register here, so identically-named entries coexist across namespaces, and<br />everything the worker does afterwards follows it: a `trigger` resolves its<br />target here, and a `registerTrigger` binds here, unless the call names<br />another namespace. One declaration places the whole worker. |
-| `otel` | `Omit<OtelConfig, "engineWsUrl">` | No | OpenTelemetry configuration. OTel is initialized automatically by default.<br />Set `{ enabled: false }` or env `OTEL_ENABLED=false/0/no/off` to disable.<br />The `engineWsUrl` is set automatically from the III address. |
+| `otel` | `Omit<OtelConfig, "engineWsUrl" \| "engineWsHeaders">` | No | OpenTelemetry configuration. OTel is initialized automatically by default.<br />Set `{ enabled: false }` or env `OTEL_ENABLED=false/0/no/off` to disable.<br />The `engineWsUrl` is set automatically from the III address, and `engineWsHeaders`<br />from the handshake headers of the main connection. |
 | `reconnectionConfig` | `Partial<IIIReconnectionConfig>` | No | WebSocket reconnection behavior. |
 | `workerDescription` | `string` | No | One-line, human/LLM-readable summary of what this worker does.<br />Surfaces in `engine::workers::list` / `engine::workers::info`. |
 | `workerName` | `string` | No | Display name for this worker. Defaults to `hostname:pid`. |

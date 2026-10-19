@@ -102,7 +102,10 @@ fields you choose, for example `{ public: true }`, `{ tier: "premium" }`, or `{ 
 
 The auth function runs during the WebSocket upgrade, before the client is connected. It receives the
 request's headers, query parameters, and client IP, and returns the session's permissions. **Throw
-to reject the connection.**
+to reject the connection.** Header names in `input.headers` are lowercase, so a backend worker's
+bearer token arrives as `input.headers.authorization` (see
+[Connect a backend worker](#connect-a-backend-worker)). A browser's token arrives in
+`input.query_params.token`.
 
 <Note>
   The auth function can grant multiple authorizations so a single function can be used to authorize
@@ -261,6 +264,50 @@ export const worker = registerWorker(`ws://localhost:3110?token=${encodeURICompo
 The session can now call only the functions `expose_functions` (plus `allowed_functions`) permit.
 For an end-to-end walkthrough that turns a browser tab into a worker, see
 [Ch. 7: Bring in the browser](/tutorials/linkly/frontend).
+
+### Connect a backend worker
+
+Backend workers built with the Node, Python, Rust, or Go SDK can send the token as a header instead
+of a query parameter. Set the `III_TOKEN` environment variable on the worker process. When
+`III_TOKEN` is set and not blank, the SDK adds `Authorization: Bearer <token>` to the WebSocket
+handshake. You don't need to change the worker's code:
+
+```bash
+III_URL=ws://localhost:3110 III_TOKEN=dev-token node dist/index.js
+```
+
+The SDK applies these rules:
+
+- An `Authorization` header you pass explicitly wins over `III_TOKEN`. The SDK matches the header
+  name case-insensitively. Pass headers with `headers` in Node, Python, and Rust, or with
+  `iii.WithHeaders(http.Header)` in Go.
+- The SDK never logs the token.
+- Channel reader and writer connections send the same handshake headers as the main connection, so
+  `III_TOKEN` also authenticates [channels](/creating-workers/channels). Channel URLs keep any query
+  already on the engine URL, such as `?token=...`.
+- Workers that [`iii compose`](/cli-reference/index#iii-compose) spawns inherit `III_TOKEN` from the daemon's environment.
+
+Read the header in the auth function, and fall back to the query parameter so the same function
+also accepts browsers:
+
+```typescript src/index.ts
+const bearer = input.headers.authorization?.replace(/^Bearer\s+/i, "");
+const token = bearer ?? input.query_params.token?.[0];
+if (token !== (process.env.BROWSER_TOKEN ?? "dev-token")) {
+  throw new Error("unauthorized");
+}
+```
+
+In Go, pass extra handshake headers with `WithHeaders`. `III_TOKEN` still adds the bearer token
+unless the headers already carry `Authorization`:
+
+```go main.go
+headers := http.Header{}
+headers.Set("X-Tenant", "acme")
+
+worker := iii.RegisterWorker(os.Getenv("III_URL"), iii.WithHeaders(headers))
+defer worker.Close()
+```
 
 ## Intercept calls with middleware
 
