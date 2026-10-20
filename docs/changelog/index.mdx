@@ -208,6 +208,13 @@ type: "reference"
 
   - The legacy console package (the `iii-console` binary and its frontend) is no longer built or
     released from this repository.
+  - `iii console` no longer downloads or starts the legacy console. It prints a notice that points
+    to the iii console in ADE (`iii trigger compose::add worker=ade`, then open
+    `http://127.0.0.1:3113`) and exits with a non-zero status. The command itself will be removed in
+    an upcoming release. See [Console](/using-iii/console).
+  - `iii update` no longer installs or updates `iii-console`, and `iii update console` and
+    `iii update --list-targets` no longer accept or list it. An `iii-console` binary that is
+    already installed is left in place.
 </Update>
 
 <Update label="0.24.6" description="October 2026">
