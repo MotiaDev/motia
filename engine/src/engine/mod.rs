@@ -2591,20 +2591,10 @@ impl Engine {
     }
 
     pub async fn fire_triggers(&self, trigger_type: &str, mut data: Value) {
-        let triggers: Vec<_> = self
+        let triggers = self
             .trigger_registry
             .triggers
-            .iter()
-            .filter(|entry| entry.value().trigger_type == trigger_type)
-            .map(|entry| {
-                let trigger = entry.value();
-                (
-                    trigger.function_id.clone(),
-                    trigger.namespace.clone(),
-                    trigger.metadata.clone(),
-                )
-            })
-            .collect();
+            .targets_for_type(trigger_type);
 
         let current_span = tracing::Span::current();
 
