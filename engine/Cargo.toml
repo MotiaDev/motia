@@ -1,6 +1,6 @@
 [package]
 name = "iii"
-version = "0.24.6-rc.5"
+version = "0.24.6"
 edition = "2024"
 license = "Elastic-2.0"
 
@@ -114,6 +114,10 @@ url = { workspace = true }
 anyhow = "1.0.100"
 uuid = { version = "1", features = ["v4", "serde"] }
 dashmap = "6"
+# observe: lock-free snapshots of the observed-function set on the invocation
+# hot path, and the filter language shared with every SDK.
+arc-swap = "1"
+iii-filter = { workspace = true }
 indexmap = { version = "2", features = ["serde"] }
 redis = { version = "1.0.1", features = ["tokio-comp", "connection-manager"] }
 lapin = { version = "3", optional = true }
@@ -149,7 +153,7 @@ indicatif = "0.18"
 semver = { version = "1", features = ["serde"] }
 flate2 = "1"
 tar = "0.4"
-zip = "2"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 thiserror = "2"
 tokio-tungstenite = "0.28"
 # Used by workers::external::resolve_external_module to locate
