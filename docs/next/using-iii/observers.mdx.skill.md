@@ -245,13 +245,13 @@ values, and the limits.
 
 The third argument configures the observer itself:
 
-| Option          | Default                                | Meaning                                                                                                                                                                                              |
-| --------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`            | a random UUID                          | The observer id. Replays with the same id are idempotent; a different spec is `OBSERVER_ID_CONFLICT`.                                                                                                |
-| `max_fires`     | unlimited                              | The observer is disposed after this many activations (`MAX_FIRES`).                                                                                                                                  |
-| `expires_in_ms` | never                                  | The observer is disposed after this long (`EXPIRED`).                                                                                                                                                |
-| `max_in_flight` | `observers.default_max_in_flight` (64) | Activations running at once. Further ones wait in a queue of `observers.max_queue_per_observer` (1024); beyond it they are dropped (`OVERFLOW`). With `1`, activations run in the order they arrive. |
-| `metadata`      | none                                   | JSON delivered as the metadata sidecar of every activation.                                                                                                                                          |
+| Option          | Default                                | Meaning                                                                                                                                                                                                                                                          |
+| --------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`            | a random UUID                          | The observer id. Replays with the same id are idempotent; a different spec is `OBSERVER_ID_CONFLICT`.                                                                                                                                                            |
+| `max_fires`     | unlimited                              | The observer is disposed after this many activations (`MAX_FIRES`).                                                                                                                                                                                              |
+| `expires_in_ms` | never                                  | The observer is disposed after this long (`EXPIRED`).                                                                                                                                                                                                            |
+| `max_in_flight` | `observers.default_max_in_flight` (64) | Activations running at once. Further ones wait in a queue of `observers.max_queue_per_observer` (1024); beyond it, or once the queues of all observers hold 64 MiB of events, they are dropped (`OVERFLOW`). With `1`, activations run in the order they arrive. |
+| `metadata`      | none                                   | JSON delivered as the metadata sidecar of every activation.                                                                                                                                                                                                      |
 
 <Tabs>
   <Tab title="Node / TypeScript">
@@ -319,7 +319,8 @@ The third argument configures the observer itself:
 </Tabs>
 
 Delivery is at most once. An observer failure never affects the observed invocation, and every
-dropped event is counted per function and reason in the `iii.observer.dropped.total` metric.
+dropped event is counted per function and reason in the `iii.observer.dropped.total` metric. An
+event waiting in several observers' queues is held once, however many observers it matched.
 
 ## Observer states
 

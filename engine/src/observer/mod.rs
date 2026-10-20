@@ -92,14 +92,20 @@ pub struct ObserverRegistry {
     departed: DashMap<Uuid, Departed>,
     state_counts: lifecycle::StateCounts,
     payload_copies: AtomicU64,
-    /// The routed hook's completions, evaluated in order off the invocation's
-    /// task.
-    evaluator: OnceLock<tokio::sync::mpsc::Sender<dispatch::Evaluation>>,
+    /// Times a reporting connection's reader waited for room in a queue its
+    /// report overflowed.
+    report_waits: AtomicU64,
+    /// The routed hook's completions, evaluated off the invocation's task by
+    /// one evaluator per shard. All of a function's completions go to the
+    /// same shard, which evaluates them in the order they completed.
+    evaluators: OnceLock<Vec<tokio::sync::mpsc::Sender<dispatch::Evaluation>>>,
     evaluated: AtomicU64,
     events_built: AtomicU64,
     /// Approximate payload bytes waiting for the evaluator.
     queued_bytes: std::sync::atomic::AtomicUsize,
-    /// The evaluator queue's capacity, read when it starts.
+    /// The observers' queues together.
+    queue_budget: Arc<dispatch::QueueBudget>,
+    /// Each evaluator shard's queue capacity, read when they start.
     evaluator_capacity: std::sync::atomic::AtomicUsize,
     /// The evaluator queue's byte budget.
     evaluator_bytes: std::sync::atomic::AtomicUsize,
@@ -126,6 +132,9 @@ pub struct ObserverRegistry {
     revisions: DashMap<FnKey, u64>,
     /// `revisions` by insertion, oldest first.
     revision_order: Mutex<std::collections::VecDeque<(FnKey, u64)>>,
+    /// The task that sends drop counts to the metric is running (see
+    /// [`ObserverRegistry::export_drops`]).
+    drop_export: std::sync::atomic::AtomicBool,
 }
 
 impl Default for ObserverRegistry {
@@ -150,10 +159,12 @@ impl ObserverRegistry {
             departed: DashMap::new(),
             state_counts: lifecycle::StateCounts::default(),
             payload_copies: AtomicU64::new(0),
-            evaluator: OnceLock::new(),
+            report_waits: AtomicU64::new(0),
+            evaluators: OnceLock::new(),
             evaluated: AtomicU64::new(0),
             events_built: AtomicU64::new(0),
             queued_bytes: std::sync::atomic::AtomicUsize::new(0),
+            queue_budget: Arc::new(dispatch::QueueBudget::default()),
             evaluator_capacity: std::sync::atomic::AtomicUsize::new(dispatch::EVALUATOR_QUEUE),
             evaluator_bytes: std::sync::atomic::AtomicUsize::new(dispatch::EVALUATOR_BYTES),
             tombstones: DashMap::new(),
@@ -165,6 +176,7 @@ impl ObserverRegistry {
             announcements: AtomicU64::new(0),
             revisions: DashMap::new(),
             revision_order: Mutex::new(std::collections::VecDeque::new()),
+            drop_export: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
@@ -201,11 +213,51 @@ impl ObserverRegistry {
             .or_else(|| self.runtime.get().cloned())
     }
 
-    fn remember_runtime(&self) {
+    fn remember_runtime(self: &Arc<Self>) {
         if self.runtime.get().is_none()
             && let Ok(handle) = tokio::runtime::Handle::try_current()
         {
             let _ = self.runtime.set(handle);
+        }
+        self.start_drop_export();
+    }
+
+    /// Starts the task that sends drop counts to `iii.observer.dropped.total`
+    /// every [`dispatch::DROP_EXPORT_INTERVAL`], once there is a meter and a
+    /// runtime.
+    fn start_drop_export(self: &Arc<Self>) {
+        use std::sync::atomic::Ordering;
+        if metrics().is_none() || self.drop_export.load(Ordering::Acquire) {
+            return;
+        }
+        let Some(runtime) = self.runtime() else {
+            return;
+        };
+        if self.drop_export.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        let registry = Arc::downgrade(self);
+        runtime.spawn(async move {
+            let mut tick = tokio::time::interval(dispatch::DROP_EXPORT_INTERVAL);
+            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            loop {
+                tick.tick().await;
+                let Some(registry) = registry.upgrade() else {
+                    return;
+                };
+                registry.export_drops();
+            }
+        });
+    }
+
+    /// Sends what each live observer dropped since the last export to
+    /// `iii.observer.dropped.total`. A drop only counts in the observer
+    /// (one atomic add, which matters when an overloaded engine drops by the
+    /// million); the metric follows from here, and from the observer's own
+    /// drop for what is left when it goes.
+    pub fn export_drops(&self) {
+        for observer in self.by_id.iter() {
+            dispatch::export_drops(observer.value());
         }
     }
 

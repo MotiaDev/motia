@@ -1235,8 +1235,14 @@ impl Engine {
     async fn route_frame(&self, worker: &WorkerConnection, msg: Message) -> anyhow::Result<()> {
         match msg {
             Message::InvocationsObserved { items } => {
-                self.observers
-                    .report(worker.id, &self.connection_namespace(worker), items);
+                let full =
+                    self.observers
+                        .report(worker.id, &self.connection_namespace(worker), items);
+                // Backpressure: nothing more is read from this worker until
+                // the queues its report overflowed have room again.
+                if !full.is_empty() {
+                    self.observers.wait_for_room(&full).await;
+                }
                 Ok(())
             }
             // A (un)registration made while the worker handles an activation
@@ -2884,8 +2890,14 @@ impl Engine {
                 Ok(())
             }
             Message::InvocationsObserved { items } => {
-                self.observers
-                    .report(worker.id, &self.connection_namespace(worker), items.clone());
+                let full = self.observers.report(
+                    worker.id,
+                    &self.connection_namespace(worker),
+                    items.clone(),
+                );
+                if !full.is_empty() {
+                    self.observers.wait_for_room(&full).await;
+                }
                 Ok(())
             }
             Message::LocalInvocationStats {
