@@ -68,6 +68,10 @@ harness = false
 name = "worker_invocation_tracking_bench"
 harness = false
 
+[[bench]]
+name = "observe_dispatch_bench"
+harness = false
+
 [features]
 default = ["rabbitmq"]
 rabbitmq = ["lapin"]
