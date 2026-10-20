@@ -328,7 +328,7 @@ function Benchmarks({ run }: { run: Summary }) {
           <ChartCard
             title="Activations delivered, by events offered"
             subtitle="Per second, over 16 observers, on logarithmic scales: a line on the diagonal delivers everything."
-            read="On the dashed line, everything offered arrives. Where a size's line leaves it, its engine is full: it keeps delivering at capacity and drops the excess per observer (OVERFLOW) instead of queueing without bound."
+            read="On the dashed line, everything offered arrives. Where a size's line leaves it, its engine is full: it keeps delivering at capacity, and the excess is dropped and counted instead of queueing without bound. While the observers' queues are full, the engine stops reading the emitting worker, whose SDK drops what it cannot hold (BUFFER_FULL)."
           >
             <Chart
               series={views.delivery(run)}
@@ -472,7 +472,8 @@ function Benchmarks({ run }: { run: Summary }) {
             </p>
             <p className="mt-3">
               The calls hold at 64 in flight while slow observers are added: 4, 64, 256. Every one of them keeps a full
-              queue, and every queued activation holds its own copy of the event.
+              queue. A queued event is held once, however many observers wait on it, and all the queues together are
+              capped at 64 MiB of events.
             </p>
           </>
         }
@@ -480,7 +481,7 @@ function Benchmarks({ run }: { run: Summary }) {
         <div className="mt-10 lg:mt-0">
           <ChartCard
             title="Peak engine memory, by slow observers"
-            read="The queues are bounded per observer, not in total, so memory grows with the number of slow observers. The calls themselves keep flowing; the slow observers lose events, every one counted as OVERFLOW in the observer's stats."
+            read="The queues are bounded per observer and all together, so what still grows with the number of slow observers is their activations in flight, 64 at a time for each. The calls themselves keep flowing; the slow observers lose events, every one counted as OVERFLOW in the observer's stats."
           >
             <Chart
               series={views.overload(run)}
@@ -598,7 +599,10 @@ function Benchmarks({ run }: { run: Summary }) {
                   'A step',
                   `${run.settings.step_secs ?? 10} seconds of load after a warm-up, with the engine’s CPU, memory and threads read from /proc every 250 ms. Every scenario starts on a fresh engine.`,
                 ],
-                ['The engine', 'As it ships: default configuration, every span recorded, logs at info.'],
+                [
+                  'The engine',
+                  'As it ships: default configuration, every span recorded, logs at info. It is the Linux glibc build, the one in the Docker image.',
+                ],
                 [
                   'What it is not',
                   'A shared CI machine, so runs differ by several percent: compare lines within a run, and runs by their trend. The numbers are for this machine; a faster CPU moves every line.',

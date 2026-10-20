@@ -129,6 +129,7 @@ It needs a GitHub-hosted larger runner: Linux x64 with 16 vCPUs, added to the re
 - **Memory.** RSS is the engine's resident memory. The cgroup peak (in `results.json`) adds the page cache it touched. Glibc keeps freed memory, so "after the load" shows what the engine holds on to, not only what it still uses.
 - **Latency at low concurrency.** It is higher in a VM than on `host`, with the same engine: that is the cost of virtualization at low load. Throughput under load is the number to compare across sizes.
 - **Per-observer delivery ceiling.** A single observer delivers at most about `max_in_flight / target latency` activations per second (64 in flight against a 2 ms round trip is about 32k/s). Past that, its queue (`max_queue_per_observer`) fills and the engine drops the rest with `OVERFLOW`. `fanout`, `local` and `emit` show this ceiling.
+- **Which build.** `--engine` defaults to `target/release/iii`, a glibc build like the one in the Docker image. On x86_64 Linux, `install.sh` installs the static musl build unless `III_USE_GLIBC` is set, and musl's allocator is slower under load. Pass that binary with `--engine` to measure it.
 
 ## Known quirk
 
