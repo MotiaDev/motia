@@ -365,6 +365,12 @@ click counts to a durable queue.
 
 iii's **composability** once again makes it easy to take applications from demo to production-ready.
 
+<Warning title="Deprecated">
+  This prompt adds the `pubsub` worker. `pubsub` is deprecated (pubsub) and will be removed in an
+  upcoming release. Behavior is unchanged for now. See
+  [Migrate from iii-stream and pubsub](../../upgrading/migrate-from-streams#migrate-from-pubsub).
+</Warning>
+
 <CodeGroup>
 
 ```text Prompt
@@ -426,6 +432,12 @@ durable topics.
 Collecting data is one thing but delivering it is another. This chapter pushes every click to
 listeners in real time through a trigger type that a new `click-streamer` worker owns, and gives
 late listeners a query for the running total.
+
+<Warning title="Deprecated">
+  This prompt builds on `stream::set` and `stream::list`. `stream::*` is deprecated (iii-stream) and
+  will be removed in an upcoming release. Behavior is unchanged for now. See
+  [Migrate from iii-stream and pubsub](../../upgrading/migrate-from-streams).
+</Warning>
 
 <CodeGroup>
 
