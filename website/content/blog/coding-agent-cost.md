@@ -2,7 +2,7 @@
 title: 'Running a coding agent for a dollar'
 seoTitle: 'Coding Agent Cost: What Can You Build for $1?'
 description: 'What does a coding agent cost per task? See iii tested with DeepSeek and Claude for under $1, with token costs, results, and a budget worksheet.'
-pubDate: 2026-10-20
+pubDate: 2026-10-21
 tags: ['agents', 'cost', 'deepseek', 'claude-code', 'harness', 'benchmarks']
 ogImage: ../../assets/blog/coding-agent-cost/banner.png
 faq:
@@ -16,7 +16,7 @@ faq:
     a: 'It depends on how many tasks you run per month. OpenCode Go costs $10 a month with published usage limits, including a 5-hour session cap, weekly limits, and monthly limits. Multiply your measured cost per task by your expected tasks per month, then compare that total against the plan price. If the plan limit accommodates your actual usage pattern, it''s often simpler. If you''re running many tasks or long sessions, per-token billing on a flash-tier model may cost less.'
 ---
 
-![Running a coding agent for a dollar. The cheapest run cost $0.10. DeepSeek V4.1 Flash in iii, $0.10. Claude Sonnet 5 in iii, $0.48. Claude Sonnet 5 in Claude Code, $0.63. None of the three reached $1.](../../assets/blog/coding-agent-cost/banner.png)
+![Running a coding agent for a dollar. The cheapest run cost $0.10. DeepSeek V4.1 Flash in iii, $0.10. Claude Sonnet 5 in iii, $0.48. Claude Sonnet 5 in Claude Code, $0.63.](../../assets/blog/coding-agent-cost/banner.png)
 
 **Run date:** 2026-10-16. iii engine 0.24.4, AI Agent Harness 1.8.54, provider-deepseek 0.1.17, provider-anthropic 1.2.23, ide 0.12.32.
 
