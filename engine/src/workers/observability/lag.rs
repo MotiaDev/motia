@@ -13,8 +13,15 @@
 //! `info`) then keeps a core busy and the log growing for as long as the engine
 //! runs. [`LagReport`] reports at most once per [`LAG_REPORT_INTERVAL`], so the
 //! consumer catches up between two reports.
+//!
+//! What a consumer skips between two reports is held back, not lost: it is
+//! reported with the next lag past the interval, or when the interval ends
+//! (the consumer waits on [`LagReport::deadline`] with [`sleep_until`]), or
+//! when the consumer stops ([`LagReport::rest`]). Every skip is reported once.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+use tokio::time::Instant;
 
 /// The shortest time between two lag reports of one consumer.
 pub(crate) const LAG_REPORT_INTERVAL: Duration = Duration::from_secs(10);
@@ -45,6 +52,44 @@ impl LagReport {
         self.last = Some(now);
         Some(std::mem::take(&mut self.skipped))
     }
+
+    /// When the skips held back may be reported, if any are: the consumer
+    /// wakes then ([`sleep_until`]) and calls [`Self::due`], so the last skips
+    /// of a burst are reported even when no lag follows them.
+    pub(crate) fn deadline(&self) -> Option<Instant> {
+        match self.last {
+            Some(last) if self.skipped > 0 => Some(last + LAG_REPORT_INTERVAL),
+            _ => None,
+        }
+    }
+
+    /// The skips held back, once [`LAG_REPORT_INTERVAL`] has passed since the
+    /// last report; `None` before that, or when there are none.
+    pub(crate) fn due(&mut self) -> Option<u64> {
+        self.due_at(Instant::now())
+    }
+
+    fn due_at(&mut self, now: Instant) -> Option<u64> {
+        if self.deadline().is_none_or(|deadline| now < deadline) {
+            return None;
+        }
+        self.last = Some(now);
+        Some(std::mem::take(&mut self.skipped))
+    }
+
+    /// The skips held back, whenever it is: the consumer is stopping.
+    pub(crate) fn rest(&mut self) -> Option<u64> {
+        (self.skipped > 0).then(|| std::mem::take(&mut self.skipped))
+    }
+}
+
+/// Resolves at `deadline`, and never without one: a consumer's `select!`
+/// branch for [`LagReport::deadline`].
+pub(crate) async fn sleep_until(deadline: Option<Instant>) {
+    match deadline {
+        Some(deadline) => tokio::time::sleep_until(deadline).await,
+        None => std::future::pending().await,
+    }
 }
 
 #[cfg(test)]
@@ -63,6 +108,39 @@ mod tests {
             report.lagged_at(1, t0 + LAG_REPORT_INTERVAL + Duration::from_secs(1)),
             Some(4)
         );
+    }
+
+    /// The skips held back after a report are due when its interval ends,
+    /// with no further lag, and are reported once.
+    #[test]
+    fn held_back_skips_are_due_when_the_interval_ends() {
+        let t0 = Instant::now();
+        let mut report = LagReport::default();
+        assert_eq!(report.deadline(), None);
+        assert_eq!(report.lagged_at(3, t0), Some(3));
+        assert_eq!(report.deadline(), None, "nothing held back");
+        assert_eq!(report.lagged_at(2, t0 + Duration::from_secs(1)), None);
+        assert_eq!(report.deadline(), Some(t0 + LAG_REPORT_INTERVAL));
+        assert_eq!(report.due_at(t0 + Duration::from_secs(9)), None);
+        assert_eq!(report.due_at(t0 + LAG_REPORT_INTERVAL), Some(2));
+        assert_eq!(report.deadline(), None);
+        assert_eq!(report.due_at(t0 + 3 * LAG_REPORT_INTERVAL), None);
+        // That report starts a new interval.
+        assert_eq!(
+            report.lagged_at(1, t0 + LAG_REPORT_INTERVAL + Duration::from_secs(1)),
+            None
+        );
+        assert_eq!(report.rest(), Some(1));
+        assert_eq!(report.rest(), None);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn sleep_until_waits_for_the_deadline_and_forever_without_one() {
+        let start = Instant::now();
+        sleep_until(Some(start + LAG_REPORT_INTERVAL)).await;
+        assert_eq!(start.elapsed(), LAG_REPORT_INTERVAL);
+        let never = tokio::time::timeout(Duration::from_secs(3600), sleep_until(None)).await;
+        assert!(never.is_err());
     }
 
     /// The consumer of a full channel, reporting each lag into that same

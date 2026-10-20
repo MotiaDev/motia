@@ -1757,11 +1757,17 @@ impl ObservabilityWorker {
             tracing::debug!("[ObservabilityWorker] Log trigger subscriber started");
             let mut lag = lag::LagReport::default();
             loop {
+                let lag_due = lag.deadline();
                 tokio::select! {
                     result = shutdown_rx.changed() => {
                         if result.is_err() || *shutdown_rx.borrow() {
                             tracing::debug!("[ObservabilityWorker] Log trigger subscriber shutting down");
                             break;
+                        }
+                    }
+                    _ = lag::sleep_until(lag_due), if lag_due.is_some() => {
+                        if let Some(skipped) = lag.due() {
+                            tracing::warn!(skipped, "Log trigger subscriber lagged, some logs were skipped");
                         }
                     }
                     result = stop_rx.changed() => {
@@ -1788,6 +1794,12 @@ impl ObservabilityWorker {
                         }
                     }
                 }
+            }
+            if let Some(skipped) = lag.rest() {
+                tracing::warn!(
+                    skipped,
+                    "Log trigger subscriber lagged, some logs were skipped"
+                );
             }
             tracing::debug!("[ObservabilityWorker] Log trigger subscriber stopped");
         });

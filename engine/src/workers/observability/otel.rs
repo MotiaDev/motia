@@ -5579,7 +5579,13 @@ impl OtlpLogsExporter {
             let mut lag = super::lag::LagReport::default();
 
             loop {
+                let lag_due = lag.deadline();
                 tokio::select! {
+                    _ = super::lag::sleep_until(lag_due), if lag_due.is_some() => {
+                        if let Some(n) = lag.due() {
+                            tracing::warn!(dropped = n, "Log exporter lagged, some logs were dropped");
+                        }
+                    }
                     // Receive logs from broadcast channel
                     result = rx.recv() => {
                         match result {
@@ -5616,6 +5622,9 @@ impl OtlpLogsExporter {
                 }
             }
 
+            if let Some(n) = lag.rest() {
+                tracing::warn!(dropped = n, "Log exporter lagged, some logs were dropped");
+            }
             // Flush remaining logs on shutdown
             if !batch.is_empty()
                 && let Err(e) = self.export_batch(&batch).await
@@ -5637,11 +5646,17 @@ impl OtlpLogsExporter {
             let mut lag = super::lag::LagReport::default();
 
             loop {
+                let lag_due = lag.deadline();
                 tokio::select! {
                     _ = shutdown.changed() => {
                         if *shutdown.borrow() {
                             tracing::debug!("[OtlpLogsExporter] Shutting down");
                             break;
+                        }
+                    }
+                    _ = super::lag::sleep_until(lag_due), if lag_due.is_some() => {
+                        if let Some(n) = lag.due() {
+                            tracing::warn!(skipped = n, "OTLP logs exporter lagged behind");
                         }
                     }
                     result = rx.recv() => {
@@ -5678,6 +5693,9 @@ impl OtlpLogsExporter {
                 }
             }
 
+            if let Some(n) = lag.rest() {
+                tracing::warn!(skipped = n, "OTLP logs exporter lagged behind");
+            }
             // Flush remaining logs on shutdown
             if !batch.is_empty()
                 && let Err(e) = self.export_batch(&batch).await
