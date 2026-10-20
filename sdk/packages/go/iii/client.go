@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"net/http"
 	"os"
 	"runtime"
 	"strings"
@@ -39,6 +40,9 @@ type Client struct {
 	reconnect   ReconnectConfig
 	name        string
 	description string
+	// headers are the caller's WithHeaders, sent on the WebSocket handshake of the
+	// main connection and of channels. handshakeHeaders adds the III_TOKEN bearer.
+	headers http.Header
 	// namespace is the routing dimension this worker registers into. Empty means
 	// the engine's default namespace. Resolved once at construction: an explicit
 	// WithNamespace wins, else the III_NAMESPACE env var, else default.
@@ -176,6 +180,35 @@ func WithReconnectConfig(c ReconnectConfig) Option {
 // worker does. Surfaces in engine::workers::list / engine::workers::info.
 func WithDescription(description string) Option {
 	return func(c *Client) { c.description = description }
+}
+
+// WithHeaders sets HTTP headers sent on the WebSocket handshake of the main connection
+// and of channels created with [Client.CreateChannel]. The III_TOKEN environment
+// variable, when set and not blank, adds "Authorization: Bearer <token>" unless h
+// already carries an Authorization header.
+func WithHeaders(h http.Header) Option {
+	return func(c *Client) { c.headers = h }
+}
+
+// handshakeHeaders returns explicit plus "Authorization: Bearer $III_TOKEN" when the
+// variable is set and not blank. An Authorization header already in explicit wins
+// (names match case-insensitively). explicit is never modified.
+func handshakeHeaders(explicit http.Header) http.Header {
+	token := strings.TrimSpace(os.Getenv("III_TOKEN"))
+	if token == "" {
+		return explicit
+	}
+	for name := range explicit {
+		if strings.EqualFold(name, "Authorization") {
+			return explicit
+		}
+	}
+	h := explicit.Clone()
+	if h == nil {
+		h = http.Header{}
+	}
+	h.Set("Authorization", "Bearer "+token)
+	return h
 }
 
 // WithName sets the worker name reported to the engine. A non-empty
@@ -607,7 +640,14 @@ func (c *Client) enqueueOutbound(frame []byte) {
 // times Connect (or RegisterWorker) is called, so there is never more than one goroutine
 // driving the socket.
 func (c *Client) startSupervisor() {
-	c.superviseOnce.Do(func() { go c.supervise() })
+	c.superviseOnce.Do(func() {
+		// Lets `iii ps` find this worker until Close ends the supervisor.
+		remove := announceProcess(c.url, c.name, "")
+		go func() {
+			defer remove()
+			c.supervise()
+		}()
+	})
 }
 
 // Connect starts the connection lifecycle (if not already started) and blocks until the
@@ -714,7 +754,7 @@ func (c *Client) runConnection() error {
 	connCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	conn, _, err := websocket.Dial(connCtx, c.url, nil)
+	conn, _, err := websocket.Dial(connCtx, c.url, &websocket.DialOptions{HTTPHeader: handshakeHeaders(c.headers)})
 	if err != nil {
 		// Treat dial failure as a reconnectable error unless we're shutting down.
 		select {
@@ -903,7 +943,7 @@ type workerMetadata struct {
 
 // sdkVersion is reported in the worker metadata. Kept as a const for v1; a release
 // process can wire this to the module version later.
-const sdkVersion = "0.24.5"
+const sdkVersion = "0.24.6"
 
 // writeLoop is the single writer for one connection. It drains the shared outbound
 // channel (connection-agnostic frames) and this connection's own reply channel

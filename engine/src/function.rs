@@ -68,7 +68,7 @@ impl Function {
         session: Option<Arc<Session>>,
         metadata: Option<Value>,
     ) -> FunctionResult<Option<Value>, ErrorBody> {
-        (self.handler)(invocation_id, data.clone(), session, metadata).await
+        (self.handler)(invocation_id, data, session, metadata).await
     }
 }
 

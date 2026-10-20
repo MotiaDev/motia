@@ -19,8 +19,8 @@ use std::{
 use axum::{
     Router,
     extract::{ConnectInfo, State, ws::WebSocketUpgrade},
-    http::{HeaderMap, Uri},
-    response::IntoResponse,
+    http::{HeaderMap, HeaderName, HeaderValue, Uri},
+    response::{IntoResponse, Response},
     routing::get,
 };
 use colored::Colorize;
@@ -29,6 +29,7 @@ use hyper_util::{
     rt::{TokioIo, TokioTimer},
     service::TowerToHyperService,
 };
+use iii_sdk::protocol::{ENGINE_CAPABILITIES_HEADER, ENGINE_CAPABILITY_TCP_NODELAY};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -151,15 +152,18 @@ impl Worker for WorkerManager {
             .await
             .map_err(|err| crate::workers::traits::bind_address_error(&addr, err))?;
         tracing::info!("Engine listening on address: {}", addr.purple());
+        // Lets `iii ps` and `iii kill --port` find this engine by its port.
+        // Removed when the server task below ends.
+        let marker = listener
+            .local_addr()
+            .ok()
+            .and_then(|local| iii_compose::ps::announce_engine(&format!("ws://{local}")));
 
-        let app = Router::new()
-            .route("/", get(ws_handler))
-            .route("/otel", get(otel_ws_handler))
-            .route("/ws/channels/{channel_id}", get(channel_ws_upgrade))
-            .with_state(state);
+        let app = worker_router(state);
 
         let handshake_timeout = Duration::from_millis(config.handshake_timeout_ms);
         let handle = tokio::spawn(async move {
+            let _marker = marker;
             let shutdown = async move {
                 tokio::select! {
                     _ = shutdown_signal() => {
@@ -191,7 +195,8 @@ impl Worker for WorkerManager {
             let mut make_service = app.into_make_service_with_connect_info::<SocketAddr>();
             loop {
                 let (stream, peer) = tokio::select! {
-                    res = listener.accept() => match res {
+                    // Through accept_worker_connection: it sets TCP_NODELAY (MOT-5377).
+                    res = accept_worker_connection(&listener) => match res {
                         Ok(conn) => conn,
                         Err(err) => {
                             // ECONNABORTED/RESET are normal client churn;
@@ -304,6 +309,46 @@ fn is_connection_error(e: &io::Error) -> bool {
     )
 }
 
+/// Routes of the worker listener. Every response lists the engine's transport
+/// capabilities in [`ENGINE_CAPABILITIES_HEADER`]: the accept loop sets
+/// `TCP_NODELAY` on every connection, so workers may disable Nagle on their
+/// end too. Workers wait for this before doing so, because Nagle on the
+/// engine's end alone is slower than on both ends (MOT-5377).
+///
+/// The header is static, so this router must only be served through
+/// [`accept_worker_connection`], which sets the `TCP_NODELAY` it promises.
+fn worker_router(state: AppState) -> Router {
+    Router::new()
+        .route("/", get(ws_handler))
+        .route("/otel", get(otel_ws_handler))
+        .route("/ws/channels/{channel_id}", get(channel_ws_upgrade))
+        .layer(axum::middleware::map_response(advertise_capabilities))
+        .with_state(state)
+}
+
+// `from_static` is a const fn, so an invalid name or value fails the build.
+const CAPABILITIES_HEADER: HeaderName = HeaderName::from_static(ENGINE_CAPABILITIES_HEADER);
+const CAPABILITIES: HeaderValue = HeaderValue::from_static(ENGINE_CAPABILITY_TCP_NODELAY);
+
+async fn advertise_capabilities(mut response: Response) -> Response {
+    response
+        .headers_mut()
+        .insert(CAPABILITIES_HEADER, CAPABILITIES);
+    response
+}
+
+/// Accepts a worker, channel or `/otel` connection with `TCP_NODELAY` set:
+/// their small frames must not wait for the peer's delayed ACK (MOT-5377).
+async fn accept_worker_connection(
+    listener: &TcpListener,
+) -> io::Result<(tokio::net::TcpStream, SocketAddr)> {
+    let (stream, peer) = listener.accept().await?;
+    if let Err(err) = stream.set_nodelay(true) {
+        tracing::debug!(peer = %peer, error = ?err, "set_nodelay failed; small writes may stall");
+    }
+    Ok((stream, peer))
+}
+
 async fn shutdown_signal() -> anyhow::Result<()> {
     #[cfg(unix)]
     {
@@ -383,6 +428,78 @@ crate::register_worker!(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Serves the real worker router on an ephemeral port. Uses `axum::serve`,
+    /// not the production hyper loop: `accept_worker_connection` (the
+    /// `TCP_NODELAY` half) has its own test.
+    async fn serve_worker_router() -> SocketAddr {
+        // Engine::new() and the worker connection handler build metrics, which
+        // require GLOBAL_METER. Under nextest each test is its own process, so
+        // initialize the default (noop) meter here instead of relying on a
+        // sibling test.
+        crate::workers::observability::metrics::ensure_default_meter();
+        let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+        let state = AppState {
+            engine: Arc::new(Engine::new()),
+            config: Arc::new(WorkerManagerConfig::default()),
+            shutdown_rx,
+        };
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let _shutdown_tx = shutdown_tx;
+            let app = worker_router(state).into_make_service_with_connect_info::<SocketAddr>();
+            axum::serve(listener, app).await.unwrap();
+        });
+        address
+    }
+
+    fn advertised(headers: &HeaderMap) -> Option<&str> {
+        headers
+            .get(ENGINE_CAPABILITIES_HEADER)
+            .and_then(|value| value.to_str().ok())
+    }
+
+    #[tokio::test]
+    async fn worker_listener_advertises_tcp_nodelay_on_upgrade() {
+        let address = serve_worker_router().await;
+        for path in ["/", "/otel"] {
+            let (_socket, response) =
+                tokio_tungstenite::connect_async(format!("ws://{address}{path}"))
+                    .await
+                    .unwrap();
+            assert_eq!(
+                advertised(response.headers()),
+                Some(ENGINE_CAPABILITY_TCP_NODELAY),
+                "path {path}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn worker_listener_advertises_tcp_nodelay_on_rejected_channel_upgrade() {
+        let address = serve_worker_router().await;
+        let url = format!("ws://{address}/ws/channels/missing?key=bad&dir=read");
+        let error = tokio_tungstenite::connect_async(url).await.unwrap_err();
+        let tokio_tungstenite::tungstenite::Error::Http(response) = error else {
+            panic!("expected an HTTP rejection, got {error:?}");
+        };
+        assert_eq!(
+            advertised(response.headers()),
+            Some(ENGINE_CAPABILITY_TCP_NODELAY)
+        );
+    }
+
+    #[tokio::test]
+    async fn accept_worker_connection_sets_tcp_nodelay() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let client = tokio::net::TcpStream::connect(listener.local_addr().unwrap())
+            .await
+            .unwrap();
+        let (stream, _) = accept_worker_connection(&listener).await.unwrap();
+        assert!(stream.nodelay().unwrap());
+        drop(client);
+    }
 
     #[test]
     fn worker_config_default_values() {

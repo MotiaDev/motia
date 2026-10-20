@@ -66,8 +66,24 @@ draft: false
 ---
 ```
 
+Optional SEO fields: `seoTitle` replaces the `<title>` and share-card title when it should differ from the on-page
+heading (the heading stays `title`); `faq` is a list of `{ q, a }` entries emitted as FAQPage JSON-LD next to the
+BlogPosting entry, so keep the answers plain text and in sync with the section they summarise.
+
 Images: put the files in `public/blog/<slug>/` and reference them as `../../assets/blog/<slug>/<file>` in the
 markdown (the historical path, rewritten at render time and in the `.md` export).
+
+Blocks a post can opt into, all plain HTML around ordinary markdown (blank lines on both sides) and styled in
+`globals.css` under `.prose`: `<figure>` with an `<img>` and a `<figcaption>` for a captioned screenshot (the
+`../../assets/...` path is rewritten like a markdown image); `<div class="facts">` around a bullet list of
+`**Label:** value` items to show them as rows in a card; `<div class="verdict">` of `.verdict-card`s (eyebrow
+`.verdict-pick`, `.verdict-tool`, `.verdict-reason`, `.verdict-cta` link; `data-highlight` marks the recommended
+pick); and `<div class="compare">` around a GFM table to render it as a matrix, with the last column (iii, by
+convention) emphasized and its header shown as the iii logo. `data-highlight` on a `.facts` div or a `<figure>` gives
+it the same neutral-800 frame as the highlighted verdict card, whose name is also shown as the logo alone. Long-form
+pages are black and white only: no accent colour, no glow, and code blocks render in greys. `####`
+headings are label-style (small caps) and stay out of the contents list. See
+`content/blog/opencode-vs-claude-code-vs-iii.md`.
 
 ## Adding a tech spec or a deck
 

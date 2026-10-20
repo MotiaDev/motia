@@ -4,7 +4,7 @@
 // This software is patent protected. We welcome discussions - reach out at team@iii.dev
 // See LICENSE and PATENTS files for details.
 
-use std::{collections::VecDeque, net::SocketAddr, sync::Arc, time::Duration};
+use std::{borrow::Cow, collections::VecDeque, net::SocketAddr, sync::Arc, time::Duration};
 
 use axum::{
     extract::ws::{Message as WsMessage, WebSocket},
@@ -12,7 +12,7 @@ use axum::{
 };
 use chrono::Utc;
 use dashmap::DashMap;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{FutureExt, SinkExt, StreamExt};
 use serde::Serialize;
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot::error::RecvError};
@@ -817,11 +817,11 @@ impl Engine {
     fn spawn_invoke_function(
         &self,
         worker: &WorkerConnection,
-        function_id: &str,
-        namespace: Option<&str>,
-        data: &Value,
-        traceparent: &Option<String>,
-        baggage: &Option<String>,
+        function_id: String,
+        namespace: Option<String>,
+        mut data: Value,
+        traceparent: Option<String>,
+        baggage: Option<String>,
         invocation_id: Option<Uuid>,
         metadata: Option<Value>,
     ) {
@@ -836,27 +836,20 @@ impl Engine {
 
         let engine = self.clone();
         let worker = worker.clone();
-        let function_id = function_id.to_string();
-        let namespace = namespace.map(str::to_string);
-
         // Add caller's worker_id to invocation data as standard metadata
-        let data = {
-            let mut data = data.clone();
-            if let Some(obj) = data.as_object_mut() {
-                obj.insert(
-                    "_caller_worker_id".to_string(),
-                    serde_json::json!(worker.id.to_string()),
-                );
-            }
-            data
-        };
+        if let Some(obj) = data.as_object_mut() {
+            obj.insert(
+                "_caller_worker_id".to_string(),
+                serde_json::json!(worker.id.to_string()),
+            );
+        }
         let incoming_traceparent = traceparent.clone();
         let incoming_baggage = baggage.clone();
         // Pass the incoming caller context straight through so the downstream
         // `call <fn>` span nests directly under the caller's span instead of an
         // intermediate engine wrapper.
-        let downstream_traceparent = traceparent.clone();
-        let downstream_baggage = baggage.clone();
+        let downstream_traceparent = traceparent;
+        let downstream_baggage = baggage;
 
         tokio::spawn(
             async move {
@@ -1176,10 +1169,35 @@ impl Engine {
         self.dispatch_msg(worker, msg).await
     }
 
+    // WebSocket decoding already owns the message. Preserve that ownership so
+    // dispatch can forward request and response JSON without copying it.
+    async fn router_msg_owned(
+        &self,
+        worker: &WorkerConnection,
+        msg: Message,
+    ) -> anyhow::Result<()> {
+        if self.buffer_until_namespace_known(worker, &msg) {
+            tracing::debug!(
+                worker_id = %worker.id,
+                "Buffering registration until the connection namespace is known"
+            );
+            return Ok(());
+        }
+        self.dispatch_msg_inner(worker, Cow::Owned(msg)).await
+    }
+
     /// Applies `msg` unconditionally. The drain calls this directly to bypass
     /// the buffer check that `router_msg` performs.
     async fn dispatch_msg(&self, worker: &WorkerConnection, msg: &Message) -> anyhow::Result<()> {
-        match msg {
+        self.dispatch_msg_inner(worker, Cow::Borrowed(msg)).await
+    }
+
+    async fn dispatch_msg_inner(
+        &self,
+        worker: &WorkerConnection,
+        msg: Cow<'_, Message>,
+    ) -> anyhow::Result<()> {
+        match msg.as_ref() {
             Message::TriggerRegistrationResult {
                 id,
                 trigger_type,
@@ -2035,33 +2053,34 @@ impl Engine {
                         Ok(())
                     }
 
-                    Some(crate::protocol::TriggerAction::Void) => {
-                        // Fire-and-forget: invoke function but never send
-                        // InvocationResult back to the caller.
-                        self.spawn_invoke_function(
-                            worker,
+                    Some(crate::protocol::TriggerAction::Void) | None => {
+                        // Void never sends a result, even if the caller supplied an ID.
+                        let invocation_id = if action.is_none() {
+                            *invocation_id
+                        } else {
+                            None
+                        };
+                        let Message::InvokeFunction {
                             function_id,
-                            namespace.as_deref(),
+                            namespace,
                             data,
                             traceparent,
                             baggage,
-                            None, // force invocation_id to None — no result sent
-                            metadata.clone(),
-                        );
-                        Ok(())
-                    }
-
-                    None => {
-                        // Default behavior: invoke and (optionally) return result.
+                            metadata,
+                            ..
+                        } = msg.into_owned()
+                        else {
+                            unreachable!("matched InvokeFunction above");
+                        };
                         self.spawn_invoke_function(
                             worker,
                             function_id,
-                            namespace.as_deref(),
+                            namespace,
                             data,
                             traceparent,
                             baggage,
-                            *invocation_id,
-                            metadata.clone(),
+                            invocation_id,
+                            metadata,
                         );
                         Ok(())
                     }
@@ -2086,10 +2105,13 @@ impl Engine {
                 worker.remove_invocation(invocation_id).await;
 
                 if let Some(invocation) = self.invocations.remove(invocation_id) {
+                    let Message::InvocationResult { result, error, .. } = msg.into_owned() else {
+                        unreachable!("matched InvocationResult above");
+                    };
                     if let Some(err) = error {
-                        let _ = invocation.sender.send(Err(err.clone()));
+                        let _ = invocation.sender.send(Err(err));
                     } else {
-                        let _ = invocation.sender.send(Ok(result.clone()));
+                        let _ = invocation.sender.send(Ok(result));
                     };
                     return Ok(());
                 } else {
@@ -2525,39 +2547,19 @@ impl Engine {
         input: Value,
         metadata: Option<Value>,
     ) -> Result<Option<Value>, ErrorBody> {
-        let function_opt = self.functions.get_handler(namespace, function_id);
+        let function = self.internal_function_handler(namespace, function_id)?;
+        self.call_handler_with_metadata(function_id.to_owned(), function, input, metadata)
+            .await
+    }
 
-        if let Some(function) = function_opt {
-            // Use the current tracing context to preserve parent-child links.
-            let ctx = tracing::Span::current().context();
-            let traceparent = inject_traceparent_from_context(&ctx);
-            let baggage = inject_baggage_from_context(&ctx);
-
-            let result = self
-                .invocations
-                .handle_invocation_with_handler(
-                    None,
-                    None,
-                    function_id.to_string(),
-                    input,
-                    function,
-                    traceparent,
-                    baggage,
-                    None,
-                    metadata,
-                )
-                .await;
-
-            match result {
-                Ok(result) => result,
-                Err(err) => Err(ErrorBody {
-                    code: "invocation_error".into(),
-                    message: err.to_string(),
-                    stacktrace: None,
-                }),
-            }
-        } else {
-            Err(ErrorBody {
+    fn internal_function_handler(
+        &self,
+        namespace: &str,
+        function_id: &str,
+    ) -> Result<Arc<crate::function::HandlerFn>, ErrorBody> {
+        self.functions
+            .get_handler(namespace, function_id)
+            .ok_or_else(|| ErrorBody {
                 code: "function_not_found".into(),
                 message: format!(
                     "Function {} not found in namespace {}",
@@ -2565,29 +2567,69 @@ impl Engine {
                 ),
                 stacktrace: None,
             })
-        }
+    }
+
+    pub(crate) async fn call_trigger(
+        &self,
+        trigger: Arc<Trigger>,
+        input: Value,
+    ) -> Result<Option<Value>, ErrorBody> {
+        let function = self.internal_function_handler(&trigger.namespace, &trigger.function_id)?;
+        let function_id = trigger.function_id.clone();
+        let metadata = trigger.metadata.clone();
+        // Pending invocations must not retain a removed trigger's config and metadata.
+        drop(trigger);
+        self.call_handler_with_metadata(function_id, function, input, metadata)
+            .await
+    }
+
+    fn call_handler_with_metadata(
+        &self,
+        function_id: String,
+        function: Arc<crate::function::HandlerFn>,
+        input: Value,
+        metadata: Option<Value>,
+    ) -> impl Future<Output = Result<Option<Value>, ErrorBody>> + Send + '_ {
+        // Use the current tracing context to preserve parent-child links.
+        let ctx = tracing::Span::current().context();
+        let traceparent = inject_traceparent_from_context(&ctx);
+        let baggage = inject_baggage_from_context(&ctx);
+
+        let invocation = self.invocations.handle_invocation_with_handler(
+            None,
+            None,
+            function_id,
+            input,
+            function,
+            traceparent,
+            baggage,
+            None,
+            metadata,
+        );
+        // Adapt the existing future without an extra async frame for its arguments.
+        invocation.map(|result| match result {
+            Ok(result) => result,
+            Err(err) => Err(ErrorBody {
+                code: "invocation_error".into(),
+                message: err.to_string(),
+                stacktrace: None,
+            }),
+        })
     }
 
     pub async fn fire_triggers(&self, trigger_type: &str, mut data: Value) {
-        let triggers: Vec<_> = self
+        let triggers = self
             .trigger_registry
             .triggers
-            .iter()
-            .filter(|entry| entry.value().trigger_type == trigger_type)
-            .map(|entry| {
-                let trigger = entry.value();
-                (
-                    trigger.function_id.clone(),
-                    trigger.namespace.clone(),
-                    trigger.metadata.clone(),
-                )
-            })
-            .collect();
+            .targets_for_type(trigger_type);
+        if triggers.is_empty() {
+            return;
+        }
 
         let current_span = tracing::Span::current();
 
         let trigger_count = triggers.len();
-        for (index, (function_id, namespace, metadata)) in triggers.into_iter().enumerate() {
+        for (index, trigger) in triggers.into_iter().enumerate() {
             let engine = self.clone();
             // Only additional destinations need a copy; the last takes the original.
             let data = if index + 1 == trigger_count {
@@ -2595,19 +2637,25 @@ impl Engine {
             } else {
                 data.clone()
             };
-            let parent = current_span.clone();
-            let span_function_id = function_id.clone();
+            let span = tracing::info_span!(
+                parent: &current_span,
+                "trigger",
+                otel.name = %format!("trigger {}", trigger.function_id),
+                function_id = %trigger.function_id,
+                otel.status_code = tracing::field::Empty,
+            );
             tokio::spawn(
                 async move {
-                    match engine
-                        .call_value_with_metadata_ns(&namespace, &function_id, data, metadata)
-                        .await
-                    {
-                        Ok(_) => { tracing::Span::current().record("otel.status_code", "OK"); }
-                        Err(_) => { tracing::Span::current().record("otel.status_code", "ERROR"); }
+                    match engine.call_trigger(trigger, data).await {
+                        Ok(_) => {
+                            tracing::Span::current().record("otel.status_code", "OK");
+                        }
+                        Err(_) => {
+                            tracing::Span::current().record("otel.status_code", "ERROR");
+                        }
                     }
                 }
-                .instrument(tracing::info_span!(parent: parent, "trigger", otel.name = %format!("trigger {}", span_function_id), function_id = %span_function_id, otel.status_code = tracing::field::Empty))
+                .instrument(span),
             );
         }
     }
@@ -2719,7 +2767,7 @@ impl Engine {
                                 continue;
                             }
                             match serde_json::from_str::<Message>(&text) {
-                                Ok(msg) => self.router_msg(&worker, &msg).await?,
+                                Ok(msg) => self.router_msg_owned(&worker, msg).await?,
                                 Err(err) => tracing::warn!(peer = %peer, error = ?err, "json decode error"),
                             }
                         }
@@ -2728,7 +2776,7 @@ impl Engine {
                             if !handle_telemetry_frame(&bytes, &peer).await {
                                 // Not a telemetry frame, try to decode as regular protocol message
                                 match serde_json::from_slice::<Message>(&bytes) {
-                                    Ok(msg) => self.router_msg(&worker, &msg).await?,
+                                    Ok(msg) => self.router_msg_owned(&worker, msg).await?,
                                     Err(err) => {
                                         tracing::warn!(peer = %peer, error = ?err, "binary decode error")
                                     }
@@ -4659,9 +4707,9 @@ mod tests {
 
         let caller_invocation_id = uuid::Uuid::new_v4();
         engine
-            .router_msg(
+            .router_msg_owned(
                 &worker,
-                &Message::InvokeFunction {
+                Message::InvokeFunction {
                     invocation_id: Some(caller_invocation_id),
                     function_id: "kv::get".to_string(),
                     data: json!({ "key": "missing" }),
@@ -4693,7 +4741,10 @@ mod tests {
             r#"{{"type":"invocationresult","invocation_id":"{executor_invocation_id}","function_id":"kv::get","result":null}}"#
         );
         let reply: Message = serde_json::from_str(&frame).expect("frame parses");
-        engine.router_msg(&worker, &reply).await.expect("reply");
+        engine
+            .router_msg_owned(&worker, reply)
+            .await
+            .expect("reply");
 
         let answered = tokio::time::timeout(Duration::from_secs(1), rx.recv())
             .await
@@ -4720,6 +4771,157 @@ mod tests {
             wire.contains(r#""result":null"#),
             "caller must see null: {wire}"
         );
+    }
+
+    #[tokio::test]
+    async fn owned_remote_invocation_preserves_namespace_payload_and_metadata() {
+        ensure_default_meter();
+        let engine = Engine::new();
+        let (tx, mut caller_rx) = mpsc::channel::<Outbound>(8);
+        let caller = WorkerConnection::new(tx);
+        let (tx, mut executor_rx) = mpsc::channel::<Outbound>(8);
+        let executor = WorkerConnection::new(tx);
+        engine.begin_namespace_resolution(&executor);
+        engine
+            .resolve_connection_namespace(&executor, "orders")
+            .await;
+        engine.cancel_namespace_grace_timer(&executor.id);
+        engine
+            .router_msg_owned(
+                &executor,
+                Message::RegisterFunction {
+                    id: "orders::echo".to_string(),
+                    description: None,
+                    request_format: None,
+                    response_format: None,
+                    metadata: None,
+                    invocation: None,
+                },
+            )
+            .await
+            .expect("register remote function");
+
+        let invocation_id = uuid::Uuid::new_v4();
+        let payload = json!({"items": [1, null, {"name": "example"}]});
+        let metadata = json!({"routing": {"team": "fulfillment"}});
+        engine
+            .router_msg_owned(
+                &caller,
+                Message::InvokeFunction {
+                    invocation_id: Some(invocation_id),
+                    function_id: "orders::echo".to_string(),
+                    data: payload.clone(),
+                    traceparent: None,
+                    baggage: None,
+                    action: None,
+                    metadata: Some(metadata.clone()),
+                    namespace: Some("orders".to_string()),
+                },
+            )
+            .await
+            .expect("invoke remote function in its namespace");
+
+        let dispatched = tokio::time::timeout(Duration::from_secs(1), executor_rx.recv())
+            .await
+            .expect("remote dispatch should complete")
+            .expect("executor channel is open");
+        let Outbound::Protocol(Message::InvokeFunction {
+            invocation_id: Some(executor_invocation_id),
+            function_id,
+            mut data,
+            metadata: received_metadata,
+            ..
+        }) = dispatched
+        else {
+            panic!("expected remote invocation, got {dispatched:?}");
+        };
+        assert_eq!(function_id, "orders::echo");
+        assert_eq!(received_metadata, Some(metadata));
+        assert_eq!(
+            data.as_object_mut().unwrap().remove("_caller_worker_id"),
+            Some(json!(caller.id.to_string()))
+        );
+        assert_eq!(data, payload);
+
+        engine
+            .router_msg_owned(
+                &executor,
+                Message::InvocationResult {
+                    invocation_id: executor_invocation_id,
+                    function_id,
+                    result: Some(data),
+                    error: None,
+                    traceparent: None,
+                    baggage: None,
+                },
+            )
+            .await
+            .expect("deliver remote response");
+        let response = tokio::time::timeout(Duration::from_secs(1), caller_rx.recv())
+            .await
+            .expect("caller should receive a response")
+            .expect("caller channel is open");
+        let Outbound::Protocol(Message::InvocationResult {
+            invocation_id: response_id,
+            result,
+            error,
+            ..
+        }) = response
+        else {
+            panic!("expected invocation result, got {response:?}");
+        };
+        assert_eq!(response_id, invocation_id);
+        assert_eq!(result, Some(payload));
+        assert!(error.is_none());
+        assert_eq!(caller.invocation_count().await, 0);
+        assert_eq!(executor.invocation_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn owned_void_invocation_executes_without_replying_to_supplied_id() {
+        ensure_default_meter();
+        let engine = Engine::new();
+        let (tx, mut rx) = mpsc::channel::<Outbound>(8);
+        let caller = WorkerConnection::new(tx);
+        let (executed_tx, mut executed_rx) = mpsc::channel(1);
+        engine.register_function_handler(
+            make_request("orders::notify"),
+            super::Handler::new(move |input| {
+                let executed_tx = executed_tx.clone();
+                async move {
+                    executed_tx.send(input).await.expect("record execution");
+                    FunctionResult::Success(Some(json!({"sent": true})))
+                }
+            }),
+        );
+        engine
+            .router_msg_owned(
+                &caller,
+                Message::InvokeFunction {
+                    invocation_id: Some(uuid::Uuid::new_v4()),
+                    function_id: "orders::notify".to_string(),
+                    data: json!(["first", "second"]),
+                    traceparent: None,
+                    baggage: None,
+                    action: Some(crate::protocol::TriggerAction::Void),
+                    metadata: None,
+                    namespace: None,
+                },
+            )
+            .await
+            .expect("dispatch void call");
+
+        let executed = tokio::time::timeout(Duration::from_secs(1), executed_rx.recv())
+            .await
+            .expect("handler should execute");
+        assert_eq!(executed, Some(json!(["first", "second"])));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(20), rx.recv())
+                .await
+                .is_err(),
+            "a void call must not produce an invocation result"
+        );
+        assert_eq!(caller.invocation_count().await, 0);
     }
 
     #[tokio::test]
@@ -5352,6 +5554,63 @@ mod tests {
             ))
             .expect("trigger type should remain registered");
         assert_eq!(trigger_type._description, "second");
+    }
+
+    #[tokio::test]
+    async fn test_trigger_call_releases_binding_before_handler_completes() {
+        ensure_default_meter();
+        let engine = Engine::new();
+        let gate = Arc::new(tokio::sync::Notify::new());
+        let handler_gate = gate.clone();
+        engine.functions.register_function_ns(
+            "orders",
+            "orders::handler".into(),
+            crate::function::Function {
+                _function_id: "orders::handler".into(),
+                _description: None,
+                request_format: None,
+                response_format: None,
+                metadata: None,
+                handler: Arc::new(move |_, input, _, metadata| {
+                    let gate = handler_gate.clone();
+                    Box::pin(async move {
+                        assert_eq!(metadata, Some(json!({ "owner": "orders" })));
+                        gate.notified().await;
+                        FunctionResult::Success(Some(input))
+                    })
+                }),
+            },
+        );
+        let trigger = Arc::new(crate::trigger::Trigger {
+            id: "binding".into(),
+            trigger_type: "event".into(),
+            function_id: "orders::handler".into(),
+            config: json!({ "payload": "x".repeat(4096) }),
+            worker_id: None,
+            metadata: Some(json!({ "owner": "orders" })),
+            namespace: "orders".into(),
+            trigger_namespace: None,
+            home_namespace: crate::protocol::default_namespace(),
+            provider_namespace: crate::protocol::default_namespace(),
+        });
+        let binding = Arc::downgrade(&trigger);
+        let input = json!({ "order": 42 });
+        let call = engine.call_trigger(trigger, input.clone());
+        tokio::pin!(call);
+
+        assert!(futures::poll!(&mut call).is_pending());
+        assert!(
+            binding.upgrade().is_none(),
+            "a pending invocation must release the trigger's config and stored metadata"
+        );
+        gate.notify_one();
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(2), call)
+                .await
+                .unwrap()
+                .unwrap(),
+            Some(input)
+        );
     }
 
     #[tokio::test]

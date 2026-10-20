@@ -31,8 +31,8 @@ pub mod method;
 pub mod signature;
 pub mod url_validator;
 
-// Own the handler snapshot and original payload only until the callback returns,
-// including when dispatch subsequently waits for a deferred worker response.
+// Keep the handler snapshot until its callback returns, and transfer the payload
+// to it even when dispatch subsequently waits for a deferred worker response.
 async fn call_handler_with_metadata<H: AsRef<HandlerFn> + Send>(
     handler: H,
     invocation_id: Option<Uuid>,
@@ -40,7 +40,7 @@ async fn call_handler_with_metadata<H: AsRef<HandlerFn> + Send>(
     session: Option<Arc<Session>>,
     metadata: Option<Value>,
 ) -> FunctionResult<Option<Value>, ErrorBody> {
-    (handler.as_ref())(invocation_id, data.clone(), session, metadata).await
+    (handler.as_ref())(invocation_id, data, session, metadata).await
 }
 
 pub struct Invocation {
@@ -295,20 +295,12 @@ impl InvocationHandler {
                     tracing::Span::current().record("otel.status_code", "OK");
 
                     // Record metrics
-                    metrics.invocations_total.add(
-                        1,
-                        &[
-                            KeyValue::new("function_id", function_id.clone()),
-                            KeyValue::new("status", "ok"),
-                        ],
-                    );
-                    metrics.invocation_duration.record(
-                        duration,
-                        &[
-                            KeyValue::new("function_id", function_id.clone()),
-                            KeyValue::new("status", "ok"),
-                        ],
-                    );
+                    let attributes = [
+                        KeyValue::new("function_id", function_id.clone()),
+                        KeyValue::new("status", "ok"),
+                    ];
+                    metrics.invocations_total.add(1, &attributes);
+                    metrics.invocation_duration.record(duration, &attributes);
 
                     // Update accumulator for readable metrics
                     let acc = crate::workers::observability::metrics::get_metrics_accumulator();
@@ -344,27 +336,14 @@ impl InvocationHandler {
                     current_span.add_event("exception", exception_attrs);
 
                     // Record metrics
-                    metrics.invocations_total.add(
-                        1,
-                        &[
-                            KeyValue::new("function_id", function_id.clone()),
-                            KeyValue::new("status", "error"),
-                        ],
-                    );
-                    metrics.invocation_duration.record(
-                        duration,
-                        &[
-                            KeyValue::new("function_id", function_id.clone()),
-                            KeyValue::new("status", "error"),
-                        ],
-                    );
-                    metrics.invocation_errors_total.add(
-                        1,
-                        &[
-                            KeyValue::new("function_id", function_id.clone()),
-                            KeyValue::new("error_code", error.code.clone()),
-                        ],
-                    );
+                    let mut attributes = [
+                        KeyValue::new("function_id", function_id.clone()),
+                        KeyValue::new("status", "error"),
+                    ];
+                    metrics.invocations_total.add(1, &attributes);
+                    metrics.invocation_duration.record(duration, &attributes);
+                    attributes[1] = KeyValue::new("error_code", error.code.clone());
+                    metrics.invocation_errors_total.add(1, &attributes);
 
                     // Update accumulator for readable metrics
                     let acc = crate::workers::observability::metrics::get_metrics_accumulator();
@@ -382,20 +361,12 @@ impl InvocationHandler {
                     tracing::Span::current().record("otel.status_code", "OK");
 
                     // Record metrics
-                    metrics.invocations_total.add(
-                        1,
-                        &[
-                            KeyValue::new("function_id", function_id.clone()),
-                            KeyValue::new("status", "ok"),
-                        ],
-                    );
-                    metrics.invocation_duration.record(
-                        duration,
-                        &[
-                            KeyValue::new("function_id", function_id.clone()),
-                            KeyValue::new("status", "ok"),
-                        ],
-                    );
+                    let attributes = [
+                        KeyValue::new("function_id", function_id.clone()),
+                        KeyValue::new("status", "ok"),
+                    ];
+                    metrics.invocations_total.add(1, &attributes);
+                    metrics.invocation_duration.record(duration, &attributes);
 
                     // Update accumulator for readable metrics
                     let acc = crate::workers::observability::metrics::get_metrics_accumulator();
@@ -408,21 +379,15 @@ impl InvocationHandler {
                 FunctionResult::Deferred => {
                     tracing::debug!(invocation_id = %invocation_id, function_id = %function_id, "Function deferred");
 
-                    // Record metrics for deferred invocations
-                    metrics.invocations_total.add(
-                        1,
-                        &[
+                    // Drop metric attributes before waiting for the worker response.
+                    {
+                        let attributes = [
                             KeyValue::new("function_id", function_id.clone()),
                             KeyValue::new("status", "deferred"),
-                        ],
-                    );
-                    metrics.invocation_duration.record(
-                        duration,
-                        &[
-                            KeyValue::new("function_id", function_id.clone()),
-                            KeyValue::new("status", "deferred"),
-                        ],
-                    );
+                        ];
+                        metrics.invocations_total.add(1, &attributes);
+                        metrics.invocation_duration.record(duration, &attributes);
+                    }
 
                     // Update accumulator for readable metrics
                     let acc = crate::workers::observability::metrics::get_metrics_accumulator();
