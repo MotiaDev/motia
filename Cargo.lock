@@ -2704,7 +2704,7 @@ dependencies = [
 
 [[package]]
 name = "iii"
-version = "0.24.6"
+version = "0.25.0-rc.4"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2860,7 +2860,7 @@ dependencies = [
 
 [[package]]
 name = "iii-filter"
-version = "0.24.6"
+version = "0.25.0-rc.4"
 dependencies = [
  "criterion",
  "serde",
@@ -2869,7 +2869,7 @@ dependencies = [
 
 [[package]]
 name = "iii-helpers"
-version = "0.24.6"
+version = "0.25.0-rc.4"
 dependencies = [
  "futures-util",
  "opentelemetry",
@@ -2907,7 +2907,7 @@ dependencies = [
 
 [[package]]
 name = "iii-loadtest"
-version = "0.24.6"
+version = "0.25.0-rc.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2943,14 +2943,14 @@ dependencies = [
 
 [[package]]
 name = "iii-observability"
-version = "0.24.6"
+version = "0.25.0-rc.4"
 dependencies = [
  "iii-helpers",
 ]
 
 [[package]]
 name = "iii-sdk"
-version = "0.24.6"
+version = "0.25.0-rc.4"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -3015,7 +3015,7 @@ dependencies = [
 
 [[package]]
 name = "iii-worker"
-version = "0.24.6"
+version = "0.25.0-rc.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3780,7 +3780,7 @@ dependencies = [
 
 [[package]]
 name = "motia-tools"
-version = "0.24.6"
+version = "0.25.0-rc.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -5504,7 +5504,7 @@ dependencies = [
 
 [[package]]
 name = "scaffolder-core"
-version = "0.24.6"
+version = "0.25.0-rc.4"
 dependencies = [
  "anyhow",
  "cliclack",
