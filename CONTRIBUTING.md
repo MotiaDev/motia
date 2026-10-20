@@ -11,7 +11,7 @@ for contributing to this project and the licensing terms that apply to all contr
 This applies to every part of this repository, including but not limited to:
 
 - The **iii engine** (which is distributed under the [Elastic License 2.0](engine/LICENSE))
-- Workers, SDKs, frameworks, CLI tools, and console
+- Workers, SDKs, frameworks, and CLI tools
 - Documentation, examples, tests, and configuration
 - Build scripts, CI workflows, and tooling
 
@@ -245,8 +245,7 @@ Triggered by pushing a `release/v*` tag. Executes sequentially:
 1. Run all tests
 2. Build and release engine binaries (GitHub Release)
 3. Publish SDKs (npm, PyPI, crates.io)
-4. Build and release the `iii-console` placeholder binary (the legacy console was removed; it only prints a removal notice)
-5. Trigger package manager workflows (Homebrew, etc.)
+4. Trigger package manager workflows (Homebrew, etc.)
 
 ### Creating a Release
 
@@ -259,4 +258,5 @@ For pre-releases, add a suffix: `release/v0.7.0-alpha`, `release/v0.7.0-beta`, `
 
 ## Project Structure
 
-See [STRUCTURE.md](STRUCTURE.md) for the full directory layout and dependency chain.
+See [Repository Structure](README.md#repository-structure) for the directory overview and
+[How Dependencies Work](#how-dependencies-work) for workspace dependencies.

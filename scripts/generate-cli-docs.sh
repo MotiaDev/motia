@@ -2,11 +2,11 @@
 # Regenerate the committed CLI reference page from the clap definitions.
 #
 # The iii binary exposes a hidden `gen-cli-docs` subcommand that renders its
-# clap tree as MDX via crates/iii-clap-docs (frontmatter + intro + sections).
-# The output is committed at
-# docs/next/cli-reference/index.mdx and the cli-docs-built CI job regenerates
-# + diffs it, so the docs can never drift from the CLI. (iii-cloud lives
-# outside this repo and is not covered.)
+# own clap tree as MDX via crates/iii-clap-docs. The engine emits the full page
+# (frontmatter + intro); the hand-authored Telemetry section is appended below
+# it. The output is committed at docs/next/cli-reference/index.mdx and the
+# cli-docs-built CI job regenerates + diffs it, so the docs can never drift
+# from the CLI. (iii-cloud lives outside this repo and is not covered.)
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,7 +25,7 @@ cargo run --quiet -p iii -- gen-cli-docs --out "$TMP/iii.mdx"
 
 mkdir -p "$OUT_DIR"
 # The Telemetry section is hand-authored prose, not a clap tree, so it is
-# appended here after the generated page to sit at the bottom of the
+# appended here after the generated fragment to sit at the bottom of the
 # page. Keep it in sync with the engine and CLI/Compose product-usage gates
 # (`workers::telemetry::check_disabled` and `cli::telemetry::is_telemetry_disabled`).
 {

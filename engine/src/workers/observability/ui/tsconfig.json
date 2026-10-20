@@ -13,7 +13,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "allowImportingTsExtensions": true,
-    "typeRoots": ["./node_modules/@types"],
     "types": ["react"]
   },
   "include": ["./page.tsx", "./types.ts", "./styles.d.ts"]

@@ -191,8 +191,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
-    env:
-      SKIP_FRONTEND_BUILD: ${{ inputs.artifact_name != '' && '1' || '' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}

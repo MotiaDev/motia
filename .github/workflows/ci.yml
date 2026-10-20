@@ -850,6 +850,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Derived observe files match the Node SDK
+        run: python3 scripts/sync-browser-observe.py --check
+
       - name: Type check
         run: pnpm --filter iii-browser-sdk exec tsc --noEmit
 
@@ -961,10 +964,10 @@ jobs:
           shared-key: sdk-rust
 
       - name: Check formatting
-        run: cargo fmt -p iii-sdk -p iii-helpers -p iii-observability -- --check
+        run: cargo fmt -p iii-sdk -p iii-helpers -p iii-observability -p iii-filter -- --check
 
       - name: Run clippy
-        run: cargo clippy --locked -p iii-sdk -p iii-helpers -p iii-observability --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked -p iii-sdk -p iii-helpers -p iii-observability -p iii-filter --all-targets --all-features -- -D warnings
 
       - name: Download III binary
         uses: actions/download-artifact@v4
@@ -982,7 +985,7 @@ jobs:
         env:
           III_URL: ws://localhost:49199
           III_HTTP_URL: http://localhost:3199
-        run: cargo test --locked -p iii-sdk -p iii-helpers -p iii-observability --all-features
+        run: cargo test --locked -p iii-sdk -p iii-helpers -p iii-observability -p iii-filter --all-features
 
       - name: Stop III Engine
         if: always()
@@ -1033,37 +1036,3 @@ jobs:
       - name: Stop III Engine
         if: always()
         run: bash scripts/stop-iii.sh /tmp/iii-engine.pid
-
-  # ──────────────────────────────────────────────────────────────
-  # iii-console tombstone
-  # The legacy console was removed (MOT-3619). The release still ships a
-  # placeholder `iii-console` binary for older CLIs; check that it builds,
-  # prints the removal notice and exits non-zero.
-  # TODO(MOT-3619): stop shipping the iii-console tombstone after N releases (TBD).
-  # ──────────────────────────────────────────────────────────────
-
-  console-tombstone:
-    name: iii-console tombstone
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: console
-
-      - name: Build and run the tombstone binary
-        run: |
-          cargo build --locked -p iii-console
-          set +e
-          ./target/debug/iii-console --port 3113 2> notice.txt
-          status=$?
-          set -e
-          cat notice.txt
-          if [ "$status" -eq 0 ]; then
-            echo "::error::iii-console tombstone must exit non-zero"
-            exit 1
-          fi
-          grep -q "iii-console has been removed" notice.txt

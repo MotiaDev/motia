@@ -2694,9 +2694,10 @@ dependencies = [
 
 [[package]]
 name = "iii"
-version = "0.24.6-rc.5"
+version = "0.24.6"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "async-trait",
  "axum",
  "base64 0.22.1",
@@ -2722,6 +2723,7 @@ dependencies = [
  "iii",
  "iii-clap-docs",
  "iii-compose",
+ "iii-filter",
  "iii-helpers",
  "iii-sdk",
  "indexmap 2.14.0",
@@ -2823,10 +2825,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "iii-console"
-version = "0.24.6-rc.5"
-
-[[package]]
 name = "iii-example"
 version = "0.0.0"
 dependencies = [
@@ -2851,8 +2849,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "iii-filter"
+version = "0.24.6"
+dependencies = [
+ "criterion",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "iii-helpers"
-version = "0.24.6-rc.5"
+version = "0.24.6"
 dependencies = [
  "futures-util",
  "opentelemetry",
@@ -2905,19 +2912,22 @@ dependencies = [
 
 [[package]]
 name = "iii-observability"
-version = "0.24.6-rc.5"
+version = "0.24.6"
 dependencies = [
  "iii-helpers",
 ]
 
 [[package]]
 name = "iii-sdk"
-version = "0.24.6-rc.5"
+version = "0.24.6"
 dependencies = [
+ "arc-swap",
  "async-trait",
+ "criterion",
  "ctor",
  "futures-util",
  "hostname",
+ "iii-filter",
  "iii-helpers",
  "opentelemetry",
  "opentelemetry_sdk",
@@ -2974,7 +2984,7 @@ dependencies = [
 
 [[package]]
 name = "iii-worker"
-version = "0.24.6-rc.5"
+version = "0.24.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3739,7 +3749,7 @@ dependencies = [
 
 [[package]]
 name = "motia-tools"
-version = "0.24.6-rc.5"
+version = "0.24.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -5463,7 +5473,7 @@ dependencies = [
 
 [[package]]
 name = "scaffolder-core"
-version = "0.24.6-rc.5"
+version = "0.24.6"
 dependencies = [
  "anyhow",
  "cliclack",
