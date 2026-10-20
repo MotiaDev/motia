@@ -85,6 +85,26 @@ pages are black and white only: no accent colour, no glow, and code blocks rende
 headings are label-style (small caps) and stay out of the contents list. See
 `content/blog/opencode-vs-claude-code-vs-iii.md`.
 
+## The benchmarks page
+
+`/benchmarks` draws two data sets that CI publishes to the `gh-pages` branch:
+- **Load benchmarks.** These come from `.github/workflows/loadtest.yml` and `crates/iii-loadtest`, and live in `loadtest/index.json` (every run, newest first) and `loadtest/runs/<id>.json`.
+- **Criterion history.** This comes from `bench-release.yml` and lives in `dev/bench/data.js`.
+
+`scripts/generate-benchmarks.ts` runs before `dev` and `build`. It fetches both and writes `content/benchmarks/data.json`, which is gitignored and is what the page imports. Each workflow dispatches a website deploy once it has published, so the page follows every run.
+
+A part that cannot be fetched falls back to `content/benchmarks/snapshot.json`, which is committed, so a build never fails or ships an empty page. Two environment variables change where the data comes from:
+- `BENCHMARKS_OFFLINE=1` skips the network.
+- `BENCHMARKS_SOURCE` points at another copy of the branch, either a URL or a local checkout.
+
+Every number in the page's text is computed from the same run its charts draw (`lib/benchmarks/page.ts`), and the charts are in `components/benchmarks/`. To refresh the snapshot from a local run:
+
+```bash
+target/release/iii-loadtest export target/loadtest/<run> --version <x.y.z>
+pnpm tsx scripts/generate-benchmarks.ts --snapshot --summary ../target/loadtest/<run>/summary.json \
+  --micro <a copy of gh-pages dev/bench/data.js>
+```
+
 ## Adding a tech spec or a deck
 
 See [roadmap/README.md](./roadmap/README.md). A spec is a `tech-specs/<slug>/` folder of markdown with frontmatter;
