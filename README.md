@@ -34,6 +34,7 @@
   <a href="#sdks">SDKs</a> ·
   <a href="#agent-skills-for-3rd-party-harnesses">Agent Skills</a> ·
   <a href="#console">Console</a> ·
+  <a href="#performance">Performance</a> ·
   <a href="#resources">Resources</a>
 </p>
 
@@ -164,6 +165,74 @@ Compose workers. Install an engine skill with
 The [iii-console](console/) is a developer and operations console for inspecting workers, functions,
 triggers, queues, traces, logs, and real-time state. See the
 [Console docs](https://iii.dev/docs/using-iii/console) for setup and usage.
+
+## Performance
+
+[PR #2349](https://github.com/iii-hq/iii/pull/2349) reduces payload copying, indexes triggers by
+type, and reuses metric attributes. The trigger indexes share one stored trigger, including its
+metadata, between lookups by ID and by type. Dispatch selects references to matching triggers
+and prepares each invocation once:
+
+```text
+type index -> shared trigger -> prepare invocation
+           -> release dispatch reference -> await handler
+```
+
+Each invocation receives its own metadata value. A pending handler does not retain the stored
+trigger's configuration after invocation preparation.
+
+### Dispatch measurements
+
+Local measurements from October 20, 2026 compare the shared-metadata implementation
+(`88676ead2`) with the final dispatch improvement (`c8469b770`). Times include dispatch and
+completion. Registration rows measure one register/unregister cycle.
+
+| Case | Before | After | Time change |
+| --- | ---: | ---: | ---: |
+| Single trigger | 1.908 us | 1.821 us | -4.5% |
+| 8 matches among 1,000, no metadata | 8.992 us | 8.626 us | -4.1% |
+| 8 matches among 1,000, 4 KiB metadata per trigger | 10.315 us | 9.896 us | -4.1% |
+| Register + unregister, no metadata | 0.827 us | 0.860 us | +3.9% |
+| Register + unregister, 4 KiB metadata | 1.255 us | 1.277 us | +1.8% |
+
+The dispatch improvements appeared in 9/9 alternating pairs for a single trigger and for
+8 matches among 1,000 without metadata, and in 8/9 pairs with metadata. Registration/removal
+took an additional 32.5 ns without metadata and 22.2 ns with metadata.
+
+Against the original PR base (`342a7704c`), dispatch to 8 matches among 1,000 without metadata
+fell from 20.465 us to 8.626 us, a 57.9% reduction. The PR includes the initial implementation
+comparison and the earlier isolated payload and metrics measurements.
+
+### Memory measurements
+
+| Case | Before (`88676ead2`) | After (`c8469b770`) |
+| --- | ---: | ---: |
+| Retained heap: 1,000 triggers, 10 types, 4 KiB metadata per trigger | 4.969 MiB | 4.970 MiB |
+| Retained heap: 32 pending direct calls, 1 KiB payload each | 127,452 bytes | 127,452 bytes |
+| Total idle-process RSS | 7,684 KiB | 8,384 KiB |
+
+Retained heap is measured above a ready engine. Map capacity can affect exact totals. Both
+versions keep one persistent metadata copy per trigger; the initial PR used about 9.75 MiB for
+the same 1,000-trigger metadata case. All 60 engine-drop checks returned to the starting live
+heap. Total idle-process RSS increased by 700 KiB, despite stable retained heap.
+
+Removing or replacing a selected trigger before its task starts can cause a temporary copy of
+the returned trigger, including its configuration and metadata. The early-removal probe showed
+more cumulative allocation and a lower peak live heap. The PR documents both measurements.
+
+### Method and validation
+
+The same small runners were linked to production release libraries. Speed measurements used
+nine alternating process rounds; memory measurements used five. Probes ran serially on one
+logical CPU with a current-thread runtime, a 512 MiB limit, and no swap. Allocation tracking
+was enabled only for memory probes. The final probes took about 17 seconds in total.
+
+At `c8469b770`, 359 focused release tests and type checks for three Criterion benchmarks passed.
+Formatting, standard Clippy, and all 42 CI checks passed; CodeRabbit completed its review with
+no actionable comments. See the [CI run](https://github.com/iii-hq/iii/actions/runs/39447227700).
+
+These short local measurements isolate engine work. They do not establish production throughput,
+exporter overhead, or long-duration leak behavior.
 
 ## Repository Structure
 
