@@ -31,8 +31,8 @@ pub mod method;
 pub mod signature;
 pub mod url_validator;
 
-// Own the handler snapshot and original payload only until the callback returns,
-// including when dispatch subsequently waits for a deferred worker response.
+// Keep the handler snapshot until its callback returns, and transfer the payload
+// to it even when dispatch subsequently waits for a deferred worker response.
 async fn call_handler_with_metadata<H: AsRef<HandlerFn> + Send>(
     handler: H,
     invocation_id: Option<Uuid>,
@@ -40,7 +40,7 @@ async fn call_handler_with_metadata<H: AsRef<HandlerFn> + Send>(
     session: Option<Arc<Session>>,
     metadata: Option<Value>,
 ) -> FunctionResult<Option<Value>, ErrorBody> {
-    (handler.as_ref())(invocation_id, data.clone(), session, metadata).await
+    (handler.as_ref())(invocation_id, data, session, metadata).await
 }
 
 pub struct Invocation {
