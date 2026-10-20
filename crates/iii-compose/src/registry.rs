@@ -1216,7 +1216,10 @@ fn extract_and_publish(
                         #[cfg(unix)]
                         if let Some(mode) = mode {
                             use std::os::unix::fs::PermissionsExt;
-                            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode))?;
+                            // Like tar's default, keep only the rwx bits: an archive
+                            // must never create setuid, setgid or sticky files.
+                            let permissions = std::fs::Permissions::from_mode(mode & 0o777);
+                            std::fs::set_permissions(&path, permissions)?;
                         }
                     }
                 }
@@ -1550,6 +1553,23 @@ mod tests {
             .unwrap();
         assert_eq!(installed.payload, cached.payload);
         assert_eq!(cached.status, InstallStatus::Cached);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn zip_setuid_setgid_and_sticky_bits_are_not_preserved() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = tempfile::tempdir().unwrap();
+        let install = root.path().join("install");
+        let cancel = crate::shutdown::BlockingCancellation::default();
+        let bytes = darwin_zip_archive("worker", b"worker contents", 0o107755);
+        extract_and_publish(bytes, &install, "digest", &cancel).unwrap();
+        let mode = std::fs::metadata(install.join("worker"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o7777, 0o755);
     }
 
     #[test]
