@@ -11,15 +11,24 @@
 //! before running a handler: one atomic load and, only when some function is
 //! observed at all, one hash lookup. Unobserved, nothing is copied. Observed,
 //! the hook keeps the parts of the invocation the active observers need, and
-//! once the result is known [`ObserverRegistry::complete`] hands it to the
-//! registry's evaluator task, so the caller's reply never waits for filters or
-//! activations. The evaluator handles completions one at a time, in the order
-//! they completed, which keeps an observer's activations in engine arrival
-//! order.
+//! once the result is known [`ObserverRegistry::complete`] hands it to an
+//! evaluator task, so the caller's reply never waits for filters or
+//! activations. There is one evaluator per runtime worker thread, and a
+//! function's completions always go to the same one, which handles them in the
+//! order they completed: an observer watches one function, so its activations
+//! stay in engine arrival order while different functions are evaluated in
+//! parallel.
+//!
+//! A matched event is shared, not copied, by the observers it activates: a
+//! queued activation holds a pointer to it, and the target's argument is built
+//! when the activation starts.
 
 use std::{
     collections::HashSet,
-    sync::{Arc, atomic::Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -76,14 +85,102 @@ impl Drop for ObservedCall {
     }
 }
 
-/// Completions waiting for the evaluator. Past this, or past
-/// [`EVALUATOR_BYTES`] of payloads, a completion is not evaluated (nor its
-/// payload copied): each active observer of the function counts an
-/// `OVERFLOW` drop.
+/// Completions waiting for one evaluator. Past this, or past
+/// [`EVALUATOR_BYTES`] of payloads waiting for all of them, a completion is
+/// not evaluated (nor its payload copied): each active observer of the
+/// function counts an `OVERFLOW` drop.
 pub(crate) const EVALUATOR_QUEUE: usize = 65_536;
 
-/// Approximate bytes of payloads waiting for the evaluator.
+/// Approximate bytes of payloads waiting for the evaluators.
 pub(crate) const EVALUATOR_BYTES: usize = 64 * 1024 * 1024;
+
+/// Evaluators at most, whatever the number of runtime worker threads.
+const MAX_EVALUATORS: usize = 16;
+
+/// How often drop counts reach `iii.observer.dropped.total` (see
+/// [`ObserverRegistry::export_drops`]).
+pub(crate) const DROP_EXPORT_INTERVAL: Duration = Duration::from_secs(1);
+
+/// How long a reporting connection waits for room in the queues its report
+/// overflowed before the engine reads from it again (see
+/// [`ObserverRegistry::wait_for_room`]).
+pub(crate) const REPORT_BACKPRESSURE_WAIT: Duration = Duration::from_millis(250);
+
+/// Queue slots an observer keeps once its queue drains; a burst that grew it
+/// past this gives the rest back.
+const QUEUE_KEPT: usize = 64;
+
+/// Approximate bytes of the events waiting in observers' queues, all queues
+/// together, each event counted once however many queues hold it. Past it, an
+/// activation that would queue is dropped (`OVERFLOW`) as if its own queue
+/// were full: `max_queue_per_observer` bounds one queue, this bounds them all.
+pub(crate) const QUEUED_BYTES: usize = 64 * 1024 * 1024;
+
+/// What a queued event costs besides its payloads: ids, names, the structures
+/// that hold them.
+const EVENT_OVERHEAD: usize = 256;
+
+/// The observers' queues together, against [`QUEUED_BYTES`].
+pub(crate) struct QueueBudget {
+    /// Approximate bytes of the events queued now.
+    bytes: AtomicUsize,
+    limit: AtomicUsize,
+    /// Wakes readers waiting for room ([`ObserverRegistry::wait_for_room`]):
+    /// a queue or the budget is down to half, or an observer left `active`.
+    pub(crate) room: tokio::sync::Notify,
+}
+
+impl Default for QueueBudget {
+    fn default() -> Self {
+        Self {
+            bytes: AtomicUsize::new(0),
+            limit: AtomicUsize::new(QUEUED_BYTES),
+            room: tokio::sync::Notify::new(),
+        }
+    }
+}
+
+impl QueueBudget {
+    /// Charges `event` for one more queue holding it: its cost the first
+    /// time, nothing after. `false` when the first charge does not fit.
+    fn charge(&self, event: &Completed) -> bool {
+        if event.queues.fetch_add(1, Ordering::AcqRel) > 0 {
+            return true;
+        }
+        let cost = event.cost();
+        let limit = self.limit.load(Ordering::Relaxed);
+        let fits = self
+            .bytes
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |bytes| {
+                bytes.checked_add(cost).filter(|total| *total <= limit)
+            })
+            .is_ok();
+        if fits {
+            event.charged.store(cost, Ordering::Release);
+        } else {
+            event.queues.fetch_sub(1, Ordering::AcqRel);
+        }
+        fits
+    }
+
+    /// One queue let go of `event`; the last one gives its cost back.
+    pub(crate) fn release(&self, event: &Completed) {
+        if event.queues.fetch_sub(1, Ordering::AcqRel) != 1 {
+            return;
+        }
+        let cost = event.charged.load(Ordering::Acquire);
+        let half = self.limit.load(Ordering::Relaxed) / 2;
+        let before = self.bytes.fetch_sub(cost, Ordering::AcqRel);
+        if before > half && before - cost <= half {
+            self.room.notify_waiters();
+        }
+    }
+
+    /// At most half full: a waiting reader may read on.
+    fn has_room(&self) -> bool {
+        self.bytes.load(Ordering::Acquire) <= self.limit.load(Ordering::Relaxed) / 2
+    }
+}
 
 /// How an event source's event is evaluated.
 #[derive(Debug, Default, Clone)]
@@ -126,6 +223,38 @@ pub(crate) struct Completed {
     depth: u32,
     traceparent: Option<String>,
     baggage: Option<String>,
+    /// Queues holding it now (see [`QueueBudget`]).
+    queues: AtomicUsize,
+    /// What it was charged when the first of them took it.
+    charged: AtomicUsize,
+}
+
+impl Completed {
+    /// Roughly what holding the event costs (see [`QUEUED_BYTES`]).
+    fn cost(&self) -> usize {
+        let payloads: usize = [
+            &self.input,
+            &self.output,
+            &self.error,
+            &self.caller,
+            &self.metadata,
+        ]
+        .into_iter()
+        .filter_map(|value| value.as_deref())
+        .map(approx_size)
+        .sum();
+        let text = [&self.traceparent, &self.baggage]
+            .into_iter()
+            .filter_map(|value| value.as_deref())
+            .map(str::len)
+            .sum::<usize>();
+        EVENT_OVERHEAD
+            + self.namespace.len()
+            + self.function_id.len()
+            + self.invocation_id.len()
+            + text
+            + payloads
+    }
 }
 
 /// One routed completion waiting for the evaluator.
@@ -215,7 +344,7 @@ impl ObserverRegistry {
         let Some(set) = self.watch(namespace, function_id) else {
             return;
         };
-        if !self.evaluator_has_room() {
+        if !self.evaluator_has_room(&set) {
             for observer in &set.observers {
                 drop_event(observer, observe_codes::OVERFLOW);
             }
@@ -248,6 +377,8 @@ impl ObserverRegistry {
                 depth,
                 traceparent: emission.traceparent,
                 baggage: None,
+                queues: AtomicUsize::new(0),
+                charged: AtomicUsize::new(0),
             },
             set,
             error: None,
@@ -273,7 +404,7 @@ impl ObserverRegistry {
         baggage: &Option<String>,
         ctx: &InvocationCtx,
     ) -> ObservedCall {
-        let admitted = self.evaluator_has_room();
+        let admitted = self.evaluator_has_room(&set);
         let input = (admitted && set.needs.input).then(|| {
             self.payload_copies.fetch_add(1, Ordering::Relaxed);
             let mut input = body.clone();
@@ -328,6 +459,12 @@ impl ObserverRegistry {
         self.evaluated.load(Ordering::Acquire)
     }
 
+    /// Times a reporting connection's reader waited for room in a queue its
+    /// report overflowed (see [`Self::wait_for_room`]).
+    pub fn report_waits(&self) -> u64 {
+        self.report_waits.load(Ordering::Relaxed)
+    }
+
     /// Hands the completed invocation to the evaluator: the caller's reply
     /// goes out without waiting for filters or activations. Keeps the output
     /// only when an active observer needs it.
@@ -344,7 +481,7 @@ impl ObserverRegistry {
         let Some(call) = call.inner.take() else {
             return;
         };
-        if !call.admitted || !self.evaluator_has_room() {
+        if !call.admitted || !self.evaluator_has_room(&call.set) {
             for observer in &call.set.observers {
                 drop_event(observer, observe_codes::OVERFLOW);
             }
@@ -389,6 +526,8 @@ impl ObserverRegistry {
                 depth: ctx.observe_depth,
                 traceparent: call.traceparent,
                 baggage: call.baggage,
+                queues: AtomicUsize::new(0),
+                charged: AtomicUsize::new(0),
             },
             set: call.set,
             error,
@@ -397,25 +536,26 @@ impl ObserverRegistry {
         self.enqueue(evaluation);
     }
 
-    /// Whether the evaluator can take one more completion: under both its
-    /// count ([`EVALUATOR_QUEUE`]) and its byte budget
+    /// Whether `set`'s evaluator can take one more completion: under both
+    /// its count ([`EVALUATOR_QUEUE`]) and the evaluators' byte budget
     /// ([`EVALUATOR_BYTES`], approximate payload sizes).
-    fn evaluator_has_room(&self) -> bool {
-        self.evaluator
+    fn evaluator_has_room(&self, set: &ActiveSet) -> bool {
+        self.evaluators
             .get()
-            .is_none_or(|evaluator| evaluator.capacity() > 0)
+            .is_none_or(|evaluators| evaluator_of(evaluators, set).capacity() > 0)
             && self.queued_bytes.load(Ordering::Acquire)
                 < self.evaluator_bytes.load(Ordering::Relaxed)
     }
 
-    /// Hands `evaluation` to the evaluator task; inline when there is none.
-    /// Past the queue's bounds the completion is dropped as `OVERFLOW` for
-    /// each active observer of the function.
+    /// Hands `evaluation` to its function's evaluator task; inline when there
+    /// is none. Past the queue's bounds the completion is dropped as
+    /// `OVERFLOW` for each active observer of the function.
     fn enqueue(self: &Arc<Self>, evaluation: Evaluation) {
-        let Some(evaluator) = self.evaluator() else {
+        let Some(evaluators) = self.evaluators() else {
             self.evaluate(evaluation);
             return;
         };
+        let evaluator = evaluator_of(evaluators, &evaluation.set);
         let bytes = evaluation.bytes;
         // Reserved, not checked then added: concurrent completions cannot
         // overshoot the budget together.
@@ -447,29 +587,35 @@ impl ObserverRegistry {
         }
     }
 
-    /// The evaluator task's queue, started on first use.
-    fn evaluator(self: &Arc<Self>) -> Option<mpsc::Sender<Evaluation>> {
-        if let Some(evaluator) = self.evaluator.get() {
-            return Some(evaluator.clone());
+    /// The evaluator tasks' queues, started on first use: one per runtime
+    /// worker thread, up to [`MAX_EVALUATORS`].
+    fn evaluators(self: &Arc<Self>) -> Option<&[mpsc::Sender<Evaluation>]> {
+        if let Some(evaluators) = self.evaluators.get() {
+            return Some(evaluators);
         }
         let runtime = self.runtime()?;
+        let count = runtime.metrics().num_workers().clamp(1, MAX_EVALUATORS);
         let capacity = self.evaluator_capacity.load(Ordering::Relaxed).max(1);
-        let (tx, mut rx) = mpsc::channel::<Evaluation>(capacity);
-        if self.evaluator.set(tx).is_ok() {
-            let registry = Arc::downgrade(self);
-            runtime.spawn(async move {
-                while let Some(evaluation) = rx.recv().await {
-                    let Some(registry) = registry.upgrade() else {
-                        return;
-                    };
-                    registry
-                        .queued_bytes
-                        .fetch_sub(evaluation.bytes, Ordering::AcqRel);
-                    registry.evaluate(evaluation);
-                }
-            });
+        let (senders, receivers): (Vec<_>, Vec<_>) = (0..count)
+            .map(|_| mpsc::channel::<Evaluation>(capacity))
+            .unzip();
+        if self.evaluators.set(senders).is_ok() {
+            for mut rx in receivers {
+                let registry = Arc::downgrade(self);
+                runtime.spawn(async move {
+                    while let Some(evaluation) = rx.recv().await {
+                        let Some(registry) = registry.upgrade() else {
+                            return;
+                        };
+                        registry
+                            .queued_bytes
+                            .fetch_sub(evaluation.bytes, Ordering::AcqRel);
+                        registry.evaluate(evaluation);
+                    }
+                });
+            }
         }
-        self.evaluator.get().cloned()
+        self.evaluators.get().map(Vec::as_slice)
     }
 
     /// Evaluates the active observers' `on` and filters against one completed
@@ -492,6 +638,7 @@ impl ObserverRegistry {
                 .and_then(|c| serde_json::to_value(c).ok())
                 .map(Arc::new);
         }
+        let completed = Arc::new(completed);
         let doc = Doc {
             input: completed.input.as_deref(),
             output: completed.output.as_deref(),
@@ -509,16 +656,17 @@ impl ObserverRegistry {
 
     /// Policy for one matched observer (protocol.md §3.4): state, loop guard,
     /// expiry, `max_fires`, then an in-flight slot or the bounded queue.
-    fn activate(self: &Arc<Self>, observer: &Arc<Observer>, completed: &Completed) {
+    /// Returns whether the event was dropped because the queue was full.
+    fn activate(self: &Arc<Self>, observer: &Arc<Observer>, completed: &Arc<Completed>) -> bool {
         if !observer.is_active() {
             drop_event(observer, observe_codes::INACTIVE);
-            return;
+            return false;
         }
         let max_depth = self.config().max_observe_depth;
         if completed.depth.saturating_add(1) > max_depth {
             drop_event(observer, observe_codes::LOOP_GUARD);
             warn_loop_guard(observer, completed.depth, max_depth);
-            return;
+            return false;
         }
         if observer.is_expired() {
             self.dispose(
@@ -527,47 +675,29 @@ impl ObserverRegistry {
                 "the observer's expires_in_ms elapsed",
             );
             drop_event(observer, observe_codes::INACTIVE);
-            return;
+            return false;
         }
         let Some(fired) = take_fire(observer) else {
-            return;
-        };
-        // Admission is checked again below, but first without projecting: an
-        // observer with no room left costs no copy of the payload.
-        let no_room = {
-            let flow = lock(&observer.flow);
-            let can_run = flow.running < observer.policy.max_in_flight && flow.queue.is_empty();
-            !can_run && flow.queue.len() >= observer.policy.max_queue
-        };
-        if no_room {
-            observer.fires.fetch_sub(1, Ordering::AcqRel);
-            drop_event(observer, observe_codes::OVERFLOW);
-            return;
-        }
-
-        let activation_id = Uuid::new_v4().to_string();
-        let pending = PendingActivation {
-            envelope: project(observer, completed, &activation_id),
-            activation_id,
-            observed_function: completed.function_id.clone(),
-            observed_invocation: completed.invocation_id.clone(),
-            depth: completed.depth,
-            traceparent: completed.traceparent.clone(),
-            baggage: completed.baggage.clone(),
+            return false;
         };
         let run_now = {
             let mut flow = lock(&observer.flow);
             if flow.running < observer.policy.max_in_flight && flow.queue.is_empty() {
                 flow.running += 1;
-                Some(pending)
-            } else if flow.queue.len() < observer.policy.max_queue {
-                flow.queue.push_back(pending);
+                Some(PendingActivation::running(completed.clone()))
+            } else if flow.queue.len() < observer.policy.max_queue
+                && self.queue_budget.charge(completed)
+            {
+                flow.queue.push_back(PendingActivation::queued(
+                    completed.clone(),
+                    self.queue_budget.clone(),
+                ));
                 None
             } else {
                 drop(flow);
                 observer.fires.fetch_sub(1, Ordering::AcqRel);
                 drop_event(observer, observe_codes::OVERFLOW);
-                return;
+                return true;
             }
         };
         if let Some(pending) = run_now {
@@ -585,6 +715,7 @@ impl ObserverRegistry {
                 format!("the observer fired {fired} times, its max_fires"),
             );
         }
+        false
     }
 
     /// Invokes `observer`'s target with one activation, fire-and-forget for
@@ -617,29 +748,38 @@ impl ObserverRegistry {
                 ],
             );
         }
+        // Built now, from the event the observers share; the event is let go
+        // (and its share of the queue budget given back) before the target
+        // answers.
+        let event = pending.event.clone();
+        drop(pending);
+        let activation_id = Uuid::new_v4().to_string();
+        let envelope = project(observer, &event, &activation_id);
         let ctx = InvocationCtx::activation(
             Caller {
                 worker_name: Some(ENGINE_CALLER_NAME.to_string()),
-                function_id: Some(pending.observed_function),
-                invocation_id: Some(pending.observed_invocation),
+                function_id: Some(event.function_id.clone()),
+                invocation_id: Some(event.invocation_id.clone()),
                 ..Caller::default()
             },
-            pending.depth.saturating_add(1),
+            event.depth.saturating_add(1),
             Activation {
                 observer_id: observer.id.clone(),
-                activation_id: Some(pending.activation_id),
+                activation_id: Some(activation_id),
             },
         );
+        let (traceparent, baggage) = (event.traceparent.clone(), event.baggage.clone());
+        drop(event);
         let invocation_id = Uuid::new_v4();
         let call = invocations.handle_invocation_with_handler(
             Some(invocation_id),
             None,
             target_function.clone(),
             target_namespace,
-            pending.envelope,
+            envelope,
             handler,
-            pending.traceparent,
-            pending.baggage,
+            traceparent,
+            baggage,
             None,
             observer.metadata.clone(),
             ctx,
@@ -677,9 +817,17 @@ impl ObserverRegistry {
     fn next_queued(&self, observer: &Observer) -> Option<PendingActivation> {
         let mut flow = lock(&observer.flow);
         match flow.queue.pop_front() {
-            Some(pending) => Some(pending),
+            Some(pending) => {
+                if flow.queue.len() == observer.policy.max_queue / 2 {
+                    self.queue_budget.room.notify_waiters();
+                }
+                Some(pending)
+            }
             None => {
                 flow.running = flow.running.saturating_sub(1);
+                if flow.queue.capacity() > QUEUE_KEPT {
+                    flow.queue.shrink_to(QUEUE_KEPT);
+                }
                 None
             }
         }
@@ -706,12 +854,19 @@ impl ObserverRegistry {
     /// functions. The reporter must own each item's function; each `matched`
     /// id must be an active observer of it. The engine does not re-evaluate
     /// filters: the owner is authoritative for its own function's data.
+    ///
+    /// Returns the observers whose queue was full for some item, for the
+    /// connection's reader to wait on ([`Self::wait_for_room`]); not those
+    /// whose target the reporting connection hosts, since its answers come
+    /// in on the connection that would wait.
+    #[must_use = "the reader waits for room in the queues a report overflowed"]
     pub fn report(
         self: &Arc<Self>,
         connection: Uuid,
         connection_namespace: &str,
         items: ObservedItems,
-    ) {
+    ) -> Vec<Arc<Observer>> {
+        let mut full: Vec<Arc<Observer>> = Vec::new();
         if !items.rejected.is_empty() {
             tracing::warn!(
                 connection = %connection,
@@ -781,7 +936,7 @@ impl ObserverRegistry {
             let mut caller = caller.unwrap_or_default();
             caller.worker_id = Some(connection.to_string());
             caller.worker_name = worker_name.clone();
-            let completed = Completed {
+            let completed = Arc::new(Completed {
                 namespace: key.0.clone(),
                 function_id: key.1.clone(),
                 invocation_id,
@@ -796,7 +951,9 @@ impl ObserverRegistry {
                 depth: observe_depth,
                 traceparent,
                 baggage,
-            };
+                queues: AtomicUsize::new(0),
+                charged: AtomicUsize::new(0),
+            });
             // An auto function's report is an invocation: `on` applies to its
             // status, as on the routed path. An owner function's is an event
             // the owner picked; `on` does not apply (protocol.md §3.4).
@@ -806,8 +963,59 @@ impl ObserverRegistry {
             for id in &matched {
                 match self.get(id).filter(|o| o.function == key) {
                     Some(observer) if auto && !accepts(&observer.on, success) => {}
-                    Some(observer) => self.activate(&observer, &completed),
+                    Some(observer) => {
+                        if self.activate(&observer, &completed)
+                            && !full.iter().any(|o| Arc::ptr_eq(o, &observer))
+                            && !self.hosts_target(connection, &observer)
+                        {
+                            full.push(observer);
+                        }
+                    }
                     None => count_function_drop(&key.1, observe_codes::INACTIVE, 1),
+                }
+            }
+        }
+        full
+    }
+
+    /// Whether `connection` hosts `observer`'s target.
+    fn hosts_target(&self, connection: Uuid, observer: &Observer) -> bool {
+        self.deps
+            .get()
+            .and_then(|deps| deps.function_owners.get(&observer.target).map(|o| o.0))
+            == Some(connection)
+    }
+
+    /// Backpressure on a reporting connection (protocol.md §3.4). After a
+    /// report overflowed `full`, the connection's reader waits here until
+    /// each of those queues, and the queues together ([`QUEUED_BYTES`]), are
+    /// down to half their limit (or the observer is no longer active), for
+    /// [`REPORT_BACKPRESSURE_WAIT`] at most. Meanwhile
+    /// the engine reads nothing more from that connection: a worker that
+    /// emits faster than the targets take is slowed by its own socket, and
+    /// its SDK drops the excess from its bounded report buffer
+    /// (`BUFFER_FULL`), where it costs the engine nothing, instead of the
+    /// engine decoding every report to drop it as `OVERFLOW`.
+    pub async fn wait_for_room(&self, full: &[Arc<Observer>]) {
+        let deadline = tokio::time::Instant::now() + REPORT_BACKPRESSURE_WAIT;
+        let mut waited = false;
+        for observer in full {
+            loop {
+                let room = self.queue_budget.room.notified();
+                tokio::pin!(room);
+                room.as_mut().enable();
+                let queued = lock(&observer.flow).queue.len();
+                if !observer.is_active()
+                    || (queued <= observer.policy.max_queue / 2 && self.queue_budget.has_room())
+                {
+                    break;
+                }
+                if !waited {
+                    waited = true;
+                    self.report_waits.fetch_add(1, Ordering::Relaxed);
+                }
+                if tokio::time::timeout_at(deadline, room).await.is_err() {
+                    return;
                 }
             }
         }
@@ -1285,7 +1493,9 @@ fn project(observer: &Observer, completed: &Completed, activation_id: &str) -> V
     Value::Object(envelope)
 }
 
-/// Counts one dropped event for `observer` under `reason`.
+/// Counts one dropped event for `observer` under `reason`: one atomic add.
+/// `iii.observer.dropped.total` follows from the counters (see
+/// [`ObserverRegistry::export_drops`]).
 fn drop_event(observer: &Observer, reason: &str) {
     let counter = match reason {
         observe_codes::LOOP_GUARD => &observer.drops.loop_guard,
@@ -1297,20 +1507,31 @@ fn drop_event(observer: &Observer, reason: &str) {
         _ => &observer.drops.inactive,
     };
     counter.fetch_add(1, Ordering::Relaxed);
-    count_drops(observer, reason, 1);
 }
 
-/// Records `count` dropped events in `iii.observer.dropped.total`.
-pub(crate) fn count_drops(observer: &Observer, reason: &str, count: u64) {
-    if let Some(metrics) = super::metrics() {
+/// Adds what `observer` dropped since its last export to
+/// `iii.observer.dropped.total`.
+pub(crate) fn export_drops(observer: &Observer) {
+    let Some(metrics) = super::metrics() else {
+        return;
+    };
+    for (reason, count) in observer.drops.unexported() {
         metrics.observer_dropped_total.add(
             count,
             &[
                 KeyValue::new("function_id", observer.function.1.clone()),
-                KeyValue::new("reason", reason.to_string()),
+                KeyValue::new("reason", reason),
             ],
         );
     }
+}
+
+/// The evaluator that takes `set`'s completions.
+fn evaluator_of<'a>(
+    evaluators: &'a [mpsc::Sender<Evaluation>],
+    set: &ActiveSet,
+) -> &'a mpsc::Sender<Evaluation> {
+    &evaluators[(set.shard % evaluators.len() as u64) as usize]
 }
 
 /// At most one warning per observer per minute: a loop fires as fast as it
@@ -1556,5 +1777,396 @@ mod tests {
         }
         let info = registry.get_info(&engine, None, "obs").unwrap();
         assert_eq!(info.dropped.get("OVERFLOW"), Some(&1), "only the big one");
+    }
+
+    /// An in-process target that answers only when `gate` gives it a permit,
+    /// and forwards each input it got.
+    fn gated(
+        engine: &Engine,
+        function_id: &str,
+    ) -> (
+        Arc<tokio::sync::Semaphore>,
+        tokio::sync::mpsc::UnboundedReceiver<Value>,
+    ) {
+        let gate = Arc::new(tokio::sync::Semaphore::new(0));
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let held = gate.clone();
+        engine.register_function_handler(
+            RegisterFunctionRequest {
+                function_id: function_id.to_string(),
+                description: None,
+                request_format: None,
+                response_format: None,
+                metadata: None,
+            },
+            Handler::new(move |input: Value| {
+                let (gate, tx) = (held.clone(), tx.clone());
+                async move {
+                    gate.acquire().await.unwrap().forget();
+                    let _ = tx.send(input);
+                    FunctionResult::Success(None)
+                }
+            }),
+        );
+        (gate, rx)
+    }
+
+    async fn until(mut done: impl FnMut() -> bool) {
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            while !done() {
+                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .expect("in time");
+    }
+
+    fn event(n: u64) -> Arc<super::Completed> {
+        Arc::new(super::Completed {
+            namespace: DEFAULT_NAMESPACE.to_string(),
+            function_id: "test::src".to_string(),
+            invocation_id: n.to_string(),
+            success: true,
+            input: Some(Arc::new(json!({ "n": n }))),
+            output: None,
+            error: None,
+            caller: None,
+            metadata: None,
+            started_at_ms: 0,
+            duration_ms: 0.0,
+            depth: 0,
+            traceparent: None,
+            baggage: None,
+            queues: AtomicUsize::new(0),
+            charged: AtomicUsize::new(0),
+        })
+    }
+
+    /// Every observer an event matched queues the same event, not a copy of
+    /// it; each target still gets its own argument, built when it runs.
+    #[tokio::test]
+    async fn observers_queue_one_shared_event() {
+        let engine = Arc::new(Engine::new());
+        source(&engine);
+        let (gate, mut delivered) = gated(&engine, "test::held");
+        let (worker, _socket) = test_support::worker(&engine);
+        for id in ["a", "b"] {
+            let mut request = test_support::request(id, "test::src", "test::held", None);
+            request.max_in_flight = Some(1);
+            test_support::observe_request(&engine, &worker, request).await;
+        }
+        for n in 1..=2 {
+            engine.call("test::src", json!({ "n": n })).await.unwrap();
+        }
+        // Each observer runs the first event and queues the second.
+        until(|| {
+            ["a", "b"]
+                .iter()
+                .all(|id| engine.observers.in_flight(id) == Some((1, 1)))
+        })
+        .await;
+        let queued = |id: &str| {
+            let observer = engine.observers.get(id).unwrap();
+            let flow = super::lock(&observer.flow);
+            flow.queue[0].event.clone()
+        };
+        assert!(Arc::ptr_eq(&queued("a"), &queued("b")), "one event");
+
+        gate.add_permits(4);
+        let mut inputs = Vec::new();
+        for _ in 0..4 {
+            inputs.push(test_support::next(&mut delivered).await["n"].clone());
+        }
+        inputs.sort_by_key(|n| n.as_u64());
+        assert_eq!(inputs, [json!(1), json!(1), json!(2), json!(2)]);
+    }
+
+    /// A queue that a burst grew gives the slots back once it drains.
+    #[tokio::test]
+    async fn a_drained_queue_gives_its_slots_back() {
+        let engine = Arc::new(Engine::new());
+        source(&engine);
+        let (gate, _delivered) = gated(&engine, "test::held");
+        let (worker, _socket) = test_support::worker(&engine);
+        let mut request = test_support::request("obs", "test::src", "test::held", None);
+        request.max_in_flight = Some(1);
+        test_support::observe_request(&engine, &worker, request).await;
+        for n in 0..200 {
+            engine.call("test::src", json!({ "n": n })).await.unwrap();
+        }
+        until(|| engine.observers.in_flight("obs") == Some((1, 199))).await;
+        let observer = engine.observers.get("obs").unwrap();
+        assert!(super::lock(&observer.flow).queue.capacity() >= 199);
+
+        gate.add_permits(200);
+        until(|| engine.observers.in_flight("obs") == Some((0, 0))).await;
+        assert!(super::lock(&observer.flow).queue.capacity() <= super::QUEUE_KEPT);
+    }
+
+    /// There is an evaluator per runtime worker thread, and a function's
+    /// activations still arrive in the order its calls completed.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn a_functions_activations_keep_their_order_across_evaluators() {
+        let engine = Arc::new(Engine::new());
+        for id in ["test::a", "test::b"] {
+            engine.register_function_handler(
+                RegisterFunctionRequest {
+                    function_id: id.to_string(),
+                    description: None,
+                    request_format: None,
+                    response_format: None,
+                    metadata: None,
+                },
+                Handler::new(|input: Value| async move { FunctionResult::Success(Some(input)) }),
+            );
+        }
+        let (worker, _socket) = test_support::worker(&engine);
+        let mut sinks = Vec::new();
+        for (id, source, target) in [("oa", "test::a", "test::da"), ("ob", "test::b", "test::db")] {
+            sinks.push(test_support::capture(&engine, target));
+            let mut request = test_support::request(id, source, target, None);
+            request.max_in_flight = Some(1);
+            test_support::observe_request(&engine, &worker, request).await;
+        }
+
+        let mut callers = tokio::task::JoinSet::new();
+        for caller in 0..4u64 {
+            let engine = engine.clone();
+            callers.spawn(async move {
+                let function = if caller % 2 == 0 {
+                    "test::a"
+                } else {
+                    "test::b"
+                };
+                for n in 0..50u64 {
+                    let body = json!({ "caller": caller, "n": n });
+                    engine.call(function, body).await.unwrap();
+                }
+            });
+        }
+        while let Some(done) = callers.join_next().await {
+            done.unwrap();
+        }
+        assert_eq!(engine.observers.evaluators.get().map(Vec::len), Some(4));
+
+        for mut sink in sinks {
+            let mut last = std::collections::HashMap::new();
+            for _ in 0..100 {
+                let input = test_support::next(&mut sink).await;
+                let n = input["n"].as_u64().unwrap();
+                if let Some(before) = last.insert(input["caller"].as_u64().unwrap(), n) {
+                    assert!(before < n, "{n} arrived after {before}");
+                }
+            }
+        }
+    }
+
+    /// The observer `obs` of `test::src` with a queue of 4 that holds
+    /// `queued` events, one more running.
+    async fn full_queue(engine: &Arc<Engine>, queued: u64) -> Arc<super::Observer> {
+        engine.observers.set_config(super::super::ObserversConfig {
+            max_queue_per_observer: 4,
+            ..Default::default()
+        });
+        source(engine);
+        let _sink = test_support::capture(engine, "test::dst");
+        let (worker, _socket) = test_support::worker(engine);
+        let request = test_support::request("obs", "test::src", "test::dst", None);
+        test_support::observe_request(engine, &worker, request).await;
+        let observer = engine.observers.get("obs").unwrap();
+        let budget = engine.observers.queue_budget.clone();
+        let mut flow = super::lock(&observer.flow);
+        flow.running = 1;
+        for n in 0..queued {
+            let event = event(n);
+            assert!(budget.charge(&event));
+            flow.queue
+                .push_back(super::PendingActivation::queued(event, budget.clone()));
+        }
+        drop(flow);
+        observer
+    }
+
+    /// A reader waits until the queue it overflowed is back to half its
+    /// limit.
+    #[tokio::test(start_paused = true)]
+    async fn a_reader_waits_until_the_queue_is_half_empty() {
+        let engine = Arc::new(Engine::new());
+        let observer = full_queue(&engine, 4).await;
+        let registry = engine.observers.clone();
+        let started = tokio::time::Instant::now();
+        let waiting = tokio::spawn({
+            let (registry, observer) = (registry.clone(), observer.clone());
+            async move { registry.wait_for_room(&[observer]).await }
+        });
+        for _ in 0..8 {
+            tokio::task::yield_now().await;
+        }
+        assert!(!waiting.is_finished(), "4 of 4 queued");
+        assert!(registry.next_queued(&observer).is_some());
+        for _ in 0..8 {
+            tokio::task::yield_now().await;
+        }
+        assert!(!waiting.is_finished(), "3 of 4 queued");
+        assert!(registry.next_queued(&observer).is_some());
+        waiting.await.unwrap();
+        assert!(started.elapsed() < super::REPORT_BACKPRESSURE_WAIT);
+        assert_eq!(registry.report_waits(), 1);
+    }
+
+    /// With no room coming, the reader reads on after
+    /// `REPORT_BACKPRESSURE_WAIT`; at half or below it does not wait at all.
+    #[tokio::test(start_paused = true)]
+    async fn a_reader_waits_a_bounded_time_and_only_for_a_full_queue() {
+        let engine = Arc::new(Engine::new());
+        let observer = full_queue(&engine, 4).await;
+        let registry = engine.observers.clone();
+        let started = tokio::time::Instant::now();
+        registry
+            .wait_for_room(std::slice::from_ref(&observer))
+            .await;
+        assert!(started.elapsed() >= super::REPORT_BACKPRESSURE_WAIT);
+
+        registry.next_queued(&observer);
+        registry.next_queued(&observer);
+        let started = tokio::time::Instant::now();
+        registry.wait_for_room(&[observer]).await;
+        assert_eq!(started.elapsed(), std::time::Duration::ZERO);
+        assert_eq!(registry.report_waits(), 1);
+    }
+
+    /// A disposed observer's queue is gone: the reader reads on at once.
+    #[tokio::test(start_paused = true)]
+    async fn a_reader_waiting_on_a_disposed_observer_reads_on() {
+        let engine = Arc::new(Engine::new());
+        let observer = full_queue(&engine, 4).await;
+        let registry = engine.observers.clone();
+        let started = tokio::time::Instant::now();
+        let waiting = tokio::spawn({
+            let (registry, observer) = (registry.clone(), observer.clone());
+            async move { registry.wait_for_room(&[observer]).await }
+        });
+        for _ in 0..8 {
+            tokio::task::yield_now().await;
+        }
+        registry.dispose(
+            &observer,
+            crate::protocol::observe_codes::UNOBSERVED,
+            "test",
+        );
+        waiting.await.unwrap();
+        assert!(started.elapsed() < super::REPORT_BACKPRESSURE_WAIT);
+        assert_eq!(
+            observer.drops.snapshot().get("INACTIVE"),
+            Some(&4),
+            "the queue's events"
+        );
+    }
+
+    /// An event waiting in several queues counts once against the queues'
+    /// budget, and gives its share back when the last queue lets it go.
+    #[tokio::test]
+    async fn a_queued_event_counts_once_against_the_budget() {
+        let engine = Arc::new(Engine::new());
+        source(&engine);
+        let (gate, _delivered) = gated(&engine, "test::held");
+        let (worker, _socket) = test_support::worker(&engine);
+        for id in ["a", "b"] {
+            let mut request = test_support::request(id, "test::src", "test::held", None);
+            request.max_in_flight = Some(1);
+            test_support::observe_request(&engine, &worker, request).await;
+        }
+        for n in 1..=2 {
+            engine.call("test::src", json!({ "n": n })).await.unwrap();
+        }
+        until(|| {
+            ["a", "b"]
+                .iter()
+                .all(|id| engine.observers.in_flight(id) == Some((1, 1)))
+        })
+        .await;
+        let budget = &engine.observers.queue_budget;
+        let queued = {
+            let observer = engine.observers.get("a").unwrap();
+            let flow = super::lock(&observer.flow);
+            flow.queue[0].event.clone()
+        };
+        assert_eq!(budget.bytes.load(Ordering::SeqCst), queued.cost());
+
+        gate.add_permits(4);
+        until(|| {
+            ["a", "b"]
+                .iter()
+                .all(|id| engine.observers.in_flight(id) == Some((0, 0)))
+        })
+        .await;
+        assert_eq!(budget.bytes.load(Ordering::SeqCst), 0);
+    }
+
+    /// Past the queues' budget an activation that would queue is dropped as
+    /// `OVERFLOW`, though its own queue has room.
+    #[tokio::test]
+    async fn past_the_queues_budget_activations_overflow() {
+        let engine = Arc::new(Engine::new());
+        source(&engine);
+        let (gate, _delivered) = gated(&engine, "test::held");
+        let (worker, _socket) = test_support::worker(&engine);
+        let mut request = test_support::request("obs", "test::src", "test::held", None);
+        request.max_in_flight = Some(1);
+        test_support::observe_request(&engine, &worker, request).await;
+        // The first runs, the second queues: the budget is then made room
+        // for two events like it.
+        for n in 0..2 {
+            engine.call("test::src", json!({ "n": n })).await.unwrap();
+        }
+        until(|| engine.observers.in_flight("obs") == Some((1, 1))).await;
+        let cost = {
+            let observer = engine.observers.get("obs").unwrap();
+            let flow = super::lock(&observer.flow);
+            flow.queue[0].event.cost()
+        };
+        let limit = 2 * cost + cost / 2;
+        engine
+            .observers
+            .queue_budget
+            .limit
+            .store(limit, Ordering::SeqCst);
+        for n in 2..6 {
+            engine.call("test::src", json!({ "n": n })).await.unwrap();
+        }
+        until(|| engine.observers.evaluated() >= 6).await;
+        assert_eq!(engine.observers.in_flight("obs"), Some((1, 2)));
+        let info = engine.observers.get_info(&engine, None, "obs").unwrap();
+        assert_eq!(info.dropped.get("OVERFLOW"), Some(&3));
+        assert!(engine.observers.queue_budget.bytes.load(Ordering::SeqCst) <= limit);
+        gate.add_permits(3);
+        until(|| engine.observers.in_flight("obs") == Some((0, 0))).await;
+        assert_eq!(
+            engine.observers.queue_budget.bytes.load(Ordering::SeqCst),
+            0
+        );
+    }
+
+    /// A reader also waits while the queues together are over half their
+    /// budget, though the queue it overflowed is not.
+    #[tokio::test(start_paused = true)]
+    async fn a_reader_waits_for_the_queues_budget() {
+        let engine = Arc::new(Engine::new());
+        let observer = full_queue(&engine, 1).await;
+        let registry = engine.observers.clone();
+        let budget = registry.queue_budget.clone();
+        // The one queued event is over half of this budget.
+        budget.limit.store(event(0).cost() + 1, Ordering::SeqCst);
+        let waiting = tokio::spawn({
+            let (registry, observer) = (registry.clone(), observer.clone());
+            async move { registry.wait_for_room(&[observer]).await }
+        });
+        for _ in 0..8 {
+            tokio::task::yield_now().await;
+        }
+        assert!(!waiting.is_finished(), "the budget is more than half full");
+        drop(registry.next_queued(&observer));
+        waiting.await.unwrap();
+        assert_eq!(budget.bytes.load(Ordering::SeqCst), 0);
     }
 }

@@ -135,6 +135,11 @@ first. Both go through the engine, which applies the observer's policy (`max_fir
 `max_in_flight`), adds its metadata, and enforces the loop guard. Both throw `NOT_OWNER_DELIVERED`
 on an auto function.
 
+`emit` never waits. When you emit faster than the targets take, the observers' queues fill and the
+engine stops reading your worker's connection until they have room again (at most 250 ms at a
+time). Meanwhile the SDK keeps what it can in its bounded report buffer and drops the rest, counted
+as `BUFFER_FULL`, and everything else your worker sends waits behind its reports.
+
 The event's `caller` follows where you call `emit`: inside your function's own handler, the event is
 that invocation (its id and its caller); inside another handler, that handler is the caller; outside
 any handler, only your worker. That is why the examples below trigger their own function and emit

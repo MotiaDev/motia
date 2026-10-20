@@ -296,12 +296,12 @@ on_completion / on_report(item):
     if depth + 1 > max_observe_depth       → drop(LOOP_GUARD); warn once per obs per minute
     if expired                                 → dispose(EXPIRED); drop
     if max_fires and fires.fetch_add(1) >= max → drop(MAX_FIRES)
-    envelope ← project(item, obs.capture, obs.deliver)
-    if in_flight.try_acquire()                 → spawn invoke
-    elif queue.len() < max_queue               → enqueue
-    else                                       → drop(OVERFLOW)
+    if in_flight.try_acquire()                 → spawn invoke(item)
+    elif queue.len() < max_queue and item fits → enqueue(item)      # the item itself, shared by its observers
+    else                                       → drop(OVERFLOW); a report's reader waits for room (below)
     if fires == max_fires                      → dispose(MAX_FIRES) after dispatch
-invoke:
+invoke(item):
+  envelope ← project(item, obs.capture, obs.deliver)
   call(target_ns, target_fn, envelope,
        invocation_id = fresh,                     # no action: an ordinary call the target answers
        caller = { worker_name: "iii-engine", function_id: observed fn, invocation_id: observed invocation },
@@ -326,6 +326,25 @@ invoke:
 - **Cancelled calls.** An observed invocation dropped before its result is
   known (its caller gave up) counts a `CANCELLED` drop for each observer that
   was waiting for it, since nobody can know which of them would have matched.
+- **Queued events are shared.** A queue holds the matched item, not a
+  projection of it: an event waiting behind several observers' `max_in_flight`
+  is held once, and each envelope is built when its activation starts.
+- **The queues are bounded together.** Besides `max_queue` per observer, the
+  events waiting in all queues may take 64 MiB (approximate sizes, each event
+  counted once however many queues hold it). An item that does not fit is
+  dropped as `OVERFLOW`, like one that finds its queue full.
+- **Backpressure on reports.** When a report's item overflows an observer's
+  queue, the engine stops reading from the reporting connection until that
+  queue is back to half of `max_queue` and the queues together are under half
+  of their budget, the observer leaves `active`, or 250 ms pass. An owner that emits faster than the targets take is slowed by
+  its own socket, and its SDK drops the excess from its bounded report buffer
+  (`BUFFER_FULL`) instead of the engine decoding reports only to drop them.
+  The engine does not wait for an observer whose target the reporting
+  connection hosts, since that target's answers arrive on the same connection.
+- **Evaluation order.** Routed completions are evaluated off the caller's task
+  by one evaluator per engine worker thread. A function's completions always
+  go to the same evaluator, so an observer's activations keep the order their
+  invocations completed in.
 - **Loop guard through workers without `observe.v1`.** A 0.24 SDK cannot carry
   `observe_depth` back, so a chain through it would restart at depth 0. For a
   connection without `observe.v1` the engine remembers the depth of each

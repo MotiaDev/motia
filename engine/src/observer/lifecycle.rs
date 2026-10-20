@@ -26,7 +26,10 @@ use serde_json::Value;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use super::{FnKey, ObserverRegistry};
+use super::{
+    FnKey, ObserverRegistry,
+    dispatch::{Completed, QueueBudget},
+};
 use crate::{
     engine::Outbound,
     protocol::{
@@ -263,10 +266,13 @@ pub(crate) struct DropCounters {
     /// A report item naming the observer was malformed (an unknown
     /// `status`).
     pub invalid_report: AtomicU64,
+    /// Each counter's value when it last went to the metric, in
+    /// [`Self::counters`] order (see [`Self::unexported`]).
+    exported: [AtomicU64; 7],
 }
 
 impl DropCounters {
-    pub fn snapshot(&self) -> BTreeMap<String, u64> {
+    fn counters(&self) -> [(&'static str, &AtomicU64); 7] {
         [
             (observe_codes::INACTIVE, &self.inactive),
             (observe_codes::LOOP_GUARD, &self.loop_guard),
@@ -276,10 +282,28 @@ impl DropCounters {
             (CANCELLED, &self.cancelled),
             (INVALID_REPORT, &self.invalid_report),
         ]
-        .into_iter()
-        .map(|(reason, count)| (reason.to_string(), count.load(Ordering::Relaxed)))
-        .filter(|(_, count)| *count > 0)
-        .collect()
+    }
+
+    pub fn snapshot(&self) -> BTreeMap<String, u64> {
+        self.counters()
+            .into_iter()
+            .map(|(reason, count)| (reason.to_string(), count.load(Ordering::Relaxed)))
+            .filter(|(_, count)| *count > 0)
+            .collect()
+    }
+
+    /// The drops counted since the last call, by reason: what
+    /// `iii.observer.dropped.total` has not been told yet. One caller at a
+    /// time (the registry's export task, or the observer's drop).
+    pub(crate) fn unexported(&self) -> impl Iterator<Item = (&'static str, u64)> + '_ {
+        self.counters()
+            .into_iter()
+            .zip(&self.exported)
+            .filter_map(|((reason, count), exported)| {
+                let total = count.load(Ordering::Relaxed);
+                let before = exported.swap(total, Ordering::Relaxed);
+                (total > before).then_some((reason, total - before))
+            })
     }
 }
 
@@ -351,15 +375,43 @@ pub(crate) struct Announcement {
     pub generation: u64,
 }
 
-/// An activation accepted by policy and waiting for an in-flight slot.
+/// An activation accepted by policy, running or waiting for an in-flight
+/// slot. The event is shared with every other observer it matched; the
+/// target's argument is built from it when the activation starts, so a queued
+/// activation costs a pointer, not a copy of the event.
 pub(crate) struct PendingActivation {
-    pub envelope: Value,
-    pub activation_id: String,
-    pub observed_function: String,
-    pub observed_invocation: String,
-    pub depth: u32,
-    pub traceparent: Option<String>,
-    pub baggage: Option<String>,
+    pub event: Arc<Completed>,
+    /// Set while it waits in a queue: the event is charged to the queues'
+    /// budget until then.
+    queued: Option<Arc<QueueBudget>>,
+}
+
+impl PendingActivation {
+    /// One that starts now.
+    pub(crate) fn running(event: Arc<Completed>) -> Self {
+        Self {
+            event,
+            queued: None,
+        }
+    }
+
+    /// One that waits in a queue, its event already charged to `budget`.
+    pub(crate) fn queued(event: Arc<Completed>, budget: Arc<QueueBudget>) -> Self {
+        Self {
+            event,
+            queued: Some(budget),
+        }
+    }
+}
+
+impl Drop for PendingActivation {
+    /// Out of the queue (to run, or with the queue dropped): the queue's
+    /// share of the budget goes back.
+    fn drop(&mut self) {
+        if let Some(budget) = self.queued.take() {
+            budget.release(&self.event);
+        }
+    }
 }
 
 /// In-flight accounting: `running` activations hold a slot each; the rest
@@ -407,6 +459,13 @@ pub struct Observer {
     pub(crate) last_loop_warn_ms: AtomicU64,
     /// Set for an observer the legacy shim made from a `RegisterTrigger`.
     pub(crate) legacy: Option<LegacyBinding>,
+}
+
+impl Drop for Observer {
+    /// The drops the registry's export task has not sent to the metric yet.
+    fn drop(&mut self) {
+        super::dispatch::export_drops(self);
+    }
 }
 
 /// Everything `Observer::new` needs; the registry builds it after validation.
@@ -670,14 +729,16 @@ impl ObserverRegistry {
             );
             if drop_queue {
                 let dropped = std::mem::take(&mut lock(&observer.flow).queue).len() as u64;
-                if dropped > 0 {
-                    observer
-                        .drops
-                        .inactive
-                        .fetch_add(dropped, Ordering::Relaxed);
-                    super::dispatch::count_drops(observer, observe_codes::INACTIVE, dropped);
-                }
+                observer
+                    .drops
+                    .inactive
+                    .fetch_add(dropped, Ordering::Relaxed);
             }
+        }
+        if became != ObserverState::Active {
+            // A reporting connection waiting for room in this observer's
+            // queue reads on: its events no longer reach the queue.
+            self.queue_budget.room.notify_waiters();
         }
         if activeness_changed {
             self.refresh_active(&observer.function);
@@ -931,5 +992,27 @@ mod tests {
             registry.notifiers.get(&id).is_none(),
             "its backlog is dropped"
         );
+    }
+
+    /// The metric is told each drop once: what was counted since the last
+    /// export, nothing when there was none.
+    #[test]
+    fn drops_are_exported_once() {
+        let drops = DropCounters::default();
+        drops.overflow.fetch_add(3, Ordering::Relaxed);
+        drops.inactive.fetch_add(1, Ordering::Relaxed);
+        let mut first: Vec<_> = drops.unexported().collect();
+        first.sort();
+        assert_eq!(
+            first,
+            [(observe_codes::INACTIVE, 1), (observe_codes::OVERFLOW, 3)]
+        );
+        assert_eq!(drops.unexported().count(), 0);
+        drops.overflow.fetch_add(2, Ordering::Relaxed);
+        assert_eq!(
+            drops.unexported().collect::<Vec<_>>(),
+            [(observe_codes::OVERFLOW, 2)]
+        );
+        assert_eq!(drops.snapshot().get("OVERFLOW"), Some(&5));
     }
 }

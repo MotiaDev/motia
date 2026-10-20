@@ -529,6 +529,80 @@ async fn one_report_item_activates_every_observer_it_matched() {
     sink.reply(&other, Value::Null).await;
 }
 
+/// A report that overflows an observer's queue holds the reporter's next
+/// frames (protocol.md §3.4): the engine reads nothing more from it until the
+/// queue is back to half its limit or `REPORT_BACKPRESSURE_WAIT` (250 ms)
+/// passed. Here the target never answers, so the wait runs out.
+#[tokio::test]
+async fn a_report_that_overflows_a_queue_holds_the_reporters_next_frames() {
+    let t = spawn_engine(ObserversConfig {
+        default_max_in_flight: 1,
+        max_queue_per_observer: 4,
+        ..ObserversConfig::default()
+    })
+    .await;
+    let (mut orders, _) = owner(&t, "orders", &["orders::create"]).await;
+    let mut sink = host(&t, "sink", &["sink::slow"]).await;
+    let source = json!({ "function_id": "orders::create" });
+    acked_observer(
+        &mut orders,
+        &mut sink,
+        observer("slow", source, "sink::slow"),
+        "orders::create",
+    )
+    .await;
+
+    // One activation runs, four queue, three overflow.
+    let sent = std::time::Instant::now();
+    let items = (0..8)
+        .map(|_| item("orders::create", &["slow"], "success"))
+        .collect();
+    orders.send(report(items)).await;
+    let info = get(&mut orders, "slow").await;
+    assert!(
+        sent.elapsed() >= std::time::Duration::from_millis(250),
+        "the next frame was read after {:?}",
+        sent.elapsed()
+    );
+    assert_eq!(t.engine.observers.report_waits(), 1);
+    assert_eq!(info["fires"], 5);
+    assert_eq!(info["dropped"]["OVERFLOW"], 3);
+    sink.invoked("sink::slow").await;
+}
+
+/// A reporter is not held for an observer whose target it hosts itself: the
+/// answers that would free the queue arrive on the connection that would
+/// wait.
+#[tokio::test]
+async fn a_reporter_that_hosts_the_target_is_not_held() {
+    let t = spawn_engine(ObserversConfig {
+        default_max_in_flight: 1,
+        max_queue_per_observer: 4,
+        ..ObserversConfig::default()
+    })
+    .await;
+    let (mut orders, _) = owner(&t, "orders", &["orders::create"]).await;
+    orders.register_function("orders::audit").await;
+    registered(&t.engine, "default", "orders::audit").await;
+    let mut watcher = connect(&t, "watcher", true).await;
+    let source = json!({ "function_id": "orders::create" });
+    acked_observer(
+        &mut orders,
+        &mut watcher,
+        observer("audit", source, "orders::audit"),
+        "orders::create",
+    )
+    .await;
+
+    let items = (0..8)
+        .map(|_| item("orders::create", &["audit"], "success"))
+        .collect();
+    orders.send(report(items)).await;
+    let info = get(&mut orders, "audit").await;
+    assert_eq!(info["dropped"]["OVERFLOW"], 3);
+    assert_eq!(t.engine.observers.report_waits(), 0);
+}
+
 /// Registers `http::on-request` (owner-delivered, routed by `path`) and
 /// `http::auto` on an `observe.v1` owner that acks everything.
 async fn http_owner(t: &TestEngine) -> Client {

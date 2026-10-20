@@ -146,6 +146,8 @@ pub struct ActiveSet {
     /// The function is an engine-hosted event source: its events come from
     /// [`ObserverRegistry::emit`], never from routed calls.
     pub(crate) event_source: bool,
+    /// The function's hash: which evaluator shard takes its completions.
+    pub(crate) shard: u64,
 }
 
 /// Which parts of an invocation the hook must keep: the union of what the
@@ -160,7 +162,7 @@ pub(crate) struct Needs {
 }
 
 impl ActiveSet {
-    fn new(observers: Vec<Arc<Observer>>, event_source: bool) -> Self {
+    fn new(key: &FnKey, observers: Vec<Arc<Observer>>, event_source: bool) -> Self {
         let mut needs = Needs::default();
         for observer in &observers {
             let roots = observer.filter.roots();
@@ -174,10 +176,17 @@ impl ActiveSet {
             needs.caller |= roots.caller || capture.caller;
             needs.metadata |= roots.metadata || capture.metadata;
         }
+        let shard = {
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            key.hash(&mut hasher);
+            hasher.finish()
+        };
         Self {
             observers,
             needs,
             event_source,
+            shard,
         }
     }
 }
@@ -522,7 +531,10 @@ impl ObserverRegistry {
             next.remove(key);
         } else {
             let event_source = self.event_sources.contains_key(key);
-            next.insert(key.clone(), Arc::new(ActiveSet::new(active, event_source)));
+            next.insert(
+                key.clone(),
+                Arc::new(ActiveSet::new(key, active, event_source)),
+            );
         }
         self.observed.store(Arc::new(next));
     }
