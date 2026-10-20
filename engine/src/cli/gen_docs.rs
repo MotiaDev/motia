@@ -14,23 +14,13 @@ use std::path::Path;
 
 use iii_clap_docs::{Delegated, PageMeta};
 
-/// The `console` and `cloud` subcommands are passthrough stubs
-/// here (a bare `Vec<String>`); their real command trees live in the
-/// dispatched binaries, which this page does not document. List them in the
-/// subcommands table without a link instead of rendering an empty
-/// `[ARGS]...` section.
+/// The `cloud` subcommand is a passthrough stub here (a bare `Vec<String>`);
+/// its real command tree lives in the dispatched binary, which this page does
+/// not document. List it in the subcommands table without a link instead of
+/// rendering an empty `[ARGS]...` section. (The removed `console` command is
+/// a hidden notice-only stub, so it is not rendered at all.)
 fn delegated() -> BTreeMap<String, Delegated> {
     let mut map = BTreeMap::new();
-    map.insert(
-        "console".to_string(),
-        Delegated {
-            link: None,
-            note: "Launch the iii web console. Dispatches to the separately installed \
-                   `iii-console` binary (downloaded on first use); run `iii console --help` \
-                   for its current surface."
-                .to_string(),
-        },
-    );
     map.insert(
         "cloud".to_string(),
         Delegated {
