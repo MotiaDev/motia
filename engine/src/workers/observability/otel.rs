@@ -5576,6 +5576,7 @@ impl OtlpLogsExporter {
         tokio::spawn(async move {
             let mut batch: Vec<StoredLog> = Vec::with_capacity(self.batch_size);
             let mut interval = tokio::time::interval(self.flush_interval);
+            let mut lag = super::lag::LagReport::default();
 
             loop {
                 tokio::select! {
@@ -5592,7 +5593,10 @@ impl OtlpLogsExporter {
                                 }
                             }
                             Err(broadcast::error::RecvError::Lagged(n)) => {
-                                tracing::warn!(dropped = n, "Log exporter lagged, some logs were dropped");
+                                // Rate-limited: this warning is a log too (see `lag`).
+                                if let Some(n) = lag.lagged(n) {
+                                    tracing::warn!(dropped = n, "Log exporter lagged, some logs were dropped");
+                                }
                             }
                             Err(broadcast::error::RecvError::Closed) => {
                                 tracing::info!("Log broadcast channel closed, stopping exporter");
@@ -5630,6 +5634,7 @@ impl OtlpLogsExporter {
         tokio::spawn(async move {
             let mut batch: Vec<StoredLog> = Vec::with_capacity(self.batch_size);
             let mut interval = tokio::time::interval(self.flush_interval);
+            let mut lag = super::lag::LagReport::default();
 
             loop {
                 tokio::select! {
@@ -5651,7 +5656,10 @@ impl OtlpLogsExporter {
                                 }
                             }
                             Err(broadcast::error::RecvError::Lagged(n)) => {
-                                tracing::warn!(skipped = n, "OTLP logs exporter lagged behind");
+                                // Rate-limited: this warning is a log too (see `lag`).
+                                if let Some(n) = lag.lagged(n) {
+                                    tracing::warn!(skipped = n, "OTLP logs exporter lagged behind");
+                                }
                             }
                             Err(broadcast::error::RecvError::Closed) => {
                                 tracing::debug!("[OtlpLogsExporter] Channel closed");
