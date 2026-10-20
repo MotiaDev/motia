@@ -4,10 +4,13 @@
 // This software is patent protected. We welcome discussions - reach out at team@iii.dev
 // See LICENSE and PATENTS files for details.
 
-use std::{collections::HashMap, pin::Pin, sync::Arc};
+use std::{collections::HashMap, ops::Deref, pin::Pin, sync::Arc};
 
 use colored::Colorize;
-use dashmap::DashMap;
+use dashmap::{
+    DashMap,
+    mapref::{multiple::RefMulti, one::Ref},
+};
 use futures::Future;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -323,16 +326,59 @@ impl std::hash::Hash for Trigger {
 
 type TriggerTarget = (String, String, Option<Value>);
 
+/// A read-only trigger entry that keeps its registry shard locked.
+pub struct TriggerRef<'a>(Ref<'a, String, Arc<Trigger>>);
+
+impl TriggerRef<'_> {
+    pub fn key(&self) -> &String {
+        self.0.key()
+    }
+
+    pub fn value(&self) -> &Trigger {
+        self.0.value().as_ref()
+    }
+}
+
+impl Deref for TriggerRef<'_> {
+    type Target = Trigger;
+
+    fn deref(&self) -> &Self::Target {
+        self.value()
+    }
+}
+
+/// A read-only trigger entry returned by registry iteration.
+pub struct TriggerIterRef<'a>(RefMulti<'a, String, Arc<Trigger>>);
+
+impl TriggerIterRef<'_> {
+    pub fn key(&self) -> &String {
+        self.0.key()
+    }
+
+    pub fn value(&self) -> &Trigger {
+        self.0.value().as_ref()
+    }
+}
+
+impl Deref for TriggerIterRef<'_> {
+    type Target = Trigger;
+
+    fn deref(&self) -> &Self::Target {
+        self.value()
+    }
+}
+
 /// Live triggers with an index for dispatch by trigger type.
 ///
+/// Both maps share each immutable trigger, including its JSON metadata.
 /// All writes hold the id's shard lock while updating the type index, so a
 /// concurrent replacement or removal cannot leave an old destination indexed.
 /// The id map is private and exposes no mutable references. Dispatch reads only
 /// the type index and releases its guard before calling a handler.
 #[derive(Default)]
 pub struct TriggerStore {
-    by_id: DashMap<String, Trigger>,
-    by_type: DashMap<String, HashMap<String, TriggerTarget>>,
+    by_id: DashMap<String, Arc<Trigger>>,
+    by_type: DashMap<String, HashMap<String, Arc<Trigger>>>,
 }
 
 impl TriggerStore {
@@ -352,24 +398,26 @@ impl TriggerStore {
         self.by_id.contains_key(id)
     }
 
-    pub fn get(&self, id: &str) -> Option<dashmap::mapref::one::Ref<'_, String, Trigger>> {
-        self.by_id.get(id)
+    pub fn get(&self, id: &str) -> Option<TriggerRef<'_>> {
+        // Keep DashMap's original guard so this read handle remains Send.
+        self.by_id.get(id).map(TriggerRef)
     }
 
-    pub fn iter(&self) -> dashmap::iter::Iter<'_, String, Trigger> {
-        self.by_id.iter()
+    pub fn iter(&self) -> impl Iterator<Item = TriggerIterRef<'_>> {
+        self.by_id.iter().map(TriggerIterRef)
     }
 
     pub fn insert(&self, id: String, trigger: Trigger) -> Option<Trigger> {
         use dashmap::mapref::entry::Entry;
 
+        let trigger = Arc::new(trigger);
         match self.by_id.entry(id) {
             Entry::Occupied(mut entry) => {
                 if entry.get().trigger_type != trigger.trigger_type {
                     self.remove_target(entry.key(), &entry.get().trigger_type);
                 }
                 self.insert_target(entry.key(), &trigger);
-                Some(entry.insert(trigger))
+                Some(Arc::unwrap_or_clone(entry.insert(trigger)))
             }
             Entry::Vacant(entry) => {
                 self.insert_target(entry.key(), &trigger);
@@ -388,34 +436,40 @@ impl TriggerStore {
         id: &str,
         predicate: impl FnOnce(&String, &Trigger) -> bool,
     ) -> Option<(String, Trigger)> {
-        self.by_id.remove_if(id, |key, trigger| {
-            if !predicate(key, trigger) {
-                return false;
-            }
-            self.remove_target(key, &trigger.trigger_type);
-            true
-        })
+        self.by_id
+            .remove_if(id, |key, trigger| {
+                if !predicate(key, trigger) {
+                    return false;
+                }
+                self.remove_target(key, &trigger.trigger_type);
+                true
+            })
+            .map(|(id, trigger)| (id, Arc::unwrap_or_clone(trigger)))
     }
 
     pub(crate) fn targets_for_type(&self, trigger_type: &str) -> Vec<TriggerTarget> {
         self.by_type
             .get(trigger_type)
-            .map(|targets| targets.values().cloned().collect())
+            .map(|targets| {
+                targets
+                    .values()
+                    .map(|trigger| {
+                        (
+                            trigger.function_id.clone(),
+                            trigger.namespace.clone(),
+                            trigger.metadata.clone(),
+                        )
+                    })
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
-    fn insert_target(&self, id: &str, trigger: &Trigger) {
+    fn insert_target(&self, id: &str, trigger: &Arc<Trigger>) {
         self.by_type
             .entry(trigger.trigger_type.clone())
             .or_default()
-            .insert(
-                id.to_string(),
-                (
-                    trigger.function_id.clone(),
-                    trigger.namespace.clone(),
-                    trigger.metadata.clone(),
-                ),
-            );
+            .insert(id.to_string(), Arc::clone(trigger));
     }
 
     fn remove_target(&self, id: &str, trigger_type: &str) {
@@ -1180,6 +1234,71 @@ mod tests {
         store.remove("binding");
         assert!(store.targets_for_type("second").is_empty());
         assert_eq!(store.targets_for_type("unrelated").len(), 1);
+    }
+
+    #[test]
+    fn trigger_store_shares_metadata_and_moves_it_out_on_removal() {
+        let store = TriggerStore::new();
+        let mut trigger = make_trigger("binding", "event");
+        trigger.metadata = Some(serde_json::json!({ "payload": "x".repeat(4096) }));
+        let payload_pointer = trigger.metadata.as_ref().unwrap()["payload"]
+            .as_str()
+            .unwrap()
+            .as_ptr();
+        store.insert(trigger.id.clone(), trigger);
+
+        let weak = {
+            let by_id = store.by_id.get("binding").unwrap();
+            let by_type = store.by_type.get("event").unwrap();
+            assert!(Arc::ptr_eq(by_id.value(), &by_type["binding"]));
+            Arc::downgrade(by_id.value())
+        };
+        {
+            let entry = store.iter().next().unwrap();
+            assert_eq!(entry.key(), "binding");
+            assert_eq!(
+                entry.value().metadata.as_ref().unwrap()["payload"]
+                    .as_str()
+                    .unwrap()
+                    .as_ptr(),
+                payload_pointer,
+            );
+        }
+
+        let (_, removed) = store.remove("binding").unwrap();
+        assert_eq!(
+            removed.metadata.as_ref().unwrap()["payload"]
+                .as_str()
+                .unwrap()
+                .as_ptr(),
+            payload_pointer,
+            "removal must return the original metadata allocation",
+        );
+        assert!(weak.upgrade().is_none());
+        assert!(store.targets_for_type("event").is_empty());
+    }
+
+    #[test]
+    fn trigger_store_replacement_releases_the_previous_index_owner() {
+        let store = TriggerStore::new();
+        store.insert("binding".into(), make_trigger("binding", "event"));
+
+        // Cover replacement both within a type and across types.
+        for trigger_type in ["event", "other"] {
+            let previous = {
+                let entry = store.by_id.get("binding").unwrap();
+                Arc::downgrade(entry.value())
+            };
+            let replacement = make_trigger("binding", trigger_type);
+            let removed = store.insert("binding".into(), replacement).unwrap();
+            assert_eq!(removed.id, "binding");
+            assert!(
+                previous.upgrade().is_none(),
+                "the type index must release the replaced trigger",
+            );
+            assert_eq!(store.targets_for_type(trigger_type).len(), 1);
+        }
+        assert!(store.targets_for_type("event").is_empty());
     }
 
     #[test]
