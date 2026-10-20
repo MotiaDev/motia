@@ -5,6 +5,7 @@
 // See LICENSE and PATENTS files for details.
 
 pub mod configuration;
+pub(crate) mod lag;
 pub mod logs_layer;
 pub mod metrics;
 pub mod otel;
@@ -1754,12 +1755,19 @@ impl ObservabilityWorker {
 
         tokio::spawn(async move {
             tracing::debug!("[ObservabilityWorker] Log trigger subscriber started");
+            let mut lag = lag::LagReport::default();
             loop {
+                let lag_due = lag.deadline();
                 tokio::select! {
                     result = shutdown_rx.changed() => {
                         if result.is_err() || *shutdown_rx.borrow() {
                             tracing::debug!("[ObservabilityWorker] Log trigger subscriber shutting down");
                             break;
+                        }
+                    }
+                    _ = lag::sleep_until(lag_due), if lag_due.is_some() => {
+                        if let Some(skipped) = lag.due() {
+                            tracing::warn!(skipped, "Log trigger subscriber lagged, some logs were skipped");
                         }
                     }
                     result = stop_rx.changed() => {
@@ -1774,7 +1782,10 @@ impl ObservabilityWorker {
                                 ObservabilityWorker::invoke_triggers_for_log(&triggers, &engine, &log).await;
                             }
                             Err(tokio::sync::broadcast::error::RecvError::Lagged(skipped)) => {
-                                tracing::warn!(skipped, "Log trigger subscriber lagged, some logs were skipped");
+                                // Rate-limited: this warning is a log too (see `lag`).
+                                if let Some(skipped) = lag.lagged(skipped) {
+                                    tracing::warn!(skipped, "Log trigger subscriber lagged, some logs were skipped");
+                                }
                             }
                             Err(tokio::sync::broadcast::error::RecvError::Closed) => {
                                 tracing::debug!("[ObservabilityWorker] Log broadcast channel closed");
@@ -1783,6 +1794,12 @@ impl ObservabilityWorker {
                         }
                     }
                 }
+            }
+            if let Some(skipped) = lag.rest() {
+                tracing::warn!(
+                    skipped,
+                    "Log trigger subscriber lagged, some logs were skipped"
+                );
             }
             tracing::debug!("[ObservabilityWorker] Log trigger subscriber stopped");
         });

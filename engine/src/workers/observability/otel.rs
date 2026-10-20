@@ -5576,9 +5576,16 @@ impl OtlpLogsExporter {
         tokio::spawn(async move {
             let mut batch: Vec<StoredLog> = Vec::with_capacity(self.batch_size);
             let mut interval = tokio::time::interval(self.flush_interval);
+            let mut lag = super::lag::LagReport::default();
 
             loop {
+                let lag_due = lag.deadline();
                 tokio::select! {
+                    _ = super::lag::sleep_until(lag_due), if lag_due.is_some() => {
+                        if let Some(n) = lag.due() {
+                            tracing::warn!(dropped = n, "Log exporter lagged, some logs were dropped");
+                        }
+                    }
                     // Receive logs from broadcast channel
                     result = rx.recv() => {
                         match result {
@@ -5592,7 +5599,10 @@ impl OtlpLogsExporter {
                                 }
                             }
                             Err(broadcast::error::RecvError::Lagged(n)) => {
-                                tracing::warn!(dropped = n, "Log exporter lagged, some logs were dropped");
+                                // Rate-limited: this warning is a log too (see `lag`).
+                                if let Some(n) = lag.lagged(n) {
+                                    tracing::warn!(dropped = n, "Log exporter lagged, some logs were dropped");
+                                }
                             }
                             Err(broadcast::error::RecvError::Closed) => {
                                 tracing::info!("Log broadcast channel closed, stopping exporter");
@@ -5612,6 +5622,9 @@ impl OtlpLogsExporter {
                 }
             }
 
+            if let Some(n) = lag.rest() {
+                tracing::warn!(dropped = n, "Log exporter lagged, some logs were dropped");
+            }
             // Flush remaining logs on shutdown
             if !batch.is_empty()
                 && let Err(e) = self.export_batch(&batch).await
@@ -5630,13 +5643,20 @@ impl OtlpLogsExporter {
         tokio::spawn(async move {
             let mut batch: Vec<StoredLog> = Vec::with_capacity(self.batch_size);
             let mut interval = tokio::time::interval(self.flush_interval);
+            let mut lag = super::lag::LagReport::default();
 
             loop {
+                let lag_due = lag.deadline();
                 tokio::select! {
                     _ = shutdown.changed() => {
                         if *shutdown.borrow() {
                             tracing::debug!("[OtlpLogsExporter] Shutting down");
                             break;
+                        }
+                    }
+                    _ = super::lag::sleep_until(lag_due), if lag_due.is_some() => {
+                        if let Some(n) = lag.due() {
+                            tracing::warn!(skipped = n, "OTLP logs exporter lagged behind");
                         }
                     }
                     result = rx.recv() => {
@@ -5651,7 +5671,10 @@ impl OtlpLogsExporter {
                                 }
                             }
                             Err(broadcast::error::RecvError::Lagged(n)) => {
-                                tracing::warn!(skipped = n, "OTLP logs exporter lagged behind");
+                                // Rate-limited: this warning is a log too (see `lag`).
+                                if let Some(n) = lag.lagged(n) {
+                                    tracing::warn!(skipped = n, "OTLP logs exporter lagged behind");
+                                }
                             }
                             Err(broadcast::error::RecvError::Closed) => {
                                 tracing::debug!("[OtlpLogsExporter] Channel closed");
@@ -5670,6 +5693,9 @@ impl OtlpLogsExporter {
                 }
             }
 
+            if let Some(n) = lag.rest() {
+                tracing::warn!(skipped = n, "OTLP logs exporter lagged behind");
+            }
             // Flush remaining logs on shutdown
             if !batch.is_empty()
                 && let Err(e) = self.export_batch(&batch).await
