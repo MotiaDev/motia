@@ -69,6 +69,7 @@ pub use protocol::{
     Activation, Caller, Capture, Deliver, Delivery, Dispatch, InvocationStatus, LegacyTrigger,
     Message, ObserverState, On, ParentCaller, TriggerAction,
 };
+#[allow(deprecated)]
 pub use stream_provider::IStream;
 pub use structs::MiddlewareFunctionInput;
 pub use types::{StreamRequest, StreamResponse};
@@ -364,6 +365,7 @@ fn _ensure_stream_trigger_configs_not_top_level() {}
 fn _ensure_stream_io_types_not_top_level() {}
 
 /// ```rust,no_run
+/// # #![allow(deprecated)]
 /// use iii_helpers::stream::{StreamChangeEvent, StreamJoinLeaveEvent};
 /// fn _takes(_a: StreamChangeEvent, _b: StreamJoinLeaveEvent) {}
 /// ```
