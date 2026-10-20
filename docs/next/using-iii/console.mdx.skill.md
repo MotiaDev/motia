@@ -4,25 +4,25 @@
 
 
 <Note>
-  The iii console ships as the **ADE** worker. It is a single binary that serves a web UI and proxies
-  the engine WebSocket on one port (`3113` by default). Use it to chat with agents, follow traces
-  and logs, manage the workers in your Compose project, and edit worker configuration. For
-  scripting or agent integration, call worker functions directly.
+  The iii console is the web UI of ADE, published in the registry as `ade`. It is a single binary
+  that serves the UI and proxies the engine WebSocket on one port (`3113` by default). Use it to chat
+  with agents, follow traces and logs, manage the workers in your Compose project, and edit worker
+  configuration. For scripting or agent integration, call worker functions directly.
 </Note>
 
 <Warning title="The iii-console binary was removed">
   The legacy `iii-console` binary is no longer built or released. `iii console` now only prints a
-  notice that points here, and the command will be removed in an upcoming release. Use the ADE
-  worker described on this page instead.
+  notice that points here, and the command will be removed in an upcoming release. Use the iii
+  console in ADE described on this page instead.
 </Warning>
 
 ## Open the console
 
-The console is a worker in your Compose project, so it runs next to the engine.
+The console runs next to the engine in your Compose project.
 
 - Projects created by the installer or by `iii project init` (see [Install](../install)) already
   open the console at `http://127.0.0.1:3113` once `iii compose --up` is running.
-- In any other project, start the project, then add the ADE worker from a second terminal in the
+- In any other project, start the project, then add ADE from a second terminal in the
   same folder:
 
 ```bash
