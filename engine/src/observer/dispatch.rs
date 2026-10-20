@@ -2022,7 +2022,9 @@ mod tests {
         let observer = full_queue(&engine, 4).await;
         let registry = engine.observers.clone();
         let started = tokio::time::Instant::now();
-        registry.wait_for_room(std::slice::from_ref(&observer)).await;
+        registry
+            .wait_for_room(std::slice::from_ref(&observer))
+            .await;
         assert!(started.elapsed() >= super::REPORT_BACKPRESSURE_WAIT);
 
         registry.next_queued(&observer);
