@@ -324,8 +324,6 @@ impl std::hash::Hash for Trigger {
     }
 }
 
-type TriggerTarget = (String, String, Option<Value>);
-
 /// A read-only trigger entry that keeps its registry shard locked.
 pub struct TriggerRef<'a>(Ref<'a, String, Arc<Trigger>>);
 
@@ -447,21 +445,10 @@ impl TriggerStore {
             .map(|(id, trigger)| (id, Arc::unwrap_or_clone(trigger)))
     }
 
-    pub(crate) fn targets_for_type(&self, trigger_type: &str) -> Vec<TriggerTarget> {
+    pub(crate) fn targets_for_type(&self, trigger_type: &str) -> Vec<Arc<Trigger>> {
         self.by_type
             .get(trigger_type)
-            .map(|targets| {
-                targets
-                    .values()
-                    .map(|trigger| {
-                        (
-                            trigger.function_id.clone(),
-                            trigger.namespace.clone(),
-                            trigger.metadata.clone(),
-                        )
-                    })
-                    .collect()
-            })
+            .map(|targets| targets.values().map(Arc::clone).collect())
             .unwrap_or_default()
     }
 
@@ -1207,6 +1194,19 @@ mod tests {
         }
     }
 
+    fn target_fields(targets: Vec<Arc<Trigger>>) -> Vec<(String, String, Option<Value>)> {
+        targets
+            .iter()
+            .map(|trigger| {
+                (
+                    trigger.function_id.clone(),
+                    trigger.namespace.clone(),
+                    trigger.metadata.clone(),
+                )
+            })
+            .collect()
+    }
+
     #[test]
     fn trigger_store_replacement_updates_type_namespace_and_metadata() {
         let store = TriggerStore::new();
@@ -1223,12 +1223,12 @@ mod tests {
             replacement.namespace.clone(),
             replacement.metadata.clone(),
         )];
-        assert_eq!(store.targets_for_type("first"), expected);
+        assert_eq!(target_fields(store.targets_for_type("first")), expected);
 
         replacement.trigger_type = "second".into();
         store.insert(replacement.id.clone(), replacement);
         assert!(store.targets_for_type("first").is_empty());
-        assert_eq!(store.targets_for_type("second"), expected);
+        assert_eq!(target_fields(store.targets_for_type("second")), expected);
         assert_eq!(store.targets_for_type("unrelated").len(), 1);
 
         store.remove("binding");
@@ -1299,6 +1299,78 @@ mod tests {
             assert_eq!(store.targets_for_type(trigger_type).len(), 1);
         }
         assert!(store.targets_for_type("event").is_empty());
+    }
+
+    #[test]
+    fn trigger_dispatch_snapshot_survives_replacement_and_removal() {
+        let store = TriggerStore::new();
+        let mut trigger = make_trigger("binding", "event");
+        trigger.namespace = "orders".into();
+        trigger.metadata = Some(serde_json::json!({ "revision": 1 }));
+        store.insert(trigger.id.clone(), trigger);
+
+        let snapshot = store.targets_for_type("event");
+        assert_eq!(snapshot.len(), 1);
+        assert!(Arc::ptr_eq(
+            &snapshot[0],
+            store.by_id.get("binding").unwrap().value(),
+        ));
+        let previous = Arc::downgrade(&snapshot[0]);
+
+        let mut replacement = make_trigger("binding", "other");
+        replacement.namespace = "billing".into();
+        replacement.metadata = Some(serde_json::json!({ "revision": 2 }));
+        store.insert(replacement.id.clone(), replacement);
+        store.remove("binding");
+
+        assert!(store.is_empty());
+        assert!(store.targets_for_type("event").is_empty());
+        assert!(store.targets_for_type("other").is_empty());
+        assert_eq!(snapshot[0].function_id, "fn_binding");
+        assert_eq!(snapshot[0].namespace, "orders");
+        assert_eq!(
+            snapshot[0].metadata,
+            Some(serde_json::json!({ "revision": 1 }))
+        );
+        drop(snapshot);
+        assert!(previous.upgrade().is_none());
+    }
+
+    #[test]
+    fn trigger_dispatch_snapshot_keeps_members_during_same_type_updates() {
+        let store = TriggerStore::new();
+        store.insert("first".into(), make_trigger("first", "event"));
+        store.insert("second".into(), make_trigger("second", "event"));
+        let snapshot = store.targets_for_type("event");
+        let previous = Arc::downgrade(
+            snapshot
+                .iter()
+                .find(|trigger| trigger.id == "first")
+                .unwrap(),
+        );
+
+        store.insert("third".into(), make_trigger("third", "event"));
+        store.remove("first");
+
+        let current = store.targets_for_type("event");
+        assert_eq!(snapshot.len(), 2);
+        assert!(snapshot.iter().any(|trigger| trigger.id == "first"));
+        assert!(!snapshot.iter().any(|trigger| trigger.id == "third"));
+        assert_eq!(current.len(), 2);
+        assert!(!current.iter().any(|trigger| trigger.id == "first"));
+        assert!(current.iter().any(|trigger| trigger.id == "third"));
+        assert!(Arc::ptr_eq(
+            snapshot
+                .iter()
+                .find(|trigger| trigger.id == "second")
+                .unwrap(),
+            current
+                .iter()
+                .find(|trigger| trigger.id == "second")
+                .unwrap(),
+        ));
+        drop(snapshot);
+        assert!(previous.upgrade().is_none());
     }
 
     #[test]
@@ -1376,19 +1448,28 @@ mod tests {
         let mut fallback = make_trigger_type_ns(DEFAULT_NAMESPACE, "event");
         fallback.worker_id = Some(fallback_worker);
         registry.register_trigger_type(fallback).await.unwrap();
-        assert_eq!(registry.triggers.targets_for_type("event"), expected);
+        assert_eq!(
+            target_fields(registry.triggers.targets_for_type("event")),
+            expected
+        );
 
         let mut home = make_trigger_type_ns("shop", "event");
         home.worker_id = Some(home_worker);
         registry.register_trigger_type(home).await.unwrap();
-        assert_eq!(registry.triggers.targets_for_type("event"), expected);
+        assert_eq!(
+            target_fields(registry.triggers.targets_for_type("event")),
+            expected
+        );
         assert_eq!(
             registry.triggers.get("binding").unwrap().provider_namespace,
             "shop"
         );
 
         registry.unregister_worker(&home_worker).await;
-        assert_eq!(registry.triggers.targets_for_type("event"), expected);
+        assert_eq!(
+            target_fields(registry.triggers.targets_for_type("event")),
+            expected
+        );
         assert_eq!(
             registry.triggers.get("binding").unwrap().provider_namespace,
             DEFAULT_NAMESPACE
@@ -1402,7 +1483,10 @@ mod tests {
             .register_trigger_type(make_trigger_type_ns(DEFAULT_NAMESPACE, "event"))
             .await
             .unwrap();
-        assert_eq!(registry.triggers.targets_for_type("event"), expected);
+        assert_eq!(
+            target_fields(registry.triggers.targets_for_type("event")),
+            expected
+        );
         registry
             .unregister_trigger("binding".into(), None)
             .await
@@ -1431,7 +1515,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(
-            registry.triggers.targets_for_type("event"),
+            target_fields(registry.triggers.targets_for_type("event")),
             vec![("fn_binding".into(), DEFAULT_NAMESPACE.into(), None)]
         );
     }

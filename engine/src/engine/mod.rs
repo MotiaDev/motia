@@ -12,7 +12,7 @@ use axum::{
 };
 use chrono::Utc;
 use dashmap::DashMap;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{FutureExt, SinkExt, StreamExt};
 use serde::Serialize;
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot::error::RecvError};
@@ -2547,39 +2547,19 @@ impl Engine {
         input: Value,
         metadata: Option<Value>,
     ) -> Result<Option<Value>, ErrorBody> {
-        let function_opt = self.functions.get_handler(namespace, function_id);
+        let function = self.internal_function_handler(namespace, function_id)?;
+        self.call_handler_with_metadata(function_id.to_owned(), function, input, metadata)
+            .await
+    }
 
-        if let Some(function) = function_opt {
-            // Use the current tracing context to preserve parent-child links.
-            let ctx = tracing::Span::current().context();
-            let traceparent = inject_traceparent_from_context(&ctx);
-            let baggage = inject_baggage_from_context(&ctx);
-
-            let result = self
-                .invocations
-                .handle_invocation_with_handler(
-                    None,
-                    None,
-                    function_id.to_string(),
-                    input,
-                    function,
-                    traceparent,
-                    baggage,
-                    None,
-                    metadata,
-                )
-                .await;
-
-            match result {
-                Ok(result) => result,
-                Err(err) => Err(ErrorBody {
-                    code: "invocation_error".into(),
-                    message: err.to_string(),
-                    stacktrace: None,
-                }),
-            }
-        } else {
-            Err(ErrorBody {
+    fn internal_function_handler(
+        &self,
+        namespace: &str,
+        function_id: &str,
+    ) -> Result<Arc<crate::function::HandlerFn>, ErrorBody> {
+        self.functions
+            .get_handler(namespace, function_id)
+            .ok_or_else(|| ErrorBody {
                 code: "function_not_found".into(),
                 message: format!(
                     "Function {} not found in namespace {}",
@@ -2587,7 +2567,54 @@ impl Engine {
                 ),
                 stacktrace: None,
             })
-        }
+    }
+
+    pub(crate) async fn call_trigger(
+        &self,
+        trigger: Arc<Trigger>,
+        input: Value,
+    ) -> Result<Option<Value>, ErrorBody> {
+        let function = self.internal_function_handler(&trigger.namespace, &trigger.function_id)?;
+        let function_id = trigger.function_id.clone();
+        let metadata = trigger.metadata.clone();
+        // Pending invocations must not retain a removed trigger's config and metadata.
+        drop(trigger);
+        self.call_handler_with_metadata(function_id, function, input, metadata)
+            .await
+    }
+
+    fn call_handler_with_metadata(
+        &self,
+        function_id: String,
+        function: Arc<crate::function::HandlerFn>,
+        input: Value,
+        metadata: Option<Value>,
+    ) -> impl Future<Output = Result<Option<Value>, ErrorBody>> + Send + '_ {
+        // Use the current tracing context to preserve parent-child links.
+        let ctx = tracing::Span::current().context();
+        let traceparent = inject_traceparent_from_context(&ctx);
+        let baggage = inject_baggage_from_context(&ctx);
+
+        let invocation = self.invocations.handle_invocation_with_handler(
+            None,
+            None,
+            function_id,
+            input,
+            function,
+            traceparent,
+            baggage,
+            None,
+            metadata,
+        );
+        // Adapt the existing future without an extra async frame for its arguments.
+        invocation.map(|result| match result {
+            Ok(result) => result,
+            Err(err) => Err(ErrorBody {
+                code: "invocation_error".into(),
+                message: err.to_string(),
+                stacktrace: None,
+            }),
+        })
     }
 
     pub async fn fire_triggers(&self, trigger_type: &str, mut data: Value) {
@@ -2595,11 +2622,14 @@ impl Engine {
             .trigger_registry
             .triggers
             .targets_for_type(trigger_type);
+        if triggers.is_empty() {
+            return;
+        }
 
         let current_span = tracing::Span::current();
 
         let trigger_count = triggers.len();
-        for (index, (function_id, namespace, metadata)) in triggers.into_iter().enumerate() {
+        for (index, trigger) in triggers.into_iter().enumerate() {
             let engine = self.clone();
             // Only additional destinations need a copy; the last takes the original.
             let data = if index + 1 == trigger_count {
@@ -2607,19 +2637,25 @@ impl Engine {
             } else {
                 data.clone()
             };
-            let parent = current_span.clone();
-            let span_function_id = function_id.clone();
+            let span = tracing::info_span!(
+                parent: &current_span,
+                "trigger",
+                otel.name = %format!("trigger {}", trigger.function_id),
+                function_id = %trigger.function_id,
+                otel.status_code = tracing::field::Empty,
+            );
             tokio::spawn(
                 async move {
-                    match engine
-                        .call_value_with_metadata_ns(&namespace, &function_id, data, metadata)
-                        .await
-                    {
-                        Ok(_) => { tracing::Span::current().record("otel.status_code", "OK"); }
-                        Err(_) => { tracing::Span::current().record("otel.status_code", "ERROR"); }
+                    match engine.call_trigger(trigger, data).await {
+                        Ok(_) => {
+                            tracing::Span::current().record("otel.status_code", "OK");
+                        }
+                        Err(_) => {
+                            tracing::Span::current().record("otel.status_code", "ERROR");
+                        }
                     }
                 }
-                .instrument(tracing::info_span!(parent: parent, "trigger", otel.name = %format!("trigger {}", span_function_id), function_id = %span_function_id, otel.status_code = tracing::field::Empty))
+                .instrument(span),
             );
         }
     }
@@ -5518,6 +5554,63 @@ mod tests {
             ))
             .expect("trigger type should remain registered");
         assert_eq!(trigger_type._description, "second");
+    }
+
+    #[tokio::test]
+    async fn test_trigger_call_releases_binding_before_handler_completes() {
+        ensure_default_meter();
+        let engine = Engine::new();
+        let gate = Arc::new(tokio::sync::Notify::new());
+        let handler_gate = gate.clone();
+        engine.functions.register_function_ns(
+            "orders",
+            "orders::handler".into(),
+            crate::function::Function {
+                _function_id: "orders::handler".into(),
+                _description: None,
+                request_format: None,
+                response_format: None,
+                metadata: None,
+                handler: Arc::new(move |_, input, _, metadata| {
+                    let gate = handler_gate.clone();
+                    Box::pin(async move {
+                        assert_eq!(metadata, Some(json!({ "owner": "orders" })));
+                        gate.notified().await;
+                        FunctionResult::Success(Some(input))
+                    })
+                }),
+            },
+        );
+        let trigger = Arc::new(crate::trigger::Trigger {
+            id: "binding".into(),
+            trigger_type: "event".into(),
+            function_id: "orders::handler".into(),
+            config: json!({ "payload": "x".repeat(4096) }),
+            worker_id: None,
+            metadata: Some(json!({ "owner": "orders" })),
+            namespace: "orders".into(),
+            trigger_namespace: None,
+            home_namespace: crate::protocol::default_namespace(),
+            provider_namespace: crate::protocol::default_namespace(),
+        });
+        let binding = Arc::downgrade(&trigger);
+        let input = json!({ "order": 42 });
+        let call = engine.call_trigger(trigger, input.clone());
+        tokio::pin!(call);
+
+        assert!(futures::poll!(&mut call).is_pending());
+        assert!(
+            binding.upgrade().is_none(),
+            "a pending invocation must release the trigger's config and stored metadata"
+        );
+        gate.notify_one();
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(2), call)
+                .await
+                .unwrap()
+                .unwrap(),
+            Some(input)
+        );
     }
 
     #[tokio::test]

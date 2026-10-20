@@ -601,8 +601,7 @@ impl EngineFunctionsWorker {
         let triggers_to_fire = self.triggers.targets_for_type(trigger_type);
 
         let trigger_count = triggers_to_fire.len();
-        for (index, (function_id, namespace, metadata)) in triggers_to_fire.into_iter().enumerate()
-        {
+        for (index, trigger) in triggers_to_fire.into_iter().enumerate() {
             let engine = self.engine.clone();
             let data = if index + 1 == trigger_count {
                 data.take()
@@ -610,9 +609,7 @@ impl EngineFunctionsWorker {
                 data.clone()
             };
             tokio::spawn(async move {
-                let _ = engine
-                    .call_value_with_metadata_ns(&namespace, &function_id, data, metadata)
-                    .await;
+                let _ = engine.call_trigger(trigger, data).await;
             });
         }
     }
