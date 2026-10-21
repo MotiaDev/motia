@@ -46,7 +46,7 @@ function expectPayloadTooLarge(error: unknown, size: number) {
   expect(error).toMatchObject({
     name: 'InvocationError',
     code: 'payload_too_large',
-    message: `Serialized JSON envelope is ${size} bytes; limit is ${LIMIT} bytes. Use channels for larger payloads: ${LINK}`,
+    message: `payload_too_large: Serialized JSON envelope is ${size} bytes; limit is ${LIMIT} bytes. Use channels for larger payloads: ${LINK}`,
   })
 }
 
@@ -84,7 +84,7 @@ describe('Browser JSON frame size', () => {
     expect(() => sdk.prepareJson(envelope)).toThrow('limit is 16777216 bytes')
   })
 
-  it('rejects oversized local invocation arguments, clears pending state and preserves the invocation id in its error', async () => {
+  it('rejects oversized local invocation arguments, clears pending state and preserves function id', async () => {
     makeSdk()
     const payload = payloadForEnvelopeBytes(LIMIT + 1)
     const promise = sdk.trigger({ function_id: 'browser::large', payload })
@@ -93,17 +93,15 @@ describe('Browser JSON frame size', () => {
       name: 'InvocationError',
       code: 'payload_too_large',
       function_id: 'browser::large',
-      invocation_id: expect.any(String),
     })
-    const invocation_id = (rejection as { invocation_id: string }).invocation_id
     const serializedBytes = new TextEncoder().encode(JSON.stringify({
       type: MessageType.InvokeFunction,
-      invocation_id,
+      invocation_id: '00000000-0000-4000-8000-000000000000',
       function_id: 'browser::large',
       data: payload,
     })).byteLength
     expect((rejection as Error).message).toBe(
-      `Serialized JSON envelope is ${serializedBytes} bytes; limit is ${LIMIT} bytes. Use channels for larger payloads: ${LINK}`,
+      `payload_too_large: Serialized JSON envelope is ${serializedBytes} bytes; limit is ${LIMIT} bytes. Use channels for larger payloads: ${LINK}`,
     )
     expect(sdk.invocations.size).toBe(0)
     expect(sdk.messagesToSend).toHaveLength(0)

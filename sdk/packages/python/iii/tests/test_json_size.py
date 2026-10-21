@@ -17,8 +17,8 @@ from iii.iii import (
     _MAX_JSON_FRAME_BYTES,
     _MAX_JSON_OUTBOUND_BYTES,
     III,
-    _ObserveHost,
     _json_fragments,
+    _ObserveHost,
 )
 from iii.triggers import TriggerHandler
 
@@ -73,6 +73,29 @@ def test_unicode_and_escapes_count_serialized_bytes():
         f"{_MAX_JSON_OUTBOUND_BYTES} bytes. Use channels for larger payloads: "
         "https://iii.dev/docs/creating-workers/channels#payload-size"
     )
+
+
+@pytest.mark.asyncio
+async def test_reporter_send_frame_routes_observe_reports_through_fragmenter():
+    sdk = client()
+    sdk._ws = SimpleNamespace(
+        state=SimpleNamespace(name="OPEN"),
+        send=AsyncMock(),
+        transport=None,
+    )
+    sdk._inflight_bytes = 0
+    sdk._frame_sends = set()
+    sdk._background_done = lambda task: None
+    payload = json.dumps({"type": "invocationsobserved", "items": "x" * (40 * 1024 * 1024)})
+
+    assert sdk._send_frame(payload)
+    await asyncio.gather(*sdk._frame_sends)
+
+    sent = sdk._ws.send.await_args.args[0]
+    assert not isinstance(sent, str)
+    fragments = list(sent)
+    assert "".join(fragments) == payload
+    assert all(len(fragment.encode("utf-8")) <= _JSON_FRAGMENT_BYTES for fragment in fragments)
 
 
 @pytest.mark.asyncio

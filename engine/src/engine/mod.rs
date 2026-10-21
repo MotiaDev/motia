@@ -10012,12 +10012,14 @@ mod tests {
                         Some(invocation_id),
                         Some(&caller),
                         "caller::fn".into(),
+                        "default",
                         serde_json::json!({}),
                         handler,
                         None,
                         None,
                         None,
                         None,
+                        crate::observer::InvocationCtx::engine_internal_at(0),
                     )
                     .await
             })
@@ -10035,6 +10037,9 @@ mod tests {
             action: None,
             metadata: None,
             namespace: None,
+            observe_depth: None,
+            caller: None,
+            activation: None,
         };
 
         assert!(
@@ -10064,6 +10069,7 @@ mod tests {
         let next = Message::WorkerRegistered {
             worker_id: caller.id.to_string(),
             reattach_token: None,
+            features: Vec::new(),
         };
         assert!(
             engine
@@ -10124,6 +10130,7 @@ mod tests {
         let message = Message::WorkerRegistered {
             worker_id: worker.id.to_string(),
             reattach_token: None,
+            features: Vec::new(),
         };
         let exact_size = serde_json::to_string(&message).unwrap().len();
         worker
@@ -10165,7 +10172,8 @@ mod tests {
         assert_eq!(
             protocol_message_type(&Message::WorkerRegistered {
                 worker_id: "id".into(),
-                reattach_token: None
+                reattach_token: None,
+                features: Vec::new(),
             }),
             "other"
         );

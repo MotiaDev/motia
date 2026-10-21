@@ -92,30 +92,15 @@ const MAX_JSON_FRAME_BYTES = 16 * 1024 * 1024
 const JSON_ENCODER = new TextEncoder()
 const PAYLOAD_SIZE_DOCS = 'https://iii.dev/docs/creating-workers/channels#payload-size'
 
-class InvocationError extends Error {
-  readonly code: string
-  readonly function_id?: string
-  readonly invocation_id?: string
-
-  constructor(message: string, functionId?: string, invocationId?: string) {
-    super(message)
-    this.name = 'InvocationError'
-    this.code = 'payload_too_large'
-    this.function_id = functionId
-    this.invocation_id = invocationId
-  }
-}
-
 function createPayloadTooLargeError(
   size: number,
   functionId?: string,
-  invocationId?: string,
 ): InvocationError {
-  return new InvocationError(
-    `Serialized JSON envelope is ${size} bytes; limit is ${MAX_JSON_FRAME_BYTES} bytes. Use channels for larger payloads: ${PAYLOAD_SIZE_DOCS}`,
-    functionId,
-    invocationId,
-  )
+  return new InvocationError({
+    code: 'payload_too_large',
+    message: `Serialized JSON envelope is ${size} bytes; limit is ${MAX_JSON_FRAME_BYTES} bytes. Use channels for larger payloads: ${PAYLOAD_SIZE_DOCS}`,
+    function_id: functionId,
+  })
 }
 
 function isPayloadTooLargeError(error: unknown): error is Error & { code: string } {
@@ -649,7 +634,8 @@ class Sdk implements ISdk {
       throw new Error(`function id already registered: ${functionId}`)
     }
 
-    // Hooks stay local; only the serializable descriptor is registered.
+    // The hooks stay here; only the descriptor's four fields travel, and
+    // `localDispatch` is this SDK's alone.
     const { observe: hooks, localDispatch, ...wireOptions } = options ?? {}
     validateObserveHooks(functionId, hooks)
     const descriptor = observeDescriptor(hooks)
@@ -1461,7 +1447,6 @@ class Sdk implements ISdk {
     const error = createPayloadTooLargeError(
       size,
       typeof message.function_id === 'string' ? message.function_id : undefined,
-      typeof message.invocation_id === 'string' ? message.invocation_id : undefined,
     )
     if (message.type === MessageType.InvocationResult) {
       const fallback = JSON.stringify({

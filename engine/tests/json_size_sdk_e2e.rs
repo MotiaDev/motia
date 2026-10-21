@@ -217,12 +217,24 @@ async fn invoke(
     payload: Value,
     ms: u64,
 ) -> Result<Value, iii_sdk::Error> {
-    sdk.trigger(TriggerRequest {
-        function_id: id.to_owned(),
-        payload,
-        timeout_ms: Some(ms),
-        action: None,
-    })
+    invoke_remote(sdk, id, payload, ms).await
+}
+
+async fn invoke_remote(
+    sdk: &iii_sdk::IIIClient,
+    id: &str,
+    payload: Value,
+    ms: u64,
+) -> Result<Value, iii_sdk::Error> {
+    sdk.trigger(
+        TriggerRequest {
+            function_id: id.to_owned(),
+            payload,
+            timeout_ms: Some(ms),
+            action: None,
+        }
+        .dispatch(Dispatch::Remote),
+    )
     .await
 }
 
@@ -585,7 +597,7 @@ async fn fragmented_json_roundtrips_and_engine_compatibility_guard() {
         "SDK local limit changed worker identity"
     );
     let identities_before_rust_limit = worker_ids(&engine).await;
-    let rust_error = invoke(
+    let rust_error = invoke_remote(
         &engine.sdk,
         "size::rust",
         payload(MESSAGE_LIMIT, 'Z'),

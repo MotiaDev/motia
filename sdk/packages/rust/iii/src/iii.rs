@@ -1,4 +1,4 @@
-// Main JSON outbound envelope: 16 MiB (16,777,216 bytes).
+// Main JSON single-frame threshold: 16 MiB (16,777,216 bytes).
 pub(crate) const MAX_JSON_FRAME_BYTES: usize = 16 * 1024 * 1024;
 // Main JSON inbound and outbound message limit: 64 MiB (67,108,864 bytes).
 const MAX_JSON_MESSAGE_BYTES: usize = 64 * 1024 * 1024;

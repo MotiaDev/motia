@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from importlib.metadata import version
-from typing import Any, Awaitable, Callable, Coroutine, Iterator, TypeVar, cast
+from typing import Any, Awaitable, Callable, Coroutine, TypeVar, cast
 
 import websockets
 from iii_helpers.http import HttpInvocationConfig
@@ -1298,7 +1298,7 @@ class III:
 
         async def send() -> None:
             try:
-                await ws.send(data)
+                await self._send_json(ws, data)
             except Exception as error:
                 if on_failure is not None:
                     on_failure(error)
