@@ -112,8 +112,12 @@ Write this into `channel-client/import-links.js`:
 import { registerWorker } from "iii-sdk";
 import { createChannel } from "iii-sdk/helpers";
 
-const worker = registerWorker(process.env.III_URL ?? "ws://localhost:49134", {
+// A plain script gets no engine URL or namespace from Compose: read them from
+// III_URL and III_NAMESPACE. The defaults match worker-compose.yaml as shipped.
+const worker = registerWorker(process.env.III_URL ?? "ws://127.0.0.1:49134", {
   workerName: "uploader",
+  // bulk-importer::import_csv is registered in the project's namespace.
+  namespace: process.env.III_NAMESPACE || "default",
 });
 
 const csv = ["code,url", "mylink,https://iii.dev", "mydocslink,https://iii.dev/docs"].join("\n");
@@ -133,6 +137,12 @@ await worker.shutdown();
 
 ```bash
 node import-links.js
+```
+
+If you changed `namespace:` or the engine port in `worker-compose.yaml`, pass them:
+
+```bash
+III_URL=ws://127.0.0.1:<engine port> III_NAMESPACE=<namespace> node import-links.js
 ```
 
 ```json
