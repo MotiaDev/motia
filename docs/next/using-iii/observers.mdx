@@ -227,6 +227,32 @@ target's return value is discarded for auto delivery and `obs.emit`.
   once: a report lost with a dropped connection is not sent again.
 </Note>
 
+### Event size
+
+The engine keeps one copy of an observed invocation for all observers of its function, with every
+field any of them captures or filters on. Capturing `input` and `output` counts both: a function
+that echoes a 40 MiB input makes an event of about 80 MiB. An event too large on its own is not
+delivered, however idle the engine is:
+
+- The fields the engine keeps come to more than 64 MiB (approximate in-memory size).
+- The activation is larger than the target worker accepts in one message: 64 MiB, or 16 MiB for
+  browser workers and some older SDKs. See [Payload size](../creating-workers/channels#payload-size).
+- For local calls and `obs.emit`, the hosting SDK's report of the event is larger than its 8 MiB
+  report buffer.
+
+Each such event counts as a `TOO_LARGE` drop in the `iii.observer.dropped.total` metric. In the
+first two cases it also counts in the observer's `dropped` counts
+([`engine::observers::list`](#inspect-observers)), and the engine logs a warning naming the
+observer, the function, the size, and the limit, at most once a minute per observer. An owner's
+`obs.call` whose activation the target cannot receive fails with `payload_too_large`. `OVERFLOW` is
+different: the queues were full when the event arrived, and an event of the same size can get
+through once they drain.
+
+To keep events small, capture only what the target reads, for example `capture: ["input"]`. With
+`deliver: "input"` or `deliver: "output"`, set a matching `capture` too: captured fields are kept
+even when the target receives one value. For payloads larger than these limits, pass a
+[channel](../creating-workers/channels) reference instead of the data.
+
 ## Filters
 
 Filters are declarative JSON objects over the event: `input`, `output`, `error`, `caller`, and

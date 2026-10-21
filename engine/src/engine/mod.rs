@@ -711,6 +711,9 @@ impl Engine {
                     {
                         caller.remove_invocation(&invocation_id).await;
                     }
+                    // An observer activation's observer counts a `TOO_LARGE`
+                    // drop rather than the target's error.
+                    self.observers.refused_send(invocation_id, size, limit);
                     let _ = invocation
                         .sender
                         .send(Err(payload_too_large_error(size, limit, upgrade)));
@@ -10366,6 +10369,128 @@ mod tests {
                 .guard_outbound(&caller, next.clone(), serde_json::to_string(&next).unwrap())
                 .await
                 .is_some()
+        );
+    }
+
+    /// An observer activation larger than its target worker accepts is not
+    /// sent, and the target never sees the event: the observer counts a
+    /// `TOO_LARGE` drop, not the target's error. A target that answers
+    /// `payload_too_large` itself (its result was too large) still counts as
+    /// `TARGET_ERROR`.
+    #[tokio::test]
+    async fn an_activation_too_large_for_its_target_is_a_too_large_drop() {
+        use crate::observer::events::test_support;
+
+        ensure_default_meter();
+        let engine = Arc::new(Engine::new());
+        engine.register_function_handler(
+            make_request("test::src"),
+            crate::engine::Handler::new(|input: serde_json::Value| async move {
+                FunctionResult::Success(Some(input))
+            }),
+        );
+        let (target_tx, mut target_rx) = mpsc::channel::<Outbound>(8);
+        let target = WorkerConnection::new(target_tx);
+        engine.worker_registry.register_worker(target.clone());
+        engine
+            .router_msg(
+                &target,
+                &Message::RegisterFunction {
+                    id: "test::far".to_string(),
+                    description: None,
+                    request_format: None,
+                    response_format: None,
+                    metadata: None,
+                    invocation: None,
+                    observe: None,
+                },
+            )
+            .await
+            .expect("register the target");
+        target.receive_message_limit.store(1024, Ordering::Relaxed);
+        let (watcher, _socket) = test_support::worker(&engine);
+        test_support::observe_request(
+            &engine,
+            &watcher,
+            test_support::request("obs", "test::src", "test::far", None),
+        )
+        .await;
+
+        // What the target connection's writer does with the next activation.
+        async fn next_activation(
+            engine: &Engine,
+            target: &WorkerConnection,
+            rx: &mut mpsc::Receiver<Outbound>,
+        ) -> Option<(Message, String)> {
+            loop {
+                let outbound = tokio::time::timeout(Duration::from_secs(5), rx.recv())
+                    .await
+                    .expect("an activation")
+                    .expect("open");
+                if let Outbound::Protocol(msg @ Message::InvokeFunction { .. }) = outbound {
+                    let serialized = serde_json::to_string(&msg).unwrap();
+                    return engine.guard_outbound(target, msg, serialized).await;
+                }
+            }
+        }
+        let info = |engine: &Engine| engine.observers.get_info(engine, None, "obs").unwrap();
+        let settled = |engine: &Engine, drops: u64, failures: u64| {
+            let info = info(engine);
+            info.dropped.get("TOO_LARGE").copied().unwrap_or(0) == drops
+                && info.activation_failures.values().sum::<u64>() == failures
+        };
+
+        engine
+            .call("test::src", json!({ "big": "x".repeat(4096) }))
+            .await
+            .unwrap();
+        assert!(
+            next_activation(&engine, &target, &mut target_rx)
+                .await
+                .is_none(),
+            "not sent"
+        );
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !settled(&engine, 1, 0) {
+                tokio::time::sleep(Duration::from_millis(2)).await;
+            }
+        })
+        .await
+        .expect("a TOO_LARGE drop, not a failure");
+
+        engine
+            .call("test::src", json!({ "small": 1 }))
+            .await
+            .unwrap();
+        let Some((Message::InvokeFunction { invocation_id, .. }, _)) =
+            next_activation(&engine, &target, &mut target_rx).await
+        else {
+            panic!("a small activation is sent");
+        };
+        engine
+            .router_msg(
+                &target,
+                &Message::InvocationResult {
+                    invocation_id: invocation_id.expect("an activation carries an id"),
+                    function_id: "test::far".to_string(),
+                    result: None,
+                    error: Some(payload_too_large_error(70_000_000, 67_108_864, false)),
+                    traceparent: None,
+                    baggage: None,
+                },
+            )
+            .await
+            .expect("the target answers");
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !settled(&engine, 1, 1) {
+                tokio::time::sleep(Duration::from_millis(2)).await;
+            }
+        })
+        .await
+        .expect("the target's own error");
+        assert_eq!(
+            info(&engine).activation_failures.get("TARGET_ERROR"),
+            Some(&1)
         );
     }
 

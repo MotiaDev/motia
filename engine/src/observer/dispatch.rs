@@ -27,7 +27,7 @@ use std::{
     collections::HashSet,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -91,7 +91,9 @@ impl Drop for ObservedCall {
 /// function counts an `OVERFLOW` drop.
 pub(crate) const EVALUATOR_QUEUE: usize = 65_536;
 
-/// Approximate bytes of payloads waiting for the evaluators.
+/// Approximate bytes of payloads waiting for the evaluators. A completion
+/// whose payloads alone are larger never fits, however idle the evaluators:
+/// a `TOO_LARGE` drop, not an `OVERFLOW`.
 pub(crate) const EVALUATOR_BYTES: usize = 64 * 1024 * 1024;
 
 /// Evaluators at most, whatever the number of runtime worker threads.
@@ -114,7 +116,13 @@ const QUEUE_KEPT: usize = 64;
 /// together, each event counted once however many queues hold it. Past it, an
 /// activation that would queue is dropped (`OVERFLOW`) as if its own queue
 /// were full: `max_queue_per_observer` bounds one queue, this bounds them all.
+/// An event larger than all of it never queues (`TOO_LARGE`).
 pub(crate) const QUEUED_BYTES: usize = 64 * 1024 * 1024;
+
+/// How many refused sends [`ObserverRegistry::refused_send`] remembers:
+/// enough for each refused activation to find its own, however many other
+/// calls were refused meanwhile.
+const REFUSED_SENDS_KEPT: usize = 256;
 
 /// What a queued event costs besides its payloads: ids, names, the structures
 /// that hold them.
@@ -155,12 +163,21 @@ impl QueueBudget {
                 bytes.checked_add(cost).filter(|total| *total <= limit)
             })
             .is_ok();
-        if fits {
-            event.charged.store(cost, Ordering::Release);
-        } else {
+        // Kept either way: what `too_large` reads.
+        event.charged.store(cost, Ordering::Release);
+        if !fits {
             event.queues.fetch_sub(1, Ordering::AcqRel);
         }
         fits
+    }
+
+    /// `(cost, limit)` when `event` alone is larger than the whole budget:
+    /// it never queues, however empty the queues. Known only once a charge
+    /// computed its cost.
+    fn too_large(&self, event: &Completed) -> Option<(usize, usize)> {
+        let cost = event.charged.load(Ordering::Acquire);
+        let limit = self.limit.load(Ordering::Relaxed);
+        (cost > limit).then_some((cost, limit))
     }
 
     /// One queue let go of `event`; the last one gives its cost back.
@@ -225,7 +242,8 @@ pub(crate) struct Completed {
     baggage: Option<String>,
     /// Queues holding it now (see [`QueueBudget`]).
     queues: AtomicUsize,
-    /// What it was charged when the first of them took it.
+    /// What it was charged when the first of them took it (or would have
+    /// been, when that did not fit).
     charged: AtomicUsize,
 }
 
@@ -549,7 +567,8 @@ impl ObserverRegistry {
 
     /// Hands `evaluation` to its function's evaluator task; inline when there
     /// is none. Past the queue's bounds the completion is dropped as
-    /// `OVERFLOW` for each active observer of the function.
+    /// `OVERFLOW` for each active observer of the function; larger than the
+    /// whole byte budget, as `TOO_LARGE`.
     fn enqueue(self: &Arc<Self>, evaluation: Evaluation) {
         let Some(evaluators) = self.evaluators() else {
             self.evaluate(evaluation);
@@ -557,9 +576,15 @@ impl ObserverRegistry {
         };
         let evaluator = evaluator_of(evaluators, &evaluation.set);
         let bytes = evaluation.bytes;
+        let budget = self.evaluator_bytes.load(Ordering::Relaxed);
+        if bytes > budget {
+            for observer in &evaluation.set.observers {
+                drop_too_large(observer, bytes, budget, TooLarge::Held);
+            }
+            return;
+        }
         // Reserved, not checked then added: concurrent completions cannot
         // overshoot the budget together.
-        let budget = self.evaluator_bytes.load(Ordering::Relaxed);
         let reserved = self
             .queued_bytes
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |queued| {
@@ -696,6 +721,10 @@ impl ObserverRegistry {
             } else {
                 drop(flow);
                 observer.fires.fetch_sub(1, Ordering::AcqRel);
+                if let Some((cost, limit)) = self.queue_budget.too_large(completed) {
+                    drop_too_large(observer, cost, limit, TooLarge::Queued);
+                    return false;
+                }
                 drop_event(observer, observe_codes::OVERFLOW);
                 return true;
             }
@@ -789,6 +818,9 @@ impl ObserverRegistry {
         if outcome.is_err() {
             self.abandon(&observer.target, invocation_id).await;
         }
+        if self.not_sent_too_large(observer, invocation_id, &outcome) {
+            return;
+        }
         if let Some(reason) = failure_of(&outcome) {
             tracing::debug!(
                 observer_id = %observer.id,
@@ -798,6 +830,54 @@ impl ObserverRegistry {
             );
             count_failure(observer, reason);
         }
+    }
+
+    /// Notes that the engine did not send invocation `invocation_id` to its
+    /// target worker: the serialized envelope (`size` bytes) is larger than
+    /// the worker accepts (`limit`). The caller gets `payload_too_large`; when
+    /// that caller is an activation, the event never reached the target and
+    /// counts as a `TOO_LARGE` drop rather than the target's error (a target
+    /// answering `payload_too_large` itself, because its result was too large,
+    /// is still `TARGET_ERROR`). Only the last [`REFUSED_SENDS_KEPT`] are
+    /// kept: noting one costs nothing on the path of calls that fit.
+    pub(crate) fn refused_send(&self, invocation_id: Uuid, size: usize, limit: usize) {
+        let mut refused = lock(&self.refused_sends);
+        if refused.len() == REFUSED_SENDS_KEPT {
+            refused.pop_front();
+        }
+        refused.push_back(RefusedSend {
+            invocation_id,
+            size,
+            limit,
+        });
+    }
+
+    /// Counts a `TOO_LARGE` drop when `outcome` is the engine refusing to send
+    /// the activation `invocation_id` (see [`Self::refused_send`]).
+    fn not_sent_too_large(
+        &self,
+        observer: &Observer,
+        invocation_id: Uuid,
+        outcome: &ActivationOutcome,
+    ) -> bool {
+        let Ok(Ok(Err(error))) = outcome else {
+            return false;
+        };
+        if error.code != PAYLOAD_TOO_LARGE {
+            return false;
+        }
+        let refused = {
+            let mut refused = lock(&self.refused_sends);
+            refused
+                .iter()
+                .rposition(|r| r.invocation_id == invocation_id)
+                .and_then(|at| refused.remove(at))
+        };
+        let Some(refused) = refused else {
+            return false;
+        };
+        drop_too_large(observer, refused.size, refused.limit, TooLarge::Sent);
+        true
     }
 
     /// After a timeout: the target's connection stops tracking the
@@ -1232,6 +1312,9 @@ impl ObserverRegistry {
         worker.remove_invocation(&invocation_id).await;
         match failure_of(&outcome) {
             Some(failure_reasons::TARGET_UNAVAILABLE) if owner_gone => {}
+            // Not sent: the observer counts a drop, and the owner still gets
+            // the `payload_too_large` error below.
+            Some(_) if self.not_sent_too_large(observer, invocation_id, &outcome) => {}
             Some(reason) => count_failure(observer, reason),
             None => {}
         }
@@ -1370,13 +1453,24 @@ fn take_fire(observer: &Observer) -> Option<u64> {
     }
 }
 
+/// An activation's result, as its invoker sees it.
+type ActivationOutcome =
+    Result<Result<Result<Option<Value>, ErrorBody>, RecvError>, tokio::time::error::Elapsed>;
+
+/// The code the engine answers a call with when it does not send the call
+/// because the target worker cannot receive it (`Engine::guard_outbound`).
+const PAYLOAD_TOO_LARGE: &str = "payload_too_large";
+
+/// An invocation the engine did not send (see
+/// [`ObserverRegistry::refused_send`]).
+pub(crate) struct RefusedSend {
+    invocation_id: Uuid,
+    size: usize,
+    limit: usize,
+}
+
 /// Why an activation failed, if it did.
-fn failure_of(
-    outcome: &Result<
-        Result<Result<Option<Value>, ErrorBody>, RecvError>,
-        tokio::time::error::Elapsed,
-    >,
-) -> Option<&'static str> {
+fn failure_of(outcome: &ActivationOutcome) -> Option<&'static str> {
     match outcome {
         Err(_) => Some(failure_reasons::TIMEOUT),
         Ok(Ok(Ok(_))) => None,
@@ -1504,9 +1598,74 @@ fn drop_event(observer: &Observer, reason: &str) {
         observe_codes::REPORTER_NOT_OWNER => &observer.drops.reporter_not_owner,
         CANCELLED => &observer.drops.cancelled,
         INVALID_REPORT => &observer.drops.invalid_report,
+        observe_codes::TOO_LARGE => &observer.drops.too_large,
         _ => &observer.drops.inactive,
     };
     counter.fetch_add(1, Ordering::Relaxed);
+}
+
+/// The limit a `TOO_LARGE` event did not fit in.
+#[derive(Debug, Clone, Copy)]
+enum TooLarge {
+    /// The bytes the engine holds for observers' evaluation
+    /// ([`EVALUATOR_BYTES`]).
+    Held,
+    /// The observers' queues together ([`QUEUED_BYTES`]).
+    Queued,
+    /// What the target worker receives in one message.
+    Sent,
+}
+
+impl TooLarge {
+    /// What did not fit, and what to change.
+    fn explain(self) -> &'static str {
+        match self {
+            Self::Held => {
+                "what the function's observers capture or filter on is larger than the engine \
+                 keeps for observers; capture fewer fields (input and output both count)"
+            }
+            Self::Queued => {
+                "the event is larger than the observers' queues hold together; capture fewer \
+                 fields (input and output both count)"
+            }
+            Self::Sent => {
+                "the activation is larger than the target worker accepts; send the target less \
+                 (capture fewer fields, or deliver the input or output alone) or pass large \
+                 payloads through a channel"
+            }
+        }
+    }
+}
+
+/// Counts a `TOO_LARGE` drop for `observer`: one event of about `size`
+/// bytes that cannot fit `limit` even with nothing else waiting, so unlike
+/// `OVERFLOW` it says nothing about load. Warns at most once a minute per
+/// observer.
+fn drop_too_large(observer: &Observer, size: usize, limit: usize, too_large: TooLarge) {
+    drop_event(observer, observe_codes::TOO_LARGE);
+    if !once_a_minute(&observer.last_too_large_warn_ms) {
+        return;
+    }
+    tracing::warn!(
+        observer_id = %observer.id,
+        function_id = %observer.function.1,
+        target = %observer.target.1,
+        size_bytes = size,
+        limit_bytes = limit,
+        "observer event not delivered (TOO_LARGE): {}",
+        too_large.explain()
+    );
+}
+
+/// Whether a warning last logged at `last` (ms) may be logged again: at
+/// most once a minute.
+fn once_a_minute(last: &AtomicU64) -> bool {
+    let now = now_ms();
+    let before = last.load(Ordering::Relaxed);
+    now.saturating_sub(before) >= 60_000
+        && last
+            .compare_exchange(before, now, Ordering::Relaxed, Ordering::Relaxed)
+            .is_ok()
 }
 
 /// Adds what `observer` dropped since its last export to
@@ -1537,14 +1696,7 @@ fn evaluator_of<'a>(
 /// At most one warning per observer per minute: a loop fires as fast as it
 /// can, and the counter already has the numbers.
 fn warn_loop_guard(observer: &Observer, depth: u32, max_depth: u32) {
-    let now = now_ms();
-    let last = observer.last_loop_warn_ms.load(Ordering::Relaxed);
-    if now.saturating_sub(last) < 60_000
-        || observer
-            .last_loop_warn_ms
-            .compare_exchange(last, now, Ordering::Relaxed, Ordering::Relaxed)
-            .is_err()
-    {
+    if !once_a_minute(&observer.last_loop_warn_ms) {
         return;
     }
     tracing::warn!(
@@ -1747,10 +1899,57 @@ mod tests {
         assert_eq!(info.dropped.get("OVERFLOW"), Some(&1));
     }
 
-    /// A completion whose payloads do not fit the evaluator's byte budget is
-    /// not queued: an `OVERFLOW` drop.
+    /// Completes one observed call of `test::src` with `body` as its input.
+    fn complete_call(engine: &Engine, body: Value) {
+        let registry = &engine.observers;
+        let ctx = Arc::new(InvocationCtx::engine_internal_at(0));
+        let set = registry
+            .watch_routed(DEFAULT_NAMESPACE, "test::src")
+            .unwrap();
+        let call = registry.begin(set, &body, &None, &None, &None, &ctx);
+        registry.complete(
+            call,
+            DEFAULT_NAMESPACE,
+            "test::src",
+            Uuid::new_v4(),
+            &Ok(Ok(None)),
+            &ctx,
+        );
+    }
+
+    /// A completion that does not fit what is left of the evaluator's byte
+    /// budget is not queued: an `OVERFLOW` drop.
     #[tokio::test]
     async fn a_completion_past_the_byte_budget_drops_with_overflow() {
+        let engine = Arc::new(Engine::new());
+        let body = || json!({ "big": "x".repeat(600) });
+        let size = super::approx_size(&body());
+        engine
+            .observers
+            .evaluator_bytes
+            .store(2 * size + size / 2, Ordering::SeqCst);
+        source(&engine);
+        let _sink = test_support::capture(&engine, "test::dst");
+        let _socket = test_support::observe(&engine, "obs", "test::src", "test::dst", None).await;
+        // No yield in between: the evaluator task cannot drain the queue.
+        for _ in 0..3 {
+            complete_call(&engine, body());
+        }
+        let info = engine.observers.get_info(&engine, None, "obs").unwrap();
+        assert_eq!(info.dropped.get("OVERFLOW"), Some(&1), "only the third");
+        assert_eq!(info.dropped.get("TOO_LARGE"), None);
+    }
+
+    /// A completion whose payloads alone are larger than the evaluator's
+    /// byte budget never fits, however empty the queue: a `TOO_LARGE` drop,
+    /// not `OVERFLOW`, logged once a minute with the observer, the function,
+    /// the size and the limit.
+    #[tokio::test]
+    async fn a_completion_larger_than_the_byte_budget_is_too_large() {
+        let (_logs_guard, logs) = crate::deprecation::test_support::capture();
+        // Another test may have hit the warning's callsite first and cached
+        // that nobody listens: recompute it now that this thread does.
+        tracing::callsite::rebuild_interest_cache();
         let engine = Arc::new(Engine::new());
         engine
             .observers
@@ -1759,24 +1958,26 @@ mod tests {
         source(&engine);
         let _sink = test_support::capture(&engine, "test::dst");
         let _socket = test_support::observe(&engine, "obs", "test::src", "test::dst", None).await;
-        let registry = engine.observers.clone();
-        let ctx = Arc::new(InvocationCtx::engine_internal_at(0));
-        for body in [json!({ "small": 1 }), json!({ "big": "x".repeat(1024) })] {
-            let set = registry
-                .watch_routed(DEFAULT_NAMESPACE, "test::src")
-                .unwrap();
-            let call = registry.begin(set, &body, &None, &None, &None, &ctx);
-            registry.complete(
-                call,
-                DEFAULT_NAMESPACE,
-                "test::src",
-                Uuid::new_v4(),
-                &Ok(Ok(None)),
-                &ctx,
-            );
+        let big = json!({ "big": "x".repeat(1024) });
+        for body in [json!({ "small": 1 }), big.clone(), big.clone()] {
+            complete_call(&engine, body);
         }
-        let info = registry.get_info(&engine, None, "obs").unwrap();
-        assert_eq!(info.dropped.get("OVERFLOW"), Some(&1), "only the big one");
+        let info = engine.observers.get_info(&engine, None, "obs").unwrap();
+        assert_eq!(info.dropped.get("TOO_LARGE"), Some(&2), "both big ones");
+        assert_eq!(info.dropped.get("OVERFLOW"), None, "not load");
+
+        let logs = logs.contents();
+        let lines: Vec<&str> = logs.lines().filter(|l| l.contains("TOO_LARGE")).collect();
+        assert_eq!(lines.len(), 1, "rate limited: {logs}");
+        for expected in [
+            "observer_id=obs",
+            "function_id=test::src",
+            "target=test::dst",
+            &format!("size_bytes={}", super::approx_size(&big)),
+            "limit_bytes=512",
+        ] {
+            assert!(lines[0].contains(expected), "{expected} in {}", lines[0]);
+        }
     }
 
     /// An in-process target that answers only when `gate` gives it a permit,
@@ -2145,6 +2346,37 @@ mod tests {
             engine.observers.queue_budget.bytes.load(Ordering::SeqCst),
             0
         );
+    }
+
+    /// An event larger than the whole of the queues' budget never queues:
+    /// while the observer is busy it is a `TOO_LARGE` drop, not `OVERFLOW`,
+    /// and a report's reader does not wait for room that cannot come. Events
+    /// that fit still queue, then overflow as the budget fills.
+    #[tokio::test]
+    async fn an_event_larger_than_the_queues_budget_is_too_large() {
+        let engine = Arc::new(Engine::new());
+        let observer = full_queue(&engine, 1).await;
+        let registry = engine.observers.clone();
+        let cost = event(0).cost();
+        registry
+            .queue_budget
+            .limit
+            .store(3 * cost, Ordering::SeqCst);
+        let mut big = Arc::into_inner(event(9)).unwrap();
+        big.input = Some(Arc::new(json!({ "big": "x".repeat(4 * cost) })));
+        let big = Arc::new(big);
+        assert!(!registry.activate(&observer, &big), "no room to wait for");
+        for n in 1..=2 {
+            assert!(!registry.activate(&observer, &event(n)), "queued");
+        }
+        assert!(
+            registry.activate(&observer, &event(3)),
+            "the budget is full"
+        );
+        let dropped = observer.drops.snapshot();
+        assert_eq!(dropped.get("TOO_LARGE"), Some(&1));
+        assert_eq!(dropped.get("OVERFLOW"), Some(&1));
+        assert_eq!(registry.in_flight("obs"), Some((1, 3)));
     }
 
     /// A reader also waits while the queues together are over half their
