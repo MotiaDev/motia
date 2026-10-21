@@ -251,12 +251,20 @@ runtime:
   base_image: docker.io/iiidev/python:latest
 scripts:
   install: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-  start: .venv/bin/python src/main.py
+  # src/main.py ships fully commented. Python runs a comment-only file, prints
+  # nothing and exits 0, so the worker would vanish without a word: refuse to
+  # start until the Ch. 4 block is uncommented. -u keeps the startup line
+  # visible in the Compose logs instead of buffered.
+  start: >-
+    grep -q '^[^#[:space:]]' src/main.py
+    || { echo 'analytics: src/main.py is still fully commented; uncomment its Ch. 4 block, then restart the analytics container' >&2; exit 1; };
+    exec .venv/bin/python -u src/main.py
 ```
 
 ### Subscribe to link.created events
 
-Create `analytics/src/main.py` with this code, which binds a `durable:subscriber` trigger to the
+The scaffold ships `analytics/src/main.py` with this code commented out: uncomment its Ch. 4 block
+(or replace the file with the code below). It binds a `durable:subscriber` trigger to the
 `link.created` topic and keeps count of every time that a new short link is created:
 
 <Accordion title="analytics/src/main.py">
