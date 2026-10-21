@@ -24,7 +24,9 @@ control. Browser workers also have a **16 MiB** receive limit.
 
 For Rust, Node, Python, and Go, messages up to **16 MiB** are sent as one text frame. Larger
 messages, up to and including 64 MiB, are sent as one fragmented WebSocket text message using
-multiple frames. Applications send and receive these messages through the usual function APIs.
+multiple frames. The engine sends every message larger than **1 MiB** to a worker as one fragmented
+text message of 1 MiB frames, so no frame it sends exceeds a worker's frame size limit.
+Applications send and receive these messages through the usual function APIs.
 
 The receiving worker must run SDK version **0.24.5 or later** to accept messages larger than
 16 MiB. An updated engine checks the serialized envelope against the target worker's receive limit
