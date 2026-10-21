@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Move a scaffolded Linkly project off the tutorial's default ports.
 
-    ports.py <project> <engine-port> <http-port> <browser-port>
+    ports.py <project> <engine-port> <http-port> <browser-port> [namespace]
 
 Rewrites worker-compose.yaml in place: the engine URL (also the one rbac-proxy
-dials), the http worker's port and the rbac-proxy listener port. With the
-defaults (49134, 3111, 3110) the file is left unchanged.
+dials), the http worker's port and the rbac-proxy listener port. A namespace
+other than `default` replaces the top-level `namespace:` and the namespace of
+every rbac-proxy expose_functions rule. With the defaults (49134, 3111, 3110,
+default) the file is left unchanged.
 """
 
 import pathlib
@@ -16,6 +18,7 @@ import sys
 def main() -> int:
     project = pathlib.Path(sys.argv[1])
     engine, http, browser = (int(value) for value in sys.argv[2:5])
+    namespace = sys.argv[5] if len(sys.argv) > 5 else "default"
     path = project / "worker-compose.yaml"
     text = path.read_text()
 
@@ -32,6 +35,11 @@ def main() -> int:
         if count != 1:
             print("error: http container block not found in worker-compose.yaml", file=sys.stderr)
             return 1
+
+    if namespace != "default":
+        text = re.sub(r"^namespace: default$", f"namespace: {namespace}", text, flags=re.M)
+        # expose_functions rules answer only in the namespace they name.
+        text = re.sub(r"^(\s*#?\s*namespace:) default$", rf"\g<1> {namespace}", text, flags=re.M)
 
     path.write_text(text)
     return 0
