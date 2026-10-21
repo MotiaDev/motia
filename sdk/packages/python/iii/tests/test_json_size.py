@@ -23,6 +23,11 @@ from iii.iii import (
 from iii.triggers import TriggerHandler
 
 
+def compact(value):
+    """JSON text as ``JSON.stringify`` and ``serde_json`` write it: compact, non-ASCII as UTF-8."""
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
 def client():
     sdk = III.__new__(III)
     sdk._fatal_error = None
@@ -42,16 +47,16 @@ def client():
 def test_complete_envelope_inclusive_boundary(delta):
     sdk = client()
     msg = {"type": "invokefunction", "data": ""}
-    overhead = len(json.dumps(msg).encode())
+    overhead = len(compact(msg).encode())
     msg["data"] = "x" * (_MAX_JSON_FRAME_BYTES - overhead + delta)
     payload = sdk._prepare_json(msg)
     assert len(payload.encode()) == _MAX_JSON_FRAME_BYTES + delta
-    assert payload == json.dumps(msg)
+    assert payload == compact(msg)
 
 
 def test_unicode_and_escapes_count_serialized_bytes():
     sdk = client()
-    accepted = {"type": "invokefunction", "data": ('é😀\n"\\' * 1_300_000)}
+    accepted = {"type": "invokefunction", "data": ('é😀\n"\\' * 1_500_000)}
     assert len(accepted["data"]) < _MAX_JSON_FRAME_BYTES
     payload = sdk._prepare_json(accepted)
     assert len(payload.encode("utf-8")) > _MAX_JSON_FRAME_BYTES
@@ -60,9 +65,9 @@ def test_unicode_and_escapes_count_serialized_bytes():
     expanded = {
         "type": "invokefunction",
         "function_id": "f",
-        "data": ('é😀\n"\\' * 3_000_000),
+        "data": ('é😀\n"\\' * 6_000_000),
     }
-    serialized_size = len(json.dumps(expanded).encode("utf-8"))
+    serialized_size = len(compact(expanded).encode("utf-8"))
     assert len(expanded["data"].encode("utf-8")) < _MAX_JSON_OUTBOUND_BYTES
     assert serialized_size > _MAX_JSON_OUTBOUND_BYTES
     with pytest.raises(InvocationError) as raised:
@@ -73,6 +78,69 @@ def test_unicode_and_escapes_count_serialized_bytes():
         f"{_MAX_JSON_OUTBOUND_BYTES} bytes. Use channels for larger payloads: "
         "https://iii.dev/docs/creating-workers/channels#payload-size"
     )
+
+
+# `written` and `node_bytes`: how Node's JSON.stringify writes the same message.
+@pytest.mark.parametrize(
+    ("text", "written", "node_bytes"),
+    [
+        ("Ação é ótima, naïve café", "Ação é ótima, naïve café", 125),
+        ("中文字符テスト한국어", "中文字符テスト한국어", 125),
+        ("😀🎉👍🏽", "😀🎉👍🏽", 111),
+        ('é😀中\n"\\\u0001\u2028\x7f', 'é😀中\\n\\"\\\\\\u0001\u2028\x7f', 120),
+    ],
+    ids=["accents", "cjk", "emoji", "escapes"],
+)
+def test_envelope_is_compact_utf8_json_like_the_other_sdks(text, written, node_bytes):
+    sdk = client()
+    msg = {"type": "invokefunction", "invocation_id": "i", "function_id": "f", "data": {"text": text, "list": [1, 2]}}
+    payload = sdk._prepare_json(msg)
+    assert payload == (
+        f'{{"type":"invokefunction","invocation_id":"i","function_id":"f","data":{{"text":"{written}","list":[1,2]}}}}'
+    )
+    assert len(payload.encode("utf-8")) == node_bytes
+    assert json.loads(payload) == msg
+
+
+def test_non_ascii_payload_counts_its_utf8_bytes_against_the_limit():
+    sdk = client()
+    # 30 MiB of emoji: 90 MiB with \u escapes, 30 MiB (as in Node and Rust) as UTF-8.
+    emoji = {"type": "invokefunction", "invocation_id": "i", "function_id": "f", "data": "😀" * (30 * 1024 * 1024 // 4)}
+    assert len(sdk._prepare_json(emoji).encode("utf-8")) == 31_457_353
+
+    accented = {"type": "invokefunction", "invocation_id": "inv-64", "function_id": "f", "data": ""}
+    room = _MAX_JSON_OUTBOUND_BYTES - len(compact(accented).encode("utf-8"))
+    accented["data"] = "é" * (room // 2) + "x" * (room % 2)
+    assert len(sdk._prepare_json(accented).encode("utf-8")) == _MAX_JSON_OUTBOUND_BYTES
+    accented["data"] += "é"
+    with pytest.raises(InvocationError) as raised:
+        sdk._prepare_json(accented)
+    assert raised.value.message.startswith(
+        f"Serialized JSON envelope is {_MAX_JSON_OUTBOUND_BYTES + 2} bytes; limit is {_MAX_JSON_OUTBOUND_BYTES} bytes."
+    )
+
+
+@pytest.mark.asyncio
+async def test_lone_surrogates_stay_escaped_and_the_message_is_still_sent():
+    sdk = client()
+    broken = b"caf\xe9".decode("utf-8", "surrogateescape")  # "caf\udce9": no UTF-8 for it
+    msg = {"type": "invokefunction", "function_id": "f", "data": {broken: "é😀" + broken + chr(0xD83D) + chr(0xDE00)}}
+    payload = sdk._prepare_json(msg)
+    # Escaped as before (and as JSON.stringify writes a lone surrogate); the rest is UTF-8.
+    assert payload == (
+        '{"type":"invokefunction","function_id":"f","data":{"caf\\udce9":"é😀caf\\udce9\\ud83d\\ude00"}}'
+    )
+    payload.encode("utf-8")
+    assert json.loads(payload)["data"] == {broken: "é😀" + broken + "😀"}
+
+    await sdk._send(msg)
+    sdk._ws.send.assert_awaited_once_with(payload)
+
+
+def test_nan_and_infinity_are_written_as_before():
+    sdk = client()
+    msg = {"type": "invocationresult", "invocation_id": "i", "result": [float("nan"), float("inf"), -float("inf")]}
+    assert sdk._prepare_json(msg) == '{"type":"invocationresult","invocation_id":"i","result":[NaN,Infinity,-Infinity]}'
 
 
 @pytest.mark.asyncio
@@ -518,7 +586,7 @@ async def test_concurrent_websocket_send_cannot_interleave_fragmented_message():
 async def test_outbound_limit_acceptance_and_exact_over_limit_error():
     sdk = client()
     invocation = {"type": "invokefunction", "invocation_id": "inv-64", "function_id": "f", "data": ""}
-    overhead = len(json.dumps(invocation).encode())
+    overhead = len(compact(invocation).encode())
     invocation["data"] = "x" * (_MAX_JSON_OUTBOUND_BYTES - overhead)
     assert len(sdk._prepare_json(invocation).encode()) == _MAX_JSON_OUTBOUND_BYTES
     invocation["data"] += "x"

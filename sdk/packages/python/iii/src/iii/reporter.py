@@ -25,6 +25,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal, Protocol
 
+from ._wire_json import dumps
 from .filter._value import ABSENT, to_json_value
 from .iii_types import (
     DroppedReportCount,
@@ -174,11 +175,11 @@ class _ReportItem:
     def render(self) -> None:
         """Assembles the wire JSON from the pre-encoded parts."""
         i = self.init
-        out = [f'{{"function_id":{json.dumps(i.function_id)}']
+        out = [f'{{"function_id":{dumps(i.function_id)}']
         if i.namespace is not None:
-            out.append(f',"namespace":{json.dumps(i.namespace)}')
-        out.append(f',"invocation_id":{json.dumps(i.invocation_id)},"matched":{json.dumps(i.matched)}')
-        out.append(f',"status":{json.dumps(i.status)}')
+            out.append(f',"namespace":{dumps(i.namespace)}')
+        out.append(f',"invocation_id":{dumps(i.invocation_id)},"matched":{dumps(i.matched)}')
+        out.append(f',"status":{dumps(i.status)}')
         for part in PARTS:
             encoded = self.parts.get(part)
             if encoded is not None:
@@ -186,9 +187,9 @@ class _ReportItem:
         out.append(f',"started_at_ms":{_number(int(i.started_at_ms))},"duration_ms":{_number(i.duration_ms)}')
         out.append(f',"observe_depth":{_number(i.observe_depth)}')
         if i.traceparent is not None:
-            out.append(f',"traceparent":{json.dumps(i.traceparent)}')
+            out.append(f',"traceparent":{dumps(i.traceparent)}')
         if i.baggage is not None:
-            out.append(f',"baggage":{json.dumps(i.baggage)}')
+            out.append(f',"baggage":{dumps(i.baggage)}')
         out.append("}")
         self.json = "".join(out)
         self.bytes = _byte_length(self.json)
@@ -489,7 +490,7 @@ class Reporter:
             log.error("localinvocationstats could not be written; its counts go in the next window: %s", error)
             self._restore(counters)
 
-        if self._host.send_frame(json.dumps(data, separators=(",", ":")), lost):
+        if self._host.send_frame(dumps(data), lost):
             return True
         # Not sent: keep the counts for the next window.
         self._restore(counters, window_start)
