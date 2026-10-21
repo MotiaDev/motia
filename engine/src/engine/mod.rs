@@ -7,7 +7,7 @@
 use std::{borrow::Cow, collections::VecDeque, net::SocketAddr, sync::Arc, time::Duration};
 
 use axum::{
-    extract::ws::{Message as WsMessage, WebSocket},
+    extract::ws::WebSocket,
     http::{HeaderMap, Uri},
 };
 use chrono::Utc;
@@ -16,6 +16,7 @@ use futures_util::{FutureExt, SinkExt, StreamExt};
 use serde::Serialize;
 use serde_json::Value;
 use tokio::sync::{mpsc, oneshot::error::RecvError};
+use tokio_tungstenite::tungstenite::Message as WsMessage;
 use tracing::Instrument;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use uuid::Uuid;
@@ -38,7 +39,12 @@ use crate::{
     workers::{
         engine_fn::TRIGGER_WORKERS_AVAILABLE,
         http_functions::HttpFunctionsWorker,
-        worker::{WorkerManagerConfig, channels::ChannelManager, rbac_session},
+        worker::{
+            WorkerManagerConfig,
+            channels::ChannelManager,
+            rbac_session,
+            worker_socket::{WorkerSocket, send_json},
+        },
     },
 };
 
@@ -3162,7 +3168,7 @@ impl Engine {
 
     pub async fn handle_worker(
         &self,
-        socket: WebSocket,
+        socket: WorkerSocket,
         peer: SocketAddr,
         uri: Uri,
         headers: HeaderMap,
@@ -3212,7 +3218,7 @@ impl Engine {
                         else {
                             continue;
                         };
-                        ws_tx.send(WsMessage::Text(payload.into())).await
+                        send_json(&mut ws_tx, payload).await
                     }
                     Outbound::Raw(frame) => ws_tx.send(frame).await,
                 };
@@ -3331,6 +3337,8 @@ impl Engine {
                             let _ = tx.send(Outbound::Raw(WsMessage::Pong(payload))).await;
                         }
                         Some(Ok(WsMessage::Pong(_))) => {}
+                        // Reads always yield whole messages, never raw frames.
+                        Some(Ok(WsMessage::Frame(_))) => {}
                         Some(Err(error)) => {
                             tracing::warn!(
                                 worker_id = %worker.id,
@@ -3435,6 +3443,9 @@ impl Engine {
         config: Arc<WorkerManagerConfig>,
         mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
     ) -> anyhow::Result<()> {
+        // `/otel` keeps axum's socket; only worker connections need raw frames.
+        use axum::extract::ws::Message as WsMessage;
+
         tracing::debug!(peer = %peer, "OTEL connection opened");
         let (mut ws_tx, mut ws_rx) = socket.split();
 

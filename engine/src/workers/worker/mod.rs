@@ -7,6 +7,7 @@
 pub mod channels;
 pub mod rbac_config;
 pub mod rbac_session;
+pub(crate) mod worker_socket;
 pub mod ws_handler;
 
 use std::{
@@ -39,7 +40,10 @@ use tower::Service as _;
 use crate::{
     engine::Engine,
     protocol::StreamChannelRef,
-    workers::{traits::Worker, worker::ws_handler::channel_ws_upgrade},
+    workers::{
+        traits::Worker,
+        worker::{worker_socket::WorkerSocketUpgrade, ws_handler::channel_ws_upgrade},
+    },
 };
 
 /// Main worker JSON frame: 16 MiB (16,777,216 bytes), not channel transport.
@@ -390,7 +394,7 @@ async fn shutdown_signal() -> anyhow::Result<()> {
 
 async fn ws_handler(
     State(state): State<AppState>,
-    ws: WebSocketUpgrade,
+    ws: WorkerSocketUpgrade,
     uri: Uri,
     headers: HeaderMap,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
