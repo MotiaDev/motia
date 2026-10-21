@@ -39,13 +39,30 @@ analytics:
   start_after: [database, queue]
 ```
 
-Also uncomment the `analytics` database under the Ch. 3 block's `config_override`:
+Also uncomment the `analytics` database in the Ch. 3 `database` block. `analytics` is a second
+database: it goes under `databases:`, at the same indentation as `primary:`, not inside `primary:`
+or its `pool:`. The whole block then reads:
 
 ```yaml worker-compose.yaml
-          url: sqlite:./data/iii.db
-        analytics:
-          url: sqlite:./data/analytics.db
+database:
+  worker: package://database
+  version: "0.5.13"
+  config_name: database
+  working_dir: .
+  config_override:
+    databases:
+      primary:
+        pool:
+          acquire_timeout_ms: 5000
+          idle_timeout_ms: 30000
+          max: 10
+        url: sqlite:./data/iii.db
+      analytics:
+        url: sqlite:./data/analytics.db
 ```
+
+If `database::query db=analytics` later answers `UNKNOWN_DB`, the `analytics` entry is nested at
+the wrong level.
 
 ## Make redirects fast with a queue
 
