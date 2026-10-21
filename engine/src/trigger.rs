@@ -652,6 +652,9 @@ impl TriggerRegistry {
             .park_transition
             .lock()
             .expect("park transition poisoned");
+        if self.legacy_execution_uncertain(id) {
+            return None;
+        }
         let state = self.assignments.get(id)?;
         if state.removed.load(std::sync::atomic::Ordering::SeqCst)
             || state.transferring.load(std::sync::atomic::Ordering::SeqCst)
@@ -688,6 +691,16 @@ impl TriggerRegistry {
         }
     }
 
+    // This tombstone describes execution uncertainty, not provider membership.
+    // Neither a new declaration nor a retry/ACK can prove an unfenced owner
+    // stopped. Keep it independent of assignment lifecycles and feature flags.
+    fn legacy_execution_uncertain(&self, id: &str) -> bool {
+        self.legacy_uncertain
+            .lock()
+            .expect("legacy uncertainty poisoned")
+            .contains(id)
+    }
+
     fn current_assignment(&self, id: &str, state: &AssignmentSet) -> bool {
         self.assignments
             .get(id)
@@ -704,7 +717,9 @@ impl TriggerRegistry {
         if !self.current_assignment(&trigger.id, state) {
             return;
         }
-        let active = !state.removed.load(std::sync::atomic::Ordering::SeqCst)
+        let active = !self.legacy_execution_uncertain(&trigger.id)
+            && !state.transferring.load(std::sync::atomic::Ordering::SeqCst)
+            && !state.removed.load(std::sync::atomic::Ordering::SeqCst)
             && state
                 .copies
                 .lock()
@@ -755,6 +770,7 @@ impl TriggerRegistry {
             );
             bindings
                 .into_iter()
+                .filter(|trigger| !self.legacy_execution_uncertain(&trigger.id))
                 .map(|trigger| {
                     // A previously unprovided pending intent gets its first assignment
                     // lifecycle here, while final removal cannot race the claim.
@@ -800,7 +816,9 @@ impl TriggerRegistry {
         {
             anyhow::bail!("trigger teardown pending");
         }
-        if state.transferring.load(std::sync::atomic::Ordering::SeqCst) {
+        if self.legacy_execution_uncertain(&trigger.id)
+            || state.transferring.load(std::sync::atomic::Ordering::SeqCst)
+        {
             return Ok(RegisterTriggerOutcome::Deferred);
         }
         // Keep cancellation/partial delivery reachable for last-subscriber teardown.
@@ -860,7 +878,11 @@ impl TriggerRegistry {
                     let mut copies = state.copies.lock().expect("copies poisoned");
                     if let Some(copy) = copies.get_mut(&provider.worker_id) {
                         if copy.1 == token {
-                            copy.2 = result.is_ok() && member;
+                            copy.2 = result.is_ok()
+                                && member
+                                && !self.legacy_execution_uncertain(&trigger.id)
+                                && !state.removed.load(std::sync::atomic::Ordering::SeqCst)
+                                && !state.transferring.load(std::sync::atomic::Ordering::SeqCst);
                             if !member
                                 || result.as_ref().is_err_and(|e| {
                                     e.downcast_ref::<RegistratorUnavailable>().is_none()
@@ -1006,6 +1028,9 @@ impl TriggerRegistry {
                 .map(|t| t.value().clone()),
         );
         for mut trigger in candidates {
+            if self.legacy_execution_uncertain(&trigger.id) {
+                continue;
+            }
             let Some(state) = self.assignments.get(&trigger.id).map(|s| s.value().clone()) else {
                 // An unfenced provider cannot prove it stopped via shared_v1.
                 let _park = self
@@ -1229,6 +1254,9 @@ impl TriggerRegistry {
         }
 
         for mut trigger in candidates {
+            if self.legacy_execution_uncertain(&trigger.id) {
+                continue;
+            }
             let previous = trigger.provider_key();
             if let Some(old) = self.trigger_types.get(&previous)
                 && let Err(err) = old.registrator.unregister_trigger(trigger.clone()).await
@@ -1479,6 +1507,10 @@ impl TriggerRegistry {
                     continue;
                 }
 
+                if self.legacy_execution_uncertain(&trigger.id) {
+                    self.pending_triggers.insert(trigger.id.clone(), trigger);
+                    continue;
+                }
                 match self.resolve_provider_key(&trigger) {
                     Some(next) => {
                         trigger.provider_namespace = next.0.clone();
@@ -1604,7 +1636,9 @@ impl TriggerRegistry {
         let matching_triggers: Vec<Trigger> = self
             .triggers
             .iter()
-            .filter(|pair| pair.value().provider_key() == key)
+            .filter(|pair| {
+                pair.value().provider_key() == key && !self.legacy_execution_uncertain(pair.key())
+            })
             .map(|pair| pair.value().clone())
             .collect();
 
@@ -1668,6 +1702,21 @@ impl TriggerRegistry {
     /// type. On registrator failure the intent is parked again so the next
     /// type (re)registration retries it.
     async fn activate_pending_trigger(&self, trigger_type: &TriggerType, trigger: Trigger) -> bool {
+        if self.legacy_execution_uncertain(&trigger.id) {
+            // Replay must leave the parked descriptor owned by its intent,
+            // rather than create a lifecycle or revive a removed subscription.
+            let _park = self
+                .park_transition
+                .lock()
+                .expect("park transition poisoned");
+            let subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
+            if subscriptions.intents.contains_key(&trigger.id) {
+                self.pending_triggers
+                    .entry(trigger.id.clone())
+                    .or_insert(trigger);
+            }
+            return false;
+        }
         if self.shared()
             && trigger_type.delivery_contract == Some(TriggerDeliveryContract::SharedV1)
         {
@@ -1694,6 +1743,13 @@ impl TriggerRegistry {
             .await
         {
             Ok(()) => {
+                let _park = self
+                    .park_transition
+                    .lock()
+                    .expect("park transition poisoned");
+                if self.legacy_execution_uncertain(&trigger.id) {
+                    return false;
+                }
                 tracing::info!(
                     "{} Trigger {} (type {}, function {}) recovered from pending",
                     "[REGISTERED]".green(),
@@ -1807,6 +1863,9 @@ impl TriggerRegistry {
                 // our subscriber before reporting idempotent registration.
                 subscriptions.aliases.insert(alias, canonical.clone());
             }
+            if self.legacy_execution_uncertain(&canonical) {
+                return Ok(RegisterTriggerOutcome::Deferred);
+            }
             if self.assignments.contains_key(&canonical) {
                 let mut binding = self
                     .triggers
@@ -1846,6 +1905,9 @@ impl TriggerRegistry {
         &self,
         trigger: Trigger,
     ) -> Result<RegisterTriggerOutcome, anyhow::Error> {
+        if self.legacy_execution_uncertain(&trigger.id) {
+            return Ok(RegisterTriggerOutcome::Deferred);
+        }
         let mut trigger = trigger;
         let resolved = self.resolve_provider_key(&trigger);
         if let Some(key) = &resolved {
@@ -1972,6 +2034,15 @@ impl TriggerRegistry {
 
         tracing::debug!(trigger = %trigger.id, worker_id = %trigger.worker_id.unwrap_or_default(), "Registering trigger");
 
+        // Recheck after provider I/O: an unfenced loss/rehome may have parked
+        // this binding while its old registration completion was in flight.
+        let _park = self
+            .park_transition
+            .lock()
+            .expect("park transition poisoned");
+        if self.legacy_execution_uncertain(&trigger.id) {
+            return Ok(RegisterTriggerOutcome::Deferred);
+        }
         // A live registration supersedes any parked intent with the same id.
         self.pending_triggers.remove(&trigger.id);
         self.triggers.insert(trigger.id.clone(), trigger);
@@ -2994,6 +3065,88 @@ mod tests {
         );
         assert!(!registry.triggers.contains_key(&canonical));
         assert!(registry.pending_triggers.contains_key(&canonical));
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_single_active_live_legacy_fallback_shared_v1_replay_stays_parked() {
+        single_active_legacy_to_shared_replay(false).await;
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_single_active_ambiguous_legacy_loss_shared_v1_replay_stays_parked() {
+        single_active_legacy_to_shared_replay(true).await;
+    }
+
+    async fn single_active_legacy_to_shared_replay(disconnected: bool) {
+        let registry = TriggerRegistry::new();
+        registry.set_shared_namespace_ownership(true);
+        let legacy = Arc::new(SingleActiveFixture::default());
+        let home = Arc::new(SingleActiveFixture::default());
+        let old_owner = Uuid::from_u128(101);
+        let old_namespace = if disconnected {
+            "orders"
+        } else {
+            DEFAULT_NAMESPACE
+        };
+        single_active_provider(&registry, old_namespace, old_owner, legacy.clone(), false).await;
+        let binding = assignment_binding();
+        assert_eq!(
+            registry.register_trigger(binding.clone()).await.unwrap(),
+            RegisterTriggerOutcome::Registered
+        );
+        let canonical = registry.subscriptions.lock().unwrap().aliases
+            [&(binding.worker_id.unwrap(), binding.id.clone())]
+            .clone();
+        assert_eq!(legacy.installs.load(Ordering::SeqCst), 1);
+        assert!(
+            !registry.has_assignment(&canonical),
+            "legacy installation has no fencing lifecycle"
+        );
+        if disconnected {
+            registry.unregister_worker(&old_owner).await;
+        }
+        single_active_provider(
+            &registry,
+            "orders",
+            Uuid::from_u128(102),
+            home.clone(),
+            true,
+        )
+        .await;
+        assert_eq!(
+            home.installs.load(Ordering::SeqCst),
+            0,
+            "declaration alone must not transfer legacy work"
+        );
+        assert_eq!(
+            legacy.stops.load(Ordering::SeqCst),
+            0,
+            "no positive legacy stop acknowledgement was supplied"
+        );
+        // This is also the production WS declaration replay path. Its pending
+        // scan must not undo the uncertainty recorded by rehome or disconnect.
+        for _ in 0..2 {
+            registry
+                .replay_shared_assignments(type_key("orders", "fixture"))
+                .await;
+            assert_eq!(
+                home.installs.load(Ordering::SeqCst),
+                0,
+                "shared_v1 replay installed a replacement without resolving legacy execution uncertainty; disconnected={disconnected}"
+            );
+            assert!(!registry.triggers.contains_key(&canonical));
+            assert!(registry.pending_triggers.contains_key(&canonical));
+            assert!(
+                !registry.has_assignment(&canonical),
+                "replay must not manufacture a fenced lifecycle for uncertain legacy work"
+            );
+        }
+        assert_eq!(
+            registry.register_trigger(binding).await.unwrap(),
+            RegisterTriggerOutcome::Deferred,
+            "subscriber retry cannot bypass the same legacy fence"
+        );
+        assert_eq!(home.installs.load(Ordering::SeqCst), 0);
     }
 
     fn make_trigger(id: &str, trigger_type: &str) -> Trigger {

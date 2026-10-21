@@ -1250,3 +1250,172 @@ async fn shared_trigger_single_active_two_ws_disconnect_revokes_then_reassigns_w
     );
     let _ = b.close(None).await;
 }
+
+#[tokio::test]
+async fn shared_trigger_single_active_two_ws_live_legacy_fallback_cannot_replay_into_shared_v1() {
+    single_active_legacy_replay_ws(false).await;
+}
+
+#[tokio::test]
+async fn shared_trigger_single_active_two_ws_ambiguous_legacy_loss_cannot_replay_into_shared_v1() {
+    single_active_legacy_replay_ws(true).await;
+}
+
+async fn single_active_legacy_replay_ws(disconnected: bool) {
+    use iii::trigger::{RegisterTriggerOutcome, Trigger, TriggerDeliveryContract, TriggerType};
+    let kind = "fixture:legacy-upgrade";
+    let (engine, mut legacy_socket, mut home_socket, _directory) = assignment_providers().await;
+    let legacy_worker = engine
+        .worker_registry
+        .list_workers()
+        .into_iter()
+        .find(|worker| worker.name.as_deref() == Some("parallel-provider-a"))
+        .unwrap();
+    // The registry placement models a legacy default provider while preserving
+    // the two real WS transports. All install/stop messages go to those sockets.
+    engine
+        .trigger_registry
+        .register_trigger_type(TriggerType::new_ns(
+            if disconnected {
+                "orders"
+            } else {
+                DEFAULT_NAMESPACE
+            },
+            kind,
+            "legacy socket fixture",
+            Box::new(legacy_worker.clone()),
+            Some(legacy_worker.id),
+        ))
+        .await
+        .unwrap();
+    single_active_subscribe(&mut home_socket, "legacy-intent", kind, 1).await;
+    let old_install = assignment_frame(&mut legacy_socket, "registertrigger").await;
+    assert!(
+        old_install["assignment_id"].is_null(),
+        "precondition: unfenced legacy installation"
+    );
+    let canonical = old_install["id"].as_str().unwrap().to_owned();
+    let mut local_legacy_routes = std::collections::HashSet::from([canonical.clone()]);
+    // The legacy adapter positively reports installation, never reports stop.
+    assignment_send(
+        &mut legacy_socket,
+        json!({"type":"triggerregistrationresult",
+        "id":old_install["id"], "trigger_type":kind, "function_id":old_install["function_id"]}),
+    )
+    .await;
+    single_active_registered(&mut home_socket, "legacy-intent").await;
+    if disconnected {
+        legacy_socket.close(None).await.unwrap();
+        assert!(
+            eventually(|| engine
+                .worker_registry
+                .get_worker(&legacy_worker.id)
+                .is_none())
+            .await,
+            "observe disconnect before a replacement declaration; socket loss is not proof of legacy stop"
+        );
+    }
+
+    // A strict-home pending intent cannot use the legacy fallback. Its install
+    // is a positive replay-progress barrier, avoiding quiet-time assertions.
+    let sentinel = Trigger {
+        id: "replay-sentinel".into(),
+        trigger_type: kind.into(),
+        function_id: "orders::route".into(),
+        config: json!({"event":"sentinel"}),
+        worker_id: None,
+        metadata: None,
+        namespace: "orders".into(),
+        trigger_namespace: Some("orders".into()),
+        home_namespace: "orders".into(),
+        provider_namespace: "orders".into(),
+    };
+    assert_eq!(
+        engine
+            .trigger_registry
+            .register_trigger(sentinel.clone())
+            .await
+            .unwrap(),
+        RegisterTriggerOutcome::Deferred
+    );
+    let home_worker = engine
+        .worker_registry
+        .list_workers()
+        .into_iter()
+        .find(|worker| worker.name.as_deref() == Some("parallel-provider-b"))
+        .unwrap();
+    // Declare without installing through the public registry API, then drive
+    // the actual WS replay by re-announcing the same compatible declaration.
+    engine
+        .trigger_registry
+        .register_trigger_type(
+            TriggerType::new_ns(
+                "orders",
+                kind,
+                "single-active tick fixture",
+                Box::new(home_worker.clone()),
+                Some(home_worker.id),
+            )
+            .with_delivery_contract(TriggerDeliveryContract::SharedV1),
+        )
+        .await
+        .unwrap();
+    assert!(
+        engine
+            .trigger_registry
+            .pending_triggers
+            .contains_key(&canonical),
+        "uncertain legacy intent must initially park"
+    );
+    assignment_send(&mut home_socket, single_active_declaration(kind)).await;
+    let mut installations = Vec::new();
+    loop {
+        let frame = assignment_frame(&mut home_socket, "registertrigger").await;
+        let is_sentinel = frame["id"] == sentinel.id;
+        installations.push(frame);
+        if is_sentinel {
+            break;
+        }
+    }
+    // join_all has polled every replay install before the sentinel can arrive;
+    // Pong preserves any other installations enqueued by that replay snapshot.
+    installations.extend(
+        assignment_barrier(&mut home_socket)
+            .await
+            .into_iter()
+            .filter(|frame| frame["type"] == "registertrigger"),
+    );
+    if !disconnected {
+        let legacy_frames = assignment_barrier(&mut legacy_socket).await;
+        for frame in &legacy_frames {
+            if frame["type"] == "unregistertrigger" {
+                // Receiving stop is NOT a positive stop ACK: keep local work.
+                assert!(local_legacy_routes.contains(&canonical));
+            }
+        }
+    }
+    assert!(
+        local_legacy_routes.contains(&canonical),
+        "legacy execution remains possible without positive stop acknowledgement"
+    );
+    assert!(
+        !installations.iter().any(|frame| frame["id"] == canonical),
+        "unsafe shared_v1 install bypassed uncertain legacy work via replay; disconnected={disconnected}; installations={installations:?}"
+    );
+    assert!(!engine.trigger_registry.triggers.contains_key(&canonical));
+    assert!(
+        engine
+            .trigger_registry
+            .pending_triggers
+            .contains_key(&canonical)
+    );
+    let sentinel_install = installations
+        .iter()
+        .find(|frame| frame["id"] == sentinel.id)
+        .unwrap();
+    single_active_ack(&mut home_socket, sentinel_install).await;
+    assignment_barrier(&mut home_socket).await;
+    local_legacy_routes.clear(); // fixture teardown only, not an engine/broker ACK
+    let _ = legacy_socket.close(None).await;
+    let _ = home_socket.close(None).await;
+}
