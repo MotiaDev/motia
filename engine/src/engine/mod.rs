@@ -3378,48 +3378,51 @@ impl Engine {
         function_id: String,
     ) -> Arc<crate::function::HandlerFn> {
         let invocations = self.invocations.clone();
-        Arc::new(move |id, input, _session, metadata| {
-            let routing = routing.clone();
-            let invocations = invocations.clone();
-            let function_id = function_id.clone();
-            Box::pin(async move {
-                let mut tried = Vec::new();
-                let mut error = ErrorBody::new("invocation_stopped", "Invocation stopped");
-                loop {
-                    let selected = routing
-                        .lock()
-                        .expect("shared routing poisoned")
-                        .reserve(&tried);
-                    let Some((worker, reservation)) = selected else {
-                        return FunctionResult::Failure(error);
-                    };
-                    tried.push(worker.id);
-                    let Some(id) = id else {
-                        return FunctionResult::Failure(error);
-                    };
-                    if !invocations.reserve_executor(id, worker.clone(), reservation) {
-                        return FunctionResult::Failure(error);
-                    }
-                    match worker
-                        .enqueue_function(
-                            Some(id),
-                            function_id.clone(),
-                            input.clone(),
-                            metadata.clone(),
-                            Some(&invocations),
-                        )
-                        .await
-                    {
-                        Ok(()) => return FunctionResult::Deferred,
-                        Err(not_enqueued) => {
-                            error = not_enqueued.0;
-                            // Only this internal, proven pre-send failure can retry.
-                            invocations.release_executor(&id);
+        let handler: Arc<crate::function::HandlerFn> =
+            Arc::new(move |id, input, _session, metadata| {
+                let routing = routing.clone();
+                let invocations = invocations.clone();
+                let function_id = function_id.clone();
+                Box::pin(async move {
+                    let mut tried = Vec::new();
+                    let mut error = ErrorBody::new("invocation_stopped", "Invocation stopped");
+                    loop {
+                        let selected = routing
+                            .lock()
+                            .expect("shared routing poisoned")
+                            .reserve(&tried);
+                        let Some((worker, reservation)) = selected else {
+                            return FunctionResult::Failure(error);
+                        };
+                        tried.push(worker.id);
+                        let Some(id) = id else {
+                            return FunctionResult::Failure(error);
+                        };
+                        if !invocations.reserve_executor(id, worker.clone(), reservation) {
+                            return FunctionResult::Failure(error);
+                        }
+                        match worker
+                            .enqueue_function(
+                                Some(id),
+                                function_id.clone(),
+                                input.clone(),
+                                metadata.clone(),
+                                Some(&invocations),
+                            )
+                            .await
+                        {
+                            Ok(()) => return FunctionResult::Deferred,
+                            Err(not_enqueued) => {
+                                error = not_enqueued.0;
+                                // Only this internal, proven pre-send failure can retry.
+                                invocations.release_executor(&id);
+                            }
                         }
                     }
-                }
-            })
-        })
+                })
+            });
+        self.invocations.register_shared_handler(&handler);
+        handler
     }
 
     fn register_shared_function(
@@ -3961,6 +3964,67 @@ mod tests {
                 .unwrap();
         }
         (engine, [a, b], [a_rx, b_rx])
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_foreign_result_before_executor_reservation_is_ignored() {
+        let (engine, owners, mut receivers) = routing_pair().await;
+        let (caller, _caller_rx) = membership_worker(&engine).await;
+        let id = uuid::Uuid::new_v4();
+        let lock = caller.invocations.write().await;
+        let mut call = Box::pin(engine.remember_invocation(
+            &caller,
+            Some(id),
+            "svc::shared",
+            Some("orders"),
+            json!({}),
+            None,
+            None,
+            None,
+        ));
+        assert!(futures::poll!(call.as_mut()).is_pending());
+        assert!(engine.invocations.pending(&id).is_some());
+        routing_reply(&engine, &owners[1], id, None).await;
+        assert!(
+            engine.invocations.pending(&id).is_some(),
+            "no executor has been authorized while the caller lock is held"
+        );
+        drop(lock);
+        assert!(futures::poll!(call.as_mut()).is_pending());
+        let (owner, enqueued_id) = routing_next(&mut receivers).await;
+        assert_eq!(enqueued_id, id);
+        routing_reply(&engine, &owners[owner], id, None).await;
+        assert_eq!(call.await.unwrap().unwrap(), Some(json!("ok")));
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_executorless_retry_window_rejects_results() {
+        let (engine, owners, _receivers) = routing_pair().await;
+        let (caller, _caller_rx) = membership_worker(&engine).await;
+        let id = uuid::Uuid::new_v4();
+        let lock = owners[0].invocations.write().await;
+        let mut call = Box::pin(engine.remember_invocation(
+            &caller,
+            Some(id),
+            "svc::shared",
+            Some("orders"),
+            json!({}),
+            None,
+            None,
+            None,
+        ));
+        assert!(futures::poll!(call.as_mut()).is_pending());
+        // Reproduce exactly the executorless state after NotEnqueued cleanup,
+        // without timing a channel failure against another worker's response.
+        engine.invocations.release_executor(&id);
+        routing_reply(&engine, &owners[1], id, None).await;
+        assert!(
+            engine.invocations.pending(&id).is_some(),
+            "releasing an attempted executor must not authorize foreign results"
+        );
+        drop(call);
+        drop(lock);
+        assert!(engine.invocations.pending(&id).is_none());
     }
 
     fn routing_start(

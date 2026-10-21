@@ -73,6 +73,10 @@ pub struct InvocationHandler {
     invocations: Invocations,
     executors: DashMap<Uuid, (WorkerConnection, crate::engine::RoutingReservation)>,
     callers: DashMap<Uuid, WorkerConnection>,
+    // Weak identities follow handler snapshots, including ones retained after
+    // unregister. Legacy/internal Deferred handlers keep their existing policy.
+    shared_handlers: std::sync::Mutex<Vec<std::sync::Weak<HandlerFn>>>,
+    executor_required: dashmap::DashSet<Uuid>,
 }
 impl InvocationHandler {
     pub fn new() -> Self {
@@ -80,7 +84,30 @@ impl InvocationHandler {
             invocations: Arc::new(DashMap::new()),
             executors: DashMap::new(),
             callers: DashMap::new(),
+            shared_handlers: Default::default(),
+            executor_required: Default::default(),
         }
+    }
+
+    pub(crate) fn register_shared_handler(&self, handler: &Arc<HandlerFn>) {
+        let mut handlers = self
+            .shared_handlers
+            .lock()
+            .expect("shared handlers poisoned");
+        handlers.retain(|handler| handler.strong_count() > 0);
+        handlers.push(Arc::downgrade(handler));
+    }
+
+    fn requires_executor(&self, handler: &HandlerFn) -> bool {
+        self.shared_handlers
+            .lock()
+            .expect("shared handlers poisoned")
+            .iter()
+            .any(|shared| {
+                shared.upgrade().is_some_and(|shared| {
+                    std::ptr::eq(Arc::as_ptr(&shared), handler as *const HandlerFn)
+                })
+            })
     }
 
     fn clear_worker_id(worker: WorkerConnection, id: Uuid) {
@@ -127,7 +154,9 @@ impl InvocationHandler {
             dashmap::mapref::entry::Entry::Vacant(_) => return None,
         };
         let executor = self.executors.get(id);
-        if executor.as_ref().is_some_and(|entry| entry.0.id != worker) {
+        if executor.as_ref().is_some_and(|entry| entry.0.id != worker)
+            || (executor.is_none() && self.executor_required.contains(id))
+        {
             return None;
         }
         drop(executor);
@@ -148,6 +177,7 @@ impl InvocationHandler {
     }
 
     fn finish_registration(&self, invocation_id: &Uuid) {
+        self.executor_required.remove(invocation_id);
         self.release_executor(invocation_id);
         if let Some((_, caller)) = self.callers.remove(invocation_id) {
             Self::clear_worker_id(caller, *invocation_id);
@@ -315,6 +345,12 @@ impl InvocationHandler {
         let invocation_fut = async {
             let invocation_id = invocation_id.unwrap_or_else(Uuid::new_v4);
             let (sender, mut receiver) = oneshot::channel();
+            // Publish the authorization policy before pending becomes visible,
+            // before the caller lock await and before any executor is reserved.
+            // This marker survives release_executor between pre-enqueue retries.
+            if self.requires_executor(function_handler.as_ref()) {
+                self.executor_required.insert(invocation_id);
+            }
             // A worker can reply or disconnect before its handler returns Deferred.
             self.invocations.insert(invocation_id, Invocation {
                 id: invocation_id,
@@ -495,6 +531,31 @@ impl InvocationHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn shared_namespace_routing_legacy_internal_deferred_still_accepts_result() {
+        let handler = InvocationHandler::new();
+        let id = Uuid::new_v4();
+        let function: Arc<HandlerFn> =
+            Arc::new(|_, _, _, _| Box::pin(async { FunctionResult::Deferred }));
+        let mut call = Box::pin(handler.handle_invocation_with_handler(
+            Some(id),
+            None,
+            "legacy::deferred".into(),
+            Value::Null,
+            function,
+            None,
+            None,
+            None,
+            None,
+        ));
+        assert!(futures::poll!(call.as_mut()).is_pending());
+        let invocation = handler
+            .remove_from_executor(&id, Uuid::new_v4())
+            .expect("legacy/internal Deferred has no shared executor requirement");
+        invocation.sender.send(Ok(Some(Value::Bool(true)))).unwrap();
+        assert_eq!(call.await.unwrap().unwrap(), Some(Value::Bool(true)));
+    }
 
     #[test]
     fn test_invocation_handler_new() {
