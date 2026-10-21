@@ -29,38 +29,54 @@ const REGISTRATION_ACK_TIMEOUT: std::time::Duration = std::time::Duration::from_
 
 impl WorkerConnection {
     pub(crate) fn spawn_assignment(&self, work: impl Future<Output = ()> + Send + 'static) {
+        self.spawn_assignment_inner(work, || {});
+    }
+
+    fn spawn_assignment_inner(
+        &self,
+        work: impl Future<Output = ()> + Send + 'static,
+        before_insert: impl FnOnce(),
+    ) -> Option<tokio::task::JoinHandle<()>> {
         if self
             .cleanup_claimed
             .load(std::sync::atomic::Ordering::SeqCst)
         {
-            return;
+            return None;
         }
         let id = Uuid::new_v4();
         let tasks = self.assignment_tasks.clone();
         let (ready, start) = oneshot::channel();
-        let task = tokio::spawn(async move {
-            struct Finished(
-                std::sync::Arc<dashmap::DashMap<Uuid, tokio::task::AbortHandle>>,
-                Uuid,
-            );
-            impl Drop for Finished {
-                fn drop(&mut self) {
-                    self.0.remove(&self.1);
-                }
+        struct Finished(
+            std::sync::Arc<dashmap::DashMap<Uuid, tokio::task::AbortHandle>>,
+            Uuid,
+        );
+        impl Drop for Finished {
+            fn drop(&mut self) {
+                self.0.remove(&self.1);
             }
-            let _finished = Finished(tasks, id);
+        }
+        // Own the guard in the future before its first poll. Aborting an
+        // unpolled task must drop tracking just like a completed task does.
+        let finished = Finished(tasks, id);
+        let task = tokio::spawn(async move {
+            let _finished = finished;
             if start.await.is_ok() {
                 work.await;
             }
         });
+        before_insert();
         self.assignment_tasks.insert(id, task.abort_handle());
         if self
             .cleanup_claimed
             .load(std::sync::atomic::Ordering::SeqCst)
         {
+            // Cleanup may have cleared the map before our insertion. Do not
+            // leave even a transient entry waiting for cancellation to poll.
+            self.assignment_tasks.remove(&id);
             task.abort();
         }
         let _ = ready.send(());
+        Some(task)
     }
 
     async fn assignment(&self, trigger: Trigger, token: String, stop: bool) -> anyhow::Result<()> {
@@ -462,6 +478,96 @@ mod tests {
     fn make_worker() -> (WorkerConnection, mpsc::Receiver<Outbound>) {
         let (tx, rx) = mpsc::channel(16);
         (WorkerConnection::new(tx), rx)
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_ack_cleanup_racing_spawn_cancels_never_polled_task() {
+        let (worker, _rx) = make_worker();
+        let polls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let observed = polls.clone();
+        let task = worker
+            .spawn_assignment_inner(
+                async move {
+                    observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                },
+                || {
+                    // Current-thread runtime: spawn cannot poll before this synchronous
+                    // cleanup ordering. Cleanup wins after admission but before insert.
+                    worker
+                        .cleanup_claimed
+                        .store(true, std::sync::atomic::Ordering::SeqCst);
+                    for task in worker.assignment_tasks.iter() {
+                        task.abort();
+                    }
+                    worker.assignment_tasks.clear();
+                },
+            )
+            .unwrap();
+        assert!(task.await.unwrap_err().is_cancelled());
+        assert_eq!(polls.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert!(
+            worker.assignment_tasks.is_empty(),
+            "never-polled cancellation must remove tracking inserted after cleanup's clear"
+        );
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_ack_task_tracking_covers_completion_and_cancellation_orderings() {
+        let (worker, _rx) = make_worker();
+        let polls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let observed = polls.clone();
+        let never_polled = worker
+            .spawn_assignment_inner(
+                async move {
+                    observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                },
+                || {},
+            )
+            .unwrap();
+        assert_eq!(worker.assignment_tasks.len(), 1);
+        never_polled.abort();
+        assert!(never_polled.await.unwrap_err().is_cancelled());
+        assert_eq!(polls.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert!(worker.assignment_tasks.is_empty());
+
+        let immediate = worker.spawn_assignment_inner(async {}, || {}).unwrap();
+        immediate.await.unwrap();
+        assert!(
+            worker.assignment_tasks.is_empty(),
+            "completion cannot precede tracking insertion"
+        );
+
+        let (started, ready) = oneshot::channel();
+        let running = worker
+            .spawn_assignment_inner(
+                async move {
+                    started.send(()).unwrap();
+                    std::future::pending::<()>().await;
+                },
+                || {},
+            )
+            .unwrap();
+        ready.await.unwrap();
+        assert_eq!(worker.assignment_tasks.len(), 1);
+        worker
+            .cleanup_claimed
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        for task in worker.assignment_tasks.iter() {
+            task.abort();
+        }
+        worker.assignment_tasks.clear();
+        assert!(running.await.unwrap_err().is_cancelled());
+        assert!(worker.assignment_tasks.is_empty());
+        assert!(
+            worker
+                .spawn_assignment_inner(
+                    async {
+                        panic!("cleanup must reject admission");
+                    },
+                    || panic!("must not insert after admission rejection")
+                )
+                .is_none()
+        );
     }
 
     fn trigger(id: &str, worker_id: Option<Uuid>) -> Trigger {
