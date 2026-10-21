@@ -34,6 +34,11 @@ older than the updated size check forward messages as a single frame without che
 limit. An older worker may then disconnect if the message is too large for it. Use an engine and
 SDKs from the same release, or newer.
 
+The engine reads at most **16 MiB** per WebSocket frame and **64 MiB** per message from a worker.
+When a worker sends more, for example an SDK older than 0.24.5 sending a message above 16 MiB as a
+single frame, the engine closes that connection with WebSocket close code `1009` (Message Too Big)
+and a close reason that names the exceeded limit.
+
 Use a channel for payloads above **64 MiB**. Channels stream payload bytes separately from the JSON
 function envelope. See [Using channels](#using-channels).
 
