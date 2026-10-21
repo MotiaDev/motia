@@ -34,6 +34,7 @@ from iii_helpers.stream import (
 )
 from websockets.asyncio.client import ClientConnection
 
+from . import _wire_json
 from .channels import ChannelReader, ChannelWriter, resolve_headers
 from .errors import InvocationError, RegistrationRejectedError, _wrap_wire_error
 from .filter._value import ABSENT, to_json_value
@@ -964,7 +965,7 @@ class III:
 
     def _prepare_json(self, msg: Any) -> str:
         data = self._to_dict(msg)
-        payload = json.dumps(data)
+        payload = _wire_json.dumps(data)
         size = len(payload.encode("utf-8"))
         if size <= _MAX_JSON_OUTBOUND_BYTES:
             return payload
@@ -987,7 +988,7 @@ class III:
             ),
         )
         if data.get("type") == MessageType.INVOCATION_RESULT.value:
-            fallback = json.dumps(
+            fallback = _wire_json.dumps(
                 {
                     "type": MessageType.INVOCATION_RESULT.value,
                     "invocation_id": data.get("invocation_id"),

@@ -452,3 +452,19 @@ def test_a_failed_localinvocationstats_write_keeps_its_counts() -> None:
     assert reporter.send_stats(now=20.0) is True
     stats = json.loads(host.frames[-1])
     assert stats["functions"] == [{"function_id": "f", "count": 2, "errors": 1, "duration_ms_sum": 3.0}]
+
+
+def test_report_and_stats_frames_write_non_ascii_text_as_compact_utf8() -> None:
+    host = FakeHost()
+    reporter = Reporter(host)
+    item = init("pedidos::criação", n=1, output="olá 😀")
+    item.matched = ["o", "p"]
+    assert reporter.push(item, ["output"])
+    host.fire_timers()
+    [frame] = host.frames
+    assert frame.startswith('{"type":"invocationsobserved","items":[{"function_id":"pedidos::criação"')
+    assert '"matched":["o","p"]' in frame
+    assert '"output":"olá 😀"' in frame
+    reporter.record_local("pedidos::criação", True, 1.0)
+    assert reporter.send_stats(now=10.0) is True
+    assert '{"function_id":"pedidos::criação","count":1,' in host.frames[-1]

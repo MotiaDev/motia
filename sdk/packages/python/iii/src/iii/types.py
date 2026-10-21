@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -21,6 +20,7 @@ from typing import (
 from iii_helpers.http import HttpInvocationConfig
 from pydantic import BaseModel, ConfigDict
 
+from . import _wire_json
 from .iii_constants import ConnectionStateCallback
 from .iii_types import (
     RegisterFunctionMessage,
@@ -160,10 +160,10 @@ class StreamResponse:
         self._writer = writer
 
     async def status(self, status_code: int) -> None:
-        await self._writer.send_message_async(json.dumps({"type": "set_status", "status_code": status_code}))
+        await self._writer.send_message_async(_wire_json.dumps({"type": "set_status", "status_code": status_code}))
 
     async def headers(self, headers: dict[str, str]) -> None:
-        await self._writer.send_message_async(json.dumps({"type": "set_headers", "headers": headers}))
+        await self._writer.send_message_async(_wire_json.dumps({"type": "set_headers", "headers": headers}))
 
     @property
     def stream(self) -> WritableStream:
