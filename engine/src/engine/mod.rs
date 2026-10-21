@@ -2661,13 +2661,31 @@ impl Engine {
                         response_format: res.clone(),
                         metadata: reg_metadata,
                     };
-                    match self.register_shared_endpoint(
-                        &namespace,
-                        worker,
-                        InvocationKind::External,
-                        function,
-                    ) {
-                        Ok(()) => worker.include_external_function_id(&reg_id).await,
+                    // cleanup claims before reading this same ID lock. Keep
+                    // the lifecycle check, canonical publication and ID insert
+                    // together: cleanup either snapshots our ID or wins and
+                    // prevents publication, including after validation/DNS awaits.
+                    let registration = {
+                        let mut ids = worker.external_function_ids.write().await;
+                        if worker
+                            .cleanup_claimed
+                            .load(std::sync::atomic::Ordering::SeqCst)
+                        {
+                            return Ok(());
+                        }
+                        let result = self.register_shared_endpoint(
+                            &namespace,
+                            worker,
+                            InvocationKind::External,
+                            function,
+                        );
+                        if result.is_ok() {
+                            ids.insert(reg_id.clone());
+                        }
+                        result
+                    };
+                    match registration {
+                        Ok(()) => {}
                         Err(conflict) => {
                             self.send_msg(
                                 worker,
@@ -4243,6 +4261,81 @@ mod tests {
             metadata: Some(json!({"version": 1})),
             invocation: None,
         }
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_http_cleanup_wins_before_endpoint_publication() {
+        let engine = Arc::new(membership_engine());
+        let module = HttpFunctionsWorker::create(
+            engine.clone(),
+            Some(json!({"security": {
+                "require_https": false,
+                "block_private_ips": false,
+                "url_allowlist": ["*"]
+            }})),
+        )
+        .await
+        .expect("create HTTP module");
+        module.initialize().await.expect("initialize HTTP module");
+        let (worker, _rx) = membership_worker(&engine).await;
+        let mut message = membership_registration();
+        if let Message::RegisterFunction { invocation, .. } = &mut message {
+            *invocation = Some(HttpInvocationRef {
+                url: "http://127.0.0.1:1/unused".to_string(),
+                method: crate::invocation::method::HttpMethod::Post,
+                timeout_ms: Some(1000),
+                headers: HashMap::new(),
+                auth: None,
+            });
+        }
+
+        // Deterministic late-publication schedule: teardown has already
+        // captured an empty ID set before the validated endpoint can publish.
+        // No real DNS, request, timing assumption or sleep is needed.
+        engine.cleanup_worker(&worker).await;
+        assert!(*worker.cleanup_done.borrow());
+        // A previously entered dispatch resumes past the namespace buffer gate.
+        engine
+            .dispatch_msg(&worker, &message)
+            .await
+            .expect("late registration returns normally");
+
+        for namespace in ["orders", DEFAULT_NAMESPACE] {
+            let key = (namespace.to_string(), "svc::shared".to_string());
+            assert!(
+                !engine.function_owners.contains_key(&key),
+                "no orphan owner after cleanup"
+            );
+            assert!(!engine.shared_functions.contains_key(&key));
+            assert!(!engine.shared_routing.contains_key(&key));
+            assert!(engine.functions.get(namespace, "svc::shared").is_none());
+            assert!(engine.service_registry.get(namespace, "svc").is_none());
+        }
+        assert!(worker.get_external_function_ids().await.is_empty());
+
+        // Registration has completed preparation and is queued on the ID
+        // write lock when teardown claims the lifecycle. A check outside
+        // this lock would still permit an orphan in this ordering.
+        let (worker, _rx) = membership_worker(&engine).await;
+        let ids = worker.external_function_ids.read().await;
+        let registration = engine.dispatch_msg(&worker, &message);
+        tokio::pin!(registration);
+        assert!(futures::poll!(registration.as_mut()).is_pending());
+        let cleanup = engine.cleanup_worker(&worker);
+        tokio::pin!(cleanup);
+        assert!(futures::poll!(cleanup.as_mut()).is_pending());
+        assert!(worker.cleanup_claimed.load(Ordering::SeqCst));
+        drop(ids);
+        let (result, ()) = tokio::join!(registration, cleanup);
+        result.expect("racing registration returns normally");
+        assert!(*worker.cleanup_done.borrow());
+        let key = ("orders".to_string(), "svc::shared".to_string());
+        assert!(!engine.function_owners.contains_key(&key));
+        assert!(!engine.shared_functions.contains_key(&key));
+        assert!(!engine.shared_routing.contains_key(&key));
+        assert!(engine.functions.get("orders", "svc::shared").is_none());
+        assert!(engine.service_registry.get("orders", "svc").is_none());
+        assert!(worker.get_external_function_ids().await.is_empty());
     }
 
     // Routing tests observe the real dispatcher and outbound enqueue boundary.
