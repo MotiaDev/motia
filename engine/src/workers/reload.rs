@@ -122,6 +122,10 @@ impl ReloadManager {
         let cfg = EngineConfig::config_file(path)
             .map_err(|e| anyhow::anyhow!("reload: parse failed: {}", e))?;
 
+        Ok(Self::normalize_config(cfg))
+    }
+
+    fn normalize_config(cfg: EngineConfig) -> Vec<WorkerEntry> {
         let mut entries: Vec<WorkerEntry> = Vec::new();
         entries.extend(cfg.workers);
         entries.extend(cfg.modules);
@@ -141,7 +145,7 @@ impl ReloadManager {
 
         assign_instance_ids(&mut entries);
 
-        Ok(entries)
+        entries
     }
 
     /// Walks `diff.unchanged` and asks each tracked worker whether its
@@ -357,10 +361,18 @@ impl ReloadManager {
 
         tracing::info!("reload: config changed, reloading from {}", path);
 
-        let new_entries = Self::parse_and_normalize(path).await.map_err(|e| {
-            tracing::error!("reload: FATAL: {}", e);
-            e
-        })?;
+        let cfg = EngineConfig::config_file(path)
+            .map_err(|e| anyhow::anyhow!("reload: parse failed: {}", e))
+            .map_err(|e| {
+                tracing::error!("reload: FATAL: {}", e);
+                e
+            })?;
+        if cfg.shared_namespace_ownership != engine.shared_namespace_ownership() {
+            anyhow::bail!(
+                "reload: shared_namespace_ownership is startup-only; restart the engine to change it"
+            );
+        }
+        let new_entries = Self::normalize_config(cfg);
 
         let old_entries: Vec<WorkerEntry> = running.iter().map(|rw| rw.entry.clone()).collect();
         let mut diff = diff_entries(&old_entries, &new_entries);

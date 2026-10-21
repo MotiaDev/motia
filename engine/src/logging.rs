@@ -1308,6 +1308,7 @@ mod tests {
         observability_block: serde_json::Value,
     ) -> EngineConfig {
         EngineConfig {
+            shared_namespace_ownership: false,
             registration_namespace_grace_ms: 5000,
             modules: vec![],
             workers: vec![

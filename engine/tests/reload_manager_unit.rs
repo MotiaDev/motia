@@ -337,3 +337,66 @@ async fn promote_dead_unchanged_skips_entries_without_a_tracked_worker() {
     assert_eq!(diff.unchanged, vec!["orphan".to_string()]);
     assert!(diff.changed.is_empty());
 }
+
+#[tokio::test]
+async fn shared_namespace_config_reload_rejects_toggle_before_worker_mutation() {
+    // Omission is effectively false, so removing an enabled flag is a toggle too.
+    for (initial, replacement) in [(false, Some(true)), (true, Some(false)), (true, None)] {
+        let (mut config, _config_dir) = minimal_config();
+        config.shared_namespace_ownership = initial;
+        config.workers.push(WorkerEntry {
+            name: "iii-worker-manager".to_string(),
+            image: None,
+            config: Some(serde_json::json!({ "host": "127.0.0.1", "port": 0 })),
+        });
+        let mut builder = EngineBuilder::new()
+            .with_config(config)
+            .build()
+            .await
+            .expect("build initial engine");
+        let before: Vec<_> = builder
+            .running()
+            .iter()
+            .map(|rw| (rw.entry.clone(), rw.worker.clone()))
+            .collect();
+        let flag = replacement
+            .map(|value| format!("shared_namespace_ownership: {value}\n"))
+            .unwrap_or_default();
+        // This would remove/change workers if the global guard were bypassed.
+        let file = write_config(&format!("{flag}workers: []\nmodules: []\n"));
+        let (shutdown_tx, _) = tokio::sync::watch::channel(false);
+        let result = ReloadManager::reload(
+            Some(file.path().to_str().unwrap()),
+            builder.engine_handle(),
+            builder.registry_handle(),
+            builder.running_mut(),
+            shutdown_tx,
+        )
+        .await;
+        let unchanged = builder.running().len() == before.len()
+            && builder
+                .running()
+                .iter()
+                .zip(&before)
+                .all(|(rw, (entry, worker))| {
+                    rw.entry.name == entry.name
+                        && rw.entry.config == entry.config
+                        && Arc::ptr_eq(&rw.worker, worker)
+                        && !*rw.shutdown_tx.borrow()
+                });
+        let effective = builder.engine().shared_namespace_ownership();
+        builder.destroy().await.expect("destroy engine");
+        let error = result.expect_err("changing shared namespace ownership requires restart");
+        let message = error.to_string();
+        assert!(message.contains("shared_namespace_ownership"), "{message}");
+        assert!(
+            message.contains("restart") || message.contains("startup"),
+            "expected a startup-only rejection, not an unrelated parse error: {message}"
+        );
+        assert!(
+            unchanged,
+            "reload must reject before changing or stopping any worker"
+        );
+        assert_eq!(effective, initial, "reload must retain the startup flag");
+    }
+}

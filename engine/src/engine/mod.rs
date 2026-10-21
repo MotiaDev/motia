@@ -446,6 +446,8 @@ pub struct Engine {
     /// [`Engine::registration_namespace_grace`], where the `III_NAMESPACE_GRACE_MS`
     /// env var takes precedence and an unset lock falls back to the 5s default.
     registration_namespace_grace_ms: Arc<std::sync::OnceLock<u64>>,
+    /// Startup-only shared ownership policy, frozen before worker creation.
+    shared_namespace_ownership: Arc<std::sync::OnceLock<bool>>,
 }
 
 fn resolve_registration_id(worker: &WorkerConnection, id: &str) -> String {
@@ -485,7 +487,21 @@ impl Engine {
             worker_manager_port: Arc::new(std::sync::OnceLock::new()),
             config_path: Arc::new(std::sync::OnceLock::new()),
             registration_namespace_grace_ms: Arc::new(std::sync::OnceLock::new()),
+            shared_namespace_ownership: Arc::new(std::sync::OnceLock::new()),
         }
+    }
+
+    /// The startup-only shared ownership policy. Direct `Engine::new` defaults to false.
+    pub fn shared_namespace_ownership(&self) -> bool {
+        self.shared_namespace_ownership
+            .get()
+            .copied()
+            .unwrap_or(false)
+    }
+
+    /// Freeze the startup policy before workers are created. Later writes are ignored.
+    pub(crate) fn set_shared_namespace_ownership(&self, enabled: bool) {
+        let _ = self.shared_namespace_ownership.set(enabled);
     }
 
     /// The effective registration namespace grace. Precedence: the

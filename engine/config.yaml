@@ -1,3 +1,5 @@
+# Startup-only; changing shared ownership requires an engine restart.
+shared_namespace_ownership: false
 registration_namespace_grace_ms: 5000
 
 # Only workers that are part of the engine lifecycle belong here. Project

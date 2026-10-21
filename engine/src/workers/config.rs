@@ -57,6 +57,9 @@ fn absolutize_path(path: &Path) -> PathBuf {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EngineConfig {
+    /// Enable shared function ownership for this engine's lifetime; changing it requires a restart.
+    #[serde(default)]
+    pub shared_namespace_ownership: bool,
     /// How long a new worker connection waits for its namespace registration
     /// before the engine assigns it to `default`.
     #[serde(default = "default_registration_namespace_grace_ms")]
@@ -74,6 +77,7 @@ fn default_registration_namespace_grace_ms() -> u64 {
 impl Default for EngineConfig {
     fn default() -> Self {
         Self {
+            shared_namespace_ownership: false,
             registration_namespace_grace_ms: default_registration_namespace_grace_ms(),
             modules: Vec::new(),
             workers: Vec::new(),
@@ -703,6 +707,8 @@ impl EngineBuilder {
         let config = self.config.take().expect("No worker configs found");
 
         self.engine
+            .set_shared_namespace_ownership(config.shared_namespace_ownership);
+        self.engine
             .set_registration_namespace_grace_ms(config.registration_namespace_grace_ms);
 
         crate::workers::observability::metrics::ensure_default_meter();
@@ -1050,6 +1056,98 @@ impl Default for EngineBuilder {
 #[allow(deprecated)]
 mod tests {
     use super::*;
+
+    // KAN-315: preserve this test-only region through the code phase.
+    #[test]
+    fn shared_namespace_config_omitted_defaults_to_false() {
+        let config: EngineConfig = serde_yaml::from_str("workers: []\n").unwrap();
+        assert!(!config.shared_namespace_ownership);
+        assert!(!EngineConfig::default().shared_namespace_ownership);
+    }
+
+    #[test]
+    fn shared_namespace_config_explicit_false() {
+        let config: EngineConfig =
+            serde_yaml::from_str("shared_namespace_ownership: false\nworkers: []\n").unwrap();
+        assert!(!config.shared_namespace_ownership);
+    }
+
+    #[test]
+    fn shared_namespace_config_explicit_true() {
+        let config: EngineConfig =
+            serde_yaml::from_str("shared_namespace_ownership: true\nworkers: []\n").unwrap();
+        assert!(config.shared_namespace_ownership);
+    }
+
+    #[test]
+    fn shared_namespace_config_direct_engine_defaults_to_false() {
+        assert!(!Engine::new().shared_namespace_ownership());
+    }
+
+    struct SharedNamespaceConfigProbe {
+        engine: Arc<Engine>,
+        expected: bool,
+    }
+
+    #[async_trait::async_trait]
+    impl Worker for SharedNamespaceConfigProbe {
+        fn name(&self) -> &'static str {
+            "shared-namespace-config-probe"
+        }
+
+        async fn create(
+            engine: Arc<Engine>,
+            config: Option<Value>,
+        ) -> anyhow::Result<Box<dyn Worker>> {
+            let expected = config.unwrap()["expected"].as_bool().unwrap();
+            assert_eq!(
+                engine.shared_namespace_ownership(),
+                expected,
+                "global flag must be applied before worker creation"
+            );
+            Ok(Box::new(Self { engine, expected }))
+        }
+
+        async fn initialize(&self) -> anyhow::Result<()> {
+            assert_eq!(
+                self.engine.shared_namespace_ownership(),
+                self.expected,
+                "global flag must be applied before worker initialization"
+            );
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_config_builder_wiring_before_initialization() {
+        for (yaml, expected) in [
+            ("workers: []\n", false),
+            ("shared_namespace_ownership: false\nworkers: []\n", false),
+            ("shared_namespace_ownership: true\nworkers: []\n", true),
+        ] {
+            let config: EngineConfig = serde_yaml::from_str(yaml).unwrap();
+            let (config_entry, _config_dir) = isolated_config_entry();
+            let builder = EngineBuilder::new()
+                .register_worker::<SharedNamespaceConfigProbe>("shared-namespace-config-probe")
+                .with_config(config)
+                .add_worker("configuration", Some(config_entry))
+                .add_worker(
+                    "iii-worker-manager",
+                    Some(serde_json::json!({ "host": "127.0.0.1", "port": 0 })),
+                )
+                .add_worker(
+                    "shared-namespace-config-probe",
+                    Some(serde_json::json!({ "expected": expected })),
+                )
+                .build()
+                .await
+                .expect("build with startup-only shared namespace flag");
+            let actual = builder.engine().shared_namespace_ownership();
+            builder.destroy().await.expect("destroy engine");
+            assert_eq!(actual, expected, "builder must retain the startup value");
+        }
+    }
+    // End KAN-315 test-only region.
 
     /// Configuration-worker entry whose fs adapter persists into a throwaway
     /// tempdir. Every `build()` boots the mandatory configuration worker, and
@@ -2608,6 +2706,7 @@ workers:
 
         let builder = EngineBuilder::new()
             .with_config(EngineConfig {
+                shared_namespace_ownership: false,
                 registration_namespace_grace_ms: 10_000,
                 modules: Vec::new(),
                 workers: vec![WorkerEntry {
@@ -2641,6 +2740,7 @@ workers:
         let (config_entry, _config_dir) = isolated_config_entry();
         let builder = EngineBuilder::new()
             .with_config(EngineConfig {
+                shared_namespace_ownership: false,
                 registration_namespace_grace_ms: default_registration_namespace_grace_ms(),
                 modules: Vec::new(),
                 workers: Vec::new(),
@@ -2684,6 +2784,7 @@ workers:
         let (config_entry, _config_dir) = isolated_config_entry();
         let builder = EngineBuilder::new()
             .with_config(EngineConfig {
+                shared_namespace_ownership: false,
                 registration_namespace_grace_ms: default_registration_namespace_grace_ms(),
                 modules: Vec::new(),
                 workers: Vec::new(),
