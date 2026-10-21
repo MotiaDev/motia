@@ -51,10 +51,15 @@ rbac-proxy:
     engine_url: ws://127.0.0.1:49134
     rbac:
       auth_function_id: auth::browser
+      # A rule answers only in the namespace it names. Keep these equal to
+      # the `namespace:` at the top of worker-compose.yaml.
       expose_functions:
-        - match("link::create")
-        - match("link::request_delete")
-        - match("link::click_summary")
+        - match: link::create
+          namespace: default
+        - match: link::request_delete
+          namespace: default
+        - match: link::click_summary
+          namespace: default
 ```
 
 Restart Compose so it starts the proxy:
@@ -204,6 +209,17 @@ npm install
 npm install iii-browser-sdk
 ```
 
+Then tell the app where the proxy is and which token to send. Create `frontend/.env.local`; Vite
+reads it at startup. `VITE_LINKLY_TOKEN` must equal `LINKLY_BROWSER_TOKEN` in the project's `.env`,
+`VITE_LINKLY_PROXY_URL` uses the rbac-proxy `port`, and `VITE_LINKLY_NAMESPACE` is the `namespace:`
+at the top of `worker-compose.yaml`:
+
+```bash frontend/.env.local
+VITE_LINKLY_TOKEN=dev-token
+VITE_LINKLY_PROXY_URL=ws://localhost:3110
+VITE_LINKLY_NAMESPACE=default
+```
+
 ### Setup a client-side worker
 
 Connect the SDK to our iii instance in `frontend/src/iii.ts`. Note how we're using a different URL
@@ -212,14 +228,22 @@ format and port, this goes back to the setup we did with `rbac-proxy` and RBAC.
 ```typescript src/iii.ts
 import { registerWorker } from "iii-browser-sdk";
 
-const TOKEN = import.meta.env.VITE_LINKLY_TOKEN ?? "dev-token";
+// All three come from frontend/.env.local.
+const TOKEN = import.meta.env.VITE_LINKLY_TOKEN;
+const PROXY_URL = import.meta.env.VITE_LINKLY_PROXY_URL;
+if (!TOKEN || !PROXY_URL) {
+  throw new Error("Set VITE_LINKLY_TOKEN and VITE_LINKLY_PROXY_URL in frontend/.env.local");
+}
+
+// The project's namespace, where link::* live. The tab calls them there.
+export const PROJECT_NAMESPACE: string = import.meta.env.VITE_LINKLY_NAMESPACE || "default";
 
 // A per-tab id. The tab registers its functions in `browser-<SESSION>`, so two
 // open tabs never collide on `ui::on_click` or `user::confirm_destructive_op`.
 export const SESSION = crypto.randomUUID();
 
 export const worker = registerWorker(
-  `ws://localhost:3110?token=${encodeURIComponent(TOKEN)}&session=${SESSION}`,
+  `${PROXY_URL}?token=${encodeURIComponent(TOKEN)}&session=${SESSION}`,
   { namespace: `browser-${SESSION}` },
 );
 ```
@@ -236,7 +260,7 @@ First the imports and types: `Click` is the notification `click-streamer::click`
 
 ```tsx src/App.tsx
 import { useEffect, useState } from "react";
-import { worker, SESSION } from "./iii.js";
+import { worker, SESSION, PROJECT_NAMESPACE } from "./iii.js";
 
 type Click = { id: number; code: string; clicked_at: string };
 type Summary = { total: number; last_id: number };
@@ -290,7 +314,7 @@ useEffect(() => {
     const summary = await worker.trigger<Record<string, never>, Summary>({
       function_id: "link::click_summary",
       // This tab is in its own namespace; link::click_summary lives in the project's.
-      namespace: "default",
+      namespace: PROJECT_NAMESPACE,
       payload: {},
     });
     lastId = summary.last_id;
@@ -304,13 +328,20 @@ useEffect(() => {
     else early.push(click);
     return null;
   });
-  const trig = worker.registerTrigger({
+  const binding = {
     type: "click-streamer::click",
     function_id: "ui::on_click",
     config: {},
     // ui::on_click lives in this tab's namespace, so the trigger resolves it
     // there. registerTrigger fills that in from the worker's namespace.
-  });
+    //
+    // click-streamer registered the trigger type in the project's namespace.
+    // Without trigger_namespace the engine looks for it in this tab's
+    // namespace, then in `default`, and parks the binding when the project
+    // uses another namespace.
+    trigger_namespace: PROJECT_NAMESPACE,
+  };
+  const trig = worker.registerTrigger(binding);
   sync();
   const stopListening = worker.addConnectionStateListener((state) => {
     if (state === "connected") sync();
@@ -362,7 +393,7 @@ async function onSubmit(e: React.FormEvent) {
   const link = await worker.trigger<{ url: string; code?: string }, { code: string; url: string }>({
     function_id: "link::create",
     // This tab is in its own namespace; link::create lives in the project's.
-    namespace: "default",
+    namespace: PROJECT_NAMESPACE,
     payload: { url, code: code || undefined },
   });
   setCreated(link);
