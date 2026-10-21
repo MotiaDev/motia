@@ -602,24 +602,45 @@ impl TriggerRegistry {
         if !self.shared() {
             return self.unregister_trigger(alias, trigger_type).await;
         }
-        let removed = {
-            let mut subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
-            let Some(canonical) = subscriptions.aliases.remove(&(worker, alias)) else {
+        let alias = (worker, alias);
+        let (canonical, intent) = {
+            let subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
+            let Some(canonical) = subscriptions.aliases.get(&alias) else {
                 return Ok(false);
             };
-            if subscriptions.aliases.values().any(|id| id == &canonical) {
+            (
+                canonical.clone(),
+                Arc::clone(&subscriptions.intents[canonical]),
+            )
+        };
+        let _operation = intent.operation.lock().await;
+        {
+            let mut subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
+            // Another removal may have completed while this call waited for I/O.
+            if subscriptions.aliases.get(&alias) != Some(&canonical) {
+                return Ok(false);
+            }
+            if subscriptions
+                .aliases
+                .iter()
+                .any(|(other, id)| other != &alias && id == &canonical)
+            {
+                subscriptions.aliases.remove(&alias);
                 return Ok(true);
             }
-            subscriptions
-                .intents
-                .remove(&canonical)
-                .map(|intent| (canonical, intent))
-        };
-        if let Some((canonical, intent)) = removed {
-            let _operation = intent.operation.lock().await;
-            self.unregister_trigger(canonical, trigger_type).await?;
         }
+        // Keep the last alias and descriptor reachable while the provider runs.
+        // An error (or cancellation) must leave the same canonical ID retryable.
+        self.unregister_trigger_binding(canonical.clone(), trigger_type)
+            .await?;
+        self.forget_subscription(&canonical);
         Ok(true)
+    }
+
+    fn forget_subscription(&self, canonical: &str) {
+        let mut subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
+        subscriptions.intents.remove(canonical);
+        subscriptions.aliases.retain(|_, id| id != canonical);
     }
 
     /// The namespace a fired trigger's target/condition function resolves in,
@@ -1285,13 +1306,35 @@ impl TriggerRegistry {
         id: String,
         trigger_type: Option<String>,
     ) -> Result<bool, anyhow::Error> {
+        let intent = if self.shared() {
+            self.subscriptions
+                .lock()
+                .expect("subscriptions poisoned")
+                .intents
+                .get(&id)
+                .cloned()
+        } else {
+            None
+        };
+        // Global and subscriber teardown use the same per-intent I/O lock.
+        let _operation = match &intent {
+            Some(intent) => Some(intent.operation.lock().await),
+            None => None,
+        };
+        let result = self
+            .unregister_trigger_binding(id.clone(), trigger_type)
+            .await?;
         if self.shared() {
-            let mut subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
-            subscriptions.intents.remove(&id);
-            subscriptions
-                .aliases
-                .retain(|_, canonical| canonical != &id);
+            self.forget_subscription(&id);
         }
+        Ok(result)
+    }
+
+    async fn unregister_trigger_binding(
+        &self,
+        id: String,
+        trigger_type: Option<String>,
+    ) -> Result<bool, anyhow::Error> {
         tracing::info!(
             "Unregistering trigger: {} of type: {}",
             id.purple(),
@@ -3406,6 +3449,105 @@ mod tests {
     fn cron_trigger_type_has_no_call_response_format() {
         let tt = make_trigger_type("cron");
         assert!(tt.call_response_format.is_none());
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_identity_unregister_failure_preserves_recoverable_identity() {
+        for global_removal in [false, true] {
+            let registry = TriggerRegistry::new();
+            registry.set_shared_namespace_ownership(true);
+            let failing = Arc::new(ControlledRegistrator::new(false, true));
+            registry
+                .register_trigger_type(TriggerType::new(
+                    "recoverable",
+                    "fixture",
+                    Box::new(failing.clone()),
+                    None,
+                ))
+                .await
+                .unwrap();
+            let owner = Uuid::new_v4();
+            let peer = Uuid::new_v4();
+            let mut declaration = make_trigger("alias", "recoverable");
+            declaration.worker_id = Some(owner);
+            registry
+                .register_trigger(declaration.clone())
+                .await
+                .unwrap();
+            let canonical = registry.triggers.iter().next().unwrap().id.clone();
+
+            let error = if global_removal {
+                registry
+                    .unregister_trigger(canonical.clone(), None)
+                    .await
+                    .unwrap_err()
+            } else {
+                registry
+                    .unregister_subscriber(owner, "alias".into(), None)
+                    .await
+                    .unwrap_err()
+            };
+            assert_eq!(error.to_string(), "unregister failed");
+            assert!(registry.triggers.contains_key(&canonical));
+            assert_eq!(
+                registry.subscriber_aliases(&canonical),
+                vec![(owner, "alias".into())]
+            );
+            registry
+                .register_trigger(declaration.clone())
+                .await
+                .unwrap();
+            let mut replica = declaration.clone();
+            replica.worker_id = Some(peer);
+            replica.id = "replica".into();
+            registry.register_trigger(replica).await.unwrap();
+            assert_eq!(registry.triggers.len(), 1);
+            assert_eq!(failing.register_count.load(Ordering::SeqCst), 1);
+            assert!(
+                registry
+                    .unregister_subscriber(peer, "replica".into(), None)
+                    .await
+                    .unwrap()
+            );
+            assert_eq!(failing.unregister_count.load(Ordering::SeqCst), 1);
+            assert!(
+                registry
+                    .unregister_subscriber(owner, "alias".into(), None)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(failing.unregister_count.load(Ordering::SeqCst), 2);
+
+            let recovered = Arc::new(ControlledRegistrator::new(false, false));
+            registry
+                .trigger_types
+                .get_mut(&type_key(DEFAULT_NAMESPACE, "recoverable"))
+                .unwrap()
+                .registrator = Arc::new(recovered.clone());
+            let removed = if global_removal {
+                registry
+                    .unregister_trigger(canonical.clone(), None)
+                    .await
+                    .unwrap()
+            } else {
+                registry
+                    .unregister_subscriber(owner, "alias".into(), None)
+                    .await
+                    .unwrap()
+            };
+            assert!(removed);
+            assert!(registry.triggers.is_empty());
+            assert!(registry.pending_triggers.is_empty());
+            assert!(registry.subscriber_aliases(&canonical).is_empty());
+            assert_eq!(recovered.unregister_count.load(Ordering::SeqCst), 1);
+            assert!(
+                !registry
+                    .unregister_subscriber(owner, "alias".into(), None)
+                    .await
+                    .unwrap()
+            );
+            assert!(!registry.unregister_trigger(canonical, None).await.unwrap());
+        }
     }
 
     // Contract tests use existing registrators and production entry points. No
