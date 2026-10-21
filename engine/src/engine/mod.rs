@@ -393,6 +393,7 @@ struct SharedRouting {
 
 struct RoutingOwner {
     worker: WorkerConnection,
+    endpoint: Option<Arc<crate::function::HandlerFn>>,
     load: Arc<std::sync::atomic::AtomicUsize>,
 }
 
@@ -443,8 +444,22 @@ impl SharedRouting {
             .unwrap_or_else(|| Arc::new(std::sync::atomic::AtomicUsize::new(0)));
         self.owners.push(RoutingOwner {
             worker: worker.clone(),
+            endpoint: None,
             load,
         });
+    }
+
+    fn join_endpoint(
+        &mut self,
+        worker: &WorkerConnection,
+        endpoint: Option<Arc<crate::function::HandlerFn>>,
+    ) {
+        self.join(worker);
+        self.owners
+            .iter_mut()
+            .find(|o| o.worker.id == worker.id)
+            .expect("joined owner")
+            .endpoint = endpoint;
     }
 
     fn remove(&mut self, worker: Uuid) {
@@ -532,7 +547,7 @@ pub struct Engine {
     /// other. The `kind` records how the current owner registered so a release
     /// can branch on it if needed; the CAS key for release is the owner id.
     pub(crate) function_owners: Arc<DashMap<(String, String), (Uuid, InvocationKind)>>,
-    /// Enabled regular WS ownership. Access only while holding the matching
+    /// Enabled WS ownership (regular or per-session outbound HTTP). Access only while holding the matching
     /// function_owners entry: it serializes publication, joins and removals.
     /// function_owners retains the first UUID as a legacy ownership index;
     /// this entry is the authoritative descriptor and complete session set.
@@ -2421,6 +2436,10 @@ impl Engine {
                 let namespace = self.connection_namespace(worker);
                 if worker.has_external_function_id(&resolved_id).await {
                     worker.remove_external_function_id(&resolved_id).await;
+                    if self.shared_namespace_ownership() {
+                        self.release_function_if_owner(&worker.id, &namespace, &resolved_id);
+                        return Ok(());
+                    }
                     // Only tear down the engine-global registration if this
                     // worker is still the recorded owner. Without the gate,
                     // an Unregister from a worker whose id was already
@@ -2600,6 +2619,69 @@ impl Engine {
                         },
                     )
                     .await;
+                    return Ok(());
+                }
+
+                if self.shared_namespace_ownership()
+                    && let Some(invocation) = invocation
+                {
+                    let Some(http_module) = self
+                        .service_registry
+                        .get_service::<HttpFunctionsWorker>("http_functions")
+                    else {
+                        tracing::error!("HTTP functions module not loaded");
+                        return Ok(());
+                    };
+                    let config = HttpFunctionConfig {
+                        function_path: reg_id.clone(),
+                        url: invocation.url.clone(),
+                        method: invocation.method.clone(),
+                        timeout_ms: invocation.timeout_ms,
+                        headers: invocation.headers.clone(),
+                        auth: invocation.auth.clone(),
+                        description: reg_description.clone(),
+                        request_format: req.clone(),
+                        response_format: res.clone(),
+                        metadata: reg_metadata.clone(),
+                        registered_at: Some(Utc::now()),
+                        updated_at: None,
+                    };
+                    let handler = match http_module.prepare_http_handler(config).await {
+                        Ok(handler) => handler,
+                        Err(error) => {
+                            tracing::error!(?error, "Failed to prepare HTTP endpoint");
+                            return Ok(());
+                        }
+                    };
+                    let function = Function {
+                        handler,
+                        _function_id: reg_id.clone(),
+                        _description: reg_description,
+                        request_format: req.clone(),
+                        response_format: res.clone(),
+                        metadata: reg_metadata,
+                    };
+                    match self.register_shared_endpoint(
+                        &namespace,
+                        worker,
+                        InvocationKind::External,
+                        function,
+                    ) {
+                        Ok(()) => worker.include_external_function_id(&reg_id).await,
+                        Err(conflict) => {
+                            self.send_msg(
+                                worker,
+                                Message::RegistrationRejected {
+                                    code: "function_owner_mismatch".to_string(),
+                                    namespace: conflict.namespace,
+                                    worker_name: None,
+                                    function_id: Some(conflict.name),
+                                    owner_worker_id: conflict.owner_worker_id,
+                                },
+                            )
+                            .await;
+                        }
+                    }
                     return Ok(());
                 }
 
@@ -3269,6 +3351,10 @@ impl Engine {
                 .get_service::<HttpFunctionsWorker>("http_functions");
             let namespace = self.connection_namespace(worker);
             for function_id in external_functions.iter() {
+                if self.shared_namespace_ownership() {
+                    self.release_function_if_owner(&worker.id, &namespace, function_id);
+                    continue;
+                }
                 let owner_key = (namespace.clone(), function_id.clone());
                 // Snapshot ownership without releasing — releasing first would
                 // open a window where a racing `RegisterFunction` can claim
@@ -3537,7 +3623,7 @@ impl Engine {
         let invocations = self.invocations.clone();
         let registry = Arc::downgrade(&self.shared_routing);
         let handler: Arc<crate::function::HandlerFn> =
-            Arc::new(move |id, input, _session, metadata| {
+            Arc::new(move |id, input, session, metadata| {
                 let routing = routing.clone();
                 let invocations = invocations.clone();
                 let function_id = key.1.clone();
@@ -3547,11 +3633,22 @@ impl Engine {
                     let mut tried = Vec::new();
                     let mut error = ErrorBody::new("invocation_stopped", "Invocation stopped");
                     loop {
-                        let selected = routing
-                            .lock()
-                            .expect("shared routing poisoned")
-                            .reserve(&tried);
-                        let Some((worker, mut reservation)) = selected else {
+                        let selected = {
+                            let mut routing = routing.lock().expect("shared routing poisoned");
+                            routing.reserve(&tried).map(|(worker, reservation)| {
+                                // Snapshot under the membership/reservation lock: an
+                                // unregister/re-register cannot swap this call's endpoint.
+                                let endpoint = routing
+                                    .owners
+                                    .iter()
+                                    .find(|o| o.worker.id == worker.id)
+                                    .expect("reserved owner")
+                                    .endpoint
+                                    .clone();
+                                (worker, reservation, endpoint)
+                            })
+                        };
+                        let Some((worker, mut reservation, endpoint)) = selected else {
                             return FunctionResult::Failure(error);
                         };
                         reservation.1 = Some(RoutingCleanup {
@@ -3564,6 +3661,26 @@ impl Engine {
                         };
                         if !invocations.reserve_executor(id, worker.clone(), reservation) {
                             return FunctionResult::Failure(error);
+                        }
+                        if let Some(endpoint) = endpoint {
+                            // Match WS registration's cleanup/terminal lock order.
+                            // No HTTP failure is proven NotEnqueued: never retry it.
+                            let request = {
+                                let mut ids = worker.invocations.write().await;
+                                if worker
+                                    .cleanup_claimed
+                                    .load(std::sync::atomic::Ordering::SeqCst)
+                                    || worker.channel.is_closed()
+                                {
+                                    return FunctionResult::Failure(error);
+                                }
+                                let Some(_pending) = invocations.pending(&id) else {
+                                    return FunctionResult::Failure(error);
+                                };
+                                ids.insert(id);
+                                endpoint(Some(id), input, session, metadata)
+                            };
+                            return request.await;
                         }
                         match worker
                             .enqueue_function(
@@ -3595,12 +3712,6 @@ impl Engine {
         worker: &WorkerConnection,
         request: RegisterFunctionRequest,
     ) -> Result<(), NamespaceConflict> {
-        let key = (namespace.to_string(), request.function_id.clone());
-        let ownership = self.function_owners.entry(key.clone());
-        let previous = match &ownership {
-            dashmap::mapref::entry::Entry::Occupied(entry) => Some(*entry.get()),
-            dashmap::mapref::entry::Entry::Vacant(_) => None,
-        };
         let handler_worker = worker.clone();
         let handler_id = request.function_id.clone();
         let function = Function {
@@ -3620,13 +3731,40 @@ impl Engine {
             metadata: request.metadata,
         };
 
+        self.register_shared_endpoint(namespace, worker, InvocationKind::Regular, function)
+    }
+
+    fn register_shared_endpoint(
+        &self,
+        namespace: &str,
+        worker: &WorkerConnection,
+        kind: InvocationKind,
+        function: Function,
+    ) -> Result<(), NamespaceConflict> {
+        let function_id = function._function_id.clone();
+        let key = (namespace.to_string(), function_id.clone());
+        let ownership = self.function_owners.entry(key.clone());
+        let previous = match &ownership {
+            dashmap::mapref::entry::Entry::Occupied(entry) => Some(*entry.get()),
+            dashmap::mapref::entry::Entry::Vacant(_) => None,
+        };
+        let endpoint = (kind == InvocationKind::External).then(|| function.handler.clone());
         if let Some(mut shared) = self.shared_functions.get_mut(&key) {
+            if previous.is_none_or(|(_, previous_kind)| previous_kind != kind) {
+                return Err(self.conflict(
+                    "Invocation kind",
+                    namespace,
+                    &function_id,
+                    worker.id,
+                    shared.first_owner().expect("nonempty owner set"),
+                ));
+            }
             if !shared.compatible(&function) {
                 if !shared.is_sole_owner(worker.id) {
                     return Err(self.conflict(
                         "Shared function descriptor",
                         namespace,
-                        &request.function_id,
+                        &function_id,
                         worker.id,
                         shared.first_owner().expect("nonempty owner set"),
                     ));
@@ -3640,11 +3778,11 @@ impl Engine {
                 routing
                     .lock()
                     .expect("shared routing poisoned")
-                    .join(worker);
+                    .join_endpoint(worker, endpoint);
                 shared.function.handler = self.shared_dispatcher(routing, key.clone());
                 self.functions.register_function_ns(
                     namespace,
-                    request.function_id,
+                    function_id,
                     shared.function.clone(),
                 );
             } else {
@@ -3654,23 +3792,17 @@ impl Engine {
                     .expect("shared routing exists")
                     .lock()
                     .expect("shared routing poisoned")
-                    .join(worker);
+                    .join_endpoint(worker, endpoint);
             }
             return Ok(());
         }
 
-        // An existing in-process function has no WS lease and is exclusive.
-        // External functions also remain exclusive in this phase.
-        if previous.is_none()
-            && self
-                .functions
-                .get(namespace, &request.function_id)
-                .is_some()
-        {
+        // Config/in-process functions have no WS lease and remain exclusive.
+        if previous.is_none() && self.functions.get(namespace, &function_id).is_some() {
             return Err(self.conflict(
                 "In-process function",
                 namespace,
-                &request.function_id,
+                &function_id,
                 worker.id,
                 Uuid::nil(),
             ));
@@ -3683,7 +3815,7 @@ impl Engine {
             return Err(self.conflict(
                 "Exclusive function",
                 namespace,
-                &request.function_id,
+                &function_id,
                 worker.id,
                 owner,
             ));
@@ -3691,10 +3823,12 @@ impl Engine {
 
         let mut shared = SessionFunction::new(worker.id, function);
         let routing = {
-            // A last-owner unregister may leave reservations alive. Join under
-            // the map entry lock so their final drop cannot remove this reentry.
+            // Retain KAN-318 reservation identity through empty-set reentry.
             let entry = self.shared_routing.entry(key.clone()).or_default();
-            entry.lock().expect("shared routing poisoned").join(worker);
+            entry
+                .lock()
+                .expect("shared routing poisoned")
+                .join_endpoint(worker, endpoint);
             entry.clone()
         };
         shared.function.handler = self.shared_dispatcher(routing, key.clone());
@@ -3702,17 +3836,15 @@ impl Engine {
         self.shared_functions.insert(key, shared);
         let _owner_guard = match ownership {
             dashmap::mapref::entry::Entry::Occupied(mut entry) => {
-                entry.insert((worker.id, InvocationKind::Regular));
+                entry.insert((worker.id, kind));
                 entry.into_ref()
             }
-            dashmap::mapref::entry::Entry::Vacant(entry) => {
-                entry.insert((worker.id, InvocationKind::Regular))
-            }
+            dashmap::mapref::entry::Entry::Vacant(entry) => entry.insert((worker.id, kind)),
         };
         self.service_registry
-            .register_service_from_function_id(namespace, &request.function_id);
+            .register_service_from_function_id(namespace, &function_id);
         self.functions
-            .register_function_ns(namespace, request.function_id, canonical);
+            .register_function_ns(namespace, function_id, canonical);
         crate::workers::telemetry::collector::track_function_registered();
         Ok(())
     }
@@ -3844,7 +3976,8 @@ impl Engine {
                         routing.remove(*worker_id);
                     }
                     if let Some(first) = shared.first_owner() {
-                        entry.insert((first, InvocationKind::Regular));
+                        let kind = entry.get().1;
+                        entry.insert((first, kind));
                     } else {
                         drop(shared);
                         self.shared_functions.remove(&key);

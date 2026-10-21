@@ -91,6 +91,28 @@ impl HttpFunctionsWorker {
         })
     }
 
+    /// Build an immutable owner endpoint before publishing any ownership.
+    pub(crate) async fn prepare_http_handler(
+        &self,
+        config: HttpFunctionConfig,
+    ) -> Result<Arc<crate::function::HandlerFn>, ErrorBody> {
+        self.http_invoker
+            .url_validator()
+            .validate(&config.url)
+            .await
+            .map_err(|e| ErrorBody {
+                code: "url_validation_failed".into(),
+                message: e.to_string(),
+                stacktrace: None,
+            })?;
+        let auth = config.auth.as_ref().map(resolve_auth_ref).transpose()?;
+        let handler = Arc::new(self.create_handler_wrapper(config, auth));
+        Ok(Arc::new(move |_id, input, _session, _metadata| {
+            let handler = handler.clone();
+            Box::pin(async move { handler.call(input).await })
+        }))
+    }
+
     /// Registers an HTTP-invocation function into `namespace`.
     ///
     /// `namespace` must be the effective namespace of the connection that sent
@@ -103,19 +125,8 @@ impl HttpFunctionsWorker {
         namespace: &str,
         config: HttpFunctionConfig,
     ) -> Result<(), ErrorBody> {
-        self.http_invoker
-            .url_validator()
-            .validate(&config.url)
-            .await
-            .map_err(|e| ErrorBody {
-                code: "url_validation_failed".into(),
-                message: e.to_string(),
-                stacktrace: None,
-            })?;
-
-        let auth = config.auth.as_ref().map(resolve_auth_ref).transpose()?;
-
-        let handler = self.create_handler_wrapper(config.clone(), auth);
+        let endpoint = self.prepare_http_handler(config.clone()).await?;
+        let handler = crate::engine::Handler::new(move |input| endpoint(None, input, None, None));
 
         self.engine.register_function_handler_ns(
             namespace,
@@ -351,6 +362,276 @@ mod tests {
             registered_at: None,
             updated_at: None,
         }
+    }
+
+    async fn shared_http_engine() -> Arc<Engine> {
+        ensure_default_meter();
+        let engine = Arc::new(Engine::new());
+        engine.set_shared_namespace_ownership(true);
+        build_module(engine.clone())
+            .initialize()
+            .await
+            .expect("initialize existing HTTP fixture");
+        engine
+    }
+
+    async fn shared_http_owner(
+        engine: &Engine,
+    ) -> (
+        crate::worker_connections::WorkerConnection,
+        tokio::sync::mpsc::Receiver<crate::engine::Outbound>,
+    ) {
+        let (tx, rx) = tokio::sync::mpsc::channel(32);
+        let worker = crate::worker_connections::WorkerConnection::new(tx);
+        engine.worker_registry.register_worker(worker.clone());
+        engine.begin_namespace_resolution(&worker);
+        engine.resolve_connection_namespace(&worker, "orders").await;
+        (worker, rx)
+    }
+
+    fn shared_http_registration(url: String, owner: &str) -> crate::protocol::Message {
+        crate::protocol::Message::RegisterFunction {
+            id: "shared-http::echo".to_string(),
+            description: Some("canonical outbound HTTP descriptor".to_string()),
+            request_format: Some(json!({"type": "object"})),
+            response_format: Some(json!({"type": "object"})),
+            metadata: Some(json!({"version": 1})),
+            invocation: Some(crate::protocol::HttpInvocationRef {
+                url,
+                method: crate::invocation::method::HttpMethod::Post,
+                timeout_ms: Some(if owner == "a" { 2_000 } else { 3_000 }),
+                headers: HashMap::from([("x-owner".to_string(), owner.to_string())]),
+                auth: None,
+            }),
+        }
+    }
+
+    async fn shared_http_call(engine: &Engine) -> Value {
+        tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            engine.call_with_metadata_ns(
+                "orders",
+                "shared-http::echo",
+                json!({"probe": true}),
+                None,
+            ),
+        )
+        .await
+        .expect("outbound HTTP invocation must finish without retries")
+        .expect("invoke retained endpoint")
+        .expect("echo response body")
+    }
+
+    fn shared_http_assert_rejected(rx: &mut tokio::sync::mpsc::Receiver<crate::engine::Outbound>) {
+        match rx
+            .try_recv()
+            .expect("mixed invocation kinds must be rejected")
+        {
+            crate::engine::Outbound::Protocol(crate::protocol::Message::RegistrationRejected {
+                code,
+                namespace,
+                function_id,
+                ..
+            }) => {
+                assert_eq!(code, "function_owner_mismatch");
+                assert_eq!(namespace, "orders");
+                assert_eq!(function_id.as_deref(), Some("shared-http::echo"));
+            }
+            other => panic!("expected kind rejection, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_http_distinct_valid_endpoints_receive_selected_calls() {
+        let engine = shared_http_engine().await;
+        let (a, mut a_rx) = shared_http_owner(&engine).await;
+        let (b, mut b_rx) = shared_http_owner(&engine).await;
+        let (a_url, a_capture, a_server) = spawn_http_server().await;
+        let (b_url, b_capture, b_server) = spawn_http_server().await;
+        for (worker, url, owner) in [(&a, a_url, "a"), (&b, b_url, "b")] {
+            engine
+                .router_msg(
+                    worker,
+                    &shared_http_registration(format!("{url}/echo"), owner),
+                )
+                .await
+                .unwrap();
+        }
+        assert!(a.has_external_function_id("shared-http::echo").await);
+        assert!(
+            b.has_external_function_id("shared-http::echo").await,
+            "compatible HTTP owner with a distinct URL/header/timeout must join"
+        );
+        assert!(a_rx.try_recv().is_err());
+        assert!(
+            b_rx.try_recv().is_err(),
+            "compatible endpoint cannot be rejected"
+        );
+        let mut selected = Vec::new();
+        for _ in 0..4 {
+            let result = shared_http_call(&engine).await;
+            assert_eq!(result["body"], json!({"probe": true}));
+            selected.push(result["headers"]["x-owner"].clone());
+        }
+        assert_eq!(
+            selected,
+            vec![json!("a"), json!("b"), json!("a"), json!("b")]
+        );
+        for (capture, owner) in [(&a_capture, "a"), (&b_capture, "b")] {
+            let headers = capture.headers.lock().expect("captured endpoint headers");
+            assert_eq!(headers.get("x-owner").map(String::as_str), Some(owner));
+            assert_eq!(*capture.body.lock().unwrap(), Some(json!({"probe": true})));
+        }
+        a_server.abort();
+        b_server.abort();
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_http_failed_join_preserves_incumbent_and_allows_valid_join() {
+        let engine = shared_http_engine().await;
+        let (a, _a_rx) = shared_http_owner(&engine).await;
+        let (b, _b_rx) = shared_http_owner(&engine).await;
+        let (url, _, server) = spawn_http_server().await;
+        engine
+            .router_msg(&a, &shared_http_registration(format!("{url}/echo"), "a"))
+            .await
+            .unwrap();
+        let before = engine.functions.get("orders", "shared-http::echo").unwrap();
+        engine
+            .router_msg(&b, &shared_http_registration("://bad-url".to_string(), "b"))
+            .await
+            .unwrap();
+        assert!(!b.has_external_function_id("shared-http::echo").await);
+        engine
+            .router_msg(
+                &b,
+                &crate::protocol::Message::UnregisterFunction {
+                    id: "shared-http::echo".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+        let after = engine.functions.get("orders", "shared-http::echo").unwrap();
+        assert!(Arc::ptr_eq(&before.handler, &after.handler));
+        assert_eq!(shared_http_call(&engine).await["headers"]["x-owner"], "a");
+        assert!(
+            engine
+                .service_registry
+                .get("orders", "shared-http")
+                .is_some()
+        );
+
+        let (c, mut c_rx) = shared_http_owner(&engine).await;
+        engine
+            .router_msg(&c, &shared_http_registration(format!("{url}/echo"), "c"))
+            .await
+            .unwrap();
+        assert!(
+            c.has_external_function_id("shared-http::echo").await,
+            "failed endpoint join must not prevent a later compatible HTTP owner"
+        );
+        assert!(c_rx.try_recv().is_err());
+        assert_eq!(shared_http_call(&engine).await["headers"]["x-owner"], "a");
+        assert_eq!(shared_http_call(&engine).await["headers"]["x-owner"], "c");
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_http_mixed_kind_rejection_preserves_compatible_http_join() {
+        let engine = shared_http_engine().await;
+        let (a, _a_rx) = shared_http_owner(&engine).await;
+        let (b, mut b_rx) = shared_http_owner(&engine).await;
+        let (url, _, server) = spawn_http_server().await;
+        let http = shared_http_registration(format!("{url}/echo"), "a");
+        engine.router_msg(&a, &http).await.unwrap();
+        let mut regular = http.clone();
+        if let crate::protocol::Message::RegisterFunction { invocation, .. } = &mut regular {
+            *invocation = None;
+        }
+        engine.router_msg(&b, &regular).await.unwrap();
+        shared_http_assert_rejected(&mut b_rx);
+        assert!(b.get_regular_function_ids().await.is_empty());
+        assert!(b.get_external_function_ids().await.is_empty());
+        assert_eq!(shared_http_call(&engine).await["headers"]["x-owner"], "a");
+        engine
+            .router_msg(&b, &shared_http_registration(format!("{url}/echo"), "b"))
+            .await
+            .unwrap();
+        assert!(
+            b.has_external_function_id("shared-http::echo").await,
+            "rejected regular owner must still be able to join with the canonical HTTP kind"
+        );
+        assert!(b_rx.try_recv().is_err());
+        engine
+            .router_msg(
+                &a,
+                &crate::protocol::Message::UnregisterFunction {
+                    id: "shared-http::echo".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(shared_http_call(&engine).await["headers"]["x-owner"], "b");
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_http_remove_one_owner_retains_peer_until_final_removal() {
+        let engine = shared_http_engine().await;
+        let (a, _a_rx) = shared_http_owner(&engine).await;
+        let (b, _b_rx) = shared_http_owner(&engine).await;
+        let (url, _, server) = spawn_http_server().await;
+        for (worker, owner) in [(&a, "a"), (&b, "b")] {
+            engine
+                .router_msg(
+                    worker,
+                    &shared_http_registration(format!("{url}/echo"), owner),
+                )
+                .await
+                .unwrap();
+        }
+        let unregister = crate::protocol::Message::UnregisterFunction {
+            id: "shared-http::echo".to_string(),
+        };
+        engine.router_msg(&a, &unregister).await.unwrap();
+        assert!(
+            engine
+                .functions
+                .get("orders", "shared-http::echo")
+                .is_some(),
+            "removing one HTTP owner must retain the peer's canonical function"
+        );
+        assert!(
+            engine
+                .service_registry
+                .get("orders", "shared-http")
+                .is_some()
+        );
+        assert_eq!(shared_http_call(&engine).await["headers"]["x-owner"], "b");
+        engine
+            .router_msg(
+                &a,
+                &crate::protocol::Message::UnregisterFunction {
+                    id: "shared-http::echo".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(shared_http_call(&engine).await["headers"]["x-owner"], "b");
+        engine.router_msg(&b, &unregister).await.unwrap();
+        assert!(
+            engine
+                .functions
+                .get("orders", "shared-http::echo")
+                .is_none()
+        );
+        assert!(
+            engine
+                .service_registry
+                .get("orders", "shared-http")
+                .is_none()
+        );
+        server.abort();
     }
 
     #[tokio::test]
