@@ -191,13 +191,9 @@ fully commented file runs, prints nothing and exits). The code:
 ```typescript click-streamer/watch.ts
 import { registerWorker } from "iii-sdk";
 
-// A plain script gets no engine URL or namespace from Compose: read them from
-// III_URL and III_NAMESPACE. The defaults match worker-compose.yaml as shipped.
 const worker = registerWorker(process.env.III_URL ?? "ws://127.0.0.1:49134", {
   workerName: "click-watcher",
-  // Join the project's namespace: click-streamer registered the
-  // click-streamer::click trigger type there, and link::click_summary lives
-  // there too. From another namespace the binding is parked and never fires.
+  // The project's namespace, where click-streamer::click and link::* live.
   namespace: process.env.III_NAMESPACE || "default",
 });
 
@@ -226,12 +222,6 @@ Run it from the `click-streamer` folder and leave it running:
 
 ```bash
 cd click-streamer && npm install && npx tsx watch.ts
-```
-
-If you changed `namespace:` or the engine port in `worker-compose.yaml`, pass them:
-
-```bash
-III_URL=ws://127.0.0.1:<engine port> III_NAMESPACE=<namespace> npx tsx watch.ts
 ```
 
 In a second terminal, create a few links and follow each:

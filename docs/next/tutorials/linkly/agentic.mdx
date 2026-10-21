@@ -513,10 +513,7 @@ Bulk-load links from a CSV in a single streamed upload over a channel.
   the imported and skipped counts.
 - Create channel-client/import-links.js: a Node script that opens a channel and streams a small CSV
   of links to the importer. Take the CSV path as an OPTIONAL argument that defaults to test.csv, so
-  `node channel-client/import-links.js` runs with no arguments. It is not a Compose container, so
-  read the engine URL from III_URL and the project namespace from III_NAMESPACE (default to the
-  `engine.url` and `namespace:` in worker-compose.yaml) and pass the namespace to registerWorker,
-  or bulk-importer::import_csv is not found.
+  `node channel-client/import-links.js` runs with no arguments.
 - Create an example CSV for the user (example.csv). Do not import it. For the client's test run,
   create test.csv with exactly two rows whose codes are mylink and mydocslink (any https URLs).
 
@@ -564,9 +561,7 @@ Turn a browser tab into a worker.
 
 - Add an rbac-proxy worker that fronts a public port 3110 and reverse-proxies to the engine at
   ws://127.0.0.1:49134, with an RBAC allowlist gated by auth::browser (expose link::create,
-  link::request_delete and link::click_summary only, each as `{ match, namespace }` with the project
-  namespace from worker-compose.yaml: a rule without a namespace answers only in `default`). Add it
-  with compose.
+  link::request_delete and link::click_summary only). Add it with compose.
 - Create an auth worker with an auth::browser function that admits browser connections (fail closed
   when its LINKLY_BROWSER_TOKEN env var is unset). Each tab sends a unique session id; grant it its
   own `browser-<session>` namespace so two tabs never collide on the functions they register: return
@@ -584,11 +579,10 @@ Turn a browser tab into a worker.
   "browser-<uuid>" string; the handler uses it as-is with no prefix construction). before deleting.
 - Create a Vite React app in frontend/ with `npm create vite@latest frontend -- --template
   react-ts`, install iii-browser-sdk, and write frontend/src/iii.ts and frontend/src/App.tsx that
-  connect in a per-tab `browser-<session>` namespace, call link::create in the project namespace
-  (the `namespace:` in worker-compose.yaml, read from a VITE_LINKLY_NAMESPACE variable),
+  connect in a per-tab `browser-<session>` namespace, call link::create in the default namespace,
   and register user::confirm_destructive_op. For a live click counter, bind ui::on_click to the
   click-streamer::click trigger type first, then read the starting count with link::click_summary
-  (project namespace); skip clicks whose id is at or below the last_id already counted, and read the
+  (default namespace); skip clicks whose id is at or below the last_id already counted, and read the
   count again after a reconnect.
 - In App.tsx, call link::request_delete with { code, browser_namespace: `browser-${SESSION_ID}` }.
   Never pass the raw UUID as a namespace argument; always pass the fully-constructed string so the

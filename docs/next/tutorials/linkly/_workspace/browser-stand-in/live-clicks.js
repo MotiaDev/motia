@@ -10,7 +10,7 @@ const TOKEN = process.env.LINKLY_BROWSER_TOKEN ?? "dev-token";
 const BROWSER_URL = process.env.BROWSER_URL ?? "ws://localhost:3110";
 const HTTP = process.env.HTTP ?? "http://127.0.0.1:3111";
 const CODE = process.env.LINKLY_CODE ?? "watchme";
-// The project namespace, where link::* live (`namespace:` in worker-compose.yaml).
+// The tutorial runs in `default`; run.sh may move the test project elsewhere.
 const PROJECT_NAMESPACE = process.env.III_NAMESPACE || "default";
 const SESSION = randomUUID();
 
@@ -54,7 +54,7 @@ worker.registerTrigger({
   type: "click-streamer::click",
   function_id: "ui::on_click",
   config: {},
-  // The provider lives in the project namespace, not this tab's.
+  // App.tsx omits this: in `default` the engine falls back to it on its own.
   trigger_namespace: PROJECT_NAMESPACE,
 });
 

@@ -5,8 +5,9 @@
 
 Rewrites worker-compose.yaml in place: the engine URL (also the one rbac-proxy
 dials), the http worker's port and the rbac-proxy listener port. A namespace
-other than `default` replaces the top-level `namespace:` and the namespace of
-every rbac-proxy expose_functions rule. With the defaults (49134, 3111, 3110,
+other than `default` replaces the top-level `namespace:` and scopes every
+rbac-proxy expose_functions rule to it: the tutorial's rules name no namespace,
+so they answer in `default` only. With the defaults (49134, 3111, 3110,
 default) the file is left unchanged.
 """
 
@@ -38,8 +39,13 @@ def main() -> int:
 
     if namespace != "default":
         text = re.sub(r"^namespace: default$", f"namespace: {namespace}", text, flags=re.M)
-        # expose_functions rules answer only in the namespace they name.
-        text = re.sub(r"^(\s*#?\s*namespace:) default$", rf"\g<1> {namespace}", text, flags=re.M)
+        # match("id") means "id in default"; the map form names the namespace.
+        text = re.sub(
+            r'^(?P<lead>\s*#?\s*)- match\("(?P<id>[^"]+)"\)$',
+            rf"\g<lead>- match: \g<id>\n\g<lead>  namespace: {namespace}",
+            text,
+            flags=re.M,
+        )
 
     path.write_text(text)
     return 0
