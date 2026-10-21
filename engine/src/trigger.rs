@@ -944,26 +944,6 @@ impl TriggerRegistry {
         self.assignments.contains_key(id)
     }
 
-    pub(crate) fn acknowledged_binding(&self, trigger: &Trigger) -> bool {
-        self.shared()
-            && self
-                .resolve_provider_key(trigger)
-                .and_then(|key| {
-                    self.trigger_types
-                        .get(&key)
-                        .map(|t| t.delivery_contract == Some(TriggerDeliveryContract::SharedV1))
-                })
-                .unwrap_or(false)
-    }
-
-    pub(crate) fn acknowledged_subscriber(&self, worker: Uuid, alias: &str) -> bool {
-        let subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
-        subscriptions
-            .aliases
-            .get(&(worker, alias.to_string()))
-            .is_some_and(|id| self.assignments.contains_key(id))
-    }
-
     pub(crate) fn subscriber_aliases(&self, canonical: &str) -> Vec<(Uuid, String)> {
         self.subscriptions
             .lock()
@@ -2213,6 +2193,161 @@ mod tests {
             assert!(registry.subscriber_aliases(&canonical).is_empty());
             assert_eq!(provider.stops.load(Ordering::SeqCst), 2);
         }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn shared_trigger_parallel_router_pending_alias_removal_keeps_ack_reader_free() {
+        use crate::{engine::Outbound, protocol::Message, worker_connections::WorkerConnection};
+
+        crate::workers::observability::metrics::ensure_default_meter();
+        let engine = crate::engine::Engine::new();
+        engine.set_shared_namespace_ownership(true);
+        let registry = &engine.trigger_registry;
+        let (tx, mut rx) = tokio::sync::mpsc::channel(16);
+        let worker = WorkerConnection::new(tx);
+        engine.worker_registry.register_worker(worker.clone());
+        engine
+            .router_msg(
+                &worker,
+                &Message::RegisterTrigger {
+                    assignment_id: None,
+                    id: "pending-alias".into(),
+                    trigger_type: "fixture".into(),
+                    function_id: "orders::created".into(),
+                    config: serde_json::json!({}),
+                    metadata: None,
+                    namespace: None,
+                    trigger_namespace: None,
+                },
+            )
+            .await
+            .unwrap();
+        let canonical = registry.subscriptions.lock().unwrap().aliases
+            [&(worker.id, "pending-alias".into())]
+            .clone();
+        assert!(registry.pending_triggers.contains_key(&canonical));
+        assert!(!registry.has_assignment(&canonical));
+        registry
+            .register_trigger_type(
+                TriggerType::new_ns(
+                    DEFAULT_NAMESPACE,
+                    "fixture",
+                    "self-ACK regression",
+                    Box::new(worker.clone()),
+                    Some(worker.id),
+                )
+                .with_delivery_mode(TriggerDeliveryMode::Parallel)
+                .with_delivery_contract(TriggerDeliveryContract::SharedV1),
+            )
+            .await
+            .unwrap();
+
+        let (reached, ready) = tokio::sync::oneshot::channel();
+        let (resume, wait) = tokio::sync::oneshot::channel();
+        *registry.removal_pause.lock().unwrap() = Some((reached, wait));
+        let message = Message::UnregisterTrigger {
+            assignment_id: None,
+            id: "pending-alias".into(),
+            trigger_type: Some("fixture".into()),
+        };
+        // This is the actual reader-facing router future, not a direct call to
+        // unregister_subscriber. Pause removal after its no-lifecycle lookup.
+        let dispatch = engine.router_msg(&worker, &message);
+        tokio::pin!(dispatch);
+        let mut reader_free = match futures::poll!(&mut dispatch) {
+            std::task::Poll::Ready(result) => {
+                result.unwrap();
+                true
+            }
+            std::task::Poll::Pending => false,
+        };
+        ready.await.unwrap();
+        let replay = registry.replay_shared_assignments(type_key(DEFAULT_NAMESPACE, "fixture"));
+        tokio::pin!(replay);
+        assert!(futures::poll!(&mut replay).is_pending());
+        let Outbound::Protocol(Message::RegisterTrigger {
+            id,
+            trigger_type,
+            function_id,
+            assignment_id: Some(token),
+            ..
+        }) = rx
+            .try_recv()
+            .expect("replay enqueued installation to the same reader")
+        else {
+            panic!("expected identified installation");
+        };
+        assert_eq!(id, canonical);
+        assert!(
+            worker
+                .pending_trigger_acks
+                .contains_key(&format!("{token}:false"))
+        );
+        resume.send(()).unwrap();
+        if !reader_free {
+            reader_free = match futures::poll!(&mut dispatch) {
+                std::task::Poll::Ready(result) => {
+                    result.unwrap();
+                    true
+                }
+                std::task::Poll::Pending => false,
+            };
+        }
+
+        // Recover out of band only AFTER measuring dispatch. A real sequential
+        // WS reader cannot route this ACK until that dispatch has returned.
+        // No clock advance, sleep, or 10-second timeout makes the test finish.
+        engine
+            .router_msg(
+                &worker,
+                &Message::TriggerRegistrationResult {
+                    assignment_id: Some(token.clone()),
+                    id: id.clone(),
+                    trigger_type: trigger_type.clone(),
+                    function_id,
+                    error: None,
+                },
+            )
+            .await
+            .unwrap();
+        replay.await;
+        if !reader_free {
+            assert!(futures::poll!(&mut dispatch).is_pending());
+        }
+        let Outbound::Protocol(Message::UnregisterTrigger {
+            id: stopped_id,
+            assignment_id: Some(stopped_token),
+            ..
+        }) = rx.recv().await.expect("identified teardown")
+        else {
+            panic!("expected stop after recovered installation ACK");
+        };
+        assert_eq!((stopped_id, stopped_token), (id.clone(), token.clone()));
+        engine
+            .router_msg(
+                &worker,
+                &Message::UnregisterTriggerResult {
+                    assignment_id: Some(token),
+                    id,
+                    trigger_type,
+                    error: None,
+                },
+            )
+            .await
+            .unwrap();
+        if !reader_free {
+            dispatch.await.unwrap();
+        }
+        while !worker.assignment_tasks.is_empty() {
+            tokio::task::yield_now().await;
+        }
+        assert!(worker.pending_trigger_acks.is_empty());
+        assert!(!registry.has_assignment(&canonical));
+        assert!(registry.subscriber_aliases(&canonical).is_empty());
+        assert!(
+            reader_free,
+            "production router blocked its own ACK reader after a pending alias acquired its first replay lifecycle"
+        );
     }
 
     #[tokio::test]

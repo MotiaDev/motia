@@ -1856,10 +1856,13 @@ impl Engine {
                     // only the value it starts from.
                     provider_namespace: crate::protocol::default_namespace(),
                 };
-                if self.trigger_registry.acknowledged_binding(&binding) {
+                // Shared-mode discovery can acquire an acknowledged lifecycle
+                // after this dispatch starts (including an initially unknown
+                // provider). Never make the reader wait for its own future ACK.
+                if self.shared_namespace_ownership() {
                     let engine = self.clone();
                     let origin = worker.clone();
-                    worker.spawn_assignment(async move {
+                    let mut registration = Box::pin(async move {
                         let worker = origin;
                         let result = engine.trigger_registry.register_trigger(binding).await;
                         if matches!(
@@ -1896,6 +1899,11 @@ impl Engine {
                                 .await;
                         }
                     });
+                    // Keep immediate parked/legacy registration observable as
+                    // before, but move every suspension off the ACK read loop.
+                    if futures::poll!(&mut registration).is_pending() {
+                        worker.spawn_assignment(registration);
+                    }
                     return Ok(());
                 }
                 match self.trigger_registry.register_trigger(binding).await {
@@ -1936,14 +1944,22 @@ impl Engine {
                     "UnregisterTrigger"
                 );
 
-                if self.trigger_registry.acknowledged_subscriber(worker.id, id) {
+                // A pending alias may acquire its first assignment, or wait on
+                // an in-flight registration, after any snapshot-based check.
+                // Detach based on the possible lifecycle, not its current state.
+                if self.shared_namespace_ownership() {
                     let registry = self.trigger_registry.clone();
                     let owner = worker.id;
                     let id = id.clone();
                     let kind = trigger_type.clone();
-                    worker.spawn_assignment(async move {
+                    let mut removal = Box::pin(async move {
                         let _ = registry.unregister_subscriber(owner, id, kind).await;
                     });
+                    // Preserve immediate alias/legacy cleanup. Any suspension
+                    // (intent lock, install or stop ACK) must free the reader.
+                    if futures::poll!(&mut removal).is_pending() {
+                        worker.spawn_assignment(removal);
+                    }
                     return Ok(());
                 }
                 let _ = self
