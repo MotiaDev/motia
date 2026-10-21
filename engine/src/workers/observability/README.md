@@ -307,7 +307,9 @@ and collector export, where the trace is rooted in the worker:
 | `engine::log::trace` | Log a trace-level message.    |
 
 All logging functions accept: `message` (string, required), `data` (object), `trace_id` (string),
-`span_id` (string), `service_name` (string).
+`span_id` (string), `service_name` (string). Without `trace_id`, the record takes the trace and span
+the call runs in (the `traceparent` its caller sent), so a log line a handler writes is correlated
+with that handler's trace. Each call stores one record (instrumentation scope `iii`).
 
 ### Logs API
 

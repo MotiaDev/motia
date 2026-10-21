@@ -2233,6 +2233,21 @@ impl ObservabilityWorker {
             }
         }
 
+        // A call that names no trace is correlated with the one it runs in:
+        // the context its caller sent (an SDK sends its traceparent with every
+        // call). A record an `observability::on-log` target logs while handling
+        // an event then carries that event's own trace, and is skipped.
+        let (trace_id, span_id) = match &input.trace_id {
+            Some(trace_id) => (Some(trace_id.clone()), input.span_id.clone()),
+            None => match otel::current_span_context_ids() {
+                Some((trace_id, span_id)) => (
+                    Some(trace_id),
+                    Some(input.span_id.clone().unwrap_or(span_id)),
+                ),
+                None => (None, input.span_id.clone()),
+            },
+        };
+
         let stored_log = otel::StoredLog {
             timestamp_unix_nano: timestamp,
             observed_timestamp_unix_nano: timestamp,
@@ -2240,8 +2255,8 @@ impl ObservabilityWorker {
             severity_text: severity_text.to_string(),
             body: input.message.clone(),
             attributes,
-            trace_id: input.trace_id.clone(),
-            span_id: input.span_id.clone(),
+            trace_id: trace_id.clone(),
+            span_id: span_id.clone(),
             resource: get_resource_attributes(),
             service_name: service_name.clone(),
             instrumentation_scope_name: Some("iii".to_string()),
@@ -2268,7 +2283,10 @@ impl ObservabilityWorker {
             });
         }
 
-        // Emit tracing event for console/OTLP export
+        // Emit a tracing event for the console. The record is stored above
+        // (the OTLP exporter and `log` triggers read it from there): the
+        // passthrough target keeps `OtelLogsLayer` from storing it twice, as a
+        // second record in the `tracing` scope.
         let data_str = input
             .data
             .as_ref()
@@ -2277,19 +2295,19 @@ impl ObservabilityWorker {
 
         match severity_number {
             1..=4 => {
-                tracing::trace!(service = %service_name, trace_id = ?input.trace_id, span_id = ?input.span_id, data = %data_str, "{}", input.message)
+                tracing::trace!(target: otel::OTEL_PASSTHROUGH_TARGET, service = %service_name, trace_id = ?trace_id, span_id = ?span_id, data = %data_str, "{}", input.message)
             }
             5..=8 => {
-                tracing::debug!(service = %service_name, trace_id = ?input.trace_id, span_id = ?input.span_id, data = %data_str, "{}", input.message)
+                tracing::debug!(target: otel::OTEL_PASSTHROUGH_TARGET, service = %service_name, trace_id = ?trace_id, span_id = ?span_id, data = %data_str, "{}", input.message)
             }
             9..=12 => {
-                tracing::info!(service = %service_name, trace_id = ?input.trace_id, span_id = ?input.span_id, data = %data_str, "{}", input.message)
+                tracing::info!(target: otel::OTEL_PASSTHROUGH_TARGET, service = %service_name, trace_id = ?trace_id, span_id = ?span_id, data = %data_str, "{}", input.message)
             }
             13..=16 => {
-                tracing::warn!(service = %service_name, trace_id = ?input.trace_id, span_id = ?input.span_id, data = %data_str, "{}", input.message)
+                tracing::warn!(target: otel::OTEL_PASSTHROUGH_TARGET, service = %service_name, trace_id = ?trace_id, span_id = ?span_id, data = %data_str, "{}", input.message)
             }
             _ => {
-                tracing::error!(service = %service_name, trace_id = ?input.trace_id, span_id = ?input.span_id, data = %data_str, "{}", input.message)
+                tracing::error!(target: otel::OTEL_PASSTHROUGH_TARGET, service = %service_name, trace_id = ?trace_id, span_id = ?span_id, data = %data_str, "{}", input.message)
             }
         }
 
@@ -5532,6 +5550,256 @@ mod tests {
         .expect("the loop guard stops it");
         assert_eq!(guarded.fires, 3);
         assert_eq!(calls.load(Ordering::SeqCst), 3);
+    }
+
+    /// Waits until `observer_id` has fired at least once, then a little
+    /// longer, so that a loop has time to show; returns its info then.
+    async fn settled_observer(
+        engine: &Engine,
+        observer_id: &str,
+    ) -> crate::observer::builtins::ObserverInfo {
+        let info = || {
+            engine
+                .observers
+                .get_info(engine, None, observer_id)
+                .unwrap()
+        };
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            while info().fires == 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+            }
+        })
+        .await
+        .expect("the first event fires");
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        info()
+    }
+
+    /// A target of `observability::on-log` that logs through
+    /// `engine::log::error` while it handles an event runs once. Its call
+    /// carries the activation's trace context (an SDK sends the context its
+    /// handler runs in), so the record is stored in the event's own trace,
+    /// which is not a new event. One call stores one record: the console
+    /// event it emits is not stored a second time by the logs layer.
+    #[tokio::test]
+    #[serial]
+    async fn an_on_log_target_that_logs_through_engine_log_runs_once() {
+        use crate::observer::InvocationCtx;
+        use crate::observer::events::{
+            OBSERVABILITY_ON_LOG, register_observability_event_sources, test_support,
+        };
+        use tracing_subscriber::prelude::*;
+
+        /// `engine::log::error`, called as a worker calls it: with the trace
+        /// context and the observe depth of what it is running.
+        async fn log_error(engine: &Engine, message: &str, traceparent: Option<String>) {
+            let handler = engine
+                .functions
+                .get_handler(crate::protocol::DEFAULT_NAMESPACE, "engine::log::error")
+                .expect("engine::log::error is registered");
+            let result = engine
+                .invocations
+                .handle_invocation_with_handler(
+                    None,
+                    None,
+                    "engine::log::error".to_string(),
+                    crate::protocol::DEFAULT_NAMESPACE,
+                    serde_json::json!({ "message": message, "service_name": "alerts" }),
+                    handler,
+                    traceparent,
+                    None,
+                    None,
+                    None,
+                    InvocationCtx::engine_internal_at(InvocationCtx::current_depth()),
+                )
+                .await;
+            assert!(matches!(result, Ok(Ok(_))), "{message}: {result:?}");
+        }
+
+        reset_observability_test_state();
+        let storage = otel::get_log_storage().expect("log storage");
+        // As in a running engine, the logs layer stores the engine's own
+        // tracing events (this test's tasks all run on this thread).
+        let _subscriber = tracing::subscriber::set_default(tracing_subscriber::registry().with(
+            logs_layer::OtelLogsLayer::new(storage.clone(), "iii".to_string()),
+        ));
+        let engine = Arc::new(Engine::new());
+        register_observability_event_sources(&engine);
+        let module = make_test_module(engine.clone());
+        module.register_functions(engine.clone());
+        // The subscriber that turns stored records into events.
+        let (_shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+        *module
+            .worker_shutdown_rx
+            .lock()
+            .expect("worker_shutdown_rx mutex poisoned") = Some(shutdown_rx);
+        module.spawn_log_trigger_subscriber();
+
+        let activations = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        {
+            let activations = activations.clone();
+            let engine_for_target = engine.clone();
+            engine.register_function_handler(
+                crate::engine::RegisterFunctionRequest {
+                    function_id: "test::alert".to_string(),
+                    description: None,
+                    request_format: None,
+                    response_format: None,
+                    metadata: None,
+                },
+                crate::engine::Handler::new(move |_input: Value| {
+                    let activations = activations.clone();
+                    let engine = engine_for_target.clone();
+                    async move {
+                        let traceparent =
+                            otel::inject_traceparent().expect("the activation runs in a trace");
+                        activations.lock().unwrap().push(traceparent.clone());
+                        log_error(&engine, "on-log loop: alert", Some(traceparent)).await;
+                        FunctionResult::Success(None)
+                    }
+                }),
+            );
+        }
+        let _socket = test_support::observe(
+            &engine,
+            "obs-alerts",
+            OBSERVABILITY_ON_LOG,
+            "test::alert",
+            Some(serde_json::json!({
+                "input.severity_number": { "$gte": 17 },
+                "input.body": { "$prefix": "on-log loop:" },
+            })),
+        )
+        .await;
+
+        // One error line from a call outside any trace.
+        log_error(&engine, "on-log loop: external", None).await;
+
+        let info = settled_observer(&engine, "obs-alerts").await;
+        assert_eq!(info.fires, 1, "one event, one activation: {info:?}");
+        assert!(info.dropped.is_empty(), "no loop to guard: {info:?}");
+        let activations = activations.lock().unwrap().clone();
+        assert_eq!(activations.len(), 1);
+        let activation_trace = activations[0].split('-').nth(1).unwrap();
+
+        let mut records: Vec<_> = storage
+            .get_logs()
+            .into_iter()
+            .filter(|log| log.body.starts_with("on-log loop:"))
+            .map(|log| {
+                (
+                    log.body,
+                    log.instrumentation_scope_name,
+                    log.trace_id,
+                    log.observe_depth,
+                )
+            })
+            .collect();
+        records.sort();
+        let iii = Some("iii".to_string());
+        assert_eq!(
+            records,
+            vec![
+                (
+                    "on-log loop: alert".to_string(),
+                    iii.clone(),
+                    Some(activation_trace.to_string()),
+                    1,
+                ),
+                ("on-log loop: external".to_string(), iii, None, 0),
+            ],
+            "one record per call; the target's is in its activation's trace"
+        );
+    }
+
+    /// The `observability::on-span` counterpart: a target whose spans stay in
+    /// its activation's trace (an SDK's handler span does) runs once.
+    #[tokio::test]
+    #[serial]
+    async fn an_on_span_target_whose_spans_stay_in_its_trace_runs_once() {
+        use crate::observer::events::{
+            OBSERVABILITY_ON_SPAN, register_observability_event_sources, test_support,
+        };
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        /// Ingests a span in `trace_id`, as a worker exports it, and fires
+        /// the window that holds it.
+        async fn record_span(engine: &Arc<Engine>, trace_id: &str) {
+            let otlp = serde_json::json!({
+                "resourceSpans": [{
+                    "resource": { "attributes": [{
+                        "key": "service.name",
+                        "value": { "stringValue": "spanner" }
+                    }] },
+                    "scopeSpans": [{ "spans": [{
+                        "traceId": trace_id,
+                        "spanId": "1234567890abcdef",
+                        "name": "execute test::own-spanner",
+                        "kind": 1,
+                        "startTimeUnixNano": "1704067200000000000",
+                        "endTimeUnixNano": "1704067200100000000",
+                        "status": { "code": 1 }
+                    }] }]
+                }]
+            });
+            otel::ingest_otlp_json(&otlp.to_string())
+                .await
+                .expect("ingested");
+            let spans = otel::get_span_storage()
+                .expect("span storage")
+                .get_spans_by_trace_id(trace_id);
+            ObservabilityWorker::fire_trace_triggers(
+                &Arc::new(OtelTraceTriggers::new()),
+                engine,
+                &spans,
+            )
+            .await;
+        }
+
+        reset_observability_test_state();
+        let engine = Arc::new(Engine::new());
+        register_observability_event_sources(&engine);
+        let calls = Arc::new(AtomicUsize::new(0));
+        {
+            let calls = calls.clone();
+            let engine_for_target = engine.clone();
+            engine.register_function_handler(
+                crate::engine::RegisterFunctionRequest {
+                    function_id: "test::own-spanner".to_string(),
+                    description: None,
+                    request_format: None,
+                    response_format: None,
+                    metadata: None,
+                },
+                crate::engine::Handler::new(move |_input: Value| {
+                    let calls = calls.clone();
+                    let engine = engine_for_target.clone();
+                    async move {
+                        calls.fetch_add(1, Ordering::SeqCst);
+                        let traceparent =
+                            otel::inject_traceparent().expect("the activation runs in a trace");
+                        let trace_id = traceparent.split('-').nth(1).unwrap().to_string();
+                        record_span(&engine, &trace_id).await;
+                        FunctionResult::Success(None)
+                    }
+                }),
+            );
+        }
+        let _socket = test_support::observe(
+            &engine,
+            "obs-own-spanner",
+            OBSERVABILITY_ON_SPAN,
+            "test::own-spanner",
+            None,
+        )
+        .await;
+
+        record_span(&engine, &uuid::Uuid::new_v4().simple().to_string()).await;
+
+        let info = settled_observer(&engine, "obs-own-spanner").await;
+        assert_eq!(info.fires, 1, "one event, one activation: {info:?}");
+        assert!(info.dropped.is_empty(), "no loop to guard: {info:?}");
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
     }
 
     /// Log trigger deliveries have the same namespace and metadata contract as
