@@ -1152,9 +1152,9 @@ impl TriggerRegistry {
             && let Some(owner) = trigger.worker_id
         {
             let descriptor = TriggerDescriptor::from(&trigger);
+            let alias = (owner, trigger.id.clone());
             let (canonical, intent) = {
                 let mut subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
-                let alias = (owner, trigger.id.clone());
                 if let Some(id) = subscriptions.aliases.get(&alias) {
                     let intent = &subscriptions.intents[id];
                     if intent.descriptor != descriptor {
@@ -1180,19 +1180,29 @@ impl TriggerRegistry {
                             .insert(id.clone(), Arc::clone(&intent));
                         (id, intent)
                     });
-                    subscriptions.aliases.insert(alias, id.clone());
+                    // Reserve the alias during intent discovery; publication is
+                    // revalidated under the intent's operation lock below.
+                    subscriptions.aliases.insert(alias.clone(), id.clone());
                     (id, intent)
                 }
             };
             let _operation = intent.operation.lock().await;
-            if !self
-                .subscriptions
-                .lock()
-                .expect("subscriptions poisoned")
-                .intents
-                .contains_key(&canonical)
             {
-                anyhow::bail!("trigger_registration_conflict: subscription was removed");
+                let mut subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
+                if !subscriptions.intents.contains_key(&canonical) {
+                    anyhow::bail!("trigger_registration_conflict: subscription was removed");
+                }
+                if let Some(current) = subscriptions.aliases.get(&alias)
+                    && current != &canonical
+                {
+                    anyhow::bail!(
+                        "trigger_registration_conflict: alias has a different descriptor"
+                    );
+                }
+                // A removal may have dropped this alias while we waited for the
+                // operation lock, leaving a peer's subscription alive. Restore
+                // our subscriber before reporting idempotent registration.
+                subscriptions.aliases.insert(alias, canonical.clone());
             }
             if self.triggers.contains_key(&canonical) {
                 return Ok(RegisterTriggerOutcome::Registered);
