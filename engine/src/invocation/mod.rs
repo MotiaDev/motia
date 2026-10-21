@@ -375,6 +375,13 @@ impl InvocationHandler {
                         stacktrace: None,
                     }));
                 }
+                // Halt may have finalized pending while this caller lock was
+                // awaited. Hold pending through both insertions so terminal
+                // removal either prevents registration or cleans it afterward.
+                let Some(_pending) = self.invocations.get(&invocation_id) else {
+                    drop(invocations);
+                    return receiver.await;
+                };
                 invocations.insert(invocation_id);
                 self.callers.insert(invocation_id, caller.clone());
             }
@@ -556,6 +563,69 @@ mod tests {
         invocation.sender.send(Ok(Some(Value::Bool(true)))).unwrap();
         assert_eq!(call.await.unwrap().unwrap(), Some(Value::Bool(true)));
     }
+
+    #[rustfmt::skip]
+    // BEGIN KAN-318 halt/caller registration regression
+    #[tokio::test]
+    async fn shared_namespace_routing_halt_during_caller_registration_cleans_all_bookkeeping() {
+        crate::workers::observability::metrics::ensure_default_meter();
+        let handler = InvocationHandler::new();
+        let (tx, _rx) = tokio::sync::mpsc::channel::<crate::engine::Outbound>(1);
+        let caller = WorkerConnection::new(tx);
+        let baseline_references = Arc::strong_count(&caller.invocations);
+        let id = Uuid::new_v4();
+        let function: Arc<HandlerFn> = Arc::new(|_, _, _, _| {
+            Box::pin(async { panic!("halted invocation must not reach its executor") })
+        });
+        handler.register_shared_handler(&function);
+
+        // Hold the exact lock awaited between publishing pending and recording
+        // the caller. One poll proves we reached that await, without scheduling
+        // assumptions, sleeps, or production-only synchronization hooks.
+        let caller_lock = caller.invocations.write().await;
+        let mut call = Box::pin(handler.handle_invocation_with_handler(
+            Some(id),
+            Some(&caller),
+            "svc::shared".into(),
+            Value::Null,
+            function,
+            None,
+            None,
+            None,
+            None,
+        ));
+        assert!(futures::poll!(call.as_mut()).is_pending());
+        assert!(handler.pending(&id).is_some(), "pending must precede caller registration");
+        assert!(handler.executor_required.contains(&id));
+        assert!(!handler.callers.contains_key(&id));
+        assert!(!caller_lock.contains(&id));
+
+        // Terminal removal completes while caller insertion is still blocked.
+        handler.halt_invocation(&id);
+        assert!(handler.pending(&id).is_none());
+        assert!(!handler.executor_required.contains(&id));
+        assert!(!handler.callers.contains_key(&id));
+        drop(caller_lock);
+        let error = call.await.expect("halt receiver remains connected").unwrap_err();
+        assert_eq!(error.code, "invocation_stopped");
+
+        // The future (and its registration guard) has now completed. Neither
+        // late insertion nor an orphaned WorkerConnection clone may survive it.
+        let remaining = (
+            caller.invocations.read().await.contains(&id),
+            handler.callers.contains_key(&id),
+            handler.invocations.contains_key(&id),
+            handler.executors.contains_key(&id),
+            handler.executor_required.contains(&id),
+            Arc::strong_count(&caller.invocations),
+        );
+        assert_eq!(
+            remaining,
+            (false, false, false, false, false, baseline_references),
+            "halt during caller-lock await must leave no caller ID, pending state, reservation or retained WorkerConnection"
+        );
+    }
+    // END KAN-318 halt/caller registration regression
 
     #[test]
     fn test_invocation_handler_new() {
