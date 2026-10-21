@@ -3539,7 +3539,7 @@ pub fn shutdown_otel() {
 
 /// Extract trace and span IDs from the active span context.
 /// Returns `None` if there is no active span or tracing is not initialized.
-fn current_span_context_ids() -> Option<(String, String)> {
+pub(crate) fn current_span_context_ids() -> Option<(String, String)> {
     let ctx = Context::current();
     let span_ref = ctx.span();
     let span_ctx = span_ref.span_context();
