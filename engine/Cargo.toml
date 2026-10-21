@@ -160,6 +160,11 @@ tar = "0.4"
 zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 thiserror = "2"
 tokio-tungstenite = "0.28"
+# The tungstenite axum's WebSocket is built on: its read errors wrap this
+# version's `Error`, which the worker read path downcasts to spot oversized
+# frames and messages. Keep it on axum's version; the 1009 close tests fail
+# otherwise.
+tungstenite = { version = "0.29", default-features = false }
 # Used by workers::external::resolve_external_module to locate
 # iii-worker on $PATH for the iii-sandbox well-known name.
 which = "7"
