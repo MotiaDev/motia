@@ -895,6 +895,7 @@ impl Worker for DisabledTelemetryWorker {
     }
 
     async fn initialize(&self) -> anyhow::Result<()> {
+        settings::register_disabled(&self.engine);
         Ok(())
     }
 
@@ -973,6 +974,7 @@ impl Worker for TelemetryWorker {
     }
 
     async fn initialize(&self) -> anyhow::Result<()> {
+        settings::register_handler(&self.engine, &self.ctx, &self.config);
         Ok(())
     }
 
@@ -2731,6 +2733,7 @@ mod tests {
             .await
             .unwrap();
         module.initialize().await.unwrap();
+        crate::workers::observability::metrics::ensure_default_meter();
         engine
             .call(settings::SETTINGS_FN_ID, serde_json::json!({}))
             .await

@@ -12,33 +12,60 @@
 
 use std::sync::Arc;
 
-use serde_json::Value;
+use serde_json::{Value, json};
 
-use super::{TelemetryConfig, TelemetryContext};
-use crate::engine::Engine;
+use super::{TelemetryConfig, TelemetryContext, resolve_posthog_api_key, resolve_posthog_host};
+use crate::{
+    engine::{Engine, EngineTrait, Handler, RegisterFunctionRequest},
+    function::FunctionResult,
+};
 
 pub const SETTINGS_FN_ID: &str = "iii-telemetry::settings";
 
 /// Answer with this engine's PostHog settings (telemetry on).
 pub(super) fn register_handler(
-    _engine: &Arc<Engine>,
-    _ctx: &TelemetryContext,
-    _config: &TelemetryConfig,
+    engine: &Arc<Engine>,
+    ctx: &TelemetryContext,
+    config: &TelemetryConfig,
 ) {
+    register(
+        engine,
+        json!({
+            "enabled": true,
+            "distinct_id": ctx.device_id,
+            "api_key": resolve_posthog_api_key(config),
+            "host": resolve_posthog_host(config),
+        }),
+    );
 }
 
 /// Answer `{"enabled": false}` and nothing else (telemetry off, any reason).
-pub(super) fn register_disabled(_engine: &Arc<Engine>) {}
+/// The reason, the device id and the key stay inside the engine.
+pub(super) fn register_disabled(engine: &Arc<Engine>) {
+    register(engine, json!({ "enabled": false }));
+}
 
-#[allow(dead_code)]
-fn unused(_: Value) {}
+fn register(engine: &Arc<Engine>, answer: Value) {
+    engine.register_function_handler(
+        RegisterFunctionRequest {
+            function_id: SETTINGS_FN_ID.to_string(),
+            description: Some("Whether anonymous telemetry is on, and where it goes".to_string()),
+            request_format: None,
+            response_format: None,
+            metadata: Some(json!({ "internal": true })),
+        },
+        Handler::new(move |_input: Value| {
+            let answer = answer.clone();
+            async move { FunctionResult::Success(Some(answer)) }
+        }),
+    );
+}
 
 #[cfg(test)]
 mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::engine::EngineTrait;
     use crate::workers::telemetry::environment::EnvironmentInfo;
 
     fn ctx() -> TelemetryContext {
@@ -57,6 +84,7 @@ mod tests {
     }
 
     async fn ask(engine: &Arc<Engine>) -> Value {
+        crate::workers::observability::metrics::ensure_default_meter();
         engine
             .call(SETTINGS_FN_ID, json!({ "ignored": true }))
             .await
