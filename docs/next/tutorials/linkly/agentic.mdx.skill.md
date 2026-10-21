@@ -470,10 +470,10 @@ because nothing listens yet; the browser you add in Chapter 7 will.
 The same flow from the CLI:
 
 ```bash
-for n in $(seq 4 6); do
+for n in $(seq 1 3); do
   curl -s -X POST http://127.0.0.1:3111/links \
-    -H 'Content-Type: application/json' -d "{\"url\":\"https://example.com/feed\",\"code\":\"iii-example-$n\"}"
-  curl -s -o /dev/null "http://127.0.0.1:3111/s/iii-example-$n"
+    -H 'Content-Type: application/json' -d "{\"url\":\"https://example.com/feed\",\"code\":\"stream-$n\"}"
+  curl -s -o /dev/null "http://127.0.0.1:3111/s/stream-$n"
   sleep 2s
 done
 iii trigger link::click_summary

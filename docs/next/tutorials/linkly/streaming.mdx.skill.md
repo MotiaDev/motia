@@ -224,20 +224,24 @@ cd click-streamer && npx tsx watch.ts
 In a second terminal, create a few links and follow each:
 
 ```bash
-for n in $(seq 4 6); do
+for n in $(seq 1 3); do
   curl -s -X POST http://127.0.0.1:3111/links \
-    -H 'Content-Type: application/json' -d "{\"url\":\"https://iii.dev\",\"code\":\"iii-example-$n\"}"
-  curl -s -o /dev/null "http://127.0.0.1:3111/s/iii-example-$n"
+    -H 'Content-Type: application/json' -d "{\"url\":\"https://iii.dev\",\"code\":\"stream-$n\"}"
+  curl -s -o /dev/null "http://127.0.0.1:3111/s/stream-$n"
 done
 ```
+
+Running the loop again is fine: the links already exist, so `POST /links` answers `409` with a
+`UNIQUE constraint failed: links.code` message from the database, and each redirect still records a
+new click. Change the numbers in `seq` to create new links.
 
 Each redirect shows up in the watcher as soon as its click row is written:
 
 ```text
 watching clicks, 0 recorded so far
-click #1: iii-example-4 at 2026-05-27T10:15:02.114Z
-click #2: iii-example-5 at 2026-05-27T10:15:02.169Z
-click #3: iii-example-6 at 2026-05-27T10:15:02.221Z
+click #1: stream-1 at 2026-05-27T10:15:02.114Z
+click #2: stream-2 at 2026-05-27T10:15:02.169Z
+click #3: stream-3 at 2026-05-27T10:15:02.221Z
 ```
 
 The total is always one query away:
