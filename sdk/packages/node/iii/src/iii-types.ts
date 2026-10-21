@@ -48,8 +48,17 @@ export enum MessageType {
  */
 export const FEATURE_OBSERVE_V1 = 'observe.v1'
 export const FEATURE_LOCAL_DISPATCH_V1 = 'local-dispatch.v1'
+/**
+ * Declared by the SDK only: it receives JSON messages up to 64 MiB, so the
+ * engine sends it messages of that size whatever version it reports.
+ */
+export const FEATURE_LARGE_MESSAGES_V1 = 'large-messages.v1'
 /** What this SDK declares in `engine::workers::register`. */
-export const SDK_FEATURES: readonly string[] = [FEATURE_OBSERVE_V1, FEATURE_LOCAL_DISPATCH_V1]
+export const SDK_FEATURES: readonly string[] = [
+  FEATURE_OBSERVE_V1,
+  FEATURE_LOCAL_DISPATCH_V1,
+  FEATURE_LARGE_MESSAGES_V1,
+]
 
 /**
  * A wire enum that a newer peer may extend: decoders keep a value they do not

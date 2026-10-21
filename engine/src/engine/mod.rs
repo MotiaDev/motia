@@ -4157,7 +4157,7 @@ impl EngineTrait for Engine {
 
 fn payload_too_large_error(size: usize, limit: usize, requires_upgrade: bool) -> ErrorBody {
     let remediation = if requires_upgrade {
-        " The target worker did not identify itself as SDK 0.24.5 or later; upgrade it to SDK 0.25 or later, or use channels: https://iii.dev/docs/creating-workers/channels#payload-size"
+        " It did not declare large-messages.v1 (SDK 0.25.0 or later), and the version it reports is older than 0.24.5 or unknown. Upgrade the target worker SDK to 0.25.0 or later, or use channels: https://iii.dev/docs/creating-workers/channels#payload-size"
     } else {
         " Use channels for larger payloads: https://iii.dev/docs/creating-workers/channels#payload-size"
     };
@@ -10499,7 +10499,7 @@ mod tests {
 
         assert_eq!(
             error.message,
-            "Serialized JSON envelope is 20 bytes; target worker accepts up to 16 bytes. The target worker did not identify itself as SDK 0.24.5 or later; upgrade it to SDK 0.25 or later, or use channels: https://iii.dev/docs/creating-workers/channels#payload-size"
+            "Serialized JSON envelope is 20 bytes; target worker accepts up to 16 bytes. It did not declare large-messages.v1 (SDK 0.25.0 or later), and the version it reports is older than 0.24.5 or unknown. Upgrade the target worker SDK to 0.25.0 or later, or use channels: https://iii.dev/docs/creating-workers/channels#payload-size"
         );
         assert_eq!(
             protocol_message_type(&Message::WorkerRegistered {

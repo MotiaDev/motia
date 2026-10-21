@@ -544,7 +544,8 @@ pub struct RegisterWorkerInput {
     #[serde(default)]
     pub namespace: Option<String>,
     /// Protocol features the SDK supports (`observe.v1`,
-    /// `local-dispatch.v1`). Absent from SDKs older than 0.25. Read
+    /// `local-dispatch.v1`, `large-messages.v1`). Absent from SDKs older
+    /// than 0.25. Read
     /// leniently: a malformed list declares nothing instead of failing the
     /// registration.
     #[serde(default, deserialize_with = "crate::protocol::deserialize_features")]
@@ -3072,10 +3073,9 @@ mod tests {
         assert!(snapshot.features.declared().is_empty());
     }
 
-    /// Only SDK 0.25 and later declare features, and a Rust worker reports
-    /// its own crate version: the features stored by the same call set the
-    /// 64 MiB receive limit. They stay fixed, so a later call without them
-    /// keeps it.
+    /// A Rust worker reports its own crate version: the `large-messages.v1`
+    /// stored by the same call sets the 64 MiB receive limit. Features stay
+    /// fixed, so a later call without them keeps it.
     #[tokio::test]
     async fn register_worker_metadata_sizes_the_receive_limit_by_the_declared_features() {
         use std::sync::atomic::Ordering;
@@ -3089,7 +3089,11 @@ mod tests {
         let mut input = register_worker_input_with_namespace(&snapshot.id.to_string(), None);
         input.runtime = Some("rust".to_string());
         input.version = Some("0.3.0".to_string());
-        input.features = vec!["observe.v1".to_string(), "local-dispatch.v1".to_string()];
+        input.features = vec![
+            "observe.v1".to_string(),
+            "local-dispatch.v1".to_string(),
+            "large-messages.v1".to_string(),
+        ];
         module.register_worker_metadata(input.clone()).await;
         assert_eq!(
             snapshot.receive_message_limit.load(Ordering::Relaxed),

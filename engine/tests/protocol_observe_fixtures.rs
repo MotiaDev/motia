@@ -9,7 +9,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use iii::protocol::{Capture, Delivery, InvocationStatus, Message, ObserverState, engine_features};
+use iii::protocol::{
+    Capture, Delivery, FEATURE_LARGE_MESSAGES_V1, InvocationStatus, Message, ObserverState,
+    engine_features,
+};
 use iii::workers::engine_fn::RegisterWorkerInput;
 use serde_json::{Value, json};
 
@@ -517,8 +520,9 @@ fn fixtures_use_only_known_enum_values() {
     }
 }
 
-/// SDKs declare their features in the `engine::workers::register` payload;
-/// the engine reads them from what the fixture sends (plus the
+/// SDKs declare their features in the `engine::workers::register` payload:
+/// the engine's, plus `large-messages.v1`, which only workers declare. The
+/// engine reads them from what the fixture sends (plus the
 /// `_caller_worker_id` it injects into every forwarded payload).
 #[test]
 fn workers_register_fixture_declares_features() {
@@ -533,5 +537,7 @@ fn workers_register_fixture_declares_features() {
     assert_eq!(function_id, "engine::workers::register");
     data["_caller_worker_id"] = Value::String("550e8400-e29b-41d4-a716-446655440000".into());
     let input: RegisterWorkerInput = serde_json::from_value(data).expect("decodes");
-    assert_eq!(input.features, engine_features());
+    let mut declared = engine_features();
+    declared.push(FEATURE_LARGE_MESSAGES_V1.to_string());
+    assert_eq!(input.features, declared);
 }

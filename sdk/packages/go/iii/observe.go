@@ -18,14 +18,17 @@ import (
 // negotiation, the inbound observe messages, and what the owner side and the reporter
 // need from the connection.
 
-// Features this SDK declares in its engine::workers::register payload, and that the
-// engine advertises in WorkerRegistered (CONTRACT D2).
+// Features this SDK declares in its engine::workers::register payload. The engine
+// advertises the first two in WorkerRegistered (CONTRACT D2). FeatureLargeMessagesV1 is
+// declared by the SDK only: it receives JSON messages up to 64 MiB, so the engine sends it
+// messages of that size whatever version it reports.
 const (
 	FeatureObserveV1       = "observe.v1"
 	FeatureLocalDispatchV1 = "local-dispatch.v1"
+	FeatureLargeMessagesV1 = "large-messages.v1"
 )
 
-var sdkFeatures = []string{FeatureObserveV1, FeatureLocalDispatchV1}
+var sdkFeatures = []string{FeatureObserveV1, FeatureLocalDispatchV1, FeatureLargeMessagesV1}
 
 // Engine functions of the observer registry (protocol.md §3.6).
 const (

@@ -64,12 +64,12 @@ const LARGE_MESSAGE_SDK_RELEASE: [u64; 3] = [0, 24, 5];
 /// recommend upgrading its SDK.
 ///
 /// - `runtime: "browser"`: one 16 MiB frame, whatever else it sent.
-/// - Declared `observe.v1` or `local-dispatch.v1`: only SDK 0.25 and later
-///   declare them, so 64 MiB. `version` is not read: a Rust worker may report
-///   its own crate version there (`WorkerMetadata.version`).
-/// - No features (SDK 0.24.5 and 0.24.6 declare none): 64 MiB when `version`
-///   is an SDK release of 0.24.5 or later ([`is_large_message_sdk_version`]),
-///   otherwise 16 MiB.
+/// - Declared `large-messages.v1`: 64 MiB. `version` is not read: a Rust
+///   worker may report its own crate version there (`WorkerMetadata.version`).
+/// - Otherwise (SDK 0.24.5 to 0.25.0-rc.5 do not declare it): 64 MiB when
+///   `version` is an SDK release of 0.24.5 or later
+///   ([`is_large_message_sdk_version`]), otherwise 16 MiB. No other feature
+///   counts.
 pub(crate) fn receive_message_limit(
     runtime: Option<&str>,
     version: Option<&str>,
@@ -78,9 +78,8 @@ pub(crate) fn receive_message_limit(
     if runtime == Some("browser") {
         return (MAX_JSON_FRAME_BYTES, false);
     }
-    let receives_large_messages = features.observe_v1()
-        || features.local_dispatch_v1()
-        || version.is_some_and(is_large_message_sdk_version);
+    let receives_large_messages =
+        features.large_messages_v1() || version.is_some_and(is_large_message_sdk_version);
     if receives_large_messages {
         (MAX_JSON_MESSAGE_BYTES, false)
     } else {
@@ -893,7 +892,10 @@ mod tests {
         const FRAME: (usize, bool) = (MAX_JSON_FRAME_BYTES, true);
         const BROWSER: (usize, bool) = (MAX_JSON_FRAME_BYTES, false);
         const MESSAGE: (usize, bool) = (MAX_JSON_MESSAGE_BYTES, false);
-        const SDK_0_25: &[&str] = &["observe.v1", "local-dispatch.v1"];
+        const LARGE: &[&str] = &["large-messages.v1"];
+        const SDK_0_25: &[&str] = &["observe.v1", "local-dispatch.v1", "large-messages.v1"];
+        // What SDK 0.25.0-rc.1 to rc.5 declare.
+        const RC: &[&str] = &["observe.v1", "local-dispatch.v1"];
         /// Runtime, version and features sent on registration; the expected limit.
         type Case = (
             Option<&'static str>,
@@ -904,26 +906,29 @@ mod tests {
         let cases: &[Case] = &[
             // Before registration, the connection has no SDK metadata.
             (None, None, &[], FRAME),
-            // SDK 0.25 or later, by its features, whatever version it reports
-            // (Rust workers report their own crate version).
+            // `large-messages.v1`, whatever version it reports (Rust workers
+            // report their own crate version).
             (Some("rust"), Some("0.3.0"), SDK_0_25, MESSAGE),
-            (Some("rust"), Some("0.1.1"), &["observe.v1"], MESSAGE),
-            (
-                Some("node"),
-                Some("0.22.7"),
-                &["local-dispatch.v1"],
-                MESSAGE,
-            ),
+            (Some("rust"), Some("0.1.1"), LARGE, MESSAGE),
             (Some("python"), Some("0.25.0rc5"), SDK_0_25, MESSAGE),
             (Some("go"), Some("garbage"), SDK_0_25, MESSAGE),
-            (Some("unknown"), None, SDK_0_25, MESSAGE),
-            // A feature this engine does not know proves nothing.
+            (Some("unknown"), None, LARGE, MESSAGE),
+            // No other feature counts: rc.1 to rc.5 go by their version.
+            (Some("rust"), Some("0.3.0"), RC, FRAME),
+            (Some("rust"), Some("0.3.0"), &["observe.v1"], FRAME),
+            (Some("node"), Some("0.22.7"), &["local-dispatch.v1"], FRAME),
             (Some("rust"), Some("0.3.0"), &["telepathy.v9"], FRAME),
-            // A browser receives one frame, with or without features.
+            (Some("rust"), Some("0.3.0"), &["large-messages.v2"], FRAME),
+            (Some("rust"), Some("0.3.0"), &["Large-Messages.v1"], FRAME),
+            (Some("rust"), Some("0.25.0-rc.5"), RC, MESSAGE),
+            (Some("python"), Some("0.25.0rc5"), RC, MESSAGE),
+            // A browser receives one frame, whatever it declares.
             (Some("browser"), Some("0.25.0"), SDK_0_25, BROWSER),
+            (Some("browser"), None, LARGE, BROWSER),
             (Some("browser"), Some("1.0.0"), &[], BROWSER),
             (Some("browser"), None, &[], BROWSER),
-            // No features (SDK 0.24.5, 0.24.6): the SDK version, as semver...
+            // Without the feature (SDK 0.24.5 to 0.25.0-rc.5): the SDK version,
+            // as semver...
             (Some("rust"), Some("0.24.5"), &[], MESSAGE),
             (Some("node"), Some("0.24.6"), &[], MESSAGE),
             (Some("node"), Some("0.25.0-rc.5"), &[], MESSAGE),

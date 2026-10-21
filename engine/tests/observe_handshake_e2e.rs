@@ -301,19 +301,25 @@ async fn size_worker(port: u16, function_id: &str, data: Value) -> tokio::task::
 }
 
 /// The engine sends a worker more than one 16 MiB frame only when the worker
-/// runs an SDK that receives it. A Rust worker reports its own crate version
-/// (`WorkerMetadata.version`) and a Python pre-release reports its PyPI
-/// version (`0.25.0rc5`), so the version alone does not identify the SDK: the
-/// features declared by SDK 0.25 and later do.
+/// can receive it: it declared `large-messages.v1`, or (SDK 0.24.5 to
+/// 0.25.0-rc.5, which do not declare it) reports an SDK version of 0.24.5 or
+/// later. A Rust worker reports its own crate version
+/// (`WorkerMetadata.version`) and a Python pre-release its PyPI version
+/// (`0.25.0rc5`), so the version alone does not identify the SDK.
 #[tokio::test]
 async fn the_receive_limit_follows_the_declared_sdk_not_the_reported_version() {
     let (port, engine) = spawn_engine().await;
-    let features = json!(["observe.v1", "local-dispatch.v1"]);
+    let sdk_0_25 = json!(["observe.v1", "local-dispatch.v1", "large-messages.v1"]);
+    let rc = json!(["observe.v1", "local-dispatch.v1"]);
     let cases = [
-        // SDK 0.25 or later, whatever version the worker reports.
-        ("rust", Some("0.3.0"), Some(features.clone()), true),
-        ("node", None, Some(features.clone()), true),
-        // No features (SDK 0.24.5 and 0.24.6): the version must be the SDK's,
+        // Declares `large-messages.v1`, whatever version it reports.
+        ("rust", Some("0.3.0"), Some(sdk_0_25.clone()), true),
+        ("node", None, Some(json!(["large-messages.v1"])), true),
+        // Other features do not count (SDK 0.25.0-rc.1 to rc.5 declare only
+        // these): the version decides.
+        ("rust", Some("0.3.0"), Some(rc.clone()), false),
+        ("rust", Some("0.25.0-rc.5"), Some(rc), true),
+        // No features (SDK 0.24.5, 0.24.6): the version must be the SDK's,
         // semver or PEP 440.
         ("python", Some("0.25.0rc5"), None, true),
         ("python", Some("0.24.5.post1"), None, true),
@@ -322,7 +328,7 @@ async fn the_receive_limit_follows_the_declared_sdk_not_the_reported_version() {
         ("python", Some("0.24.5rc1"), None, false),
         ("node", None, None, false),
         // A browser receives one 16 MiB frame at most.
-        ("browser", Some("0.25.0"), Some(features.clone()), false),
+        ("browser", Some("0.25.0"), Some(sdk_0_25), false),
     ];
     let payload = "x".repeat(OVER_ONE_FRAME);
 

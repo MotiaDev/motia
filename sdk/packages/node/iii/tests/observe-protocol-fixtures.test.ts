@@ -334,7 +334,7 @@ describe('worker → engine: what the SDK builds equals the fixture', () => {
       ...expected,
       data: { ...want, version: data.version, os: data.os, pid: data.pid },
     })
-    expect(data.features).toEqual(['observe.v1', 'local-dispatch.v1'])
+    expect(data.features).toEqual(['observe.v1', 'local-dispatch.v1', 'large-messages.v1'])
   })
 
   it('unregistertriggertype.json', () => {

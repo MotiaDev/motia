@@ -27,8 +27,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     engine::Outbound,
     protocol::{
-        DEFAULT_NAMESPACE, ErrorBody, FEATURE_LOCAL_DISPATCH_V1, FEATURE_OBSERVE_V1,
-        effective_namespace,
+        DEFAULT_NAMESPACE, ErrorBody, FEATURE_LARGE_MESSAGES_V1, FEATURE_LOCAL_DISPATCH_V1,
+        FEATURE_OBSERVE_V1, effective_namespace,
     },
     workers::{observability::metrics::get_engine_metrics, worker::rbac_session::Session},
 };
@@ -290,6 +290,7 @@ struct DeclaredFeatures {
     list: Vec<String>,
     observe_v1: bool,
     local_dispatch_v1: bool,
+    large_messages_v1: bool,
 }
 
 impl WorkerFeatures {
@@ -316,6 +317,7 @@ impl WorkerFeatures {
         let declared = DeclaredFeatures {
             observe_v1: has(FEATURE_OBSERVE_V1),
             local_dispatch_v1: has(FEATURE_LOCAL_DISPATCH_V1),
+            large_messages_v1: has(FEATURE_LARGE_MESSAGES_V1),
             list,
         };
         self.declared.set(declared).is_ok()
@@ -329,6 +331,11 @@ impl WorkerFeatures {
 
     pub fn local_dispatch_v1(&self) -> bool {
         self.declared.get().is_some_and(|d| d.local_dispatch_v1)
+    }
+
+    /// The connection receives JSON messages up to 64 MiB.
+    pub fn large_messages_v1(&self) -> bool {
+        self.declared.get().is_some_and(|d| d.large_messages_v1)
     }
 
     /// The list as kept, unknown features included.

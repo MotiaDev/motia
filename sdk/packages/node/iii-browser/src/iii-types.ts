@@ -39,7 +39,11 @@ export enum MessageType {
  */
 export const FEATURE_OBSERVE_V1 = 'observe.v1'
 export const FEATURE_LOCAL_DISPATCH_V1 = 'local-dispatch.v1'
-/** What this SDK declares in `engine::workers::register`. */
+/**
+ * What this SDK declares in `engine::workers::register`. Not
+ * `large-messages.v1`, unlike the other SDKs: a browser receives one 16 MiB
+ * WebSocket frame at most.
+ */
 export const SDK_FEATURES: readonly string[] = [FEATURE_OBSERVE_V1, FEATURE_LOCAL_DISPATCH_V1]
 
 /** The error body of an `InvocationResult` (and of observe errors and state reasons). */

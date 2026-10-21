@@ -297,7 +297,7 @@ fn assert_engine_error(message: &str) {
     assert_eq!(
         message,
         format!(
-            "Serialized JSON envelope is {size} bytes; target worker accepts up to {FRAME_LIMIT} bytes. The target worker did not identify itself as SDK 0.24.5 or later; upgrade it to SDK 0.25 or later, or use channels: {LINK}"
+            "Serialized JSON envelope is {size} bytes; target worker accepts up to {FRAME_LIMIT} bytes. It did not declare large-messages.v1 (SDK 0.25.0 or later), and the version it reports is older than 0.24.5 or unknown. Upgrade the target worker SDK to 0.25.0 or later, or use channels: {LINK}"
         )
     );
 }
@@ -307,7 +307,7 @@ fn engine_error(message: &str) {
     assert_eq!(
         message,
         format!(
-            "Serialized JSON envelope is {size} bytes; target worker accepts up to {FRAME_LIMIT} bytes. The target worker did not identify itself as SDK 0.24.5 or later; upgrade it to SDK 0.25 or later, or use channels: {LINK}"
+            "Serialized JSON envelope is {size} bytes; target worker accepts up to {FRAME_LIMIT} bytes. It did not declare large-messages.v1 (SDK 0.25.0 or later), and the version it reports is older than 0.24.5 or unknown. Upgrade the target worker SDK to 0.25.0 or later, or use channels: {LINK}"
         )
     );
 }
@@ -660,7 +660,7 @@ async fn fragmented_json_roundtrips_and_engine_compatibility_guard() {
     .unwrap();
     assert_content(&rust_target, LARGE, 'S');
     // Most Rust workers report their own crate version in
-    // `WorkerMetadata.version`: the features the SDK declares identify it.
+    // `WorkerMetadata.version`: the SDK's `large-messages.v1` identifies it.
     let crate_version = register_worker(
         &engine.url,
         InitOptions {

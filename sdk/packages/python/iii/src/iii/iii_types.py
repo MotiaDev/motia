@@ -40,8 +40,11 @@ class MessageType(str, Enum):
 FEATURE_OBSERVE_V1 = "observe.v1"
 #: The engine confirms functions for in-process calls (``functionregistered.local_dispatch``).
 FEATURE_LOCAL_DISPATCH_V1 = "local-dispatch.v1"
+#: Declared by the SDK only: it receives JSON messages up to 64 MiB, so the engine sends it
+#: messages of that size whatever version it reports.
+FEATURE_LARGE_MESSAGES_V1 = "large-messages.v1"
 #: What this SDK declares in the ``engine::workers::register`` payload.
-SDK_FEATURES: tuple[str, ...] = (FEATURE_OBSERVE_V1, FEATURE_LOCAL_DISPATCH_V1)
+SDK_FEATURES: tuple[str, ...] = (FEATURE_OBSERVE_V1, FEATURE_LOCAL_DISPATCH_V1, FEATURE_LARGE_MESSAGES_V1)
 
 #: What an absent ``capture`` means (CONTRACT D1).
 DEFAULT_CAPTURE: tuple[str, ...] = ("input", "output", "caller")

@@ -283,7 +283,7 @@ def test_invokefunction_workers_register_json_features_in_the_payload(engine: Fa
     data = frame["data"]
     assert frame["action"] == {"type": "void"}
     assert "invocation_id" not in frame  # a void call
-    assert data["features"] == expected["data"]["features"] == ["observe.v1", "local-dispatch.v1"]
+    assert data["features"] == expected["data"]["features"] == ["observe.v1", "local-dispatch.v1", "large-messages.v1"]
     # every field of the contract is there; runtime, version, os, pid and telemetry are this host's
     assert set(expected["data"]) <= set(data)
     assert (data["runtime"], data["name"], data["namespace"]) == ("python", "billing", "default")

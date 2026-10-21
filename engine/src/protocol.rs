@@ -470,6 +470,11 @@ pub const FEATURE_OBSERVE_V1: &str = "observe.v1";
 pub const FEATURE_LOCAL_DISPATCH_V1: &str = "local-dispatch.v1";
 /// What this engine advertises in [`Message::WorkerRegistered`].
 pub const ENGINE_FEATURES: [&str; 2] = [FEATURE_OBSERVE_V1, FEATURE_LOCAL_DISPATCH_V1];
+/// Worker feature, declared on `engine::workers::register` and never
+/// advertised by the engine: the connection receives JSON messages up to
+/// 64 MiB, so the engine sends it messages of that size whatever `version` it
+/// reports (never to `runtime: "browser"`).
+pub const FEATURE_LARGE_MESSAGES_V1: &str = "large-messages.v1";
 
 /// [`ENGINE_FEATURES`] as owned strings, for the wire.
 pub fn engine_features() -> Vec<String> {
