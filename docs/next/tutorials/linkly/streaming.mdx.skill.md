@@ -184,14 +184,21 @@ The browser you build in Chapter 7 binds to `click-streamer::click` and counts c
 
 ## See it work
 
-A listener is any worker that binds a function to the trigger type. Create a small one that prints
-each click, in `click-streamer/watch.ts`:
+A listener is any worker that binds a function to the trigger type. The scaffold ships a small one
+that prints each click, commented out in `click-streamer/watch.ts`: uncomment its Ch. 5 block (a
+fully commented file runs, prints nothing and exits). The code:
 
 ```typescript click-streamer/watch.ts
 import { registerWorker } from "iii-sdk";
 
-const worker = registerWorker(process.env.III_URL ?? "ws://localhost:49134", {
+// A plain script gets no engine URL or namespace from Compose: read them from
+// III_URL and III_NAMESPACE. The defaults match worker-compose.yaml as shipped.
+const worker = registerWorker(process.env.III_URL ?? "ws://127.0.0.1:49134", {
   workerName: "click-watcher",
+  // Join the project's namespace: click-streamer registered the
+  // click-streamer::click trigger type there, and link::click_summary lives
+  // there too. From another namespace the binding is parked and never fires.
+  namespace: process.env.III_NAMESPACE || "default",
 });
 
 type Click = { id: number; code: string; clicked_at: string };
@@ -218,7 +225,13 @@ console.log(`watching clicks, ${summary.total} recorded so far`);
 Run it from the `click-streamer` folder and leave it running:
 
 ```bash
-cd click-streamer && npx tsx watch.ts
+cd click-streamer && npm install && npx tsx watch.ts
+```
+
+If you changed `namespace:` or the engine port in `worker-compose.yaml`, pass them:
+
+```bash
+III_URL=ws://127.0.0.1:<engine port> III_NAMESPACE=<namespace> npx tsx watch.ts
 ```
 
 In a second terminal, create a few links and follow each:

@@ -6,8 +6,9 @@
 #
 # TEMPLATES_DIR points at the `iii` directory of a templates checkout.
 # ENGINE_PORT, HTTP_PORT and BROWSER_PORT move the engine, the http worker and
-# the rbac-proxy listener off their tutorial defaults (49134, 3111, 3110), so a
-# run can share a host with another engine. KEEP_WORK=1 keeps each chapter's
+# the rbac-proxy listener off their tutorial defaults (49134, 3111, 3110), and
+# NAMESPACE moves the project off `default`, so a run can share a host with
+# another engine. KEEP_WORK=1 keeps each chapter's
 # project and logs after it passes.
 set -uo pipefail
 
@@ -18,7 +19,7 @@ TEMPLATES_DIR="${TEMPLATES_DIR:-$REPO/../templates-linkly/iii}"
 # at a build that has it when the installed iii is older.
 III_BIN="${III_BIN:-$REPO/target/release/iii}"
 [[ -x "$III_BIN" ]] || III_BIN="$(command -v iii)"
-NAMESPACE=default
+NAMESPACE="${NAMESPACE:-default}"
 HTTP_PORT="${HTTP_PORT:-3111}"
 ENGINE_PORT="${ENGINE_PORT:-49134}"
 BROWSER_PORT="${BROWSER_PORT:-3110}"
@@ -82,7 +83,7 @@ run_chapter() {
     return 1
   }
 
-  python3 "$HERE/ports.py" "$project" "$ENGINE_PORT" "$HTTP_PORT" "$BROWSER_PORT" || {
+  python3 "$HERE/ports.py" "$project" "$ENGINE_PORT" "$HTTP_PORT" "$BROWSER_PORT" "$NAMESPACE" || {
     rm -rf "$work"
     return 1
   }
@@ -119,7 +120,7 @@ run_chapter() {
 
   # III_URL would point compose at an existing engine instead of starting the
   # one the compose file describes.
-  (cd "$project" && exec env -u III_URL "$III_BIN" compose --up --file worker-compose.yaml) >"$log" 2>&1 &
+  (cd "$project" && exec env -u III_URL "$III_BIN" compose --up -n "$NAMESPACE" --file worker-compose.yaml) >"$log" 2>&1 &
   local compose_pid=$!
 
   if ! wait_for_port "$ENGINE_PORT"; then
@@ -136,7 +137,7 @@ run_chapter() {
     rc=1
   else
     sleep 5
-    PROJECT="$project" NAMESPACE="$NAMESPACE" HTTP="http://127.0.0.1:$HTTP_PORT" \
+    PROJECT="$project" NAMESPACE="$NAMESPACE" III_NAMESPACE="$NAMESPACE" HTTP="http://127.0.0.1:$HTTP_PORT" \
       III_URL="ws://127.0.0.1:$ENGINE_PORT" BROWSER_URL="ws://localhost:$BROWSER_PORT" \
       BROWSER_PORT="$BROWSER_PORT" III_BIN="$III_BIN" LOG="$log" bash "$HERE/assert/ch$chapter.sh"
     rc=$?

@@ -11,6 +11,12 @@ check() {
   fi
 }
 
-t() { "${III_BIN:-iii}" trigger "$@" 2>&1; }
+# Project functions live in the project namespace (`default` unless the run
+# moved it); -n reaches them there. engine::* builtins always answer in default.
+t() {
+  local ns="${NAMESPACE:-default}"
+  [[ "$1" == engine::* ]] && ns=default
+  "${III_BIN:-iii}" trigger -n "$ns" --engine "${III_URL:-ws://127.0.0.1:49134}" "$@" 2>&1
+}
 
 finish() { return $fails; }

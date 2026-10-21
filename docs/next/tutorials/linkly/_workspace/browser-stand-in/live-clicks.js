@@ -10,6 +10,8 @@ const TOKEN = process.env.LINKLY_BROWSER_TOKEN ?? "dev-token";
 const BROWSER_URL = process.env.BROWSER_URL ?? "ws://localhost:3110";
 const HTTP = process.env.HTTP ?? "http://127.0.0.1:3111";
 const CODE = process.env.LINKLY_CODE ?? "watchme";
+// The project namespace, where link::* live (`namespace:` in worker-compose.yaml).
+const PROJECT_NAMESPACE = process.env.III_NAMESPACE || "default";
 const SESSION = randomUUID();
 
 const worker = registerWorker(
@@ -33,7 +35,7 @@ async function sync() {
   ready = false;
   const summary = await worker.trigger({
     function_id: "link::click_summary",
-    namespace: "default",
+    namespace: PROJECT_NAMESPACE,
     payload: {},
   });
   lastId = summary.last_id;
@@ -52,6 +54,8 @@ worker.registerTrigger({
   type: "click-streamer::click",
   function_id: "ui::on_click",
   config: {},
+  // The provider lives in the project namespace, not this tab's.
+  trigger_namespace: PROJECT_NAMESPACE,
 });
 
 await new Promise((resolve) => setTimeout(resolve, 3000));
