@@ -92,13 +92,17 @@ const MAX_JSON_FRAME_BYTES = 16 * 1024 * 1024
 const JSON_ENCODER = new TextEncoder()
 const PAYLOAD_SIZE_DOCS = 'https://iii.dev/docs/creating-workers/channels#payload-size'
 
+function payloadTooLargeMessage(size: number): string {
+  return `Serialized JSON envelope is ${size} bytes; limit is ${MAX_JSON_FRAME_BYTES} bytes. Use channels for larger payloads: ${PAYLOAD_SIZE_DOCS}`
+}
+
 function createPayloadTooLargeError(
   size: number,
   functionId?: string,
 ): InvocationError {
   return new InvocationError({
     code: 'payload_too_large',
-    message: `Serialized JSON envelope is ${size} bytes; limit is ${MAX_JSON_FRAME_BYTES} bytes. Use channels for larger payloads: ${PAYLOAD_SIZE_DOCS}`,
+    message: payloadTooLargeMessage(size),
     function_id: functionId,
   })
 }
@@ -1449,11 +1453,12 @@ class Sdk implements ISdk {
       typeof message.function_id === 'string' ? message.function_id : undefined,
     )
     if (message.type === MessageType.InvocationResult) {
+      // The wire body carries the bare message: `error.message` already has the `code: ` prefix.
       const fallback = JSON.stringify({
         type: MessageType.InvocationResult,
         invocation_id: message.invocation_id,
         function_id: message.function_id,
-        error: { code: error.code, message: error.message },
+        error: { code: error.code, message: payloadTooLargeMessage(size) },
       })
       if (JSON_ENCODER.encode(fallback).byteLength <= MAX_JSON_FRAME_BYTES) return fallback
     }

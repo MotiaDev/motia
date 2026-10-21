@@ -15,6 +15,8 @@ type Internal = {
   sendMessage: (type: MessageType, message: Record<string, unknown>) => void
   sendMessageRaw: (data: string) => void
   trigger: (request: Record<string, unknown>) => Promise<unknown>
+  registerFunction: (id: string, handler: (input: unknown) => Promise<unknown>) => void
+  onMessage: (data: string) => void
   shutdown: () => Promise<void>
   messagesToSend: Record<string, unknown>[]
   invocations: Map<string, unknown>
@@ -119,6 +121,33 @@ describe('JSON frame size', () => {
     sdk.sendMessage(MessageType.InvocationResult, { invocation_id: 'i', function_id: 'f', result: 'x'.repeat(LIMIT) })
     expect(sdk.messagesToSend[0]).toMatchObject({ invocation_id: 'i', error: { code: 'payload_too_large' } })
     expect(sdk.messagesToSend[0]).not.toHaveProperty('result')
+  })
+
+  it('sends an oversized result as a bare error message, so the caller sees the code prefix once', async () => {
+    makeSdk()
+    sdk.registerFunction('size::big', async () => 'x'.repeat(LIMIT))
+    sdk.onMessage(JSON.stringify({ type: MessageType.InvokeFunction, invocation_id: 'target', function_id: 'size::big', data: null }))
+    const frame = await vi.waitFor(() => {
+      const sent = sdk.messagesToSend.find(message => message.invocation_id === 'target')
+      if (!sent) throw new Error('result not sent yet')
+      return sent as { type: string; function_id: string; error: { code: string; message: string } }
+    })
+    expect(frame).toMatchObject({ type: MessageType.InvocationResult, function_id: 'size::big' })
+    expect(frame).not.toHaveProperty('result')
+    expect(frame.error.code).toBe('payload_too_large')
+    const match = /^Serialized JSON envelope is (\d+) bytes; limit is 67108864 bytes\. Use channels for larger payloads: https:\/\/iii\.dev\/docs\/creating-workers\/channels#payload-size$/.exec(frame.error.message)
+    expect(match, frame.error.message).not.toBeNull()
+    expect(Number(match?.[1])).toBeGreaterThan(LIMIT)
+
+    // The engine relays the target's error body to the caller unchanged.
+    const call = sdk.trigger({ function_id: 'size::remote', payload: null })
+    const invocation = sdk.messagesToSend.find(message => message.function_id === 'size::remote')
+    expect(invocation?.invocation_id).toEqual(expect.any(String))
+    sdk.onMessage(JSON.stringify({ ...frame, invocation_id: invocation?.invocation_id, function_id: 'size::remote' }))
+    const rejection = (await call.catch(error => error)) as Error & { code?: string }
+    expect(rejection.code).toBe('payload_too_large')
+    expect(rejection.message).toBe(`payload_too_large: ${frame.error.message}`)
+    expect(rejection.message.match(/payload_too_large: /g)).toHaveLength(1)
   })
 
   it('writes masked text and continuation frames <= 1 MiB without interleaving and preserves UTF-8', async () => {

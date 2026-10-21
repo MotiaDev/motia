@@ -137,6 +137,10 @@ describe('Browser JSON frame size', () => {
       error: { code: 'payload_too_large' },
     })
     expect(result).not.toHaveProperty('result')
+    // The wire body carries the bare message; the code travels in `code`, not as a message prefix.
+    expect((result?.error as { message: string }).message).toMatch(
+      /^Serialized JSON envelope is \d+ bytes; limit is 16777216 bytes\. Use channels for larger payloads: https:\/\/iii\.dev\/docs\/creating-workers\/channels#payload-size$/,
+    )
     expect(socket.readyState).toBe(WebSocket.OPEN)
     await sdk.trigger({ function_id: 'browser::still-open', payload: {}, action: { type: 'void' } })
     expect(
