@@ -5,6 +5,7 @@
 // See LICENSE and PATENTS files for details.
 
 pub mod channels;
+pub(crate) mod inbound;
 pub mod rbac_config;
 pub mod rbac_session;
 pub(crate) mod worker_socket;
@@ -50,6 +51,8 @@ use crate::{
 };
 
 /// Main worker JSON frame: 16 MiB (16,777,216 bytes), not channel transport.
+/// The receive limit of browsers and older SDKs (see [`receive_message_limit`]).
+/// The engine itself reads frames up to [`MAX_JSON_MESSAGE_BYTES`].
 pub(crate) const MAX_JSON_FRAME_BYTES: usize = 16 * 1024 * 1024;
 /// Main worker JSON message: 64 MiB (67,108,864 bytes), not channel transport.
 pub(crate) const MAX_JSON_MESSAGE_BYTES: usize = 64 * 1024 * 1024;
@@ -479,8 +482,7 @@ async fn ws_handler(
     let engine = state.engine.clone();
     let config = state.config.clone();
 
-    ws.max_frame_size(MAX_JSON_FRAME_BYTES)
-        .max_message_size(MAX_JSON_MESSAGE_BYTES)
+    ws.max_message_size(MAX_JSON_MESSAGE_BYTES)
         .on_upgrade(move |socket| async move {
             if let Err(err) = engine
                 .handle_worker(socket, addr, uri, headers, config, state.shutdown_rx)

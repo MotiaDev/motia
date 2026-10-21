@@ -42,6 +42,7 @@ use crate::{
         worker::{
             WorkerManagerConfig,
             channels::ChannelManager,
+            inbound::{Inbound, Oversized},
             rbac_session,
             worker_socket::{WorkerSocket, send_json},
         },
@@ -3169,7 +3170,7 @@ impl Engine {
         }
     }
 
-    pub async fn handle_worker(
+    pub(crate) async fn handle_worker(
         &self,
         socket: WorkerSocket,
         peer: SocketAddr,
@@ -3179,7 +3180,10 @@ impl Engine {
         mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
     ) -> anyhow::Result<()> {
         tracing::debug!(peer = %peer, "Worker connected via WebSocket");
-        let (mut ws_tx, mut ws_rx) = socket.split();
+        let WorkerSocket {
+            reader: mut ws_rx,
+            writer: mut ws_tx,
+        } = socket;
 
         let session =
             match rbac_session::handle_session(peer, Arc::new(self.clone()), config, uri, headers)
@@ -3272,6 +3276,7 @@ impl Engine {
         self.fire_triggers(TRIGGER_WORKERS_AVAILABLE, workers_data)
             .await;
 
+        let mut oversized_warnings = OversizedWarnings::default();
         loop {
             tokio::select! {
                 // `biased` + eviction first: once a reattaching successor
@@ -3289,6 +3294,16 @@ impl Engine {
                     break;
                 }
                 frame = ws_rx.next() => {
+                    let frame = match frame {
+                        Some(Ok(Inbound::Message(message))) => Some(Ok(message)),
+                        Some(Ok(Inbound::Oversized(message))) => {
+                            self.answer_oversized(&worker, peer, message, &mut oversized_warnings)
+                                .await;
+                            continue;
+                        }
+                        Some(Err(error)) => Some(Err(error)),
+                        None => None,
+                    };
                     match frame {
                         Some(Ok(WsMessage::Text(text))) => {
                             if text.trim().is_empty() {
@@ -3347,8 +3362,6 @@ impl Engine {
                                 worker_id = %worker.id,
                                 peer = %peer,
                                 error = %error,
-                                frame_limit_bytes = crate::workers::worker::MAX_JSON_FRAME_BYTES,
-                                message_limit_bytes = crate::workers::worker::MAX_JSON_MESSAGE_BYTES,
                                 "Worker WebSocket read failed"
                             );
                             break;
@@ -3363,6 +3376,71 @@ impl Engine {
         self.cleanup_worker(&worker).await;
         tracing::debug!(peer = %peer, "Worker disconnected (writer aborted)");
         Ok(())
+    }
+
+    /// Answers a message the worker sent over the inbound limit, which the
+    /// reader dropped without buffering it: the sender of an `invokefunction`
+    /// gets a `payload_too_large` result, and the caller waiting on an
+    /// `invocationresult` gets `payload_too_large` in place of the result, as
+    /// if the target had returned it. Anything else is only logged. The
+    /// connection stays open either way.
+    async fn answer_oversized(
+        &self,
+        worker: &WorkerConnection,
+        peer: SocketAddr,
+        message: Oversized,
+        warnings: &mut OversizedWarnings,
+    ) {
+        let limit = crate::workers::worker::MAX_JSON_MESSAGE_BYTES;
+        let envelope = message.envelope();
+        let function_id = envelope.function_id.clone().unwrap_or_default();
+        let error = inbound_payload_too_large_error(message.size, limit);
+        let outcome = match (envelope.message_type.as_deref(), envelope.invocation_id) {
+            (Some("invokefunction"), Some(invocation_id)) => {
+                self.send_msg(
+                    worker,
+                    Message::InvocationResult {
+                        invocation_id,
+                        function_id,
+                        result: None,
+                        error: Some(error),
+                        traceparent: None,
+                        baggage: None,
+                    },
+                )
+                .await;
+                "answered the caller"
+            }
+            (Some("invocationresult"), Some(invocation_id)) => {
+                let result = Message::InvocationResult {
+                    invocation_id,
+                    function_id,
+                    result: None,
+                    error: Some(error),
+                    traceparent: None,
+                    baggage: None,
+                };
+                if let Err(error) = self.route_frame(worker, result).await {
+                    tracing::warn!(worker_id = %worker.id, error = ?error, "Failed to complete an invocation whose result was too large");
+                }
+                "completed the invocation"
+            }
+            _ => "dropped",
+        };
+        if let Some(suppressed) = warnings.admit() {
+            tracing::warn!(
+                worker_id = %worker.id,
+                peer = %peer,
+                size_bytes = message.size,
+                limit_bytes = limit,
+                message_type = log_excerpt(envelope.message_type.as_deref().unwrap_or("unknown")),
+                invocation_id = %crate::logging::display_option(&envelope.invocation_id),
+                function_id = log_excerpt(envelope.function_id.as_deref().unwrap_or("")),
+                outcome,
+                suppressed,
+                "Worker message exceeds the inbound limit"
+            );
+        }
     }
 
     /// Answers a frame that is JSON but not a valid `Message`, when it is a
@@ -4128,6 +4206,51 @@ fn payload_too_large_error(size: usize, limit: usize, requires_upgrade: bool) ->
             "Serialized JSON envelope is {size} bytes; target worker accepts up to {limit} bytes.{remediation}"
         ),
     )
+}
+
+/// The answer to a worker message over the engine's inbound limit.
+fn inbound_payload_too_large_error(size: u64, limit: usize) -> ErrorBody {
+    ErrorBody::new(
+        "payload_too_large",
+        format!(
+            "Serialized JSON envelope is {size} bytes; the engine reads up to {limit} bytes from a worker. Use channels for larger payloads: https://iii.dev/docs/creating-workers/channels#payload-size"
+        ),
+    )
+}
+
+/// At most the first 128 bytes of `value`: fields recovered from a dropped
+/// message are whatever the worker sent.
+fn log_excerpt(value: &str) -> &str {
+    let mut end = value.len().min(128);
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    &value[..end]
+}
+
+/// How often a connection logs the messages over the inbound limit it sends.
+const OVERSIZED_WARN_INTERVAL: Duration = Duration::from_secs(10);
+
+/// Rate limit for the warning about a connection's oversized messages: the
+/// first is logged, then at most one per [`OVERSIZED_WARN_INTERVAL`], with the
+/// number left out since the last one.
+#[derive(Default)]
+struct OversizedWarnings {
+    next_at: Option<tokio::time::Instant>,
+    suppressed: u64,
+}
+
+impl OversizedWarnings {
+    /// `Some(suppressed)` when this message is to be logged.
+    fn admit(&mut self) -> Option<u64> {
+        let now = tokio::time::Instant::now();
+        if self.next_at.is_some_and(|next_at| now < next_at) {
+            self.suppressed += 1;
+            return None;
+        }
+        self.next_at = Some(now + OVERSIZED_WARN_INTERVAL);
+        Some(std::mem::take(&mut self.suppressed))
+    }
 }
 
 fn protocol_message_type(message: &Message) -> &'static str {

@@ -754,17 +754,20 @@ async fn fragmented_json_roundtrips_and_engine_compatibility_guard() {
         guard_target(&engine, version, suffix).await;
         guard_result_caller(&engine, version, suffix).await;
     }
+    // A raw frame over the message limit is dropped: the warning names the
+    // limit and the size but not the content, and the connection stays open.
     let (mut raw, _) = tokio_tungstenite::connect_async(&engine.url).await.unwrap();
     let _ = raw.next().await;
     let frame = format!(
         "{{\"secret\":\"JSON_SIZE_PRIVATE_MARKER{}\"}}",
-        "x".repeat(FRAME_LIMIT)
+        "x".repeat(MESSAGE_LIMIT)
     );
-    let _ = raw.send(WsMessage::Text(frame.into())).await;
+    let frame_len = frame.len();
+    raw.send(WsMessage::Text(frame.into())).await.unwrap();
     let deadline = Instant::now() + Duration::from_secs(5);
     let diagnostic = loop {
         let text = std::fs::read_to_string(&engine.log).unwrap();
-        if text.contains("Worker WebSocket read failed") {
+        if text.contains("Worker message exceeds the inbound limit") {
             break text;
         }
         assert!(
@@ -775,10 +778,23 @@ async fn fragmented_json_roundtrips_and_engine_compatibility_guard() {
     };
     assert!(
         diagnostic.contains("worker_id=")
-            && diagnostic.contains("16777216")
-            && diagnostic.contains("Message too long")
+            && diagnostic.contains(&MESSAGE_LIMIT.to_string())
+            && diagnostic.contains(&frame_len.to_string())
     );
     assert!(!diagnostic.contains("JSON_SIZE_PRIVATE_MARKER"));
+    raw.send(WsMessage::Ping(b"open".to_vec().into()))
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while let Some(frame) = raw.next().await {
+            if matches!(frame.unwrap(), WsMessage::Pong(data) if data.as_ref() == b"open") {
+                return;
+            }
+        }
+        panic!("connection closed after an oversized frame");
+    })
+    .await
+    .expect("pong after an oversized frame");
     assert!(
         std::fs::read_to_string(node_log)
             .unwrap()
