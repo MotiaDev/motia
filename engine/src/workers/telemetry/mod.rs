@@ -10,6 +10,7 @@ pub mod harness;
 pub mod identify;
 pub mod onboarding;
 pub mod posthog;
+pub mod settings;
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -2716,6 +2717,97 @@ mod tests {
         let engine = make_test_engine();
         let module = TelemetryWorker::create(engine, None).await.unwrap();
         assert_eq!(module.name(), "Telemetry");
+    }
+
+    // =========================================================================
+    // iii-telemetry::settings answer, per disable reason
+    // =========================================================================
+
+    /// Create and initialize the worker as the engine does, then ask it.
+    async fn settings_answer(config: Option<Value>) -> Value {
+        use crate::engine::EngineTrait;
+        let engine = make_test_engine();
+        let module = TelemetryWorker::create(Arc::clone(&engine), config)
+            .await
+            .unwrap();
+        module.initialize().await.unwrap();
+        engine
+            .call(settings::SETTINGS_FN_ID, serde_json::json!({}))
+            .await
+            .expect("settings call succeeds")
+            .expect("settings returns a value")
+    }
+
+    fn clear_optout_env() {
+        clear_ci_env_vars();
+        unsafe {
+            env::remove_var("III_TELEMETRY_ENABLED");
+            env::remove_var("III_TELEMETRY_DEV");
+        }
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_settings_disabled_by_config() {
+        clear_optout_env();
+        let answer = settings_answer(Some(serde_json::json!({ "enabled": false }))).await;
+        assert_eq!(answer, serde_json::json!({ "enabled": false }));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_settings_disabled_by_env_optout() {
+        clear_optout_env();
+        unsafe {
+            env::set_var("III_TELEMETRY_ENABLED", "false");
+        }
+        let answer = settings_answer(None).await;
+        unsafe {
+            env::remove_var("III_TELEMETRY_ENABLED");
+        }
+        assert_eq!(answer, serde_json::json!({ "enabled": false }));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_settings_disabled_by_ci() {
+        clear_optout_env();
+        unsafe {
+            env::set_var("CI", "true");
+        }
+        let answer = settings_answer(None).await;
+        unsafe {
+            env::remove_var("CI");
+        }
+        assert_eq!(answer, serde_json::json!({ "enabled": false }));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_settings_disabled_by_dev_optout() {
+        clear_optout_env();
+        unsafe {
+            env::set_var("III_TELEMETRY_DEV", "true");
+        }
+        let answer = settings_answer(None).await;
+        unsafe {
+            env::remove_var("III_TELEMETRY_DEV");
+        }
+        assert_eq!(answer, serde_json::json!({ "enabled": false }));
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_settings_enabled_reports_this_device() {
+        clear_optout_env();
+        let answer = settings_answer(Some(serde_json::json!({
+            "posthog_host": "http://127.0.0.1:9",
+        })))
+        .await;
+        assert_eq!(answer["enabled"], true);
+        assert_eq!(answer["distinct_id"], get_or_create_device_id());
+        assert_eq!(answer["host"], "http://127.0.0.1:9");
+        assert!(answer.get("api_key").is_some());
     }
 
     // =========================================================================
