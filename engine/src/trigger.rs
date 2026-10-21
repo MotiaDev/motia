@@ -16,6 +16,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
+pub use crate::protocol::{TriggerDeliveryContract, TriggerDeliveryMode};
+
 pub const KNOWN_TRIGGER_TYPE_PROVIDERS: &[(&str, &str)] = &[
     ("http", "http"),
     ("cron", "cron"),
@@ -66,6 +68,7 @@ pub fn type_key(namespace: &str, id: &str) -> TypeKey {
     (namespace.to_string(), id.to_string())
 }
 
+#[derive(Clone)]
 pub struct TriggerType {
     pub id: String,
     /// Namespace this provider serves. In-process engine providers use
@@ -76,7 +79,9 @@ pub struct TriggerType {
     pub trigger_request_format: Option<Value>,
     pub call_request_format: Option<Value>,
     pub call_response_format: Option<Value>,
-    pub registrator: Box<dyn TriggerRegistrator>,
+    pub delivery_mode: TriggerDeliveryMode,
+    pub delivery_contract: Option<TriggerDeliveryContract>,
+    pub registrator: Arc<dyn TriggerRegistrator>,
     pub worker_id: Option<Uuid>,
 }
 
@@ -116,9 +121,29 @@ impl TriggerType {
             trigger_request_format,
             call_request_format,
             call_response_format,
-            registrator,
+            delivery_mode: TriggerDeliveryMode::default(),
+            delivery_contract: None,
+            registrator: Arc::from(registrator),
             worker_id,
         }
+    }
+
+    pub fn with_delivery_mode(mut self, mode: TriggerDeliveryMode) -> Self {
+        self.delivery_mode = mode;
+        self
+    }
+
+    pub fn with_delivery_contract(mut self, contract: TriggerDeliveryContract) -> Self {
+        self.delivery_contract = Some(contract);
+        self
+    }
+
+    fn compatible_with(&self, other: &Self) -> bool {
+        self.delivery_mode == other.delivery_mode
+            && self.delivery_contract == other.delivery_contract
+            && self.trigger_request_format == other.trigger_request_format
+            && self.call_request_format == other.call_request_format
+            && self.call_response_format == other.call_response_format
     }
 
     /// The key this provider is filed under.
@@ -469,10 +494,51 @@ impl TriggerStore {
     }
 }
 
+/// Equality is deliberately independent of alias IDs and provider resolution.
+#[derive(Clone, PartialEq, Eq)]
+struct TriggerDescriptor {
+    home: String,
+    target: String,
+    provider_selection: Option<String>,
+    trigger_type: String,
+    function: String,
+    config: Value,
+    metadata: Option<Value>,
+}
+
+impl From<&Trigger> for TriggerDescriptor {
+    fn from(trigger: &Trigger) -> Self {
+        Self {
+            home: trigger.home_namespace.clone(),
+            target: trigger.namespace.clone(),
+            provider_selection: trigger.trigger_namespace.clone(),
+            trigger_type: trigger.trigger_type.clone(),
+            function: trigger.function_id.clone(),
+            config: trigger.config.clone(),
+            metadata: trigger.metadata.clone(),
+        }
+    }
+}
+
+struct LogicalTrigger {
+    descriptor: TriggerDescriptor,
+    // Serializes I/O for this intent only, not membership or registry access.
+    operation: tokio::sync::Mutex<()>,
+}
+
+#[derive(Default)]
+struct SharedSubscriptions {
+    aliases: HashMap<(Uuid, String), String>,
+    intents: HashMap<String, Arc<LogicalTrigger>>,
+}
+
 #[derive(Default)]
 pub struct TriggerRegistry {
     /// Providers, by `(namespace, type id)`.
     pub trigger_types: Arc<DashMap<TypeKey, TriggerType>>,
+    shared_namespace_ownership: std::sync::OnceLock<bool>,
+    provider_owners: std::sync::Mutex<HashMap<TypeKey, Vec<Arc<TriggerType>>>>,
+    subscriptions: std::sync::Mutex<SharedSubscriptions>,
     pub triggers: Arc<TriggerStore>,
     /// Registration intents whose trigger type is not currently available or
     /// whose activation did not complete: the type never registered, its
@@ -498,7 +564,62 @@ impl TriggerRegistry {
             triggers: Arc::new(TriggerStore::new()),
             pending_triggers: Arc::new(DashMap::new()),
             park_transition: std::sync::Mutex::new(()),
+            shared_namespace_ownership: std::sync::OnceLock::new(),
+            provider_owners: std::sync::Mutex::new(HashMap::new()),
+            subscriptions: std::sync::Mutex::new(SharedSubscriptions::default()),
         }
+    }
+
+    pub(crate) fn set_shared_namespace_ownership(&self, enabled: bool) {
+        let _ = self.shared_namespace_ownership.set(enabled);
+    }
+
+    fn shared(&self) -> bool {
+        self.shared_namespace_ownership
+            .get()
+            .copied()
+            .unwrap_or(false)
+    }
+
+    pub(crate) fn subscriber_aliases(&self, canonical: &str) -> Vec<(Uuid, String)> {
+        self.subscriptions
+            .lock()
+            .expect("subscriptions poisoned")
+            .aliases
+            .iter()
+            .filter(|(_, id)| id.as_str() == canonical)
+            .map(|(alias, _)| alias.clone())
+            .collect()
+    }
+
+    /// Session-path removal never accepts a canonical ID or another session's alias.
+    pub async fn unregister_subscriber(
+        &self,
+        worker: Uuid,
+        alias: String,
+        trigger_type: Option<String>,
+    ) -> Result<bool, anyhow::Error> {
+        if !self.shared() {
+            return self.unregister_trigger(alias, trigger_type).await;
+        }
+        let removed = {
+            let mut subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
+            let Some(canonical) = subscriptions.aliases.remove(&(worker, alias)) else {
+                return Ok(false);
+            };
+            if subscriptions.aliases.values().any(|id| id == &canonical) {
+                return Ok(true);
+            }
+            subscriptions
+                .intents
+                .remove(&canonical)
+                .map(|intent| (canonical, intent))
+        };
+        if let Some((canonical, intent)) = removed {
+            let _operation = intent.operation.lock().await;
+            self.unregister_trigger(canonical, trigger_type).await?;
+        }
+        Ok(true)
     }
 
     /// The namespace a fired trigger's target/condition function resolves in,
@@ -631,6 +752,56 @@ impl TriggerRegistry {
     }
 
     pub async fn unregister_worker(&self, worker_id: &Uuid) {
+        if self.shared() {
+            let aliases: Vec<String> = self
+                .subscriptions
+                .lock()
+                .expect("subscriptions poisoned")
+                .aliases
+                .keys()
+                .filter(|(owner, _)| owner == worker_id)
+                .map(|(_, alias)| alias.clone())
+                .collect();
+            for alias in aliases {
+                if let Err(error) = self.unregister_subscriber(*worker_id, alias, None).await {
+                    tracing::error!(%error, "Failed to remove last trigger subscriber");
+                }
+            }
+            // Membership changes do not assign/replay physical bindings. Assignment
+            // activation and fencing belong to the subsequent delivery phase.
+            let mut owners = self
+                .provider_owners
+                .lock()
+                .expect("provider owners poisoned");
+            owners.retain(|key, members| {
+                members.retain(|member| member.worker_id != Some(*worker_id));
+                if let Some(first) = members.first() {
+                    self.trigger_types
+                        .insert(key.clone(), first.as_ref().clone());
+                    true
+                } else {
+                    self.trigger_types.remove(key);
+                    false
+                }
+            });
+            drop(owners);
+            let orphaned: Vec<Trigger> = self
+                .triggers
+                .iter()
+                .filter(|entry| !self.trigger_types.contains_key(&entry.provider_key()))
+                .map(|entry| entry.value().clone())
+                .collect();
+            let _park = self
+                .park_transition
+                .lock()
+                .expect("park_transition poisoned");
+            for trigger in orphaned {
+                if let Some((_, trigger)) = self.triggers.remove(&trigger.id) {
+                    self.pending_triggers.insert(trigger.id.clone(), trigger);
+                }
+            }
+            return;
+        }
         let worker_trigger_type_keys: Vec<TypeKey> = self
             .trigger_types
             .iter()
@@ -773,6 +944,38 @@ impl TriggerRegistry {
     ) -> Result<(), anyhow::Error> {
         let key = trigger_type.key();
         let trigger_type_id = trigger_type.id.clone();
+        let trigger_type = Arc::new(trigger_type);
+        if self.shared() {
+            if trigger_type.delivery_mode == TriggerDeliveryMode::Parallel
+                && trigger_type.delivery_contract != Some(TriggerDeliveryContract::SharedV1)
+            {
+                anyhow::bail!("trigger_owner_mismatch: parallel requires shared_v1");
+            }
+            let mut owners = self
+                .provider_owners
+                .lock()
+                .expect("provider owners poisoned");
+            if let Some(members) = owners.get_mut(&key) {
+                let same_session = members
+                    .iter()
+                    .any(|owner| owner.worker_id == trigger_type.worker_id);
+                if !members[0].compatible_with(&trigger_type)
+                    || (!same_session
+                        && (trigger_type.delivery_contract.is_none()
+                            || trigger_type.worker_id.is_none()
+                            || members.iter().any(|owner| owner.worker_id.is_none())))
+                {
+                    anyhow::bail!("trigger_owner_mismatch: incompatible provider declaration");
+                }
+                if !same_session {
+                    members.push(Arc::clone(&trigger_type));
+                }
+                return Ok(());
+            }
+            owners.insert(key.clone(), vec![Arc::clone(&trigger_type)]);
+            self.trigger_types
+                .insert(key.clone(), trigger_type.as_ref().clone());
+        }
 
         tracing::info!(
             "{} Trigger Type {} in {}",
@@ -791,7 +994,10 @@ impl TriggerRegistry {
         //    its ownership check (see `unregister_worker`) instead of parking
         //    bindings this registration is about to replay — which would
         //    deliver them twice.
-        self.trigger_types.insert(key.clone(), trigger_type);
+        if !self.shared() {
+            self.trigger_types
+                .insert(key.clone(), trigger_type.as_ref().clone());
+        }
 
         // Only the bindings this provider actually serves. Filtering by type
         // id alone is what sent one project's bindings into another project's
@@ -844,7 +1050,8 @@ impl TriggerRegistry {
         // Claim back what settled on the fallback before this provider existed.
         // Re-fetched for the same reason as above, and after the replay so a
         // binding is never in flight to two providers at once.
-        if key.0 != crate::protocol::DEFAULT_NAMESPACE
+        if !self.shared()
+            && key.0 != crate::protocol::DEFAULT_NAMESPACE
             && let Some(trigger_type) = self.trigger_types.get(&key)
         {
             self.rehome_fallback_bindings(&trigger_type).await;
@@ -917,6 +1124,75 @@ impl TriggerRegistry {
     }
 
     pub async fn register_trigger(
+        &self,
+        trigger: Trigger,
+    ) -> Result<RegisterTriggerOutcome, anyhow::Error> {
+        if self.shared()
+            && let Some(owner) = trigger.worker_id
+        {
+            let descriptor = TriggerDescriptor::from(&trigger);
+            let (canonical, intent) = {
+                let mut subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
+                let alias = (owner, trigger.id.clone());
+                if let Some(id) = subscriptions.aliases.get(&alias) {
+                    let intent = &subscriptions.intents[id];
+                    if intent.descriptor != descriptor {
+                        anyhow::bail!(
+                            "trigger_registration_conflict: alias has a different descriptor"
+                        );
+                    }
+                    (id.clone(), Arc::clone(intent))
+                } else {
+                    let existing = subscriptions
+                        .intents
+                        .iter()
+                        .find(|(_, intent)| intent.descriptor == descriptor)
+                        .map(|(id, intent)| (id.clone(), Arc::clone(intent)));
+                    let (id, intent) = existing.unwrap_or_else(|| {
+                        let id = Uuid::new_v4().to_string();
+                        let intent = Arc::new(LogicalTrigger {
+                            descriptor,
+                            operation: tokio::sync::Mutex::new(()),
+                        });
+                        subscriptions
+                            .intents
+                            .insert(id.clone(), Arc::clone(&intent));
+                        (id, intent)
+                    });
+                    subscriptions.aliases.insert(alias, id.clone());
+                    (id, intent)
+                }
+            };
+            let _operation = intent.operation.lock().await;
+            if !self
+                .subscriptions
+                .lock()
+                .expect("subscriptions poisoned")
+                .intents
+                .contains_key(&canonical)
+            {
+                anyhow::bail!("trigger_registration_conflict: subscription was removed");
+            }
+            if self.triggers.contains_key(&canonical) {
+                return Ok(RegisterTriggerOutcome::Registered);
+            }
+            if self.pending_triggers.contains_key(&canonical) {
+                return Ok(RegisterTriggerOutcome::Deferred);
+            }
+            let mut trigger = trigger;
+            trigger.id = canonical.clone();
+            let result = self.register_trigger_binding(trigger).await;
+            if result.is_err() {
+                let mut subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
+                subscriptions.intents.remove(&canonical);
+                subscriptions.aliases.retain(|_, id| id != &canonical);
+            }
+            return result;
+        }
+        self.register_trigger_binding(trigger).await
+    }
+
+    async fn register_trigger_binding(
         &self,
         trigger: Trigger,
     ) -> Result<RegisterTriggerOutcome, anyhow::Error> {
@@ -1009,6 +1285,13 @@ impl TriggerRegistry {
         id: String,
         trigger_type: Option<String>,
     ) -> Result<bool, anyhow::Error> {
+        if self.shared() {
+            let mut subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
+            subscriptions.intents.remove(&id);
+            subscriptions
+                .aliases
+                .retain(|_, canonical| canonical != &id);
+        }
         tracing::info!(
             "Unregistering trigger: {} of type: {}",
             id.purple(),
@@ -3123,6 +3406,576 @@ mod tests {
     fn cron_trigger_type_has_no_call_response_format() {
         let tt = make_trigger_type("cron");
         assert!(tt.call_response_format.is_none());
+    }
+
+    // Contract tests use existing registrators and production entry points. No
+    // assignment/ack activation or firing policy is asserted in this phase.
+    mod shared_identity {
+        use super::*;
+        use crate::{
+            engine::{Engine, Outbound},
+            protocol::Message,
+            worker_connections::WorkerConnection,
+        };
+        use serde_json::json;
+        use tokio::sync::mpsc;
+
+        fn engine(enabled: bool) -> Engine {
+            crate::workers::observability::metrics::ensure_default_meter();
+            let engine = Engine::new();
+            engine.set_shared_namespace_ownership(enabled);
+            engine
+        }
+
+        async fn connection(
+            engine: &Engine,
+            namespace: &str,
+        ) -> (WorkerConnection, mpsc::Receiver<Outbound>) {
+            let (tx, rx) = mpsc::channel(32);
+            let worker = WorkerConnection::new(tx);
+            engine.worker_registry.register_worker(worker.clone());
+            engine.begin_namespace_resolution(&worker);
+            engine
+                .resolve_connection_namespace(&worker, namespace)
+                .await;
+            (worker, rx)
+        }
+
+        async fn fixture(enabled: bool) -> (Engine, Arc<ControlledRegistrator>) {
+            let engine = engine(enabled);
+            let registrator = Arc::new(ControlledRegistrator::new(false, false));
+            engine
+                .trigger_registry
+                .register_trigger_type(TriggerType::new_ns(
+                    "orders",
+                    "identity:event",
+                    "identity fixture",
+                    Box::new(registrator.clone()),
+                    None,
+                ))
+                .await
+                .unwrap();
+            (engine, registrator)
+        }
+
+        fn binding(alias: &str, owner: Option<Uuid>) -> Trigger {
+            let mut trigger = make_trigger(alias, "identity:event");
+            trigger.function_id = "svc::handle".into();
+            trigger.config = json!({"filter": {"a": 1, "b": 2}, "order": [1, 2]});
+            trigger.metadata = Some(json!({"team": "orders"}));
+            trigger.worker_id = owner;
+            trigger.home_namespace = "orders".into();
+            trigger.namespace = "orders".into();
+            trigger
+        }
+
+        fn declaration(mode: Option<&str>, contract: Option<&str>) -> Value {
+            let mut value = json!({
+                "type": "registertriggertype", "id": "identity:event", "description": "identity fixture",
+                "trigger_request_format": {"type": "object"}, "call_request_format": {"type": "object"}
+            });
+            if let Some(mode) = mode {
+                value["delivery_mode"] = json!(mode);
+            }
+            if let Some(contract) = contract {
+                value["delivery_contract"] = json!(contract);
+            }
+            value
+        }
+
+        async fn announce(engine: &Engine, worker: &WorkerConnection, value: Value) {
+            let message: Message = serde_json::from_value(value).unwrap();
+            engine.router_msg(worker, &message).await.unwrap();
+        }
+
+        #[test]
+        fn shared_trigger_identity_wire_preserves_parallel_shared_v1() {
+            let input = declaration(Some("parallel"), Some("shared_v1"));
+            let message: Message = serde_json::from_value(input).unwrap();
+            let output = serde_json::to_value(message).unwrap();
+            assert_eq!(
+                output["delivery_mode"], "parallel",
+                "approved optional mode must survive decoding"
+            );
+            assert_eq!(output["delivery_contract"], "shared_v1");
+        }
+
+        #[test]
+        fn shared_trigger_identity_wire_preserves_single_active_shared_v1() {
+            let message: Message =
+                serde_json::from_value(declaration(Some("single_active"), Some("shared_v1")))
+                    .unwrap();
+            let output = serde_json::to_value(message).unwrap();
+            assert_eq!(output["delivery_mode"], "single_active");
+            assert_eq!(output["delivery_contract"], "shared_v1");
+        }
+
+        #[test]
+        fn shared_trigger_identity_legacy_wire_omits_optional_fields() {
+            let input = declaration(None, None);
+            let message: Message = serde_json::from_value(input.clone()).unwrap();
+            assert_eq!(serde_json::to_value(message).unwrap(), input);
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_default_mode_joins_explicit_single_active() {
+            let engine = engine(true);
+            let (a, _rx_a) = connection(&engine, "orders").await;
+            let (b, _rx_b) = connection(&engine, "orders").await;
+            announce(&engine, &a, declaration(None, Some("shared_v1"))).await;
+            announce(
+                &engine,
+                &b,
+                declaration(Some("single_active"), Some("shared_v1")),
+            )
+            .await;
+            engine.trigger_registry.unregister_worker(&b.id).await;
+            assert!(
+                engine
+                    .trigger_registry
+                    .trigger_types
+                    .contains_key(&type_key("orders", "identity:event")),
+                "default single_active and explicit single_active must retain both compatible provider owners"
+            );
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_compatible_provider_join_retains_first_owner() {
+            let engine = engine(true);
+            let (a, _rx_a) = connection(&engine, "orders").await;
+            let (b, _rx_b) = connection(&engine, "orders").await;
+            announce(
+                &engine,
+                &a,
+                declaration(Some("parallel"), Some("shared_v1")),
+            )
+            .await;
+            announce(
+                &engine,
+                &b,
+                declaration(Some("parallel"), Some("shared_v1")),
+            )
+            .await;
+            engine.trigger_registry.unregister_worker(&b.id).await;
+            assert!(
+                engine
+                    .trigger_registry
+                    .trigger_types
+                    .contains_key(&type_key("orders", "identity:event")),
+                "removing a compatible provider must not discard its live peer"
+            );
+            engine.trigger_registry.unregister_worker(&a.id).await;
+            assert!(
+                !engine
+                    .trigger_registry
+                    .trigger_types
+                    .contains_key(&type_key("orders", "identity:event"))
+            );
+        }
+
+        async fn reject_join(first: Value, second: Value) {
+            let engine = engine(true);
+            let (a, _rx_a) = connection(&engine, "orders").await;
+            let (b, _rx_b) = connection(&engine, "orders").await;
+            announce(&engine, &a, first).await;
+            announce(&engine, &b, second).await;
+            let incumbent = engine
+                .trigger_registry
+                .trigger_types
+                .get(&type_key("orders", "identity:event"))
+                .unwrap();
+            assert_eq!(
+                incumbent.worker_id,
+                Some(a.id),
+                "incompatible join must not replace the incumbent provider"
+            );
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_provider_schema_mismatch_rejected() {
+            let first = declaration(Some("single_active"), Some("shared_v1"));
+            let mut second = first.clone();
+            second["trigger_request_format"] = json!({"type": "string"});
+            reject_join(first, second).await;
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_provider_call_schema_mismatch_rejected() {
+            let first = declaration(Some("single_active"), Some("shared_v1"));
+            let mut second = first.clone();
+            second["call_request_format"] = json!({"type": "string"});
+            reject_join(first, second).await;
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_provider_mode_mismatch_rejected() {
+            reject_join(
+                declaration(Some("single_active"), Some("shared_v1")),
+                declaration(Some("parallel"), Some("shared_v1")),
+            )
+            .await;
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_provider_capability_mismatch_rejected() {
+            reject_join(
+                declaration(Some("single_active"), Some("shared_v1")),
+                declaration(Some("single_active"), None),
+            )
+            .await;
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_legacy_provider_cannot_form_replica_set() {
+            reject_join(declaration(None, None), declaration(None, None)).await;
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_parallel_requires_shared_v1() {
+            let engine = engine(true);
+            let (a, _rx) = connection(&engine, "orders").await;
+            announce(&engine, &a, declaration(Some("parallel"), None)).await;
+            assert!(
+                !engine
+                    .trigger_registry
+                    .trigger_types
+                    .contains_key(&type_key("orders", "identity:event")),
+                "unfenced legacy providers cannot declare parallel delivery"
+            );
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_equal_replica_descriptors_coalesce() {
+            let (engine, calls) = fixture(true).await;
+            let (a, _rx_a) = connection(&engine, "orders").await;
+            let (b, _rx_b) = connection(&engine, "orders").await;
+            engine
+                .trigger_registry
+                .register_trigger(binding("replica-a", Some(a.id)))
+                .await
+                .unwrap();
+            let mut second = binding("replica-b", Some(b.id));
+            second.config =
+                serde_json::from_str(r#"{"order":[1,2],"filter":{"b":2,"a":1}}"#).unwrap();
+            engine
+                .trigger_registry
+                .register_trigger(second)
+                .await
+                .unwrap();
+            assert_eq!(
+                engine.trigger_registry.triggers.len(),
+                1,
+                "replica IDs are aliases, not logical identity"
+            );
+            assert_eq!(
+                calls.register_count.load(Ordering::SeqCst),
+                1,
+                "joining a subscriber must not install another logical binding"
+            );
+            let canonical = engine
+                .trigger_registry
+                .triggers
+                .iter()
+                .next()
+                .unwrap()
+                .value()
+                .id
+                .clone();
+            assert_ne!(canonical, "replica-a");
+            assert_ne!(canonical, "replica-b");
+            assert!(
+                Uuid::parse_str(&canonical).is_ok(),
+                "canonical identity is engine-generated"
+            );
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_same_alias_is_idempotent() {
+            let (engine, calls) = fixture(true).await;
+            let (a, _rx) = connection(&engine, "orders").await;
+            let trigger = binding("alias", Some(a.id));
+            engine
+                .trigger_registry
+                .register_trigger(trigger.clone())
+                .await
+                .unwrap();
+            engine
+                .trigger_registry
+                .register_trigger(trigger)
+                .await
+                .unwrap();
+            assert_eq!(engine.trigger_registry.triggers.len(), 1);
+            assert_eq!(
+                calls.register_count.load(Ordering::SeqCst),
+                1,
+                "same session/alias/descriptor is an idempotent declaration"
+            );
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_same_alias_conflicting_descriptor_rejected() {
+            let (engine, calls) = fixture(true).await;
+            let (a, _rx) = connection(&engine, "orders").await;
+            let original = binding("alias", Some(a.id));
+            engine
+                .trigger_registry
+                .register_trigger(original.clone())
+                .await
+                .unwrap();
+            let mut conflict = original.clone();
+            conflict.config = json!({"changed": true});
+            let error = engine
+                .trigger_registry
+                .register_trigger(conflict)
+                .await
+                .expect_err("same alias must not silently mutate its intent");
+            assert!(
+                error.to_string().contains("trigger_registration_conflict"),
+                "{error}"
+            );
+            assert_eq!(calls.register_count.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                engine
+                    .trigger_registry
+                    .triggers
+                    .iter()
+                    .next()
+                    .unwrap()
+                    .value()
+                    .config,
+                original.config
+            );
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_namespace_and_descriptor_fields_separate_intents() {
+            for field in [
+                "home",
+                "target",
+                "provider-selection",
+                "type",
+                "function",
+                "config",
+                "metadata",
+                "array-order",
+            ] {
+                let (engine, _calls) = fixture(true).await;
+                let (a, _rx_a) = connection(&engine, "orders").await;
+                let (b, _rx_b) = connection(&engine, "orders").await;
+                engine
+                    .trigger_registry
+                    .register_trigger(binding("a", Some(a.id)))
+                    .await
+                    .unwrap();
+                let mut second = binding("b", Some(b.id));
+                match field {
+                    "home" => second.home_namespace = "other".into(),
+                    "target" => second.namespace = "other".into(),
+                    "provider-selection" => second.trigger_namespace = Some("orders".into()),
+                    "type" => second.trigger_type = "identity:other".into(),
+                    "function" => second.function_id = "svc::other".into(),
+                    "config" => second.config = json!({"different": true}),
+                    "metadata" => second.metadata = Some(json!({"team": "other"})),
+                    "array-order" => second.config["order"] = json!([2, 1]),
+                    _ => unreachable!(),
+                }
+                engine
+                    .trigger_registry
+                    .register_trigger(second)
+                    .await
+                    .unwrap();
+                assert_eq!(
+                    engine.trigger_registry.triggers.len()
+                        + engine.trigger_registry.pending_triggers.len(),
+                    2,
+                    "distinct field: {field}"
+                );
+            }
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_ownerless_durable_intents_remain_distinct() {
+            let (engine, calls) = fixture(true).await;
+            engine
+                .trigger_registry
+                .register_trigger(binding("durable-a", None))
+                .await
+                .unwrap();
+            engine
+                .trigger_registry
+                .register_trigger(binding("durable-b", None))
+                .await
+                .unwrap();
+            assert_eq!(engine.trigger_registry.triggers.len(), 2);
+            assert_eq!(calls.register_count.load(Ordering::SeqCst), 2);
+            engine
+                .trigger_registry
+                .unregister_trigger("durable-a".into(), None)
+                .await
+                .unwrap();
+            assert_eq!(engine.trigger_registry.triggers.len(), 1);
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_alias_removal_preserves_other_subscriber() {
+            let (engine, calls) = fixture(true).await;
+            let (a, _rx_a) = connection(&engine, "orders").await;
+            let (b, _rx_b) = connection(&engine, "orders").await;
+            engine
+                .trigger_registry
+                .register_trigger(binding("a", Some(a.id)))
+                .await
+                .unwrap();
+            engine
+                .trigger_registry
+                .register_trigger(binding("b", Some(b.id)))
+                .await
+                .unwrap();
+            engine
+                .router_msg(
+                    &a,
+                    &Message::UnregisterTrigger {
+                        id: "a".into(),
+                        trigger_type: None,
+                    },
+                )
+                .await
+                .unwrap();
+            assert_eq!(engine.trigger_registry.triggers.len(), 1);
+            assert_eq!(
+                calls.unregister_count.load(Ordering::SeqCst),
+                0,
+                "removing one alias must not tear down a shared intent"
+            );
+            engine
+                .router_msg(
+                    &b,
+                    &Message::UnregisterTrigger {
+                        id: "b".into(),
+                        trigger_type: None,
+                    },
+                )
+                .await
+                .unwrap();
+            assert!(engine.trigger_registry.triggers.is_empty());
+            assert_eq!(calls.unregister_count.load(Ordering::SeqCst), 1);
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_disconnect_preserves_peer_and_last_removes_intent() {
+            let (engine, calls) = fixture(true).await;
+            let (a, _rx_a) = connection(&engine, "orders").await;
+            let (b, _rx_b) = connection(&engine, "orders").await;
+            engine
+                .trigger_registry
+                .register_trigger(binding("a", Some(a.id)))
+                .await
+                .unwrap();
+            engine
+                .trigger_registry
+                .register_trigger(binding("b", Some(b.id)))
+                .await
+                .unwrap();
+            engine.trigger_registry.unregister_worker(&a.id).await;
+            assert_eq!(engine.trigger_registry.triggers.len(), 1);
+            assert_eq!(
+                calls.unregister_count.load(Ordering::SeqCst),
+                0,
+                "disconnect drops subscribers, not peer-owned intent"
+            );
+            engine.trigger_registry.unregister_worker(&b.id).await;
+            assert!(engine.trigger_registry.triggers.is_empty());
+            assert_eq!(calls.unregister_count.load(Ordering::SeqCst), 1);
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_foreign_session_cannot_remove_alias() {
+            let (engine, calls) = fixture(true).await;
+            let (a, _rx_a) = connection(&engine, "orders").await;
+            let (foreign, _rx_b) = connection(&engine, "other").await;
+            engine
+                .trigger_registry
+                .register_trigger(binding("private-alias", Some(a.id)))
+                .await
+                .unwrap();
+            engine
+                .router_msg(
+                    &foreign,
+                    &Message::UnregisterTrigger {
+                        id: "private-alias".into(),
+                        trigger_type: None,
+                    },
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                engine.trigger_registry.triggers.len(),
+                1,
+                "aliases are scoped to the origin connection"
+            );
+            assert_eq!(calls.unregister_count.load(Ordering::SeqCst), 0);
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_disabled_keeps_legacy_ids_and_repeated_registration() {
+            let (engine, calls) = fixture(false).await;
+            let (a, _rx_a) = connection(&engine, "orders").await;
+            let (b, _rx_b) = connection(&engine, "orders").await;
+            let first = binding("a", Some(a.id));
+            engine
+                .trigger_registry
+                .register_trigger(first.clone())
+                .await
+                .unwrap();
+            engine
+                .trigger_registry
+                .register_trigger(first)
+                .await
+                .unwrap();
+            engine
+                .trigger_registry
+                .register_trigger(binding("b", Some(b.id)))
+                .await
+                .unwrap();
+            assert_eq!(engine.trigger_registry.triggers.len(), 2);
+            assert!(engine.trigger_registry.triggers.contains_key("a"));
+            assert!(engine.trigger_registry.triggers.contains_key("b"));
+            assert_eq!(calls.register_count.load(Ordering::SeqCst), 3);
+        }
+
+        #[tokio::test]
+        async fn shared_trigger_identity_provider_namespaces_remain_isolated() {
+            let engine = engine(true);
+            for namespace in ["orders", "other"] {
+                engine
+                    .trigger_registry
+                    .register_trigger_type(TriggerType::new_ns(
+                        namespace,
+                        "identity:event",
+                        "namespace fixture",
+                        Box::new(MockRegistrator::new()),
+                        None,
+                    ))
+                    .await
+                    .unwrap();
+            }
+            assert_eq!(engine.trigger_registry.trigger_types.len(), 2);
+            let (a, _rx) = connection(&engine, "orders").await;
+            let trigger = binding("home", Some(a.id));
+            assert_eq!(
+                engine.trigger_registry.resolve_provider_key(&trigger),
+                Some(type_key("orders", "identity:event"))
+            );
+            let mut explicit = trigger;
+            explicit.trigger_namespace = Some("missing".into());
+            assert!(
+                engine
+                    .trigger_registry
+                    .resolve_provider_key(&explicit)
+                    .is_none(),
+                "explicit provider selection never broadens lookup"
+            );
+        }
     }
 
     #[test]

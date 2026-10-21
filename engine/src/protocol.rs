@@ -104,12 +104,32 @@ where
     Value::deserialize(deserializer).map(Some)
 }
 
+/// Shared trigger delivery policy. Omission retains the legacy single-active default.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TriggerDeliveryMode {
+    #[default]
+    SingleActive,
+    Parallel,
+}
+
+/// Explicit opt-in to the shared provider contract, never inferred from type names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriggerDeliveryContract {
+    #[serde(rename = "shared_v1")]
+    SharedV1,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Message {
     RegisterTriggerType {
         id: String,
         description: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        delivery_mode: Option<TriggerDeliveryMode>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        delivery_contract: Option<TriggerDeliveryContract>,
         #[serde(skip_serializing_if = "Option::is_none")]
         trigger_request_format: Option<Value>,
         #[serde(skip_serializing_if = "Option::is_none")]

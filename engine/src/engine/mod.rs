@@ -508,6 +508,8 @@ impl Engine {
     /// Freeze the startup policy before workers are created. Later writes are ignored.
     pub(crate) fn set_shared_namespace_ownership(&self, enabled: bool) {
         let _ = self.shared_namespace_ownership.set(enabled);
+        self.trigger_registry
+            .set_shared_namespace_ownership(enabled);
     }
 
     /// The effective registration namespace grace. Precedence: the
@@ -1275,6 +1277,20 @@ impl Engine {
                     return Ok(());
                 }
 
+                if self.shared_namespace_ownership() {
+                    let aliases = self.trigger_registry.subscriber_aliases(id);
+                    for (owner, alias) in aliases {
+                        if let Some(origin) = self.worker_registry.get_worker(&owner) {
+                            let forward = Message::TriggerRegistrationResult {
+                                id: alias,
+                                trigger_type: stored_trigger_type.clone(),
+                                function_id: stored_function_id.clone(),
+                                error: error.clone(),
+                            };
+                            let _ = self.send_msg(&origin, forward).await;
+                        }
+                    }
+                }
                 if error.is_none() {
                     return Ok(());
                 }
@@ -1288,6 +1304,9 @@ impl Engine {
                     .park_rejected_trigger(id, worker.id)
                     .await;
 
+                if self.shared_namespace_ownership() {
+                    return Ok(());
+                }
                 let Some(originator_id) = originator_id else {
                     tracing::debug!(
                         trigger_id = %id,
@@ -1317,6 +1336,8 @@ impl Engine {
             Message::RegisterTriggerType {
                 id,
                 description,
+                delivery_mode,
+                delivery_contract,
                 trigger_request_format,
                 call_request_format,
                 namespace,
@@ -1433,6 +1454,10 @@ impl Engine {
                     Box::new(worker.clone()),
                     Some(worker.id),
                 );
+                if self.shared_namespace_ownership() {
+                    trigger_type.delivery_mode = delivery_mode.unwrap_or_default();
+                    trigger_type.delivery_contract = *delivery_contract;
+                }
                 // Allow SDK workers to override formats from the protocol message
                 if let Some(fmt) = trigger_request_format {
                     trigger_type.trigger_request_format = Some(fmt.clone());
@@ -1449,14 +1474,25 @@ impl Engine {
                 // leak becomes visible, so drop them here rather than deliver
                 // a binding nothing owns.
                 self.trigger_registry.pending_triggers.retain(|_, t| {
+                    if self.shared_namespace_ownership() {
+                        let aliases = self.trigger_registry.subscriber_aliases(&t.id);
+                        if !aliases.is_empty() {
+                            return aliases
+                                .iter()
+                                .any(|(id, _)| self.worker_registry.get_worker(id).is_some());
+                        }
+                    }
                     t.worker_id
                         .is_none_or(|id| self.worker_registry.get_worker(&id).is_some())
                 });
 
-                let _ = self
+                if let Err(error) = self
                     .trigger_registry
                     .register_trigger_type(trigger_type)
-                    .await;
+                    .await
+                {
+                    tracing::warn!(%error, trigger_type_id = %id, "Trigger provider declaration rejected");
+                }
 
                 Ok(())
             }
@@ -1654,7 +1690,11 @@ impl Engine {
                     }
                     Err(err) => {
                         let error_body = crate::protocol::ErrorBody::new(
-                            "trigger_registration_failed",
+                            if err.to_string().contains("trigger_registration_conflict") {
+                                "trigger_registration_conflict"
+                            } else {
+                                "trigger_registration_failed"
+                            },
                             err.to_string(),
                         );
                         let result_msg = Message::TriggerRegistrationResult {
@@ -1678,7 +1718,7 @@ impl Engine {
 
                 let _ = self
                     .trigger_registry
-                    .unregister_trigger(id.clone(), trigger_type.clone())
+                    .unregister_subscriber(worker.id, id.clone(), trigger_type.clone())
                     .await;
 
                 Ok(())
@@ -5111,6 +5151,8 @@ mod tests {
 
         // First register a trigger type so RegisterTrigger can succeed
         let register_type_msg = Message::RegisterTriggerType {
+            delivery_mode: None,
+            delivery_contract: None,
             id: "my_trigger_type".to_string(),
             description: "A test trigger type".to_string(),
             trigger_request_format: None,
@@ -5167,6 +5209,8 @@ mod tests {
 
         // Register trigger type first
         let register_type_msg = Message::RegisterTriggerType {
+            delivery_mode: None,
+            delivery_contract: None,
             id: "unreg_type".to_string(),
             description: "Trigger type for unregister test".to_string(),
             trigger_request_format: None,
@@ -6533,6 +6577,8 @@ mod tests {
 
         // Register a trigger type
         let register_type_msg = Message::RegisterTriggerType {
+            delivery_mode: None,
+            delivery_contract: None,
             id: "cleanup_trigger_type".to_string(),
             description: "Trigger type for cleanup test".to_string(),
             trigger_request_format: None,
@@ -7278,6 +7324,8 @@ mod tests {
             .router_msg(
                 &worker,
                 &Message::RegisterTriggerType {
+                    delivery_mode: None,
+                    delivery_contract: None,
                     id: "webhook".to_string(),
                     description: "blank namespace".to_string(),
                     trigger_request_format: None,
@@ -7354,6 +7402,8 @@ mod tests {
                 .router_msg(
                     &provider,
                     &Message::RegisterTriggerType {
+                        delivery_mode: None,
+                        delivery_contract: None,
                         id: trigger_type.to_string(),
                         description: format!("{trigger_type} provider"),
                         trigger_request_format: None,
@@ -7411,6 +7461,8 @@ mod tests {
         let engine = Engine::new();
 
         let register_script = |namespace: &str| Message::RegisterTriggerType {
+            delivery_mode: None,
+            delivery_contract: None,
             id: "console:script".to_string(),
             description: "Console script provider".to_string(),
             trigger_request_format: None,
@@ -7519,6 +7571,8 @@ mod tests {
         let (provider_tx, mut provider_rx) = mpsc::channel::<Outbound>(8);
         let provider = WorkerConnection::new(provider_tx);
         let tt_msg = Message::RegisterTriggerType {
+            delivery_mode: None,
+            delivery_contract: None,
             id: "late_type".to_string(),
             description: "arrives after its triggers".to_string(),
             trigger_request_format: None,
@@ -7586,6 +7640,8 @@ mod tests {
         let (provider_tx, mut provider_rx) = mpsc::channel::<Outbound>(8);
         let provider = WorkerConnection::new(provider_tx);
         let tt_msg = Message::RegisterTriggerType {
+            delivery_mode: None,
+            delivery_contract: None,
             id: "never_registered".to_string(),
             description: "arrives after the owner died".to_string(),
             trigger_request_format: None,
@@ -7614,6 +7670,8 @@ mod tests {
         let worker_a = WorkerConnection::new(a_tx);
         engine.worker_registry.register_worker(worker_a.clone());
         let tt_msg = Message::RegisterTriggerType {
+            delivery_mode: None,
+            delivery_contract: None,
             id: "type_x".to_string(),
             description: "provided by worker A".to_string(),
             trigger_request_format: None,
@@ -7716,6 +7774,8 @@ mod tests {
         let provider = WorkerConnection::new(provider_tx);
         engine.worker_registry.register_worker(provider.clone());
         let tt_msg = Message::RegisterTriggerType {
+            delivery_mode: None,
+            delivery_contract: None,
             id: "type_x".to_string(),
             description: "arrives after the leak".to_string(),
             trigger_request_format: None,
@@ -8625,6 +8685,8 @@ mod tests {
                 .router_msg(
                     &provider,
                     &Message::RegisterTriggerType {
+                        delivery_mode: None,
+                        delivery_contract: None,
                         id: "evt".to_string(),
                         description: "provider".to_string(),
                         trigger_request_format: None,
@@ -9038,6 +9100,8 @@ mod tests {
 
         // Register trigger type
         let tt_msg = Message::RegisterTriggerType {
+            delivery_mode: None,
+            delivery_contract: None,
             id: "cleanup_trigger_type".to_string(),
             description: "Test trigger type for cleanup".to_string(),
             trigger_request_format: None,
@@ -9208,6 +9272,8 @@ mod tests {
         let worker = WorkerConnection::new(tx);
 
         let register_type_msg = Message::RegisterTriggerType {
+            delivery_mode: None,
+            delivery_contract: None,
             id: "metadata_type".to_string(),
             description: "Trigger type for metadata test".to_string(),
             trigger_request_format: None,
