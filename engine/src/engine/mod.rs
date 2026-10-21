@@ -396,15 +396,39 @@ struct RoutingOwner {
     load: Arc<std::sync::atomic::AtomicUsize>,
 }
 
-pub(crate) struct RoutingReservation(Arc<std::sync::atomic::AtomicUsize>);
+type SharedRoutingRegistry = DashMap<(String, String), Arc<std::sync::Mutex<SharedRouting>>>;
+
+struct RoutingCleanup {
+    registry: std::sync::Weak<SharedRoutingRegistry>,
+    key: (String, String),
+}
+
+pub(crate) struct RoutingReservation(Arc<std::sync::atomic::AtomicUsize>, Option<RoutingCleanup>);
 
 impl Drop for RoutingReservation {
     fn drop(&mut self) {
         self.0.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        if let Some(cleanup) = &self.1
+            && let Some(registry) = cleanup.registry.upgrade()
+        {
+            // Map entry before routing lock, like registration/unregister.
+            // Keep an empty set only while a reservation can reenter it.
+            registry.remove_if(&cleanup.key, |_, routing| {
+                routing.lock().expect("shared routing poisoned").is_idle()
+            });
+        }
     }
 }
 
 impl SharedRouting {
+    fn is_idle(&self) -> bool {
+        self.owners.is_empty()
+            && self.retired_loads.values().all(|load| {
+                load.upgrade()
+                    .is_none_or(|load| load.load(std::sync::atomic::Ordering::SeqCst) == 0)
+            })
+    }
+
     fn join(&mut self, worker: &WorkerConnection) {
         if self.owners.iter().any(|o| o.worker.id == worker.id) {
             return;
@@ -470,7 +494,10 @@ impl SharedRouting {
         self.cursor = (index + 1) % len;
         let owner = &self.owners[index];
         owner.load.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        Some((owner.worker.clone(), RoutingReservation(owner.load.clone())))
+        Some((
+            owner.worker.clone(),
+            RoutingReservation(owner.load.clone(), None),
+        ))
     }
 }
 
@@ -510,7 +537,7 @@ pub struct Engine {
     /// function_owners retains the first UUID as a legacy ownership index;
     /// this entry is the authoritative descriptor and complete session set.
     shared_functions: Arc<DashMap<(String, String), SessionFunction>>,
-    shared_routing: Arc<DashMap<(String, String), Arc<std::sync::Mutex<SharedRouting>>>>,
+    shared_routing: Arc<SharedRoutingRegistry>,
     /// Records the current owning WS connection for each live worker name,
     /// keyed by `(namespace, worker_name)`. Populated when a worker sends
     /// `engine::workers::register` (see `claim_worker_name`) and CAS-released by
@@ -3505,14 +3532,17 @@ impl Engine {
     fn shared_dispatcher(
         &self,
         routing: Arc<std::sync::Mutex<SharedRouting>>,
-        function_id: String,
+        key: (String, String),
     ) -> Arc<crate::function::HandlerFn> {
         let invocations = self.invocations.clone();
+        let registry = Arc::downgrade(&self.shared_routing);
         let handler: Arc<crate::function::HandlerFn> =
             Arc::new(move |id, input, _session, metadata| {
                 let routing = routing.clone();
                 let invocations = invocations.clone();
-                let function_id = function_id.clone();
+                let function_id = key.1.clone();
+                let cleanup_key = key.clone();
+                let registry = registry.clone();
                 Box::pin(async move {
                     let mut tried = Vec::new();
                     let mut error = ErrorBody::new("invocation_stopped", "Invocation stopped");
@@ -3521,9 +3551,13 @@ impl Engine {
                             .lock()
                             .expect("shared routing poisoned")
                             .reserve(&tried);
-                        let Some((worker, reservation)) = selected else {
+                        let Some((worker, mut reservation)) = selected else {
                             return FunctionResult::Failure(error);
                         };
+                        reservation.1 = Some(RoutingCleanup {
+                            registry: registry.clone(),
+                            key: cleanup_key.clone(),
+                        });
                         tried.push(worker.id);
                         let Some(id) = id else {
                             return FunctionResult::Failure(error);
@@ -3607,8 +3641,7 @@ impl Engine {
                     .lock()
                     .expect("shared routing poisoned")
                     .join(worker);
-                shared.function.handler =
-                    self.shared_dispatcher(routing, request.function_id.clone());
+                shared.function.handler = self.shared_dispatcher(routing, key.clone());
                 self.functions.register_function_ns(
                     namespace,
                     request.function_id,
@@ -3657,12 +3690,14 @@ impl Engine {
         }
 
         let mut shared = SessionFunction::new(worker.id, function);
-        let mut routing = SharedRouting::default();
-        routing.join(worker);
-        let routing = Arc::new(std::sync::Mutex::new(routing));
-        shared.function.handler =
-            self.shared_dispatcher(routing.clone(), request.function_id.clone());
-        self.shared_routing.insert(key.clone(), routing);
+        let routing = {
+            // A last-owner unregister may leave reservations alive. Join under
+            // the map entry lock so their final drop cannot remove this reentry.
+            let entry = self.shared_routing.entry(key.clone()).or_default();
+            entry.lock().expect("shared routing poisoned").join(worker);
+            entry.clone()
+        };
+        shared.function.handler = self.shared_dispatcher(routing, key.clone());
         let canonical = shared.function.clone();
         self.shared_functions.insert(key, shared);
         let _owner_guard = match ownership {
@@ -3813,7 +3848,9 @@ impl Engine {
                     } else {
                         drop(shared);
                         self.shared_functions.remove(&key);
-                        self.shared_routing.remove(&key);
+                        self.shared_routing.remove_if(&key, |_, routing| {
+                            routing.lock().expect("shared routing poisoned").is_idle()
+                        });
                         self.remove_function_from_engine(namespace, function_id);
                         entry.remove();
                     }
@@ -4201,6 +4238,98 @@ mod tests {
             "healthy peer must not keep the retired worker alive"
         );
         assert_eq!(routing.lock().unwrap().owners[0].worker.id, b.id);
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_last_owner_reentry_preserves_reservation_identity() {
+        use std::sync::atomic::Ordering::SeqCst;
+
+        let engine = membership_engine();
+        let (a, a_rx) = membership_worker(&engine).await;
+        let (b, b_rx) = membership_worker(&engine).await;
+        let mut receivers = [a_rx, b_rx];
+        engine
+            .router_msg(&a, &membership_registration())
+            .await
+            .unwrap();
+        let held = routing_start(&engine);
+        let (owner, held_id) = routing_next(&mut receivers).await;
+        assert_eq!(owner, 0, "only A is registered at the enqueue barrier");
+        let key = ("orders".to_string(), "svc::shared".to_string());
+        let original_routing = engine.shared_routing.get(&key).unwrap().clone();
+        let reserved_load = original_routing.lock().unwrap().owners[0].load.clone();
+        assert_eq!(reserved_load.load(SeqCst), 1);
+
+        engine
+            .router_msg(
+                &a,
+                &Message::UnregisterFunction {
+                    id: "svc::shared".into(),
+                },
+            )
+            .await
+            .unwrap();
+        assert!(original_routing.lock().unwrap().owners.is_empty());
+        assert!(!engine.shared_functions.contains_key(&key));
+        assert!(engine.functions.get("orders", "svc::shared").is_none());
+        assert!(engine.invocations.pending(&held_id).is_some());
+        assert!(a.invocations.read().await.contains(&held_id));
+        assert_eq!(
+            reserved_load.load(SeqCst),
+            1,
+            "emptying membership must not release the running reservation"
+        );
+
+        // Reenter with the identical live session before its old reply, then
+        // register idle B. The fresh tie cursor would choose A if its load reset.
+        engine
+            .router_msg(&a, &membership_registration())
+            .await
+            .unwrap();
+        let rejoined_routing = engine.shared_routing.get(&key).unwrap().clone();
+        let rejoined_load = rejoined_routing.lock().unwrap().owners[0].load.clone();
+        let same_reservation_state = Arc::ptr_eq(&reserved_load, &rejoined_load);
+        let rejoined_active_load = rejoined_load.load(SeqCst);
+        engine
+            .router_msg(&b, &membership_registration())
+            .await
+            .unwrap();
+        let peer_load = rejoined_routing.lock().unwrap().owners[1].load.clone();
+        assert_eq!(peer_load.load(SeqCst), 0);
+
+        let next = routing_start(&engine);
+        let (selected, next_id) = routing_next(&mut receivers).await;
+        // Complete the OLD guard while the new invocation remains reserved:
+        // this must update A's current state, not a detached load counter.
+        routing_reply(&engine, &a, held_id, None).await;
+        assert_eq!(held.await.unwrap().unwrap(), Some(json!("ok")));
+        assert!(engine.invocations.pending(&held_id).is_none());
+        assert!(engine.invocations.pending(&next_id).is_some());
+        let after_old_reply = (
+            reserved_load.load(SeqCst),
+            rejoined_load.load(SeqCst),
+            peer_load.load(SeqCst),
+        );
+        let selected_worker = if selected == 0 { &a } else { &b };
+        routing_reply(&engine, selected_worker, next_id, None).await;
+        assert_eq!(next.await.unwrap().unwrap(), Some(json!("ok")));
+        assert_eq!(reserved_load.load(SeqCst), 0);
+        assert_eq!(rejoined_load.load(SeqCst), 0);
+        assert_eq!(peer_load.load(SeqCst), 0);
+        assert_eq!(a.invocation_count().await, 0);
+        assert_eq!(b.invocation_count().await, 0);
+
+        assert_eq!(
+            (
+                same_reservation_state,
+                rejoined_active_load,
+                selected,
+                after_old_reply,
+            ),
+            (true, 1, 1, (0, 0, 1)),
+            "same-session A must reuse the reservation Arc/load through an empty owner set; \
+             busy A must not tie idle B; the old guard must decrement A's current state"
+        );
     }
 
     #[test]
