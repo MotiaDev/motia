@@ -44,6 +44,84 @@ pub struct Function {
     pub metadata: Option<Value>,
 }
 
+/// One canonical descriptor and insertion-ordered, independent session handlers.
+/// Membership changes are serialized by the engine's function ownership entry.
+/// The dispatcher snapshots a handler before calling it, never holding a lock
+/// across execution. Selection is deliberately first-owner until routing policy
+/// is implemented; membership does not imply load balancing.
+pub(crate) struct SessionFunction {
+    pub function: Function,
+    owners: Arc<RwLock<Vec<(Uuid, Arc<HandlerFn>)>>>,
+}
+
+impl SessionFunction {
+    pub fn new(owner: Uuid, mut function: Function) -> Self {
+        let owners = Arc::new(RwLock::new(vec![(owner, function.handler.clone())]));
+        let dispatch_owners = owners.clone();
+        function.handler = Arc::new(move |id, input, session, metadata| {
+            let handler = dispatch_owners
+                .read()
+                .expect("session function owners poisoned")
+                .first()
+                .map(|(_, handler)| handler.clone());
+            Box::pin(async move {
+                match handler {
+                    Some(handler) => handler(id, input, session, metadata).await,
+                    None => FunctionResult::Failure(ErrorBody {
+                        code: "function_not_found".to_string(),
+                        message: "Function has no registered session owners".to_string(),
+                        stacktrace: None,
+                    }),
+                }
+            })
+        });
+        Self { function, owners }
+    }
+
+    pub fn compatible(&self, function: &Function) -> bool {
+        self.function._description == function._description
+            && self.function.request_format == function.request_format
+            && self.function.response_format == function.response_format
+            && self.function.metadata == function.metadata
+    }
+
+    pub fn is_sole_owner(&self, owner: Uuid) -> bool {
+        let owners = self
+            .owners
+            .read()
+            .expect("session function owners poisoned");
+        owners.len() == 1 && owners[0].0 == owner
+    }
+
+    pub fn join(&self, owner: Uuid, handler: Arc<HandlerFn>) {
+        let mut owners = self
+            .owners
+            .write()
+            .expect("session function owners poisoned");
+        if !owners.iter().any(|(id, _)| *id == owner) {
+            owners.push((owner, handler));
+        }
+    }
+
+    pub fn remove(&self, owner: Uuid) -> bool {
+        let mut owners = self
+            .owners
+            .write()
+            .expect("session function owners poisoned");
+        let before = owners.len();
+        owners.retain(|(id, _)| *id != owner);
+        owners.len() != before
+    }
+
+    pub fn first_owner(&self) -> Option<Uuid> {
+        self.owners
+            .read()
+            .expect("session function owners poisoned")
+            .first()
+            .map(|(id, _)| *id)
+    }
+}
+
 impl AsRef<HandlerFn> for Function {
     fn as_ref(&self) -> &HandlerFn {
         self.handler.as_ref()

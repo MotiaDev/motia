@@ -33,6 +33,182 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 type Client = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 
+/// Exercise the public startup flag, not a doctored WorkerConnection. Keep the
+/// config directory and builder alive until sockets have been closed.
+async fn membership_ws_engine(
+    enabled: bool,
+) -> (u16, Arc<Engine>, iii::EngineBuilder, tempfile::TempDir) {
+    use iii::workers::config::{EngineConfig, WorkerEntry};
+
+    let dir = tempfile::tempdir().expect("isolated configuration storage");
+    let probe = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = probe.local_addr().unwrap().port();
+    drop(probe);
+    let config = EngineConfig {
+        shared_namespace_ownership: enabled,
+        workers: vec![
+            WorkerEntry {
+                name: "configuration".to_string(),
+                image: None,
+                config: Some(
+                    json!({"adapter": {"name": "fs", "config": {"directory": dir.path()}}}),
+                ),
+            },
+            WorkerEntry {
+                name: "iii-worker-manager".to_string(),
+                image: None,
+                config: Some(json!({"host": "127.0.0.1", "port": port})),
+            },
+        ],
+        ..EngineConfig::default()
+    };
+    let builder = iii::EngineBuilder::new()
+        .with_config(config)
+        .build()
+        .await
+        .expect("build configured engine");
+    let engine = builder.engine_handle();
+    assert_eq!(engine.shared_namespace_ownership(), enabled);
+    let manager = builder
+        .running()
+        .iter()
+        .find(|rw| rw.entry.name == "iii-worker-manager")
+        .expect("worker manager");
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    manager
+        .worker
+        .start_background_tasks(shutdown_rx, shutdown_tx)
+        .await
+        .expect("start real WebSocket listener");
+    (port, engine, builder, dir)
+}
+
+/// A pong is a message-order barrier: all earlier registrations were processed.
+/// Unlike a timeout waiting for no rejection, this proves positive progress.
+async fn membership_ws_barrier(ws: &mut Client) {
+    ws.send(WsMessage::Text(json!({"type": "ping"}).to_string().into()))
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while let Some(Ok(WsMessage::Text(text))) = ws.next().await {
+            let message: Value = serde_json::from_str(&text).unwrap();
+            assert_ne!(
+                message["type"], "registrationrejected",
+                "compatible registration rejected: {message}"
+            );
+            if message["type"] == "pong" {
+                return;
+            }
+        }
+        panic!("connection closed before registration barrier");
+    })
+    .await
+    .expect("registration barrier pong");
+}
+
+#[tokio::test]
+async fn shared_namespace_membership_ws_enabled_compatible_joins_and_final_disconnect() {
+    let (port, engine, builder, _dir) = membership_ws_engine(true).await;
+    let (mut a, a_id) = connect(port).await;
+    // Also cover the SDK's pre-namespace registration buffering path.
+    send_described_function(&mut a, "svc::shared", Some("canonical")).await;
+    send_register_worker(&mut a, "membership-alpha", Some("orders")).await;
+    membership_ws_barrier(&mut a).await;
+    assert!(eventually(|| engine.functions.get("orders", "svc::shared").is_some()).await);
+
+    let (mut b, b_id) = connect(port).await;
+    send_described_function(&mut b, "svc::shared", Some("canonical")).await;
+    send_register_worker(&mut b, "membership-beta", Some("orders")).await;
+    membership_ws_barrier(&mut b).await;
+    let b_uuid = uuid::Uuid::parse_str(&b_id).unwrap();
+    let b_worker = engine.worker_registry.get_worker(&b_uuid).unwrap().clone();
+    assert!(
+        b_worker
+            .get_regular_function_ids()
+            .await
+            .contains(&"svc::shared".to_string())
+    );
+    assert!(engine.functions.get("default", "svc::shared").is_none());
+
+    a.close(None).await.unwrap();
+    let a_uuid = uuid::Uuid::parse_str(&a_id).unwrap();
+    assert!(eventually(|| engine.worker_registry.get_worker(&a_uuid).is_none()).await);
+    assert_eq!(
+        engine
+            .functions
+            .get("orders", "svc::shared")
+            .expect("peer survives disconnect")
+            ._description
+            .as_deref(),
+        Some("canonical")
+    );
+    assert!(engine.service_registry.get("orders", "svc").is_some());
+    b.close(None).await.unwrap();
+    assert!(eventually(|| engine.worker_registry.get_worker(&b_uuid).is_none()).await);
+    assert!(engine.functions.get("orders", "svc::shared").is_none());
+    assert!(engine.service_registry.get("orders", "svc").is_none());
+    builder.destroy().await.unwrap();
+}
+
+#[tokio::test]
+async fn shared_namespace_membership_ws_disabled_compatible_duplicate_is_still_exclusive() {
+    let (port, engine, builder, _dir) = membership_ws_engine(false).await;
+    let (mut a, a_id) = connect(port).await;
+    send_register_worker(&mut a, "membership-alpha", Some("orders")).await;
+    send_described_function(&mut a, "svc::shared", Some("canonical")).await;
+    membership_ws_barrier(&mut a).await;
+    let (mut b, b_id) = connect(port).await;
+    send_register_worker(&mut b, "membership-beta", Some("orders")).await;
+    send_described_function(&mut b, "svc::shared", Some("canonical")).await;
+    let rejection = await_rejection(&mut b)
+        .await
+        .expect("false mode must reject even identical descriptors");
+    assert_eq!(rejection["code"], "FUNCTION_NAMESPACE_CONFLICT");
+    assert_eq!(rejection["owner_worker_id"], a_id);
+    assert_eq!(rejection["namespace"], "orders");
+    assert_eq!(rejection["function_id"], "svc::shared");
+    membership_ws_barrier(&mut b).await;
+    let b_uuid = uuid::Uuid::parse_str(&b_id).unwrap();
+    let b_worker = engine.worker_registry.get_worker(&b_uuid).unwrap().clone();
+    assert!(b_worker.get_regular_function_ids().await.is_empty());
+    b.close(None).await.unwrap();
+    assert!(eventually(|| engine.worker_registry.get_worker(&b_uuid).is_none()).await);
+    assert_eq!(
+        engine
+            .functions
+            .get("orders", "svc::shared")
+            .unwrap()
+            ._description
+            .as_deref(),
+        Some("canonical")
+    );
+    a.close(None).await.unwrap();
+    let a_uuid = uuid::Uuid::parse_str(&a_id).unwrap();
+    assert!(eventually(|| engine.worker_registry.get_worker(&a_uuid).is_none()).await);
+    assert!(engine.functions.get("orders", "svc::shared").is_none());
+    builder.destroy().await.unwrap();
+}
+
+#[tokio::test]
+async fn shared_namespace_membership_ws_enabled_worker_names_remain_exclusive() {
+    let (port, engine, builder, _dir) = membership_ws_engine(true).await;
+    let (mut a, a_id) = connect(port).await;
+    send_register_worker(&mut a, "membership-exclusive-name", Some("orders")).await;
+    membership_ws_barrier(&mut a).await;
+    let (mut b, _) = connect(port).await;
+    send_register_worker(&mut b, "membership-exclusive-name", Some("orders")).await;
+    let rejection = await_rejection(&mut b)
+        .await
+        .expect("shared functions do not permit duplicate worker names");
+    assert_eq!(rejection["code"], "WORKER_NAMESPACE_CONFLICT");
+    assert_eq!(rejection["owner_worker_id"], a_id);
+    assert!(closed_by_engine(&mut b).await);
+    a.close(None).await.unwrap();
+    let a_uuid = uuid::Uuid::parse_str(&a_id).unwrap();
+    assert!(eventually(|| engine.worker_registry.get_worker(&a_uuid).is_none()).await);
+    builder.destroy().await.unwrap();
+}
+
 async fn spawn_engine() -> (u16, Arc<Engine>) {
     iii::workers::observability::metrics::ensure_default_meter();
 

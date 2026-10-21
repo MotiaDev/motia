@@ -21,7 +21,7 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 use uuid::Uuid;
 
 use crate::{
-    function::{Function, FunctionHandler, FunctionResult, FunctionsRegistry},
+    function::{Function, FunctionHandler, FunctionResult, FunctionsRegistry, SessionFunction},
     invocation::{InvocationHandler, http_function::HttpFunctionConfig},
     protocol::{
         DEFAULT_NAMESPACE, ErrorBody, FUNCTION_NAMESPACE_CONFLICT, Message, NAMESPACE_FORBIDDEN,
@@ -412,6 +412,11 @@ pub struct Engine {
     /// other. The `kind` records how the current owner registered so a release
     /// can branch on it if needed; the CAS key for release is the owner id.
     pub(crate) function_owners: Arc<DashMap<(String, String), (Uuid, InvocationKind)>>,
+    /// Enabled regular WS ownership. Access only while holding the matching
+    /// function_owners entry: it serializes publication, joins and removals.
+    /// function_owners retains the first UUID as a legacy ownership index;
+    /// this entry is the authoritative descriptor and complete session set.
+    shared_functions: Arc<DashMap<(String, String), SessionFunction>>,
     /// Records the current owning WS connection for each live worker name,
     /// keyed by `(namespace, worker_name)`. Populated when a worker sends
     /// `engine::workers::register` (see `claim_worker_name`) and CAS-released by
@@ -480,6 +485,7 @@ impl Engine {
             invocations: Arc::new(InvocationHandler::new()),
             channel_manager: Arc::new(ChannelManager::new()),
             function_owners: Arc::new(DashMap::new()),
+            shared_functions: Arc::new(DashMap::new()),
             worker_name_owners: Arc::new(DashMap::new()),
             namespace_states: Arc::new(DashMap::new()),
             namespace_grace_tasks: Arc::new(DashMap::new()),
@@ -2340,6 +2346,33 @@ impl Engine {
                     return Ok(());
                 }
 
+                if self.shared_namespace_ownership() && invocation.is_none() {
+                    let request = RegisterFunctionRequest {
+                        function_id: reg_id.clone(),
+                        description: reg_description,
+                        request_format: req.clone(),
+                        response_format: res.clone(),
+                        metadata: reg_metadata,
+                    };
+                    match self.register_shared_function(&namespace, worker, request) {
+                        Ok(()) => worker.include_function_id(&reg_id).await,
+                        Err(conflict) => {
+                            self.send_msg(
+                                worker,
+                                Message::RegistrationRejected {
+                                    code: "function_owner_mismatch".to_string(),
+                                    namespace: conflict.namespace,
+                                    worker_name: None,
+                                    function_id: Some(conflict.name),
+                                    owner_worker_id: conflict.owner_worker_id,
+                                },
+                            )
+                            .await;
+                        }
+                    }
+                    return Ok(());
+                }
+
                 // Claim ownership BEFORE mutating any engine-global state. An
                 // old worker's `cleanup_worker` running on another task can
                 // see the pre-claim `function_owners` entry, match its own
@@ -2361,7 +2394,11 @@ impl Engine {
                     self.send_msg(
                         worker,
                         Message::RegistrationRejected {
-                            code: FUNCTION_NAMESPACE_CONFLICT.to_string(),
+                            code: if self.shared_namespace_ownership() {
+                                "function_owner_mismatch".to_string()
+                            } else {
+                                FUNCTION_NAMESPACE_CONFLICT.to_string()
+                            },
                             namespace: conflict.namespace,
                             worker_name: None,
                             function_id: Some(conflict.name),
@@ -3213,6 +3250,110 @@ impl Engine {
     /// which is what the prior two-map design allowed. On takeover (a departed
     /// or tearing-down previous owner) the entry is overwritten with the new
     /// `(worker_id, kind)`, so a later restart that changes kind is reflected.
+    fn register_shared_function(
+        &self,
+        namespace: &str,
+        worker: &WorkerConnection,
+        request: RegisterFunctionRequest,
+    ) -> Result<(), NamespaceConflict> {
+        let key = (namespace.to_string(), request.function_id.clone());
+        let ownership = self.function_owners.entry(key.clone());
+        let previous = match &ownership {
+            dashmap::mapref::entry::Entry::Occupied(entry) => Some(*entry.get()),
+            dashmap::mapref::entry::Entry::Vacant(_) => None,
+        };
+        let handler_worker = worker.clone();
+        let handler_id = request.function_id.clone();
+        let function = Function {
+            handler: Arc::new(move |id, input, _session, metadata| {
+                let worker = handler_worker.clone();
+                let function_id = handler_id.clone();
+                Box::pin(async move {
+                    worker
+                        .handle_function(id, function_id, input, metadata)
+                        .await
+                })
+            }),
+            _function_id: request.function_id.clone(),
+            _description: request.description,
+            request_format: request.request_format,
+            response_format: request.response_format,
+            metadata: request.metadata,
+        };
+
+        if let Some(mut shared) = self.shared_functions.get_mut(&key) {
+            if !shared.compatible(&function) {
+                if !shared.is_sole_owner(worker.id) {
+                    return Err(self.conflict(
+                        "Shared function descriptor",
+                        namespace,
+                        &request.function_id,
+                        worker.id,
+                        shared.first_owner().expect("nonempty owner set"),
+                    ));
+                }
+                *shared = SessionFunction::new(worker.id, function);
+                self.functions.register_function_ns(
+                    namespace,
+                    request.function_id,
+                    shared.function.clone(),
+                );
+            } else {
+                shared.join(worker.id, function.handler);
+            }
+            return Ok(());
+        }
+
+        // An existing in-process function has no WS lease and is exclusive.
+        // External functions also remain exclusive in this phase.
+        if previous.is_none()
+            && self
+                .functions
+                .get(namespace, &request.function_id)
+                .is_some()
+        {
+            return Err(self.conflict(
+                "In-process function",
+                namespace,
+                &request.function_id,
+                worker.id,
+                Uuid::nil(),
+            ));
+        }
+        if let Some((owner, _kind)) = previous
+            && (owner == worker.id
+                || (self.worker_registry.workers.contains_key(&owner)
+                    && !self.is_connection_tearing_down(&owner)))
+        {
+            return Err(self.conflict(
+                "Exclusive function",
+                namespace,
+                &request.function_id,
+                worker.id,
+                owner,
+            ));
+        }
+
+        let shared = SessionFunction::new(worker.id, function);
+        let canonical = shared.function.clone();
+        self.shared_functions.insert(key, shared);
+        let _owner_guard = match ownership {
+            dashmap::mapref::entry::Entry::Occupied(mut entry) => {
+                entry.insert((worker.id, InvocationKind::Regular));
+                entry.into_ref()
+            }
+            dashmap::mapref::entry::Entry::Vacant(entry) => {
+                entry.insert((worker.id, InvocationKind::Regular))
+            }
+        };
+        self.service_registry
+            .register_service_from_function_id(namespace, &request.function_id);
+        self.functions
+            .register_function_ns(namespace, request.function_id, canonical);
+        crate::workers::telemetry::collector::track_function_registered();
+        Ok(())
+    }
+
     fn claim_in(
         &self,
         namespace: &str,
@@ -3222,9 +3363,18 @@ impl Engine {
         kind_label: &str,
     ) -> Result<(), NamespaceConflict> {
         let key = (namespace.to_string(), function_id.to_string());
-        match self.function_owners.entry(key) {
+        match self.function_owners.entry(key.clone()) {
             dashmap::mapref::entry::Entry::Occupied(mut occupied) => {
                 let (previous, _prev_kind) = *occupied.get();
+                if self.shared_namespace_ownership() && self.shared_functions.contains_key(&key) {
+                    return Err(self.conflict(
+                        kind_label,
+                        namespace,
+                        function_id,
+                        worker_id,
+                        previous,
+                    ));
+                }
                 if previous != worker_id
                     && self.worker_registry.workers.contains_key(&previous)
                     && !self.is_connection_tearing_down(&previous)
@@ -3240,6 +3390,17 @@ impl Engine {
                 occupied.insert((worker_id, kind));
             }
             dashmap::mapref::entry::Entry::Vacant(vacant) => {
+                if self.shared_namespace_ownership()
+                    && self.functions.get(namespace, function_id).is_some()
+                {
+                    return Err(self.conflict(
+                        kind_label,
+                        namespace,
+                        function_id,
+                        worker_id,
+                        Uuid::nil(),
+                    ));
+                }
                 vacant.insert((worker_id, kind));
             }
         }
@@ -3307,7 +3468,27 @@ impl Engine {
             .function_owners
             .entry((namespace.to_string(), function_id.to_string()))
         {
-            dashmap::mapref::entry::Entry::Occupied(entry) if entry.get().0 == *worker_id => {
+            dashmap::mapref::entry::Entry::Occupied(mut entry) => {
+                let key = (namespace.to_string(), function_id.to_string());
+                if self.shared_namespace_ownership()
+                    && let Some(shared) = self.shared_functions.get(&key)
+                {
+                    if !shared.remove(*worker_id) {
+                        return false;
+                    }
+                    if let Some(first) = shared.first_owner() {
+                        entry.insert((first, InvocationKind::Regular));
+                    } else {
+                        drop(shared);
+                        self.shared_functions.remove(&key);
+                        self.remove_function_from_engine(namespace, function_id);
+                        entry.remove();
+                    }
+                    return true;
+                }
+                if entry.get().0 != *worker_id {
+                    return false;
+                }
                 self.remove_function_from_engine(namespace, function_id);
                 entry.remove();
                 true
@@ -3529,6 +3710,411 @@ mod tests {
             response_format: None,
             metadata: None,
         }
+    }
+
+    // Membership tests deliberately use the production registration/removal paths,
+    // not the current single-owner map's representation or a routing policy.
+    fn membership_engine() -> Engine {
+        ensure_default_meter();
+        let engine = Engine::new();
+        engine.set_shared_namespace_ownership(true);
+        assert!(engine.shared_namespace_ownership());
+        engine
+    }
+
+    async fn membership_worker(engine: &Engine) -> (WorkerConnection, mpsc::Receiver<Outbound>) {
+        let (tx, rx) = mpsc::channel(32);
+        let worker = WorkerConnection::new(tx);
+        engine.worker_registry.register_worker(worker.clone());
+        engine.begin_namespace_resolution(&worker);
+        engine.resolve_connection_namespace(&worker, "orders").await;
+        (worker, rx)
+    }
+
+    fn membership_registration() -> Message {
+        Message::RegisterFunction {
+            id: "svc::shared".to_string(),
+            description: Some("canonical descriptor".to_string()),
+            request_format: Some(json!({"type": "object"})),
+            response_format: Some(json!({"type": "string"})),
+            metadata: Some(json!({"version": 1})),
+            invocation: None,
+        }
+    }
+
+    fn membership_assert_descriptor(engine: &Engine) {
+        let function = engine
+            .functions
+            .get("orders", "svc::shared")
+            .expect("canonical function");
+        assert_eq!(
+            function._description.as_deref(),
+            Some("canonical descriptor")
+        );
+        assert_eq!(function.request_format, Some(json!({"type": "object"})));
+        assert_eq!(function.response_format, Some(json!({"type": "string"})));
+        assert_eq!(function.metadata, Some(json!({"version": 1})));
+        assert!(engine.service_registry.get("orders", "svc").is_some());
+        assert!(
+            engine
+                .functions
+                .get(DEFAULT_NAMESPACE, "svc::shared")
+                .is_none()
+        );
+    }
+
+    fn membership_assert_mismatch(rx: &mut mpsc::Receiver<Outbound>) {
+        match rx
+            .try_recv()
+            .expect("incompatible registration must be rejected")
+        {
+            Outbound::Protocol(Message::RegistrationRejected {
+                code,
+                namespace,
+                function_id,
+                ..
+            }) => {
+                assert_eq!(namespace, "orders");
+                assert_eq!(function_id.as_deref(), Some("svc::shared"));
+                assert_eq!(code, "function_owner_mismatch");
+            }
+            other => panic!("expected descriptor/kind rejection, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_compatible_two_joins() {
+        let engine = membership_engine();
+        let (a, mut a_rx) = membership_worker(&engine).await;
+        let (b, mut b_rx) = membership_worker(&engine).await;
+        engine
+            .router_msg(&a, &membership_registration())
+            .await
+            .unwrap();
+        engine
+            .router_msg(&b, &membership_registration())
+            .await
+            .unwrap();
+        assert!(
+            a.get_regular_function_ids()
+                .await
+                .contains(&"svc::shared".to_string())
+        );
+        assert!(
+            b.get_regular_function_ids()
+                .await
+                .contains(&"svc::shared".to_string()),
+            "compatible second session must join the exact namespace/function"
+        );
+        assert!(a_rx.try_recv().is_err());
+        assert!(
+            b_rx.try_recv().is_err(),
+            "compatible join must not send a rejection"
+        );
+        membership_assert_descriptor(&engine);
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_same_session_idempotence_and_final_removal() {
+        let engine = membership_engine();
+        let (a, _a_rx) = membership_worker(&engine).await;
+        let (b, _b_rx) = membership_worker(&engine).await;
+        for _ in 0..3 {
+            engine
+                .router_msg(&a, &membership_registration())
+                .await
+                .unwrap();
+        }
+        engine
+            .router_msg(&b, &membership_registration())
+            .await
+            .unwrap();
+        assert_eq!(
+            a.get_regular_function_ids().await,
+            vec!["svc::shared".to_string()]
+        );
+        engine
+            .router_msg(
+                &a,
+                &Message::UnregisterFunction {
+                    id: "svc::shared".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+        engine
+            .router_msg(
+                &a,
+                &Message::UnregisterFunction {
+                    id: "svc::shared".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+        engine.cleanup_worker(&a).await;
+        membership_assert_descriptor(&engine);
+        engine
+            .router_msg(
+                &b,
+                &Message::UnregisterFunction {
+                    id: "svc::shared".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+        assert!(
+            engine.functions.get("orders", "svc::shared").is_none(),
+            "no duplicate membership may survive final unregister"
+        );
+        assert!(
+            engine.service_registry.get("orders", "svc").is_none(),
+            "last owner removes the final service"
+        );
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_disconnect_removes_only_matching_session() {
+        let engine = membership_engine();
+        let (a, _a_rx) = membership_worker(&engine).await;
+        let (b, _b_rx) = membership_worker(&engine).await;
+        let (stranger, _stranger_rx) = membership_worker(&engine).await;
+        engine
+            .router_msg(&a, &membership_registration())
+            .await
+            .unwrap();
+        engine
+            .router_msg(&b, &membership_registration())
+            .await
+            .unwrap();
+        engine
+            .router_msg(
+                &stranger,
+                &Message::UnregisterFunction {
+                    id: "svc::shared".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+        membership_assert_descriptor(&engine);
+        engine.cleanup_worker(&a).await;
+        membership_assert_descriptor(&engine);
+        engine.cleanup_worker(&b).await;
+        assert!(engine.functions.get("orders", "svc::shared").is_none());
+        assert!(engine.service_registry.get("orders", "svc").is_none());
+    }
+
+    async fn membership_mismatch_preserves_incumbent(field: &str) {
+        let engine = membership_engine();
+        let (a, _a_rx) = membership_worker(&engine).await;
+        let (b, mut b_rx) = membership_worker(&engine).await;
+        engine
+            .router_msg(&a, &membership_registration())
+            .await
+            .unwrap();
+        let before = engine.functions.get("orders", "svc::shared").unwrap();
+        let mut changed = membership_registration();
+        if let Message::RegisterFunction {
+            description,
+            metadata,
+            request_format,
+            response_format,
+            invocation,
+            ..
+        } = &mut changed
+        {
+            match field {
+                "description" => *description = Some("incompatible".to_string()),
+                "metadata" => *metadata = Some(json!({"version": 2})),
+                "request" => *request_format = Some(json!({"type": "integer"})),
+                "response" => *response_format = Some(json!({"type": "boolean"})),
+                "kind" => {
+                    *invocation = Some(HttpInvocationRef {
+                        url: "http://example.com/shared".to_string(),
+                        method: crate::invocation::method::HttpMethod::Post,
+                        timeout_ms: None,
+                        headers: HashMap::new(),
+                        auth: None,
+                    })
+                }
+                _ => panic!("unknown descriptor field"),
+            }
+        }
+        engine.router_msg(&b, &changed).await.unwrap();
+        membership_assert_descriptor(&engine);
+        let after = engine.functions.get("orders", "svc::shared").unwrap();
+        assert!(
+            Arc::ptr_eq(&before.handler, &after.handler),
+            "rejection cannot replace incumbent dispatcher"
+        );
+        assert!(b.get_regular_function_ids().await.is_empty());
+        assert!(b.get_external_function_ids().await.is_empty());
+        engine.cleanup_worker(&b).await;
+        membership_assert_descriptor(&engine);
+        membership_assert_mismatch(&mut b_rx);
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_description_mismatch_preserves_incumbent() {
+        membership_mismatch_preserves_incumbent("description").await;
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_metadata_mismatch_preserves_incumbent() {
+        membership_mismatch_preserves_incumbent("metadata").await;
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_request_mismatch_preserves_incumbent() {
+        membership_mismatch_preserves_incumbent("request").await;
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_response_mismatch_preserves_incumbent() {
+        membership_mismatch_preserves_incumbent("response").await;
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_kind_mismatch_preserves_incumbent() {
+        membership_mismatch_preserves_incumbent("kind").await;
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_shared_session_cannot_change_descriptor() {
+        let engine = membership_engine();
+        let (a, mut a_rx) = membership_worker(&engine).await;
+        let (b, _b_rx) = membership_worker(&engine).await;
+        engine
+            .router_msg(&a, &membership_registration())
+            .await
+            .unwrap();
+        engine
+            .router_msg(&b, &membership_registration())
+            .await
+            .unwrap();
+        let mut changed = membership_registration();
+        if let Message::RegisterFunction { metadata, .. } = &mut changed {
+            *metadata = Some(json!({"version": 2}));
+        }
+        engine.router_msg(&a, &changed).await.unwrap();
+        membership_assert_descriptor(&engine);
+        membership_assert_mismatch(&mut a_rx);
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_sole_session_can_change_descriptor() {
+        let engine = membership_engine();
+        let (a, mut a_rx) = membership_worker(&engine).await;
+        engine
+            .router_msg(&a, &membership_registration())
+            .await
+            .unwrap();
+        let mut changed = membership_registration();
+        if let Message::RegisterFunction { metadata, .. } = &mut changed {
+            *metadata = Some(json!({"version": 2}));
+        }
+        engine.router_msg(&a, &changed).await.unwrap();
+        assert_eq!(
+            engine
+                .functions
+                .get("orders", "svc::shared")
+                .unwrap()
+                .metadata,
+            Some(json!({"version": 2}))
+        );
+        assert!(a_rx.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_stale_cleanup_after_reattach_preserves_peer() {
+        let engine = membership_engine();
+        let (old, _old_rx) = membership_worker(&engine).await;
+        let (peer, _peer_rx) = membership_worker(&engine).await;
+        let (replacement, _replacement_rx) = membership_worker(&engine).await;
+        engine
+            .router_msg(&old, &membership_registration())
+            .await
+            .unwrap();
+        engine
+            .router_msg(&peer, &membership_registration())
+            .await
+            .unwrap();
+        engine
+            .router_msg(
+                &replacement,
+                &Message::Reattach {
+                    previous_worker_id: old.id.to_string(),
+                    reattach_token: Some(old.reattach_token.to_string()),
+                },
+            )
+            .await
+            .unwrap();
+        assert!(engine.worker_registry.get_worker(&old.id).is_none());
+        membership_assert_descriptor(&engine);
+        engine
+            .router_msg(&replacement, &membership_registration())
+            .await
+            .unwrap();
+        engine.cleanup_worker(&old).await;
+        engine
+            .router_msg(
+                &old,
+                &Message::UnregisterFunction {
+                    id: "svc::shared".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+        membership_assert_descriptor(&engine);
+        engine.cleanup_worker(&replacement).await;
+        membership_assert_descriptor(&engine);
+        engine.cleanup_worker(&peer).await;
+        assert!(engine.functions.get("orders", "svc::shared").is_none());
+        assert!(engine.service_registry.get("orders", "svc").is_none());
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_membership_builtin_rejection_preserves_handler() {
+        let engine = membership_engine();
+        engine.register_function_handler(
+            make_request("engine::membership_builtin"),
+            super::Handler::new(|_| async {
+                FunctionResult::Success(Some(json!({"builtin": true})))
+            }),
+        );
+        let before = engine
+            .functions
+            .get(DEFAULT_NAMESPACE, "engine::membership_builtin")
+            .unwrap();
+        let (tx, mut rx) = mpsc::channel(8);
+        let worker = WorkerConnection::new(tx);
+        engine.worker_registry.register_worker(worker.clone());
+        engine
+            .router_msg(
+                &worker,
+                &register_function_msg("engine::membership_builtin"),
+            )
+            .await
+            .unwrap();
+        let after = engine
+            .functions
+            .get(DEFAULT_NAMESPACE, "engine::membership_builtin")
+            .unwrap();
+        assert!(
+            Arc::ptr_eq(&before.handler, &after.handler),
+            "shared mode must never replace an in-process builtin"
+        );
+        assert!(matches!(
+            rx.try_recv(),
+            Ok(Outbound::Protocol(Message::RegistrationRejected { .. }))
+        ));
+        assert!(worker.get_regular_function_ids().await.is_empty());
+        engine.cleanup_worker(&worker).await;
+        assert!(
+            engine
+                .functions
+                .get(DEFAULT_NAMESPACE, "engine::membership_builtin")
+                .is_some()
+        );
     }
 
     struct FailingSerialize;
