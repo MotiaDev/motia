@@ -563,6 +563,20 @@ pub struct TriggerRegistry {
     provider_owners: std::sync::Mutex<HashMap<TypeKey, Vec<Arc<TriggerType>>>>,
     subscriptions: std::sync::Mutex<SharedSubscriptions>,
     assignments: DashMap<String, Arc<AssignmentSet>>,
+    #[cfg(test)]
+    removal_pause: std::sync::Mutex<
+        Option<(
+            tokio::sync::oneshot::Sender<()>,
+            tokio::sync::oneshot::Receiver<()>,
+        )>,
+    >,
+    #[cfg(test)]
+    replay_pause: std::sync::Mutex<
+        Option<(
+            tokio::sync::oneshot::Sender<()>,
+            tokio::sync::oneshot::Receiver<()>,
+        )>,
+    >,
     pub triggers: Arc<TriggerStore>,
     /// Registration intents whose trigger type is not currently available or
     /// whose activation did not complete: the type never registered, its
@@ -592,6 +606,10 @@ impl TriggerRegistry {
             provider_owners: std::sync::Mutex::new(HashMap::new()),
             subscriptions: std::sync::Mutex::new(SharedSubscriptions::default()),
             assignments: DashMap::new(),
+            #[cfg(test)]
+            removal_pause: Default::default(),
+            #[cfg(test)]
+            replay_pause: Default::default(),
         }
     }
 
@@ -618,6 +636,22 @@ impl TriggerRegistry {
             members.clone()
         } else {
             members.iter().take(1).cloned().collect()
+        }
+    }
+
+    #[cfg(test)]
+    async fn pause_transition(
+        pause: &std::sync::Mutex<
+            Option<(
+                tokio::sync::oneshot::Sender<()>,
+                tokio::sync::oneshot::Receiver<()>,
+            )>,
+        >,
+    ) {
+        let pause = pause.lock().unwrap().take();
+        if let Some((reached, resume)) = pause {
+            let _ = reached.send(());
+            let _ = resume.await;
         }
     }
 
@@ -661,8 +695,9 @@ impl TriggerRegistry {
     }
 
     pub(crate) async fn replay_shared_assignments(&self, key: TypeKey) {
-        // Snapshot the lifecycle as well as the descriptor under the same lock
-        // used by final removal. A replay must never manufacture a new lifecycle.
+        // Snapshot the descriptor and reserve its lifecycle under the same lock
+        // used by final removal's authoritative lookup/deletion. A first claim
+        // is allowed only while the pending intent is still present.
         let bindings = {
             let _park = self
                 .park_transition
@@ -698,6 +733,8 @@ impl TriggerRegistry {
                 })
                 .collect::<Vec<_>>()
         };
+        #[cfg(test)]
+        Self::pause_transition(&self.replay_pause).await;
         futures::future::join_all(
             bindings
                 .into_iter()
@@ -1811,24 +1848,35 @@ impl TriggerRegistry {
         if let Some(state) = self.assignments.get(&id).map(|entry| entry.value().clone()) {
             return self.revoke_assignments(&id, state).await;
         }
+        #[cfg(test)]
+        Self::pause_transition(&self.removal_pause).await;
         tracing::info!(
             "Unregistering trigger: {} of type: {}",
             id.purple(),
             trigger_type.as_deref().unwrap_or("<missing>").purple()
         );
 
-        let trigger = {
+        let (state, trigger) = {
             let _park = self
                 .park_transition
                 .lock()
                 .expect("park_transition lock poisoned");
-            let Some(trigger_entry) = self.triggers.get(&id) else {
-                // A parked intent has no live registration to tear down —
-                // dropping it from the pending bucket is the whole unregister.
-                return Ok(self.pending_triggers.remove(&id).is_some());
-            };
-            trigger_entry.value().clone()
+            // Replay can reserve the FIRST lifecycle after the fast lookup
+            // above. The authoritative lookup and the no-lifecycle deletion
+            // must share replay's reservation lock, or removal loses that Arc.
+            if let Some(state) = self.assignments.get(&id) {
+                (Some(state.value().clone()), None)
+            } else {
+                let Some(trigger_entry) = self.triggers.get(&id) else {
+                    return Ok(self.pending_triggers.remove(&id).is_some());
+                };
+                (None, Some(trigger_entry.value().clone()))
+            }
         };
+        if let Some(state) = state {
+            return self.revoke_assignments(&id, state).await;
+        }
+        let trigger = trigger.expect("legacy live binding");
 
         if let Some(tt) = self.trigger_types.get(&trigger.provider_key()) {
             tt.registrator.unregister_trigger(trigger.clone()).await?;
@@ -1888,9 +1936,16 @@ impl TriggerRegistry {
             .get(&parked_type)
             .map(|entry| entry.value().clone())
             && trigger_type.worker_id != Some(reporter_worker_id)
-            && let Some((_, parked)) = self.pending_triggers.remove(id)
         {
-            self.activate_pending_trigger(&trigger_type, parked).await;
+            if self.shared()
+                && trigger_type.delivery_contract == Some(TriggerDeliveryContract::SharedV1)
+            {
+                // Do not remove pending first and reserve an Arc later: final
+                // removal must see either the pending intent or its lifecycle.
+                self.replay_shared_assignments(parked_type).await;
+            } else if let Some((_, parked)) = self.pending_triggers.remove(id) {
+                self.activate_pending_trigger(&trigger_type, parked).await;
+            }
         }
     }
 }
@@ -2158,6 +2213,84 @@ mod tests {
             assert!(registry.subscriber_aliases(&canonical).is_empty());
             assert_eq!(provider.stops.load(Ordering::SeqCst), 2);
         }
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_parallel_pending_replay_reservation_races_final_removal() {
+        let registry = TriggerRegistry::new();
+        registry.set_shared_namespace_ownership(true);
+        let binding = assignment_binding();
+        assert_eq!(
+            registry.register_trigger(binding.clone()).await.unwrap(),
+            RegisterTriggerOutcome::Deferred
+        );
+        let canonical = registry.subscriptions.lock().unwrap().aliases
+            [&(binding.worker_id.unwrap(), binding.id.clone())]
+            .clone();
+        assert!(!registry.has_assignment(&canonical));
+        let provider = assignment_fixture(&registry).await;
+        let (remove_reached, mut remove_ready) = tokio::sync::oneshot::channel();
+        let (remove_resume, remove_wait) = tokio::sync::oneshot::channel();
+        *registry.removal_pause.lock().unwrap() = Some((remove_reached, remove_wait));
+        let (replay_reached, mut replay_ready) = tokio::sync::oneshot::channel();
+        let (replay_resume, replay_wait) = tokio::sync::oneshot::channel();
+        *registry.replay_pause.lock().unwrap() = Some((replay_reached, replay_wait));
+        let removal =
+            registry.unregister_subscriber(binding.worker_id.unwrap(), binding.id.clone(), None);
+        let replay = registry.replay_shared_assignments(type_key("orders", "fixture"));
+        tokio::pin!(removal, replay);
+        assert!(futures::poll!(&mut removal).is_pending());
+        remove_ready.try_recv().unwrap();
+        assert!(futures::poll!(&mut replay).is_pending());
+        replay_ready.try_recv().unwrap();
+        assert!(
+            registry.has_assignment(&canonical),
+            "production replay reserved its first lifecycle"
+        );
+        remove_resume.send(()).unwrap();
+        assert!(removal.await.unwrap());
+        assert!(registry.subscriber_aliases(&canonical).is_empty());
+        replay_resume.send(()).unwrap();
+        replay.await;
+        assert_eq!(
+            (
+                provider.installs.load(Ordering::SeqCst),
+                registry.triggers.contains_key(&canonical),
+                registry.pending_triggers.contains_key(&canonical),
+                registry.has_assignment(&canonical)
+            ),
+            (0, false, false, false),
+            "production pending replay must not outlive final subscriber removal"
+        );
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_parallel_pending_removal_before_replay_leaves_no_lifecycle() {
+        let registry = TriggerRegistry::new();
+        registry.set_shared_namespace_ownership(true);
+        let binding = assignment_binding();
+        assert_eq!(
+            registry.register_trigger(binding.clone()).await.unwrap(),
+            RegisterTriggerOutcome::Deferred
+        );
+        let canonical = registry.subscriptions.lock().unwrap().aliases
+            [&(binding.worker_id.unwrap(), binding.id.clone())]
+            .clone();
+        let provider = assignment_fixture(&registry).await;
+        assert!(
+            registry
+                .unregister_subscriber(binding.worker_id.unwrap(), binding.id.clone(), None)
+                .await
+                .unwrap()
+        );
+        registry
+            .replay_shared_assignments(type_key("orders", "fixture"))
+            .await;
+        assert_eq!(provider.installs.load(Ordering::SeqCst), 0);
+        assert!(!registry.has_assignment(&canonical));
+        assert!(!registry.triggers.contains_key(&canonical));
+        assert!(!registry.pending_triggers.contains_key(&canonical));
+        assert!(registry.subscriber_aliases(&canonical).is_empty());
     }
 
     #[tokio::test]
