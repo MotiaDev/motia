@@ -327,13 +327,15 @@ def test_times_out_like_the_remote_path_and_the_handler_runs_to_its_end(engine: 
     assert (stats["slow::async"].count, stats["slow::sync"].count) == (1, 1)
 
 
-def test_no_frame_size_limit_on_the_local_path(engine: FakeEngine, connect: Any) -> None:
-    from iii.iii import _MAX_JSON_FRAME_BYTES
+def test_no_message_size_limit_on_the_local_path(engine: FakeEngine, connect: Any) -> None:
+    from iii.iii import _MAX_JSON_OUTBOUND_BYTES
 
     client = connect(engine)
     client.register_function("big::fn", lambda data: len(data))
     _confirm(client, engine, "big::fn")
-    big = "x" * (_MAX_JSON_FRAME_BYTES + 1)
+    # Above the outbound message limit (64 MiB): smaller payloads go remote
+    # as fragmented messages, so only this size is refused locally.
+    big = "x" * (_MAX_JSON_OUTBOUND_BYTES + 1)
     assert client.trigger({"function_id": "big::fn", "payload": big}) == len(big)
     with pytest.raises(InvocationError) as raised:
         client.trigger({"function_id": "big::fn", "payload": big, "dispatch": "remote"})

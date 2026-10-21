@@ -4,8 +4,9 @@
 
 
 <Note>
-  The iii console is the web UI of ADE, published in the registry as `ade`. It is a single binary
-  that serves the UI and proxies the engine WebSocket on one port (`3113` by default). Use it to chat
+  The iii console is the web UI of ADE: a standalone application that connects to your running
+  engine. It ships as a single binary, published in the registry as `ade`, that serves the UI and
+  proxies the engine WebSocket on one port (`3113` by default). Use it to chat
   with agents, follow traces and logs, manage the workers in your Compose project, and edit worker
   configuration. For scripting or agent integration, call worker functions directly.
 </Note>
@@ -33,8 +34,8 @@ iii compose --up
 iii trigger compose::add worker=ade
 ```
 
-`compose::add` resolves the worker from the registry, declares it in `worker-compose.yaml`, and
-starts it. Then open `http://127.0.0.1:3113` in your browser.
+`compose::add` resolves `ade` from the registry, declares it in `worker-compose.yaml`, and starts
+it next to the engine. Then open `http://127.0.0.1:3113` in your browser.
 
 If you run more than one Compose daemon, pass its namespace, for example
 `iii trigger -n dev compose::add worker=ade`.

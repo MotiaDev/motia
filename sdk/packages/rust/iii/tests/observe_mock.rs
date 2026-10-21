@@ -1874,14 +1874,16 @@ async fn a_rejection_during_the_hook_wins() {
     iii.shutdown_async().await;
 }
 
-/// Local dispatch serializes nothing: no 16 MiB frame limit applies.
+/// Local dispatch serializes nothing: no 64 MiB message limit applies.
+/// Remote calls up to that limit are fragmented, so only a larger payload
+/// is refused locally.
 #[tokio::test]
-async fn a_local_call_takes_a_payload_larger_than_a_frame() {
+async fn a_local_call_takes_a_payload_larger_than_a_message() {
     let mock = MockEngine::start().await;
     let iii = worker(&mock, "owner");
     connected(&mock, &iii, true).await;
     hosted(&mock, &iii, "big::f", echo(), json!([])).await;
-    let big = "x".repeat(17 * 1024 * 1024);
+    let big = "x".repeat(64 * 1024 * 1024 + 1);
     let out = iii
         .trigger(TriggerRequest::new("big::f", json!(big)))
         .await
