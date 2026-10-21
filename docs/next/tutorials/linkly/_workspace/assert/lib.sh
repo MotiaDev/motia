@@ -19,4 +19,14 @@ t() {
   "${III_BIN:-iii}" trigger -n "$ns" --engine "${III_URL:-ws://127.0.0.1:49134}" "$@" 2>&1
 }
 
+# POST /links with a code that already exists: 409 and link::create's own
+# message, with no SDK prefix and no database error text.
+check_duplicate() {
+  local code=$1
+  check "POST /links duplicate $code: 409 with a clean body" \
+    "{\"error\":\"code \`$code\` is already taken\"} 409" \
+    "$(curl -s -w ' %{http_code}' -X POST "$HTTP/links" -H 'Content-Type: application/json' \
+      -d "{\"url\":\"https://example.com\",\"code\":\"$code\"}")"
+}
+
 finish() { return $fails; }

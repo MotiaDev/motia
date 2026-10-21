@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 const TOKEN = process.env.LINKLY_BROWSER_TOKEN ?? "dev-token";
 const CODE = process.env.LINKLY_CODE ?? "deleteme";
 const BROWSER_URL = process.env.BROWSER_URL ?? "ws://localhost:3110";
-// The project namespace, where link::* live (`namespace:` in worker-compose.yaml).
+// The tutorial runs in `default`; run.sh may move the test project elsewhere.
 const PROJECT_NAMESPACE = process.env.III_NAMESPACE || "default";
 const SESSION = randomUUID();
 

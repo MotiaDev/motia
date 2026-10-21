@@ -207,14 +207,17 @@ Add two functions:
 - link::create({ url, code? }): generate a 6-character short code when none is given, make the url
   absolute (add https:// when it has no scheme), and persist it in the state worker (not a local
   variable) with state::set under scope "links" key <code>, value { url }; return { code, url }.
-  Never overwrite an existing link: reject a requested code that is already taken, and retry a
-  generated code until it is free.
+  Never overwrite an existing link: reject a requested code that is already taken by throwing
+  an Error whose message is exactly code `<code>` is already taken, and retry a generated code
+  until it is free.
 - link::resolve({ code }): read it back from the state worker with state::get (scope "links", key
   <code>) and return { url } or { url: null }.
 
 Then expose them over HTTP through the http worker:
 - an http::create function and a POST /links trigger that calls link::create, returns 201 with
-  { code, url }, and 409 when the requested code is taken.
+  { code, url }, and 409 with { error } when the requested code is taken. The error is the message
+  link::create threw: the SDK rejects with an InvocationError (exported by iii-sdk) whose message
+  is `<err.code>: <message>`, so cut that prefix off with err.message.slice(err.code.length + 2).
 - an http::redirect function and a GET /s/:code trigger that reads the code from req.path_params.code,
   resolves it, and returns a 302 to the url, or 404 when it is unknown.
 
@@ -318,7 +321,10 @@ In link/src/index.ts:
 - at startup, create a links table and a clicks table if they do not exist. The database worker may
   register a moment after link, so retry the schema creation until it answers, and never crash the
   worker if the database is not ready yet.
-- link::create also inserts the link row into the database.
+- link::create also inserts the link row into the database with INSERT ... ON CONFLICT(code) DO
+  NOTHING. When database::execute answers affected_rows 0 the code is taken: throw the same
+  code `<code>` is already taken error as before, so POST /links still answers 409 with that
+  message and never with the database's error text.
 - link::resolve reads state first, falls back to the database, and warms the cache on a hit.
 - add link::record_click that inserts one row per click into the clicks table (id INTEGER PRIMARY
   KEY AUTOINCREMENT, code TEXT NOT NULL, clicked_at TEXT NOT NULL), not a per-day aggregate: later
@@ -508,15 +514,12 @@ browser. When we say iii is **extensible** we mean it.
 Bulk-load links from a CSV in a single streamed upload over a channel.
 
 - Create a bulk-importer worker that accepts a channel, reads CSV rows, and calls link::create for
-  each. Skip a row the application rejects (a code already taken) instead of aborting the batch, but
-  re-throw anything else (a timeout, a worker that is down). Return
-  the imported and skipped counts.
+  each. Skip a row whose code is already taken (link::create's error message ends with "is already
+  taken"; never match the database's error text) instead of aborting the batch, but re-throw
+  anything else (a timeout, a worker that is down). Return the imported and skipped counts.
 - Create channel-client/import-links.js: a Node script that opens a channel and streams a small CSV
   of links to the importer. Take the CSV path as an OPTIONAL argument that defaults to test.csv, so
-  `node channel-client/import-links.js` runs with no arguments. It is not a Compose container, so
-  read the engine URL from III_URL and the project namespace from III_NAMESPACE (default to the
-  `engine.url` and `namespace:` in worker-compose.yaml) and pass the namespace to registerWorker,
-  or bulk-importer::import_csv is not found.
+  `node channel-client/import-links.js` runs with no arguments.
 - Create an example CSV for the user (example.csv). Do not import it. For the client's test run,
   create test.csv with exactly two rows whose codes are mylink and mydocslink (any https URLs).
 
@@ -564,9 +567,7 @@ Turn a browser tab into a worker.
 
 - Add an rbac-proxy worker that fronts a public port 3110 and reverse-proxies to the engine at
   ws://127.0.0.1:49134, with an RBAC allowlist gated by auth::browser (expose link::create,
-  link::request_delete and link::click_summary only, each as `{ match, namespace }` with the project
-  namespace from worker-compose.yaml: a rule without a namespace answers only in `default`). Add it
-  with compose.
+  link::request_delete and link::click_summary only). Add it with compose.
 - Create an auth worker with an auth::browser function that admits browser connections (fail closed
   when its LINKLY_BROWSER_TOKEN env var is unset). Each tab sends a unique session id; grant it its
   own `browser-<session>` namespace so two tabs never collide on the functions they register: return
@@ -584,11 +585,10 @@ Turn a browser tab into a worker.
   "browser-<uuid>" string; the handler uses it as-is with no prefix construction). before deleting.
 - Create a Vite React app in frontend/ with `npm create vite@latest frontend -- --template
   react-ts`, install iii-browser-sdk, and write frontend/src/iii.ts and frontend/src/App.tsx that
-  connect in a per-tab `browser-<session>` namespace, call link::create in the project namespace
-  (the `namespace:` in worker-compose.yaml, read from a VITE_LINKLY_NAMESPACE variable),
+  connect in a per-tab `browser-<session>` namespace, call link::create in the default namespace,
   and register user::confirm_destructive_op. For a live click counter, bind ui::on_click to the
   click-streamer::click trigger type first, then read the starting count with link::click_summary
-  (project namespace); skip clicks whose id is at or below the last_id already counted, and read the
+  (default namespace); skip clicks whose id is at or below the last_id already counted, and read the
   count again after a reconnect.
 - In App.tsx, call link::request_delete with { code, browser_namespace: `browser-${SESSION_ID}` }.
   Never pass the raw UUID as a namespace argument; always pass the fully-constructed string so the
