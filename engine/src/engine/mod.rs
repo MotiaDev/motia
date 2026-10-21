@@ -382,18 +382,18 @@ pub(crate) enum InvocationKind {
 }
 
 // Selection and reservation share this short, synchronous owner-set lock.
-// Removed owners remain here until the dispatcher snapshot dies: unregistering
-// must not release work that is already running.
+// Removing membership drops its WorkerConnection, not running reservations:
+// each reservation owns its load independently of this insertion-ordered set.
 #[derive(Default)]
 struct SharedRouting {
     owners: Vec<RoutingOwner>,
     cursor: usize,
+    retired_loads: std::collections::HashMap<Uuid, std::sync::Weak<std::sync::atomic::AtomicUsize>>,
 }
 
 struct RoutingOwner {
     worker: WorkerConnection,
     load: Arc<std::sync::atomic::AtomicUsize>,
-    eligible: bool,
 }
 
 pub(crate) struct RoutingReservation(Arc<std::sync::atomic::AtomicUsize>);
@@ -406,15 +406,47 @@ impl Drop for RoutingReservation {
 
 impl SharedRouting {
     fn join(&mut self, worker: &WorkerConnection) {
-        if let Some(owner) = self.owners.iter_mut().find(|o| o.worker.id == worker.id) {
-            owner.eligible = true;
+        if self.owners.iter().any(|o| o.worker.id == worker.id) {
             return;
         }
+        self.retired_loads.retain(|_, load| load.strong_count() > 0);
+        // Same live session can unregister/re-register while work is running.
+        // Reuse that load without retaining the retired connection itself.
+        let load = self
+            .retired_loads
+            .remove(&worker.id)
+            .and_then(|load| load.upgrade())
+            .unwrap_or_else(|| Arc::new(std::sync::atomic::AtomicUsize::new(0)));
         self.owners.push(RoutingOwner {
             worker: worker.clone(),
-            load: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-            eligible: true,
+            load,
         });
+    }
+
+    fn remove(&mut self, worker: Uuid) {
+        let Some(index) = self
+            .owners
+            .iter()
+            .position(|owner| owner.worker.id == worker)
+        else {
+            return;
+        };
+        let owner = self.owners.remove(index);
+        self.retired_loads.retain(|_, load| load.strong_count() > 0);
+        if owner.load.load(std::sync::atomic::Ordering::SeqCst) > 0 {
+            self.retired_loads
+                .insert(worker, Arc::downgrade(&owner.load));
+        }
+        // Cursor denotes the next insertion-order position, not the last one.
+        // Removing before it shifts that position; removing it chooses its successor.
+        if index < self.cursor {
+            self.cursor -= 1;
+        }
+        self.cursor = if self.owners.is_empty() {
+            0
+        } else {
+            self.cursor % self.owners.len()
+        };
     }
 
     fn reserve(&mut self, tried: &[Uuid]) -> Option<(WorkerConnection, RoutingReservation)> {
@@ -423,8 +455,7 @@ impl SharedRouting {
             .map(|offset| (self.cursor + offset) % len)
             .filter(|&i| {
                 let owner = &self.owners[i];
-                owner.eligible
-                    && !tried.contains(&owner.worker.id)
+                !tried.contains(&owner.worker.id)
                     && !owner
                         .worker
                         .cleanup_claimed
@@ -3676,13 +3707,7 @@ impl Engine {
                     }
                     if let Some(routing) = self.shared_routing.get(&key) {
                         let mut routing = routing.lock().expect("shared routing poisoned");
-                        if let Some(owner) = routing
-                            .owners
-                            .iter_mut()
-                            .find(|o| o.worker.id == *worker_id)
-                        {
-                            owner.eligible = false;
-                        }
+                        routing.remove(*worker_id);
                     }
                     if let Some(first) = shared.first_owner() {
                         entry.insert((first, InvocationKind::Regular));
@@ -4025,6 +4050,121 @@ mod tests {
         drop(call);
         drop(lock);
         assert!(engine.invocations.pending(&id).is_none());
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_retired_owner_releases_references_with_peer_alive() {
+        let (engine, [a, b], mut receivers) = routing_pair().await;
+        // The fixture arms a namespace timer holding a worker clone. Join its
+        // cancellation so this test measures routing retention, not task teardown.
+        if let Some((_, timer)) = engine.namespace_grace_tasks.remove(&a.id) {
+            timer.abort();
+            let _ = timer.await;
+        }
+        let call = routing_start(&engine);
+        let (owner, id) = routing_next(&mut receivers).await;
+        assert_eq!(owner, 0);
+        let key = ("orders".to_string(), "svc::shared".to_string());
+        let routing = engine.shared_routing.get(&key).unwrap().clone();
+        let load = routing.lock().unwrap().owners[0].load.clone();
+        let retired = Arc::downgrade(&a.invocations);
+        engine
+            .router_msg(
+                &a,
+                &Message::UnregisterFunction {
+                    id: "svc::shared".into(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            load.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "unregister must preserve the held reservation"
+        );
+        assert_eq!(
+            routing.lock().unwrap().owners.len(),
+            1,
+            "routing must not retain a retired WorkerConnection"
+        );
+        let peer = routing_start(&engine);
+        let (selected, peer_id) = routing_next(&mut receivers).await;
+        assert_eq!(selected, 1);
+        routing_reply(&engine, &b, peer_id, None).await;
+        peer.await.unwrap().unwrap();
+        routing_reply(&engine, &a, id, None).await;
+        call.await.unwrap().unwrap();
+        assert_eq!(load.load(std::sync::atomic::Ordering::SeqCst), 0);
+        engine.cleanup_worker(&a).await;
+        drop(a);
+        assert!(
+            retired.upgrade().is_none(),
+            "healthy peer must not keep the retired worker alive"
+        );
+        assert_eq!(routing.lock().unwrap().owners[0].worker.id, b.id);
+    }
+
+    #[test]
+    fn shared_namespace_routing_removal_preserves_cyclic_successor_and_running_load() {
+        for cursor in 0..3 {
+            for removed in 0..3 {
+                let mut routing = super::SharedRouting::default();
+                let mut receivers = Vec::new();
+                let workers: Vec<_> = (0..3)
+                    .map(|_| {
+                        let (tx, rx) = mpsc::channel(1);
+                        receivers.push(rx);
+                        super::WorkerConnection::new(tx)
+                    })
+                    .collect();
+                for worker in &workers {
+                    routing.join(worker);
+                }
+                for _ in 0..cursor {
+                    drop(routing.reserve(&[]).unwrap());
+                }
+                routing.remove(workers[removed].id);
+                let expected: Vec<_> = (0..3)
+                    .map(|offset| (cursor + offset) % 3)
+                    .filter(|index| *index != removed)
+                    .collect();
+                for index in expected {
+                    let (worker, reservation) = routing.reserve(&[]).unwrap();
+                    assert_eq!(
+                        worker.id, workers[index].id,
+                        "cursor {cursor}, removed {removed}"
+                    );
+                    drop(reservation);
+                }
+                // Retiring an executing owner drops its connection immediately,
+                // but a rejoining identical session must still account for that work.
+                routing.join(&workers[removed]);
+                let (worker, reservation) = routing
+                    .reserve(
+                        &workers
+                            .iter()
+                            .filter(|w| w.id != workers[removed].id)
+                            .map(|w| w.id)
+                            .collect::<Vec<_>>(),
+                    )
+                    .unwrap();
+                assert_eq!(worker.id, workers[removed].id);
+                let load = reservation.0.clone();
+                drop(worker);
+                routing.remove(workers[removed].id);
+                assert_eq!(load.load(std::sync::atomic::Ordering::SeqCst), 1);
+                routing.join(&workers[removed]);
+                let rejoined = routing
+                    .owners
+                    .iter()
+                    .find(|o| o.worker.id == workers[removed].id)
+                    .unwrap();
+                assert!(Arc::ptr_eq(&rejoined.load, &load));
+                assert_eq!(rejoined.load.load(std::sync::atomic::Ordering::SeqCst), 1);
+                drop(reservation);
+                assert_eq!(load.load(std::sync::atomic::Ordering::SeqCst), 0);
+            }
+        }
     }
 
     fn routing_start(
