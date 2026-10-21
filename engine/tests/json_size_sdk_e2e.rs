@@ -30,11 +30,111 @@ use tokio_tungstenite::{
 };
 use uuid::Uuid;
 
+/// An SDK participant. `pnpm exec` and `go run` run the real worker as their own
+/// child, so each participant leads a process group and teardown signals the
+/// whole group: killing only the direct child left the worker holding the test's
+/// stderr open, which hung piped runs.
 struct Participant(Child);
+impl Participant {
+    fn spawn(command: &mut Command) -> Self {
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+            interrupt::install();
+        }
+        let participant = Self(command.spawn().unwrap());
+        #[cfg(unix)]
+        interrupt::track(participant.0.id());
+        participant
+    }
+}
 impl Drop for Participant {
     fn drop(&mut self) {
+        #[cfg(unix)]
+        {
+            use nix::sys::signal::{Signal, killpg};
+            let group = nix::unistd::Pid::from_raw(self.0.id() as i32);
+            // The group is gone once every member has exited and the leader (our
+            // child) has been reaped.
+            let mut wait_gone = |grace: Duration| {
+                let deadline = Instant::now() + grace;
+                loop {
+                    let _ = self.0.try_wait();
+                    if killpg(group, None).is_err() {
+                        return true;
+                    }
+                    if Instant::now() >= deadline {
+                        return false;
+                    }
+                    std::thread::sleep(Duration::from_millis(50));
+                }
+            };
+            let _ = killpg(group, Signal::SIGTERM);
+            if !wait_gone(Duration::from_secs(3)) {
+                let _ = killpg(group, Signal::SIGKILL);
+                wait_gone(Duration::from_secs(3));
+            }
+            interrupt::untrack(self.0.id());
+        }
         let _ = self.0.kill();
         let _ = self.0.wait();
+    }
+}
+
+/// Participants no longer share the terminal's process group, so Ctrl-C (or a
+/// SIGTERM/SIGHUP sent to the test) would skip them. Kill every live group, then
+/// let the signal end the test with its default action.
+#[cfg(unix)]
+mod interrupt {
+    use nix::sys::signal::{SaFlags, SigAction, SigHandler, SigSet, Signal, sigaction};
+    use std::sync::atomic::{AtomicI32, Ordering};
+
+    static GROUPS: [AtomicI32; 3] = [const { AtomicI32::new(0) }; 3];
+
+    extern "C" fn forward(signal: libc::c_int) {
+        for group in &GROUPS {
+            let group = group.load(Ordering::SeqCst);
+            if group > 0 {
+                // SAFETY: kill(2) is async-signal-safe.
+                unsafe { libc::kill(-group, libc::SIGKILL) };
+            }
+        }
+        // SAFETY: signal(2) and raise(3) are async-signal-safe. The signal stays
+        // blocked until this handler returns, then terminates the process.
+        unsafe {
+            libc::signal(signal, libc::SIG_DFL);
+            libc::raise(signal);
+        }
+    }
+
+    pub fn install() {
+        static INSTALL: std::sync::Once = std::sync::Once::new();
+        INSTALL.call_once(|| {
+            let action = SigAction::new(
+                SigHandler::Handler(forward),
+                SaFlags::empty(),
+                SigSet::empty(),
+            );
+            for signal in [Signal::SIGINT, Signal::SIGTERM, Signal::SIGHUP] {
+                // SAFETY: `forward` only makes async-signal-safe calls.
+                unsafe { sigaction(signal, &action) }.unwrap();
+            }
+        });
+    }
+
+    pub fn track(pid: u32) {
+        let tracked = GROUPS.iter().any(|slot| {
+            slot.compare_exchange(0, pid as i32, Ordering::SeqCst, Ordering::SeqCst)
+                .is_ok()
+        });
+        assert!(tracked, "too many participants");
+    }
+
+    pub fn untrack(pid: u32) {
+        for slot in &GROUPS {
+            let _ = slot.compare_exchange(pid as i32, 0, Ordering::SeqCst, Ordering::SeqCst);
+        }
     }
 }
 
@@ -505,7 +605,7 @@ async fn fragmented_json_roundtrips_and_engine_compatibility_guard() {
     let node_log = engine._dir.path().join("node.log");
     let python_log = engine._dir.path().join("python.log");
     let go_log = engine._dir.path().join("go.log");
-    let _node = Participant(
+    let _node = Participant::spawn(
         Command::new("pnpm")
             .args([
                 "exec",
@@ -515,29 +615,26 @@ async fn fragmented_json_roundtrips_and_engine_compatibility_guard() {
             .current_dir(root)
             .env("JSON_SIZE_TEST_URL", &engine.url)
             .stdout(Stdio::from(std::fs::File::create(&node_log).unwrap()))
-            .stderr(Stdio::inherit())
-            .spawn()
-            .unwrap(),
+            .stderr(Stdio::inherit()),
     );
-    let _python = Participant(
+    let _python = Participant::spawn(
         Command::new("sdk/packages/python/iii/.venv/bin/python")
             .arg("sdk/packages/python/iii/tests/json_size_engine_participant.py")
             .current_dir(root)
             .env("JSON_SIZE_TEST_URL", &engine.url)
             .stdout(Stdio::from(std::fs::File::create(&python_log).unwrap()))
-            .stderr(Stdio::inherit())
-            .spawn()
-            .unwrap(),
+            .stderr(Stdio::inherit()),
     );
-    let _go = Participant(
+    let _go = Participant::spawn(
         Command::new(std::env::var("JSON_SIZE_TEST_GO").unwrap_or_else(|_| "go".into()))
             .args(["run", "./tests/json-size-engine-participant"])
             .current_dir(root.join("sdk/packages/go/iii"))
             .env("JSON_SIZE_TEST_URL", &engine.url)
+            // A signalled `go run` skips removing its work directory; keep it in
+            // the test's temp dir so it is removed with it.
+            .env("GOTMPDIR", engine._dir.path())
             .stdout(Stdio::from(std::fs::File::create(&go_log).unwrap()))
-            .stderr(Stdio::inherit())
-            .spawn()
-            .unwrap(),
+            .stderr(Stdio::inherit()),
     );
     for id in ["size::node-ready", "size::python-ready", "size::go-ready"] {
         wait_for(&engine, id).await;
