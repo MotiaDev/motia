@@ -41,7 +41,7 @@ use uuid::Uuid;
 
 pub use config::ObserversConfig;
 pub use context::{ENGINE_CALLER_NAME, InvocationCtx};
-pub use dispatch::{Emission, ObservedCall, OwnerCall};
+pub use dispatch::{Emission, ObservedCall, OwnerCall, ReportHold};
 pub use legacy::{LegacyRegistration, ShimBinding, ShimType};
 pub use lifecycle::Observer;
 pub use owner::{ActiveSet, validate_descriptor};

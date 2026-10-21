@@ -969,9 +969,12 @@ stops reading from the reporting connection until that queue is back to half of
 observer leaves `active`, or 250 ms pass. A worker that
 reports faster than the targets take is slowed by its own socket, and its SDK drops the excess from
 its bounded report buffer (`BUFFER_FULL`), so the engine does not spend its CPU decoding reports it
-would drop. Everything else the worker sends waits behind the report meanwhile. The engine does not
-wait for an observer whose target the reporting connection hosts: the answers that would free the
-queue come in on that connection.
+would drop. Everything else the worker sends waits behind the report meanwhile, so the holds are
+paced: after holding a connection, the engine reads it for at least a quarter as long before it may
+hold it again, and drops the items that overflow meanwhile (`OVERFLOW`). A connection is held at
+most 250 ms at a time and at most four fifths of the time, however long its reports keep
+overflowing. The engine does not wait for an observer whose target the reporting connection hosts:
+the answers that would free the queue come in on that connection.
 
 ### `LocalInvocationStats`
 

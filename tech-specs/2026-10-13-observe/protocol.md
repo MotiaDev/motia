@@ -339,6 +339,12 @@ invoke(item):
   of their budget, the observer leaves `active`, or 250 ms pass. An owner that emits faster than the targets take is slowed by
   its own socket, and its SDK drops the excess from its bounded report buffer
   (`BUFFER_FULL`) instead of the engine decoding reports only to drop them.
+  Everything else the connection sends waits behind its reports, so the holds
+  are paced: after holding a connection, the engine reads it for at least a
+  quarter as long before it may hold it again, and drops what overflows
+  meanwhile (`OVERFLOW`). A connection is held at most 250 ms at a time and at
+  most four fifths of the time, so a frame behind reports waits at most 250 ms
+  plus five times the time the engine takes to read the reports ahead of it.
   The engine does not wait for an observer whose target the reporting
   connection hosts, since that target's answers arrive on the same connection.
 - **Evaluation order.** Routed completions are evaluated off the caller's task
