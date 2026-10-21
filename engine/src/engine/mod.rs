@@ -477,39 +477,6 @@ fn resolve_registration_id(worker: &WorkerConnection, id: &str) -> String {
     }
 }
 
-/// How long a connection that closes with an error code waits for its writer
-/// task to flush the Close frame before dropping the socket anyway.
-const CLOSE_FLUSH_TIMEOUT: Duration = Duration::from_secs(1);
-
-/// Sends `frame` as the connection's last frame through its writer task, the
-/// socket's only writer, and waits up to [`CLOSE_FLUSH_TIMEOUT`] for it to go
-/// out. The socket refuses every send after a Close, so the trailing
-/// `Close(None)` fails and ends the writer as soon as `frame` is flushed.
-async fn close_through_writer(
-    tx: &mpsc::Sender<Outbound>,
-    writer: &mut tokio::task::JoinHandle<()>,
-    frame: axum::extract::ws::CloseFrame,
-    peer: SocketAddr,
-) {
-    let flushed = tokio::time::timeout(CLOSE_FLUSH_TIMEOUT, async {
-        for close in [Some(frame), None] {
-            if tx
-                .send(Outbound::Raw(WsMessage::Close(close)))
-                .await
-                .is_err()
-            {
-                // The writer is already gone.
-                return;
-            }
-        }
-        let _ = writer.await;
-    })
-    .await;
-    if flushed.is_err() {
-        tracing::debug!(peer = %peer, "Close frame not flushed in time; dropping the connection");
-    }
-}
-
 impl Default for Engine {
     fn default() -> Self {
         Self::new()
@@ -3234,7 +3201,7 @@ impl Engine {
         let writer_worker = worker.clone();
         let writer_engine = self.clone();
 
-        let mut writer = tokio::spawn(async move {
+        let writer = tokio::spawn(async move {
             while let Some(outbound) = rx.recv().await {
                 let send_result = match outbound {
                     Outbound::Protocol(msg) => {
@@ -3302,7 +3269,6 @@ impl Engine {
         self.fire_triggers(TRIGGER_WORKERS_AVAILABLE, workers_data)
             .await;
 
-        let mut too_large = None;
         loop {
             tokio::select! {
                 // `biased` + eviction first: once a reattaching successor
@@ -3374,14 +3340,10 @@ impl Engine {
                         // Reads always yield whole messages, never raw frames.
                         Some(Ok(WsMessage::Frame(_))) => {}
                         Some(Err(error)) => {
-                            too_large =
-                                crate::workers::worker::InboundTooLarge::from_read_error(&error);
                             tracing::warn!(
                                 worker_id = %worker.id,
                                 peer = %peer,
                                 error = %error,
-                                exceeded_limit = too_large.map(|too_large| too_large.limit_name()),
-                                size_bytes = too_large.map(|too_large| too_large.size_bytes),
                                 frame_limit_bytes = crate::workers::worker::MAX_JSON_FRAME_BYTES,
                                 message_limit_bytes = crate::workers::worker::MAX_JSON_MESSAGE_BYTES,
                                 "Worker WebSocket read failed"
@@ -3394,10 +3356,6 @@ impl Engine {
             }
         }
 
-        if let Some(too_large) = too_large {
-            // Tell the peer why it is dropped instead of resetting the socket.
-            close_through_writer(&tx, &mut writer, too_large.close_frame(), peer).await;
-        }
         writer.abort();
         self.cleanup_worker(&worker).await;
         tracing::debug!(peer = %peer, "Worker disconnected (writer aborted)");
