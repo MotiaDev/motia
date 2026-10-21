@@ -2779,7 +2779,6 @@ dependencies = [
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
- "tungstenite 0.29.0",
  "url",
  "uuid",
  "which",
