@@ -321,7 +321,11 @@ describe('worker → engine: what the SDK builds equals the fixture', () => {
     // user agent.
     expect({ ...frame, data: null }).toEqual({ ...expected, data: null })
     expect(Object.keys(data).filter((k) => !(k in want))).toEqual([])
-    expect(data).toMatchObject({ runtime: 'browser', name: 'billing', namespace: 'default', features: want.features })
+    expect(data).toMatchObject({ runtime: 'browser', name: 'billing', namespace: 'default' })
+    // The fixture is a native SDK's. A browser receives one 16 MiB frame at
+    // most, so it declares every feature but `large-messages.v1`.
+    expect(want.features).toEqual(['observe.v1', 'local-dispatch.v1', 'large-messages.v1'])
+    expect(data.features).toEqual(['observe.v1', 'local-dispatch.v1'])
     expect(typeof data.os).toBe('string')
   })
 

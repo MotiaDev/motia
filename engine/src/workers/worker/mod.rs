@@ -11,9 +11,10 @@ pub(crate) mod worker_socket;
 pub mod ws_handler;
 
 use std::{
+    cmp::Ordering,
     io,
     net::SocketAddr,
-    sync::{Arc, Mutex as StdMutex},
+    sync::{Arc, LazyLock, Mutex as StdMutex},
     time::Duration,
 };
 
@@ -31,6 +32,7 @@ use hyper_util::{
     service::TowerToHyperService,
 };
 use iii_sdk::protocol::{ENGINE_CAPABILITIES_HEADER, ENGINE_CAPABILITY_TCP_NODELAY};
+use regex::Regex;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -40,6 +42,7 @@ use tower::Service as _;
 use crate::{
     engine::Engine,
     protocol::StreamChannelRef,
+    worker_connections::WorkerFeatures,
     workers::{
         traits::Worker,
         worker::{worker_socket::WorkerSocketUpgrade, ws_handler::channel_ws_upgrade},
@@ -53,19 +56,93 @@ pub(crate) const MAX_JSON_MESSAGE_BYTES: usize = 64 * 1024 * 1024;
 
 pub const DEFAULT_PORT: u16 = 49134;
 
-/// Select the outbound JSON envelope limit from the SDK version reported at registration.
-/// Browser workers cannot receive more than one 16 MiB frame; all other targets
-/// require a valid SDK version at least 0.24.5 to use the 64 MiB limit.
-pub(crate) fn receive_message_limit(runtime: Option<&str>, version: Option<&str>) -> (usize, bool) {
-    let requires_upgrade = runtime != Some("browser");
-    let supports_large_messages = runtime != Some("browser")
-        && version
-            .and_then(|version| semver::Version::parse(version).ok())
-            .is_some_and(|version| version >= semver::Version::new(0, 24, 5));
-    if supports_large_messages {
+/// First SDK release that receives [`MAX_JSON_MESSAGE_BYTES`].
+const LARGE_MESSAGE_SDK_RELEASE: [u64; 3] = [0, 24, 5];
+
+/// Selects the outbound JSON envelope limit of a connection from its
+/// `engine::workers::register` call, and whether a size rejection should
+/// recommend upgrading its SDK.
+///
+/// - `runtime: "browser"`: one 16 MiB frame, whatever else it sent.
+/// - Declared `large-messages.v1`: 64 MiB. `version` is not read: a Rust
+///   worker may report its own crate version there (`WorkerMetadata.version`).
+/// - Otherwise (SDK 0.24.5 to 0.25.0-rc.5 do not declare it): 64 MiB when
+///   `version` is an SDK release of 0.24.5 or later
+///   ([`is_large_message_sdk_version`]), otherwise 16 MiB. No other feature
+///   counts.
+pub(crate) fn receive_message_limit(
+    runtime: Option<&str>,
+    version: Option<&str>,
+    features: &WorkerFeatures,
+) -> (usize, bool) {
+    if runtime == Some("browser") {
+        return (MAX_JSON_FRAME_BYTES, false);
+    }
+    let receives_large_messages =
+        features.large_messages_v1() || version.is_some_and(is_large_message_sdk_version);
+    if receives_large_messages {
         (MAX_JSON_MESSAGE_BYTES, false)
     } else {
-        (MAX_JSON_FRAME_BYTES, requires_upgrade)
+        (MAX_JSON_FRAME_BYTES, true)
+    }
+}
+
+/// A PEP 440 version (the `VERSION_PATTERN` of Python's `packaging`), as the
+/// Python SDK reports it: `0.25.0rc5`, `0.25.0a3`, `0.25.0.dev1`,
+/// `0.24.5.post1`.
+static PEP440_VERSION: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?ix)^\s*v?
+        (?:(?P<epoch>[0-9]+)!)?
+        (?P<release>[0-9]+(?:\.[0-9]+)*)
+        (?P<pre>[-_.]?(?:alpha|a|beta|b|preview|pre|c|rc)[-_.]?[0-9]*)?
+        (?P<post>-[0-9]+|[-_.]?(?:post|rev|r)[-_.]?[0-9]*)?
+        (?P<dev>[-_.]?dev[-_.]?[0-9]*)?
+        (?:\+[a-z0-9]+(?:[-_.][a-z0-9]+)*)?
+        \s*$",
+    )
+    .expect("valid PEP 440 pattern")
+});
+
+/// Whether `version` is an SDK release of 0.24.5 or later, written as semver
+/// (Rust, Node and Go: `0.25.0-rc.5`) or PEP 440 (Python: `0.25.0rc5`).
+/// Pre-releases and dev releases of 0.24.5 are below it, post releases above.
+fn is_large_message_sdk_version(version: &str) -> bool {
+    let [major, minor, patch] = LARGE_MESSAGE_SDK_RELEASE;
+    if let Ok(version) = semver::Version::parse(version) {
+        return version >= semver::Version::new(major, minor, patch);
+    }
+    let Some(parts) = PEP440_VERSION.captures(version) else {
+        return false;
+    };
+    // Any epoch above 0 sorts after every release without one.
+    if parts
+        .name("epoch")
+        .is_some_and(|epoch| epoch.as_str().bytes().any(|digit| digit != b'0'))
+    {
+        return true;
+    }
+    let Ok(mut release) = parts["release"]
+        .split('.')
+        .map(str::parse::<u64>)
+        .collect::<Result<Vec<_>, _>>()
+    else {
+        return false;
+    };
+    // Trailing zeros do not count: 0.24.5.0 is 0.24.5.
+    let mut minimum = LARGE_MESSAGE_SDK_RELEASE.to_vec();
+    let len = release.len().max(minimum.len());
+    release.resize(len, 0);
+    minimum.resize(len, 0);
+    match release.cmp(&minimum) {
+        Ordering::Greater => true,
+        Ordering::Less => false,
+        // 0.24.5rc1 and 0.24.5.dev1 come before 0.24.5; 0.24.5.post1 (and
+        // its own dev releases) after.
+        Ordering::Equal => {
+            parts.name("pre").is_none()
+                && (parts.name("dev").is_none() || parts.name("post").is_some())
+        }
     }
 }
 
@@ -553,26 +630,88 @@ mod tests {
     }
 
     #[test]
-    fn receive_message_limit_classifies_versions_and_runtime() {
-        let cases = [
-            (None, None, MAX_JSON_FRAME_BYTES, true),
-            (None, Some("unknown"), MAX_JSON_FRAME_BYTES, true),
-            (None, Some("garbage"), MAX_JSON_FRAME_BYTES, true),
-            (None, Some("0.24.4"), MAX_JSON_FRAME_BYTES, true),
-            (None, Some("0.24.5-rc.1"), MAX_JSON_FRAME_BYTES, true),
-            (None, Some("0.24.5"), MAX_JSON_MESSAGE_BYTES, false),
-            (None, Some("0.24.6"), MAX_JSON_MESSAGE_BYTES, false),
-            (None, Some("1.0.0"), MAX_JSON_MESSAGE_BYTES, false),
-            (Some("browser"), Some("1.0.0"), MAX_JSON_FRAME_BYTES, false),
+    fn receive_message_limit_follows_features_runtime_and_sdk_version() {
+        const FRAME: (usize, bool) = (MAX_JSON_FRAME_BYTES, true);
+        const BROWSER: (usize, bool) = (MAX_JSON_FRAME_BYTES, false);
+        const MESSAGE: (usize, bool) = (MAX_JSON_MESSAGE_BYTES, false);
+        const LARGE: &[&str] = &["large-messages.v1"];
+        const SDK_0_25: &[&str] = &["observe.v1", "local-dispatch.v1", "large-messages.v1"];
+        // What SDK 0.25.0-rc.1 to rc.5 declare.
+        const RC: &[&str] = &["observe.v1", "local-dispatch.v1"];
+        /// Runtime, version and features sent on registration; the expected limit.
+        type Case = (
+            Option<&'static str>,
+            Option<&'static str>,
+            &'static [&'static str],
+            (usize, bool),
+        );
+        let cases: &[Case] = &[
             // Before registration, the connection has no SDK metadata.
-            (None, None, MAX_JSON_FRAME_BYTES, true),
+            (None, None, &[], FRAME),
+            // `large-messages.v1`, whatever version it reports (Rust workers
+            // report their own crate version).
+            (Some("rust"), Some("0.3.0"), SDK_0_25, MESSAGE),
+            (Some("rust"), Some("0.1.1"), LARGE, MESSAGE),
+            (Some("python"), Some("0.25.0rc5"), SDK_0_25, MESSAGE),
+            (Some("go"), Some("garbage"), SDK_0_25, MESSAGE),
+            (Some("unknown"), None, LARGE, MESSAGE),
+            // No other feature counts: rc.1 to rc.5 go by their version.
+            (Some("rust"), Some("0.3.0"), RC, FRAME),
+            (Some("rust"), Some("0.3.0"), &["observe.v1"], FRAME),
+            (Some("node"), Some("0.22.7"), &["local-dispatch.v1"], FRAME),
+            (Some("rust"), Some("0.3.0"), &["telepathy.v9"], FRAME),
+            (Some("rust"), Some("0.3.0"), &["large-messages.v2"], FRAME),
+            (Some("rust"), Some("0.3.0"), &["Large-Messages.v1"], FRAME),
+            (Some("rust"), Some("0.25.0-rc.5"), RC, MESSAGE),
+            (Some("python"), Some("0.25.0rc5"), RC, MESSAGE),
+            // A browser receives one frame, whatever it declares.
+            (Some("browser"), Some("0.25.0"), SDK_0_25, BROWSER),
+            (Some("browser"), None, LARGE, BROWSER),
+            (Some("browser"), Some("1.0.0"), &[], BROWSER),
+            (Some("browser"), None, &[], BROWSER),
+            // Without the feature (SDK 0.24.5 to 0.25.0-rc.5): the SDK version,
+            // as semver...
+            (Some("rust"), Some("0.24.5"), &[], MESSAGE),
+            (Some("node"), Some("0.24.6"), &[], MESSAGE),
+            (Some("node"), Some("0.25.0-rc.5"), &[], MESSAGE),
+            (Some("go"), Some("1.0.0"), &[], MESSAGE),
+            (Some("rust"), Some("0.24.5+build.1"), &[], MESSAGE),
+            (Some("rust"), Some("0.24.4"), &[], FRAME),
+            (Some("rust"), Some("0.24.5-rc.1"), &[], FRAME),
+            (Some("rust"), Some("0.3.0"), &[], FRAME),
+            // ...or as PEP 440, which the Python SDK reports.
+            (Some("python"), Some("0.25.0rc5"), &[], MESSAGE),
+            (Some("python"), Some("0.25.0a3"), &[], MESSAGE),
+            (Some("python"), Some("0.25.0.dev1"), &[], MESSAGE),
+            (Some("python"), Some("0.25.0RC5"), &[], MESSAGE),
+            (Some("python"), Some("0.24.5.post1"), &[], MESSAGE),
+            (Some("python"), Some("0.24.5.post1.dev0"), &[], MESSAGE),
+            (Some("python"), Some("0.24.5.0"), &[], MESSAGE),
+            (Some("python"), Some("0.24.6+local.7"), &[], MESSAGE),
+            (Some("python"), Some("v0.25"), &[], MESSAGE),
+            (Some("python"), Some("1!0.1"), &[], MESSAGE),
+            (Some("python"), Some("0.24.5rc1"), &[], FRAME),
+            (Some("python"), Some("0.24.5a1.post2"), &[], FRAME),
+            (Some("python"), Some("0.24.5.dev3"), &[], FRAME),
+            (Some("python"), Some("0.24.4.post9"), &[], FRAME),
+            (Some("python"), Some("0!0.24.4"), &[], FRAME),
+            (Some("python"), Some("0.24"), &[], FRAME),
+            // Missing, or not a version.
+            (Some("node"), None, &[], FRAME),
+            (Some("python"), Some("unknown"), &[], FRAME),
+            (Some("rust"), Some(""), &[], FRAME),
+            (Some("rust"), Some("garbage"), &[], FRAME),
+            (Some("rust"), Some("0.25.0 beta"), &[], FRAME),
+            (Some("rust"), Some("99999999999999999999.0"), &[], FRAME),
         ];
 
-        for (runtime, version, expected_limit, expected_upgrade) in cases {
+        for (runtime, version, features, expected) in cases {
+            let declared = WorkerFeatures::default();
+            declared.set(&features.iter().map(|f| f.to_string()).collect::<Vec<_>>());
             assert_eq!(
-                receive_message_limit(runtime, version),
-                (expected_limit, expected_upgrade),
-                "runtime={runtime:?}, version={version:?}"
+                receive_message_limit(*runtime, *version, &declared),
+                *expected,
+                "runtime={runtime:?}, version={version:?}, features={features:?}"
             );
         }
     }

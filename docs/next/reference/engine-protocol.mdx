@@ -74,7 +74,8 @@ against a 0.25 engine, and a 0.25 SDK against a 0.24 engine.
 - **Engine to worker.** `WorkerRegistered` carries `features`. A 0.25 engine sends
   `["observe.v1", "local-dispatch.v1"]`; older engines omit the field.
 - **Worker to engine.** The worker lists the features it supports in the `features` array of its
-  `engine::workers::register` payload. A pre-0.25 SDK sends none.
+  `engine::workers::register` payload. A pre-0.25 SDK sends none. Besides the two above, a worker
+  can declare `large-messages.v1`, which the engine never advertises (see the rules below).
 
 ```json
 {
@@ -96,7 +97,7 @@ against a 0.25 engine, and a 0.25 SDK against a 0.24 engine.
     "os": "linux 6.8.0",
     "pid": 4242,
     "namespace": "default",
-    "features": ["observe.v1", "local-dispatch.v1"]
+    "features": ["observe.v1", "local-dispatch.v1", "large-messages.v1"]
   },
   "action": { "type": "void" }
 }
@@ -115,6 +116,12 @@ Rules:
 - The engine adds `caller`, `observe_depth`, and `activation` to an `InvokeFunction` only when the
   receiving connection declared `observe.v1`.
 - The engine decodes every worker-to-engine observe message from any connection.
+- `large-messages.v1` commits the connection to receiving JSON messages up to 64 MiB
+  (67,108,864 bytes of serialized envelope), sent as one WebSocket text frame or as a fragmented
+  message. The engine then sends it messages up to that size whatever `version` it reports, except
+  to `runtime: "browser"` (16 MiB). Without it, the engine falls back to the reported SDK version;
+  no other feature counts. The Rust, Node, Python, and Go SDKs declare it from 0.25.0; the browser
+  SDK does not. See [Payload size](../creating-workers/channels#payload-size).
 - An SDK enables `observe()` only when the engine advertised `observe.v1`; against an older engine,
   `observe()` fails with `UNSUPPORTED`. An SDK runs one of its own functions in-process only after
   the engine confirmed that function with `FunctionRegistered { local_dispatch: true }`.

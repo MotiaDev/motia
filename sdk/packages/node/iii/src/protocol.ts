@@ -25,7 +25,13 @@ export type {
   TriggerRequest,
   UnobserveMessage,
 } from './iii-types'
-export { FEATURE_LOCAL_DISPATCH_V1, FEATURE_OBSERVE_V1, MessageType, SDK_FEATURES } from './iii-types'
+export {
+  FEATURE_LARGE_MESSAGES_V1,
+  FEATURE_LOCAL_DISPATCH_V1,
+  FEATURE_OBSERVE_V1,
+  MessageType,
+  SDK_FEATURES,
+} from './iii-types'
 export type {
   RegisterFunctionInput,
   RegisterFunctionOptions,

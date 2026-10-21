@@ -150,7 +150,7 @@ async fn features_are_declared_on_workers_register() {
     let register = frame(&mock, |m| m["function_id"] == "engine::workers::register").await;
     assert_eq!(
         register["data"]["features"],
-        json!(["observe.v1", "local-dispatch.v1"])
+        json!(["observe.v1", "local-dispatch.v1", "large-messages.v1"])
     );
     assert!(
         register.get("invocation_id").is_none(),

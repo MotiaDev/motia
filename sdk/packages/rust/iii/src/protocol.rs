@@ -495,8 +495,16 @@ pub const FEATURE_OBSERVE_V1: &str = "observe.v1";
 /// Protocol feature: the SDK runs its own functions in-process once the engine
 /// confirms them with `functionregistered { local_dispatch: true }`.
 pub const FEATURE_LOCAL_DISPATCH_V1: &str = "local-dispatch.v1";
+/// Protocol feature, declared by the SDK only: it receives JSON messages up to
+/// 64 MiB, so the engine sends it messages of that size whatever
+/// [`WorkerMetadata::version`](crate::iii::WorkerMetadata::version) reports.
+pub const FEATURE_LARGE_MESSAGES_V1: &str = "large-messages.v1";
 /// What this SDK declares in the `engine::workers::register` payload.
-pub const SDK_FEATURES: [&str; 2] = [FEATURE_OBSERVE_V1, FEATURE_LOCAL_DISPATCH_V1];
+pub const SDK_FEATURES: [&str; 3] = [
+    FEATURE_OBSERVE_V1,
+    FEATURE_LOCAL_DISPATCH_V1,
+    FEATURE_LARGE_MESSAGES_V1,
+];
 
 /// The engine's default namespace, which an absent `namespace` means.
 pub const DEFAULT_NAMESPACE: &str = "default";

@@ -15,7 +15,8 @@
     },
     "features": [
       "observe.v1",
-      "local-dispatch.v1"
+      "local-dispatch.v1",
+      "large-messages.v1"
     ]
   },
   "action": {

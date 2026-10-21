@@ -1043,6 +1043,10 @@ pub struct TelemetryOptions {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerMetadata {
     pub runtime: String,
+    /// Version reported to the engine and shown by `engine::workers::list`.
+    /// Defaults to this SDK's version and may be set to the worker's own: the
+    /// engine sizes the messages it sends this worker by the
+    /// `large-messages.v1` feature the SDK declares, not by this field.
     pub version: String,
     /// Worker name reported to the engine. In managed identity mode, a
     /// non-empty `III_WORKER_NAME` overrides this value when the client is

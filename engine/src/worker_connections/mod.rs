@@ -27,8 +27,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     engine::Outbound,
     protocol::{
-        DEFAULT_NAMESPACE, ErrorBody, FEATURE_LOCAL_DISPATCH_V1, FEATURE_OBSERVE_V1,
-        effective_namespace,
+        DEFAULT_NAMESPACE, ErrorBody, FEATURE_LARGE_MESSAGES_V1, FEATURE_LOCAL_DISPATCH_V1,
+        FEATURE_OBSERVE_V1, effective_namespace,
     },
     workers::{observability::metrics::get_engine_metrics, worker::rbac_session::Session},
 };
@@ -153,6 +153,9 @@ impl WorkerConnectionRegistry {
             .collect()
     }
 
+    /// Stores the metadata from `engine::workers::register` and sets the
+    /// connection's receive limit from it and from the connection's declared
+    /// features, which [`Self::set_worker_features`] must store first.
     #[allow(clippy::too_many_arguments)]
     pub fn update_worker_metadata(
         &self,
@@ -168,8 +171,11 @@ impl WorkerConnectionRegistry {
         namespace: Option<String>,
     ) {
         if let Some(mut worker) = self.workers.get_mut(worker_id) {
-            let (limit, requires_upgrade) =
-                crate::workers::worker::receive_message_limit(Some(&runtime), version.as_deref());
+            let (limit, requires_upgrade) = crate::workers::worker::receive_message_limit(
+                Some(&runtime),
+                version.as_deref(),
+                &worker.features,
+            );
             worker.receive_message_limit.store(limit, Ordering::Relaxed);
             worker
                 .receive_limit_requires_upgrade
@@ -284,6 +290,7 @@ struct DeclaredFeatures {
     list: Vec<String>,
     observe_v1: bool,
     local_dispatch_v1: bool,
+    large_messages_v1: bool,
 }
 
 impl WorkerFeatures {
@@ -310,6 +317,7 @@ impl WorkerFeatures {
         let declared = DeclaredFeatures {
             observe_v1: has(FEATURE_OBSERVE_V1),
             local_dispatch_v1: has(FEATURE_LOCAL_DISPATCH_V1),
+            large_messages_v1: has(FEATURE_LARGE_MESSAGES_V1),
             list,
         };
         self.declared.set(declared).is_ok()
@@ -323,6 +331,11 @@ impl WorkerFeatures {
 
     pub fn local_dispatch_v1(&self) -> bool {
         self.declared.get().is_some_and(|d| d.local_dispatch_v1)
+    }
+
+    /// The connection receives JSON messages up to 64 MiB.
+    pub fn large_messages_v1(&self) -> bool {
+        self.declared.get().is_some_and(|d| d.large_messages_v1)
     }
 
     /// The list as kept, unknown features included.

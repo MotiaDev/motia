@@ -11,6 +11,7 @@
 use futures_util::{SinkExt, StreamExt};
 use iii::{EngineBuilder, engine::EngineTrait};
 use iii_helpers::observability::OtelConfig;
+use iii_sdk::iii::WorkerMetadata;
 use iii_sdk::protocol::TriggerRequest;
 use iii_sdk::{Dispatch, InitOptions, RegisterFunction, register_worker};
 use serde_json::{Value, json};
@@ -296,7 +297,7 @@ fn assert_engine_error(message: &str) {
     assert_eq!(
         message,
         format!(
-            "Serialized JSON envelope is {size} bytes; target worker accepts up to {FRAME_LIMIT} bytes. Upgrade the target worker SDK to 0.24.5 or later, or use channels: {LINK}"
+            "Serialized JSON envelope is {size} bytes; target worker accepts up to {FRAME_LIMIT} bytes. It did not declare large-messages.v1 (SDK 0.25.0 or later), and the version it reports is older than 0.24.5 or unknown. Upgrade the target worker SDK to 0.25.0 or later, or use channels: {LINK}"
         )
     );
 }
@@ -306,7 +307,7 @@ fn engine_error(message: &str) {
     assert_eq!(
         message,
         format!(
-            "Serialized JSON envelope is {size} bytes; target worker accepts up to {FRAME_LIMIT} bytes. Upgrade the target worker SDK to 0.24.5 or later, or use channels: {LINK}"
+            "Serialized JSON envelope is {size} bytes; target worker accepts up to {FRAME_LIMIT} bytes. It did not declare large-messages.v1 (SDK 0.25.0 or later), and the version it reports is older than 0.24.5 or unknown. Upgrade the target worker SDK to 0.25.0 or later, or use channels: {LINK}"
         )
     );
 }
@@ -658,6 +659,38 @@ async fn fragmented_json_roundtrips_and_engine_compatibility_guard() {
     .await
     .unwrap();
     assert_content(&rust_target, LARGE, 'S');
+    // Most Rust workers report their own crate version in
+    // `WorkerMetadata.version`: the SDK's `large-messages.v1` identifies it.
+    let crate_version = register_worker(
+        &engine.url,
+        InitOptions {
+            metadata: Some(WorkerMetadata {
+                version: "0.3.0".into(),
+                name: "json-size-rust-crate-version".into(),
+                ..Default::default()
+            }),
+            otel: Some(OtelConfig {
+                enabled: Some(false),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    );
+    crate_version.register_function(
+        "size::rust-crate-version",
+        RegisterFunction::new_async(|input: Value| async move { Ok(input) }),
+    );
+    wait_for(&engine, "size::rust-crate-version").await;
+    let crate_version_target = invoke(
+        &engine.sdk,
+        "size::rust-crate-version",
+        payload(LARGE, 'V'),
+        120_000,
+    )
+    .await
+    .unwrap();
+    assert_content(&crate_version_target, LARGE, 'V');
+    crate_version.shutdown_async().await;
     for (caller, target, marker) in [
         ("size::node-roundtrip", "size::python", 'N'),
         ("size::python-roundtrip", "size::go", 'P'),
