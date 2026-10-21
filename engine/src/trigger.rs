@@ -693,12 +693,20 @@ impl TriggerRegistry {
                 .insert(trigger.id.clone(), trigger.clone());
         }
         let providers = self.assignment_providers(&trigger.provider_key());
+        // Freeze the required membership for this operation. A healthy copy
+        // makes the route usable, but never proves this snapshot complete.
+        let required = providers
+            .iter()
+            .map(|provider| provider.worker_id)
+            .collect::<Vec<_>>();
         let installs = providers
             .into_iter()
             .filter_map(|provider| {
                 let mut copies = state.copies.lock().expect("copies poisoned");
-                if copies.contains_key(&provider.worker_id) {
-                    return None;
+                if let Some((_, token, active)) = copies.get(&provider.worker_id) {
+                    // Retry an uncertain delivery with its original identity;
+                    // replacing it would lose the old generation's stop debt.
+                    return (!active).then(|| (provider.clone(), token.clone()));
                 }
                 let token = Uuid::new_v4().to_string();
                 copies.insert(provider.worker_id, (provider.clone(), token.clone(), false));
@@ -743,7 +751,17 @@ impl TriggerRegistry {
         if outcomes.iter().any(Result::is_err) {
             return Ok(RegisterTriggerOutcome::Deferred);
         }
-        if self.triggers.contains_key(&trigger.id) {
+        let complete = !state.removed.load(std::sync::atomic::Ordering::SeqCst)
+            && !required.is_empty()
+            && required.iter().all(|owner| {
+                state
+                    .copies
+                    .lock()
+                    .expect("copies poisoned")
+                    .get(owner)
+                    .is_some_and(|copy| copy.2)
+            });
+        if complete {
             Ok(RegisterTriggerOutcome::Registered)
         } else {
             Ok(RegisterTriggerOutcome::Deferred)
@@ -755,9 +773,20 @@ impl TriggerRegistry {
         id: &str,
         state: Arc<AssignmentSet>,
     ) -> Result<bool, anyhow::Error> {
-        state
-            .removed
-            .store(true, std::sync::atomic::Ordering::SeqCst);
+        {
+            let _park = self
+                .park_transition
+                .lock()
+                .expect("park transition poisoned");
+            state
+                .removed
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+            // Disable lookup/firing before any stop I/O, even if installation
+            // is still finishing. The descriptor and copies are teardown debt.
+            if let Some((_, trigger)) = self.triggers.remove(id) {
+                self.pending_triggers.insert(id.to_string(), trigger);
+            }
+        }
         let _operation = state.operation.lock().await;
         let trigger = self
             .triggers
@@ -1370,6 +1399,14 @@ impl TriggerRegistry {
     /// type. On registrator failure the intent is parked again so the next
     /// type (re)registration retries it.
     async fn activate_pending_trigger(&self, trigger_type: &TriggerType, trigger: Trigger) -> bool {
+        if self.shared()
+            && trigger_type.delivery_contract == Some(TriggerDeliveryContract::SharedV1)
+        {
+            return matches!(
+                self.install_assignments(trigger).await,
+                Ok(RegisterTriggerOutcome::Registered)
+            );
+        }
         match trigger_type
             .registrator
             .replay_trigger(trigger.clone())
@@ -1489,6 +1526,22 @@ impl TriggerRegistry {
                 // our subscriber before reporting idempotent registration.
                 subscriptions.aliases.insert(alias, canonical.clone());
             }
+            if self.assignments.contains_key(&canonical) {
+                let mut binding = self
+                    .triggers
+                    .get(&canonical)
+                    .map(|t| t.value().clone())
+                    .or_else(|| {
+                        self.pending_triggers
+                            .get(&canonical)
+                            .map(|t| t.value().clone())
+                    })
+                    .unwrap_or(trigger);
+                binding.id = canonical;
+                // Do not discard aliases on a teardown error: they are needed
+                // to retry paying the last subscriber's remaining stop debt.
+                return self.install_assignments(binding).await;
+            }
             if self.triggers.contains_key(&canonical) {
                 return Ok(RegisterTriggerOutcome::Registered);
             }
@@ -1538,7 +1591,10 @@ impl TriggerRegistry {
             // Resolved again rather than reusing the earlier miss: the
             // provider that appeared in the meantime may be either step.
             if let Some(key) = self.resolve_provider_key(&trigger)
-                && let Some(trigger_type) = self.trigger_types.get(&key)
+                && let Some(trigger_type) = self
+                    .trigger_types
+                    .get(&key)
+                    .map(|entry| entry.value().clone())
                 && let Some((_, mut parked)) = self.pending_triggers.remove(&trigger.id)
             {
                 parked.provider_namespace = key.0.clone();
@@ -1711,7 +1767,10 @@ impl TriggerRegistry {
         // never double-activate with a drain) and activate it through the
         // current provider. While the reporter still owns the type the park
         // is intended: replaying would just be rejected again.
-        if let Some(trigger_type) = self.trigger_types.get(&parked_type)
+        if let Some(trigger_type) = self
+            .trigger_types
+            .get(&parked_type)
+            .map(|entry| entry.value().clone())
             && trigger_type.worker_id != Some(reporter_worker_id)
             && let Some((_, parked)) = self.pending_triggers.remove(id)
         {
@@ -1807,6 +1866,208 @@ mod tests {
             self.unregister_count.fetch_add(1, Ordering::SeqCst);
             Box::pin(async { Ok(()) })
         }
+    }
+
+    #[derive(Default)]
+    struct AssignmentFixture {
+        installs: AtomicUsize,
+        stops: AtomicUsize,
+        failure: AtomicUsize,
+        stop_failure: AtomicUsize,
+        tokens: std::sync::Mutex<Vec<String>>,
+    }
+
+    impl TriggerRegistrator for Arc<AssignmentFixture> {
+        fn register_trigger(
+            &self,
+            _: Trigger,
+        ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + '_>> {
+            panic!("shared_v1 must not use legacy register/replay");
+        }
+        fn unregister_trigger(
+            &self,
+            _: Trigger,
+        ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + '_>> {
+            panic!("shared_v1 must not use legacy stop");
+        }
+        fn register_assignment(
+            &self,
+            _: Trigger,
+            token: String,
+        ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + '_>> {
+            self.installs.fetch_add(1, Ordering::SeqCst);
+            self.tokens.lock().unwrap().push(token);
+            let failure = self.failure.load(Ordering::SeqCst);
+            Box::pin(async move {
+                match failure {
+                    0 => Ok(()),
+                    1 => Err(anyhow::anyhow!("copy rejected")),
+                    _ => Err(anyhow::Error::new(RegistratorUnavailable)),
+                }
+            })
+        }
+        fn unregister_assignment(
+            &self,
+            _: Trigger,
+            _: String,
+        ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + '_>> {
+            self.stops.fetch_add(1, Ordering::SeqCst);
+            let failure = self.stop_failure.load(Ordering::SeqCst);
+            Box::pin(async move {
+                match failure {
+                    0 => Ok(()),
+                    1 => Err(anyhow::anyhow!("stop rejected")),
+                    _ => Err(anyhow::Error::new(RegistratorUnavailable)),
+                }
+            })
+        }
+    }
+
+    async fn assignment_fixture(registry: &TriggerRegistry) -> Arc<AssignmentFixture> {
+        let fixture = Arc::new(AssignmentFixture::default());
+        registry
+            .register_trigger_type(
+                TriggerType::new_ns(
+                    "orders",
+                    "fixture",
+                    "assignment regression",
+                    Box::new(fixture.clone()),
+                    Some(Uuid::new_v4()),
+                )
+                .with_delivery_mode(TriggerDeliveryMode::Parallel)
+                .with_delivery_contract(TriggerDeliveryContract::SharedV1),
+            )
+            .await
+            .unwrap();
+        fixture
+    }
+
+    fn assignment_binding() -> Trigger {
+        let mut binding = make_trigger("alias", "fixture");
+        binding.worker_id = Some(Uuid::new_v4());
+        binding.namespace = "orders".into();
+        binding.home_namespace = "orders".into();
+        binding.provider_namespace = "orders".into();
+        binding
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_parallel_partial_retry_requires_every_snapshot_member() {
+        for failure in [1, 2] {
+            let registry = TriggerRegistry::new();
+            registry.set_shared_namespace_ownership(true);
+            let healthy = assignment_fixture(&registry).await;
+            let failing = assignment_fixture(&registry).await;
+            failing.failure.store(failure, Ordering::SeqCst);
+            let binding = assignment_binding();
+            assert_eq!(
+                registry.register_trigger(binding.clone()).await.unwrap(),
+                RegisterTriggerOutcome::Deferred
+            );
+            let canonical = registry.subscriptions.lock().unwrap().aliases
+                [&(binding.worker_id.unwrap(), binding.id.clone())]
+                .clone();
+            assert!(registry.triggers.contains_key(&canonical));
+            assert_eq!(
+                registry.register_trigger(binding.clone()).await.unwrap(),
+                RegisterTriggerOutcome::Deferred,
+                "healthy sibling is not a complete snapshot"
+            );
+            assert_eq!(healthy.installs.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                failing.installs.load(Ordering::SeqCst),
+                2,
+                "uncertain/rejected copies must retry"
+            );
+            if failure == 2 {
+                let tokens = failing.tokens.lock().unwrap();
+                assert_eq!(
+                    tokens[0], tokens[1],
+                    "uncertain generation retains its teardown identity"
+                );
+            }
+            failing.failure.store(0, Ordering::SeqCst);
+            registry
+                .replay_shared_assignments(type_key("orders", "fixture"))
+                .await;
+            assert_eq!(
+                registry.register_trigger(binding).await.unwrap(),
+                RegisterTriggerOutcome::Registered
+            );
+            assert_eq!(healthy.installs.load(Ordering::SeqCst), 1);
+            assert_eq!(failing.installs.load(Ordering::SeqCst), 3);
+        }
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_ack_failed_stop_is_inactive_retryable_tombstone() {
+        for failure in [1, 2] {
+            let registry = TriggerRegistry::new();
+            registry.set_shared_namespace_ownership(true);
+            let provider = assignment_fixture(&registry).await;
+            let binding = assignment_binding();
+            registry.register_trigger(binding.clone()).await.unwrap();
+            let canonical = registry.subscriptions.lock().unwrap().aliases
+                [&(binding.worker_id.unwrap(), binding.id.clone())]
+                .clone();
+            assert_eq!(registry.namespace_of(&canonical), "orders");
+            provider.stop_failure.store(failure, Ordering::SeqCst);
+            assert!(
+                registry
+                    .unregister_subscriber(binding.worker_id.unwrap(), binding.id.clone(), None)
+                    .await
+                    .is_err()
+            );
+            assert!(!registry.triggers.contains_key(&canonical));
+            assert_eq!(registry.namespace_of(&canonical), DEFAULT_NAMESPACE);
+            assert!(registry.pending_triggers.contains_key(&canonical));
+            assert!(
+                registry.register_trigger(binding.clone()).await.is_err(),
+                "retry cannot resurrect a tombstone"
+            );
+            registry
+                .replay_shared_assignments(type_key("orders", "fixture"))
+                .await;
+            assert!(!registry.triggers.contains_key(&canonical));
+            assert_eq!(provider.installs.load(Ordering::SeqCst), 1);
+            provider.stop_failure.store(0, Ordering::SeqCst);
+            assert!(
+                registry
+                    .unregister_subscriber(binding.worker_id.unwrap(), binding.id.clone(), None)
+                    .await
+                    .unwrap()
+            );
+            assert!(!registry.pending_triggers.contains_key(&canonical));
+            assert!(!registry.has_assignment(&canonical));
+            assert!(registry.subscriber_aliases(&canonical).is_empty());
+            assert_eq!(provider.stops.load(Ordering::SeqCst), 2);
+        }
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_parallel_claimed_pending_recovery_uses_identified_fanout() {
+        let registry = TriggerRegistry::new();
+        registry.set_shared_namespace_ownership(true);
+        let a = assignment_fixture(&registry).await;
+        let b = assignment_fixture(&registry).await;
+        let binding = assignment_binding();
+        // Deterministically exercise the same claimed pending helper used when
+        // a provider appears between the initial lookup and post-park recheck.
+        registry
+            .pending_triggers
+            .insert(binding.id.clone(), binding.clone());
+        let (_, claimed) = registry.pending_triggers.remove(&binding.id).unwrap();
+        let provider = registry
+            .trigger_types
+            .get(&type_key("orders", "fixture"))
+            .unwrap()
+            .value()
+            .clone();
+        assert!(registry.activate_pending_trigger(&provider, claimed).await);
+        assert_eq!(a.installs.load(Ordering::SeqCst), 1);
+        assert_eq!(b.installs.load(Ordering::SeqCst), 1);
+        assert!(registry.triggers.contains_key(&binding.id));
+        assert!(!registry.pending_triggers.contains_key(&binding.id));
     }
 
     fn make_trigger(id: &str, trigger_type: &str) -> Trigger {
