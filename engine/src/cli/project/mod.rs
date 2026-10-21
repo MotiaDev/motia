@@ -286,6 +286,7 @@ async fn run_init_with_template(args: InitArgs) -> i32 {
         yes: false,
     };
 
+    crate::cli::telemetry::ensure_device_id_for_scaffolder();
     let result = scaffolder_core::run(&IiiConfig, create_args, env!("CARGO_PKG_VERSION")).await;
     let _ = console::Term::stderr().show_cursor();
 

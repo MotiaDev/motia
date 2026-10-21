@@ -153,6 +153,20 @@ async fn report_compose_batch(reports: Vec<iii_compose::telemetry::Report>) {
     .await;
 }
 
+/// Makes sure `~/.iii/telemetry.yaml` holds a device id before the
+/// scaffolder runs.
+///
+/// The scaffolder only reads that file. On a machine where neither the
+/// engine nor the curl installer has run, it is missing, and the scaffolder
+/// reports `iii_tools_telemetry_failed` in place of `project_created`.
+/// Nothing is written when telemetry is off.
+pub(crate) fn ensure_device_id_for_scaffolder() {
+    if is_telemetry_disabled() {
+        return;
+    }
+    environment::ensure_device_id();
+}
+
 /// Waits for a report that was spawned earlier, for at most
 /// [`REPORT_TIMEOUT`].
 pub(crate) async fn wait_for_report(handle: Option<tokio::task::JoinHandle<()>>) {
@@ -471,6 +485,40 @@ mod tests {
             "succeeded held for {succeeded:?}"
         );
         assert!(failed < RELEASED_WITHIN, "failed held for {failed:?}");
+    }
+
+    #[test]
+    #[serial]
+    fn the_scaffolder_finds_a_device_id_on_a_machine_where_the_engine_never_ran() {
+        clear_opt_out_vars();
+        let _home = isolated_home();
+
+        ensure_device_id_for_scaffolder();
+        let written = environment::telemetry_config_path().exists();
+
+        restore_home();
+        assert!(written, "telemetry.yaml should exist for the scaffolder");
+    }
+
+    #[test]
+    #[serial]
+    fn an_opted_out_machine_gets_no_device_id_for_the_scaffolder() {
+        for (var, value) in [("III_TELEMETRY_ENABLED", "false"), ("CI", "true")] {
+            clear_opt_out_vars();
+            let _home = isolated_home();
+            unsafe {
+                env::set_var(var, value);
+            }
+
+            ensure_device_id_for_scaffolder();
+            let written = environment::telemetry_config_path().exists();
+
+            unsafe {
+                env::remove_var(var);
+            }
+            restore_home();
+            assert!(!written, "{var}={value} should write no telemetry.yaml");
+        }
     }
 
     #[tokio::test]
