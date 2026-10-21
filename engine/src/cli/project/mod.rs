@@ -191,34 +191,64 @@ async fn run_init(args: InitArgs) -> i32 {
         return code;
     }
 
-    let project_id = match persist_project_ini(&root, &project_name, "init", &device_id).await {
-        Ok(id) => id,
-        Err(e) => {
-            let code = print_err(
-                "could not write .iii/project.ini",
-                &e.to_string(),
-                "check that the target directory is writable",
-            );
-            crate::cli::telemetry::send_project_init_failed("write_project_ini", &e.to_string())
+    let (project_id, is_new_project) =
+        match persist_project_ini(&root, &project_name, "init", &device_id).await {
+            Ok(persisted) => persisted,
+            Err(e) => {
+                let code = print_err(
+                    "could not write .iii/project.ini",
+                    &e.to_string(),
+                    "check that the target directory is writable",
+                );
+                crate::cli::telemetry::send_project_init_failed(
+                    "write_project_ini",
+                    &e.to_string(),
+                )
                 .await;
-            return code;
-        }
+                return code;
+            }
+        };
+
+    // A re-init keeps the project_id, so it is the same project and is not
+    // reported again. Spawned here so the send overlaps the docker step, and
+    // awaited once, together with the init event, just before returning.
+    let created = if is_new_project {
+        scaffolder_core::telemetry::spawn_project_event(
+            "project_created",
+            scaffolder_core::telemetry::platform_for_product("iii"),
+            env!("CARGO_PKG_VERSION").to_string(),
+            serde_json::json!({
+                "project_id": project_id,
+                "project_name": project_name,
+                "template": "bare",
+                "product": "iii",
+            }),
+        )
+    } else {
+        None
     };
 
     if args.docker
         && let Err(e) = apply_docker(&mut fetcher, &root, &device_id).await
     {
+        let error = e.to_string();
         let code = print_err(
             "could not apply 'docker' template",
-            &e.to_string(),
+            &error,
             "remove existing Dockerfile/docker-compose.yml or check write permissions",
         );
-        crate::cli::telemetry::send_project_init_failed("apply_docker", &e.to_string()).await;
+        tokio::join!(
+            crate::cli::telemetry::send_project_init_failed("apply_docker", &error),
+            crate::cli::telemetry::wait_for_report(created),
+        );
         return code;
     }
 
     print_init_success(&project_name, &root, target.is_some(), args.docker);
-    crate::cli::telemetry::send_project_init_succeeded(args.docker, &project_id).await;
+    tokio::join!(
+        crate::cli::telemetry::send_project_init_succeeded(args.docker, &project_id),
+        crate::cli::telemetry::wait_for_report(created),
+    );
     0
 }
 
@@ -278,7 +308,8 @@ async fn run_init_with_template(args: InitArgs) -> i32 {
                 .unwrap_or("iii-project")
                 .to_string();
             let template_label = args.template.as_deref().unwrap_or("init-template");
-            let id = persist_project_ini(root, &project_name, template_label, &device_id)
+            // The scaffolder already reported project_created for this id.
+            let (id, _) = persist_project_ini(root, &project_name, template_label, &device_id)
                 .await
                 .unwrap_or_default();
 
@@ -917,15 +948,17 @@ fn write_env_if_absent(target: &Path) -> std::io::Result<()> {
 
 /// Persist `.iii/project.ini`, preserving any existing project_id when called
 /// against an already-initialized project. Returns the (existing or freshly
-/// generated) project_id so the caller can include it in the success event.
+/// generated) project_id so the caller can include it in the success event,
+/// and whether this call generated it.
 async fn persist_project_ini(
     root: &Path,
     project_name: &str,
     source: &str,
     device_id: &str,
-) -> anyhow::Result<String> {
-    let project_id =
-        read_existing_project_id(root).unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+) -> anyhow::Result<(String, bool)> {
+    let existing = read_existing_project_id(root);
+    let is_new = existing.is_none();
+    let project_id = existing.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     scaffolder_core::telemetry::write_project_ini(
         root,
         &project_id,
@@ -934,7 +967,7 @@ async fn persist_project_ini(
         Some(device_id),
     )
     .await?;
-    Ok(project_id)
+    Ok((project_id, is_new))
 }
 
 fn read_existing_project_id(root: &Path) -> Option<String> {

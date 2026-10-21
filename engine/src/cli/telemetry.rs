@@ -153,6 +153,14 @@ async fn report_compose_batch(reports: Vec<iii_compose::telemetry::Report>) {
     .await;
 }
 
+/// Waits for a report that was spawned earlier, for at most
+/// [`REPORT_TIMEOUT`].
+pub(crate) async fn wait_for_report(handle: Option<tokio::task::JoinHandle<()>>) {
+    if let Some(handle) = handle {
+        let _ = tokio::time::timeout(REPORT_TIMEOUT, handle).await;
+    }
+}
+
 pub async fn send_install_lifecycle_event(event_type: &str, properties: serde_json::Value) {
     let install_method = properties
         .get("install_method")
