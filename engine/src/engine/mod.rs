@@ -1658,7 +1658,7 @@ impl Engine {
                 .then(|| trigger_type.key());
                 if let Err(error) = self
                     .trigger_registry
-                    .register_trigger_type(trigger_type)
+                    .register_trigger_type_declaration(trigger_type)
                     .await
                 {
                     tracing::warn!(%error, trigger_type_id = %id, "Trigger provider declaration rejected");
@@ -3458,8 +3458,6 @@ impl Engine {
             }
         }
 
-        self.trigger_registry.unregister_worker(&worker.id).await;
-        self.channel_manager.remove_channels_by_worker(&worker.id);
         // Release the worker-name lease before the registry entry (its source of
         // truth for the name) is gone. Read the name back through the registry:
         // the `worker` snapshot handed to `cleanup_worker` never carries it —
@@ -3470,6 +3468,13 @@ impl Engine {
             self.release_worker_name_if_owner(&worker.id, &namespace, &worker_name);
         }
         self.worker_registry.unregister_worker(&worker.id);
+        // Publish the observed disconnect before trigger recovery waits for a
+        // surviving provider's installation ACK. Recovery still runs in this
+        // cleanup future: do not detach untracked work or declare cleanup done
+        // early. The trigger registry revokes the old assignment before any
+        // replacement I/O, and retains lifecycle/stop debt on cancellation.
+        self.trigger_registry.unregister_worker(&worker.id).await;
+        self.channel_manager.remove_channels_by_worker(&worker.id);
         // Cancel the grace timer task (a no-op if it already fired) so its
         // `engine`/`worker` clones drop now instead of at the grace deadline.
         // (The connection state was already flipped to `Aborted` above, which is

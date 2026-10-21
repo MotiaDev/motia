@@ -581,6 +581,15 @@ pub struct UnregisterTriggerResult {
     pub removed: bool,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+pub struct TriggerFireInput {
+    pub id: String,
+    pub assignment_id: String,
+    pub data: Value,
+    #[serde(rename = "_caller_worker_id", default)]
+    pub caller_worker_id: Option<String>,
+}
+
 // ── Worker ──────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
@@ -1873,6 +1882,37 @@ impl EngineFunctionsWorker {
             .collect();
 
         FunctionResult::Success(FunctionInfoOutput::Batch(FunctionInfoBatch { functions }))
+    }
+
+    #[function(
+        id = "engine::triggers::fire",
+        description = "Fire a positively acknowledged provider assignment using its current token."
+    )]
+    pub async fn triggers_fire(
+        &self,
+        input: TriggerFireInput,
+    ) -> FunctionResult<Option<Value>, ErrorBody> {
+        let trigger = input
+            .caller_worker_id
+            .as_deref()
+            .and_then(|id| uuid::Uuid::parse_str(id).ok())
+            .and_then(|caller| {
+                self.engine.trigger_registry.firing_assignment(
+                    &input.id,
+                    &input.assignment_id,
+                    caller,
+                )
+            });
+        let Some(trigger) = trigger else {
+            return FunctionResult::Failure(ErrorBody::new(
+                "stale_trigger_assignment",
+                "Trigger assignment is not active for this provider",
+            ));
+        };
+        match self.engine.call_trigger(trigger, input.data).await {
+            Ok(value) => FunctionResult::Success(value),
+            Err(error) => FunctionResult::Failure(error),
+        }
     }
 
     #[function(

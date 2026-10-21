@@ -801,3 +801,452 @@ async fn shared_trigger_parallel_rejected_copy_cannot_park_healthy_sibling() {
     let _ = a.close(None).await;
     let _ = b.close(None).await;
 }
+
+// KAN-321: controlled ticks only. The two provider sockets also host the
+// balanced target replicas; no timer or broker is implemented by this fixture.
+fn single_active_declaration(kind: &str) -> Value {
+    json!({"type":"registertriggertype", "id":kind, "description":"single-active tick fixture",
+        "delivery_mode":"single_active", "delivery_contract":"shared_v1"})
+}
+
+async fn single_active_providers(kind: &str) -> (Arc<Engine>, Client, Client, tempfile::TempDir) {
+    let (engine, mut a, mut b, directory) = assignment_providers().await;
+    // Registration barriers fix membership order, independently of random UUIDs.
+    assignment_send(&mut a, single_active_declaration(kind)).await;
+    assignment_barrier(&mut a).await;
+    assignment_send(&mut b, single_active_declaration(kind)).await;
+    assignment_barrier(&mut b).await;
+    send_register_function(&mut a, "orders::route", "balanced target").await;
+    send_register_function(&mut b, "orders::route", "balanced target").await;
+    assignment_barrier(&mut a).await;
+    assignment_barrier(&mut b).await;
+    (engine, a, b, directory)
+}
+
+async fn single_active_subscribe(ws: &mut Client, alias: &str, kind: &str, event: u64) {
+    assignment_send(
+        ws,
+        json!({"type":"registertrigger", "id":alias,
+        "trigger_type":kind, "function_id":"orders::route", "namespace":"orders",
+        "config":{"api_path":"/orders", "queue":"orders", "event":event},
+        "metadata":{"origin":"registry"}}),
+    )
+    .await;
+}
+
+async fn single_active_ack(ws: &mut Client, install: &Value) {
+    let _ = assignment_token(install);
+    assignment_send(
+        ws,
+        json!({"type":"triggerregistrationresult", "id":install["id"],
+        "trigger_type":install["trigger_type"], "function_id":install["function_id"],
+        "assignment_id":install["assignment_id"]}),
+    )
+    .await;
+}
+
+async fn single_active_registered(ws: &mut Client, alias: &str) {
+    let result = assignment_frame(ws, "triggerregistrationresult").await;
+    assert_eq!(result["id"], alias);
+    assert!(
+        result["error"].is_null(),
+        "subscriber registration failed: {result}"
+    );
+}
+
+fn single_active_no_assignment(frames: Vec<Value>) {
+    assert!(!frames.iter().any(|frame| frame["type"] == "registertrigger" || frame["type"] == "unregistertrigger"),
+        "standby/retry cannot acquire or rotate a sticky assignment: {frames:?}");
+}
+
+// Return only after the fire result: every target invocation is recorded and
+// answered first. This is the deterministic tick barrier, not a quiet-time sleep.
+async fn single_active_fire(
+    a: &mut Client,
+    b: &mut Client,
+    from_a: bool,
+    install: &Value,
+    token: &str,
+    data: Value,
+    executions: &mut Vec<(bool, Value)>,
+) -> Value {
+    let invocation = uuid::Uuid::new_v4().to_string();
+    assignment_send(
+        if from_a { &mut *a } else { &mut *b },
+        json!({
+        "type":"invokefunction", "invocation_id":invocation,
+        "function_id":"engine::triggers::fire", "data":{
+            "id":install["id"], "assignment_id":token, "data":data,
+            // These are untrusted input, never routing/sidecar authority.
+            "function_id":"evil::target", "metadata":{"origin":"forged"},
+            "_caller_worker_id":"00000000-0000-0000-0000-000000000000"
+        }}),
+    )
+    .await;
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let (on_a, frame) = tokio::select! {
+                frame = a.next() => (true, frame),
+                frame = b.next() => (false, frame),
+            };
+            let frame = frame.expect("live fire socket").expect("fire frame");
+            let WsMessage::Text(text) = frame else {
+                continue;
+            };
+            let value: Value = serde_json::from_str(&text).unwrap();
+            if value["type"] == "invocationresult" && value["invocation_id"] == invocation {
+                return value;
+            }
+            assert_eq!(
+                value["type"], "invokefunction",
+                "unexpected frame during controlled tick: {value}"
+            );
+            assert_eq!(
+                value["function_id"], "orders::route",
+                "target must come from registry"
+            );
+            assert_eq!(
+                value["metadata"],
+                json!({"origin":"registry"}),
+                "metadata must come from registry"
+            );
+            executions.push((on_a, value["data"].clone()));
+            assignment_send(
+                if on_a { &mut *a } else { &mut *b },
+                json!({
+                    "type":"invocationresult", "invocation_id":value["invocation_id"],
+                    "function_id":value["function_id"], "result":{"accepted":true}
+                }),
+            )
+            .await;
+        }
+    })
+    .await
+    .expect("fire result must fence this controlled tick")
+}
+
+fn single_active_stale(result: &Value) {
+    assert_eq!(
+        result["error"]["code"], "stale_trigger_assignment",
+        "fire gateway must reject an uninstalled, foreign, removed or stale assignment (not ordinary invoke failure): {result}"
+    );
+}
+
+#[tokio::test]
+async fn shared_trigger_single_active_two_ws_fire_requires_ack_uuid_and_current_token() {
+    let kind = "fixture:single-tick";
+    let (engine, mut a, mut b, _directory) = single_active_providers(kind).await;
+    single_active_subscribe(&mut a, "tick", kind, 1).await;
+    let install = assignment_frame(&mut a, "registertrigger").await;
+    let token = assignment_token(&install).to_owned();
+    single_active_no_assignment(assignment_barrier(&mut b).await);
+    let mut executions = Vec::new();
+    let before_ack = single_active_fire(
+        &mut a,
+        &mut b,
+        true,
+        &install,
+        &token,
+        json!({"tick":0}),
+        &mut executions,
+    )
+    .await;
+    single_active_stale(&before_ack);
+    assert!(
+        executions.is_empty(),
+        "enqueue-only delivery is not an active assignment"
+    );
+    single_active_ack(&mut a, &install).await;
+    single_active_registered(&mut a, "tick").await;
+    let wrong_provider = single_active_fire(
+        &mut a,
+        &mut b,
+        false,
+        &install,
+        &token,
+        json!({"tick":0}),
+        &mut executions,
+    )
+    .await;
+    single_active_stale(&wrong_provider);
+    // Even with a forged caller UUID in input, the actual provider A succeeds;
+    // B above cannot impersonate A. Injection must overwrite user-supplied data.
+    for tick in 1..=4 {
+        let result = single_active_fire(
+            &mut a,
+            &mut b,
+            true,
+            &install,
+            &token,
+            json!({"tick":tick}),
+            &mut executions,
+        )
+        .await;
+        assert!(
+            result["error"].is_null(),
+            "acknowledged assignment must fire: {result}"
+        );
+        assert_eq!(
+            executions.len(),
+            tick as usize,
+            "one accepted invocation per controlled event"
+        );
+    }
+    assert_eq!(
+        executions.iter().filter(|(on_a, _)| *on_a).count(),
+        2,
+        "fire uses normal balanced target routing, not owner pinning"
+    );
+    assert_eq!(
+        executions
+            .iter()
+            .map(|(_, data)| data["tick"].clone())
+            .collect::<Vec<_>>(),
+        vec![json!(1), json!(2), json!(3), json!(4)]
+    );
+    let stale = single_active_fire(
+        &mut a,
+        &mut b,
+        true,
+        &install,
+        "old-generation",
+        json!({"tick":5}),
+        &mut executions,
+    )
+    .await;
+    single_active_stale(&stale);
+    assignment_send(&mut a, json!({"type":"unregistertrigger", "id":"tick"})).await;
+    let stop = assignment_frame(&mut a, "unregistertrigger").await;
+    assert_eq!(stop["assignment_id"], install["assignment_id"]);
+    assert!(
+        !engine
+            .trigger_registry
+            .triggers
+            .contains_key(install["id"].as_str().unwrap()),
+        "revocation precedes stop acknowledgement"
+    );
+    let removed = single_active_fire(
+        &mut a,
+        &mut b,
+        true,
+        &install,
+        &token,
+        json!({"tick":6}),
+        &mut executions,
+    )
+    .await;
+    single_active_stale(&removed);
+    assert_eq!(
+        executions.len(),
+        4,
+        "stale/removal rejection cannot replay accepted ticks"
+    );
+    assignment_send(
+        &mut a,
+        json!({"type":"unregistertriggerresult", "id":stop["id"],
+        "trigger_type":kind, "assignment_id":stop["assignment_id"]}),
+    )
+    .await;
+    assignment_barrier(&mut a).await;
+    single_active_no_assignment(assignment_barrier(&mut b).await);
+    let _ = a.close(None).await;
+    let _ = b.close(None).await;
+}
+
+#[tokio::test]
+async fn shared_trigger_single_active_two_ws_cyclic_initial_selection_and_sticky_retry() {
+    let kind = "fixture:cyclic";
+    let (_engine, mut a, mut b, _directory) = single_active_providers(kind).await;
+    for (event, on_a) in [(1, true), (2, false), (3, true)] {
+        let alias = format!("binding-{event}");
+        single_active_subscribe(&mut a, &alias, kind, event).await;
+        let (selected_a, install) = tokio::select! {
+            install = assignment_frame(&mut a, "registertrigger") => (true, install),
+            install = assignment_frame(&mut b, "registertrigger") => (false, install),
+        };
+        assert_eq!(
+            selected_a, on_a,
+            "initial selection must cycle A, B, A in registration order; a distinct binding cannot always select A"
+        );
+        single_active_no_assignment(assignment_barrier(if on_a { &mut b } else { &mut a }).await);
+        single_active_ack(if on_a { &mut a } else { &mut b }, &install).await;
+        single_active_registered(&mut a, &alias).await;
+        // Same logical descriptor, second subscriber: no new assignment.
+        let peer_alias = format!("peer-{event}");
+        single_active_subscribe(&mut b, &peer_alias, kind, event).await;
+        single_active_registered(&mut b, &peer_alias).await;
+        single_active_no_assignment(assignment_barrier(&mut a).await);
+        single_active_no_assignment(assignment_barrier(&mut b).await);
+    }
+    let _ = a.close(None).await;
+    let _ = b.close(None).await;
+}
+
+#[tokio::test]
+async fn shared_trigger_single_active_two_ws_queue_engine_fence_is_not_broker_lease() {
+    let kind = "fixture:queue";
+    let (_engine, mut a, mut b, _directory) = single_active_providers(kind).await;
+    single_active_subscribe(&mut b, "queue-consumer", kind, 1).await;
+    let install = assignment_frame(&mut a, "registertrigger").await;
+    let token = assignment_token(&install).to_owned();
+    single_active_ack(&mut a, &install).await;
+    single_active_registered(&mut b, "queue-consumer").await;
+    single_active_no_assignment(assignment_barrier(&mut b).await);
+    let mut executions = Vec::new();
+    // Broker reservation belongs to the adapter/broker, outside engine fencing.
+    // Deliberately retain it after rejection: engine must not release/ACK it.
+    let broker_reservations = std::collections::HashSet::from(["message-1"]);
+    let rejected = single_active_fire(
+        &mut a,
+        &mut b,
+        false,
+        &install,
+        &token,
+        json!({"message":"message-1"}),
+        &mut executions,
+    )
+    .await;
+    single_active_stale(&rejected);
+    assert!(executions.is_empty());
+    assert!(
+        broker_reservations.contains("message-1"),
+        "fire rejection is not broker ACK/lease management"
+    );
+    let accepted = single_active_fire(
+        &mut a,
+        &mut b,
+        true,
+        &install,
+        &token,
+        json!({"message":"message-1"}),
+        &mut executions,
+    )
+    .await;
+    assert!(
+        accepted["error"].is_null(),
+        "active queue consumer can fire: {accepted}"
+    );
+    assert_eq!(executions.len(), 1);
+    // No exactly-once promise: another explicit delivery is another invocation.
+    let redelivery = single_active_fire(
+        &mut a,
+        &mut b,
+        true,
+        &install,
+        &token,
+        json!({"message":"message-1"}),
+        &mut executions,
+    )
+    .await;
+    assert!(redelivery["error"].is_null());
+    assert_eq!(
+        executions.len(),
+        2,
+        "engine must not pretend to deduplicate broker redelivery"
+    );
+    let _ = a.close(None).await;
+    let _ = b.close(None).await;
+}
+
+#[tokio::test]
+async fn shared_trigger_single_active_two_ws_disconnect_revokes_then_reassigns_without_replay() {
+    let kind = "fixture:handover";
+    let (engine, mut a, mut b, _directory) = single_active_providers(kind).await;
+    single_active_subscribe(&mut b, "surviving-consumer", kind, 1).await;
+    let old = assignment_frame(&mut a, "registertrigger").await;
+    let old_token = assignment_token(&old).to_owned();
+    single_active_ack(&mut a, &old).await;
+    single_active_registered(&mut b, "surviving-consumer").await;
+    let mut executions = Vec::new();
+    let accepted = single_active_fire(
+        &mut a,
+        &mut b,
+        true,
+        &old,
+        &old_token,
+        json!({"tick":1}),
+        &mut executions,
+    )
+    .await;
+    assert!(
+        accepted["error"].is_null(),
+        "positively acknowledged owner requires the new engine::triggers::fire gateway: {accepted}"
+    );
+    assert_eq!(executions.len(), 1);
+    single_active_no_assignment(assignment_barrier(&mut b).await);
+    a.close(None).await.unwrap();
+    assert!(
+        eventually(|| engine
+            .worker_registry
+            .list_workers()
+            .iter()
+            .all(|worker| worker.name.as_deref() != Some("parallel-provider-a")))
+        .await,
+        "handover starts only after engine observes owner disconnection"
+    );
+    let replacement = assignment_frame(&mut b, "registertrigger").await;
+    assert_eq!(
+        replacement["id"], old["id"],
+        "handover preserves logical binding"
+    );
+    let token = assignment_token(&replacement).to_owned();
+    assert_ne!(
+        token, old_token,
+        "revoked owner generation cannot be reused"
+    );
+    single_active_ack(&mut b, &replacement).await;
+    let frames = assignment_barrier(&mut b).await;
+    assert!(
+        !frames.iter().any(|frame| frame["type"] == "invokefunction"),
+        "accepted work is never replayed by reassignment: {frames:?}"
+    );
+    for (generation, tick, allowed) in [(&old_token, 2, false), (&token, 3, true)] {
+        let invocation = uuid::Uuid::new_v4().to_string();
+        assignment_send(
+            &mut b,
+            json!({"type":"invokefunction", "invocation_id":invocation,
+            "function_id":"engine::triggers::fire", "data":{"id":replacement["id"],
+                "assignment_id":generation, "data":{"tick":tick}}}),
+        )
+        .await;
+        let result = tokio::time::timeout(Duration::from_secs(3), async {
+            loop {
+                let frame = b.next().await.unwrap().unwrap();
+                let WsMessage::Text(text) = frame else {
+                    continue;
+                };
+                let value: Value = serde_json::from_str(&text).unwrap();
+                if value["type"] == "invocationresult" && value["invocation_id"] == invocation {
+                    break value;
+                }
+                assert_eq!(value["type"], "invokefunction");
+                assert!(allowed, "revoked token cannot reach a target");
+                assert_eq!(value["function_id"], "orders::route");
+                assert_eq!(value["data"]["tick"], tick);
+                executions.push((false, value["data"].clone()));
+                assignment_send(
+                    &mut b,
+                    json!({"type":"invocationresult", "invocation_id":value["invocation_id"],
+                    "function_id":value["function_id"], "result":{"accepted":true}}),
+                )
+                .await;
+            }
+        })
+        .await
+        .expect("replacement tick result barrier");
+        if allowed {
+            assert!(
+                result["error"].is_null(),
+                "positively acknowledged replacement can fire: {result}"
+            );
+        } else {
+            single_active_stale(&result);
+        }
+    }
+    assert_eq!(
+        executions.len(),
+        2,
+        "one old accepted tick and one new tick, no handover replay"
+    );
+    let _ = b.close(None).await;
+}
