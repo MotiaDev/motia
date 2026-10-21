@@ -1573,16 +1573,15 @@ class Sdk implements IIIClient {
     const data = JSON.stringify(message)
     const size = Buffer.byteLength(data, 'utf8')
     if (size <= MAX_JSON_MESSAGE_BYTES) return data
-    const error = new InvocationError({
-      code: 'payload_too_large',
-      message: `Serialized JSON envelope is ${size} bytes; limit is ${MAX_JSON_MESSAGE_BYTES} bytes. Use channels for larger payloads: https://iii.dev/docs/creating-workers/channels#payload-size`,
-    })
+    const detail = `Serialized JSON envelope is ${size} bytes; limit is ${MAX_JSON_MESSAGE_BYTES} bytes. Use channels for larger payloads: https://iii.dev/docs/creating-workers/channels#payload-size`
+    const error = new InvocationError({ code: 'payload_too_large', message: detail })
     if (message.type === MessageType.InvocationResult) {
+      // The wire body carries the bare message: the caller's InvocationError adds the `code: ` prefix.
       const fallback = JSON.stringify({
         type: MessageType.InvocationResult,
         invocation_id: message.invocation_id,
         function_id: message.function_id,
-        error: { code: error.code, message: error.message },
+        error: { code: error.code, message: detail },
       })
       if (Buffer.byteLength(fallback, 'utf8') <= MAX_JSON_MESSAGE_BYTES) return fallback
     }
