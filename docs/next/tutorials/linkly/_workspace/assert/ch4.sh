@@ -13,6 +13,10 @@ check "analytics counted the links" '"count": 5' \
 check "clicks drained from the queue" '"clicks": 3' \
   "$(t database::query db=primary sql="SELECT COUNT(*) AS clicks FROM clicks WHERE code = 'analyticslink1'")"
 
+check_duplicate analyticslink2
+check "a duplicate publishes no link.created" '"count": 5' \
+  "$(sleep 3; t database::query db=analytics sql="SELECT day, count FROM daily_link_counts")"
+
 check "PUT /links/:code" 'https://iii.dev/updated' \
   "$(curl -s -X PUT "$HTTP/links/analyticslink1" -H 'Content-Type: application/json' \
     -d '{"url":"https://iii.dev/updated"}')"

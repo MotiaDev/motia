@@ -207,14 +207,17 @@ Add two functions:
 - link::create({ url, code? }): generate a 6-character short code when none is given, make the url
   absolute (add https:// when it has no scheme), and persist it in the state worker (not a local
   variable) with state::set under scope "links" key <code>, value { url }; return { code, url }.
-  Never overwrite an existing link: reject a requested code that is already taken, and retry a
-  generated code until it is free.
+  Never overwrite an existing link: reject a requested code that is already taken by throwing
+  an Error whose message is exactly code `<code>` is already taken, and retry a generated code
+  until it is free.
 - link::resolve({ code }): read it back from the state worker with state::get (scope "links", key
   <code>) and return { url } or { url: null }.
 
 Then expose them over HTTP through the http worker:
 - an http::create function and a POST /links trigger that calls link::create, returns 201 with
-  { code, url }, and 409 when the requested code is taken.
+  { code, url }, and 409 with { error } when the requested code is taken. The error is the message
+  link::create threw: the SDK rejects with an InvocationError (exported by iii-sdk) whose message
+  is `<err.code>: <message>`, so cut that prefix off with err.message.slice(err.code.length + 2).
 - an http::redirect function and a GET /s/:code trigger that reads the code from req.path_params.code,
   resolves it, and returns a 302 to the url, or 404 when it is unknown.
 
@@ -318,7 +321,10 @@ In link/src/index.ts:
 - at startup, create a links table and a clicks table if they do not exist. The database worker may
   register a moment after link, so retry the schema creation until it answers, and never crash the
   worker if the database is not ready yet.
-- link::create also inserts the link row into the database.
+- link::create also inserts the link row into the database with INSERT ... ON CONFLICT(code) DO
+  NOTHING. When database::execute answers affected_rows 0 the code is taken: throw the same
+  code `<code>` is already taken error as before, so POST /links still answers 409 with that
+  message and never with the database's error text.
 - link::resolve reads state first, falls back to the database, and warms the cache on a hit.
 - add link::record_click that inserts one row per click into the clicks table (id INTEGER PRIMARY
   KEY AUTOINCREMENT, code TEXT NOT NULL, clicked_at TEXT NOT NULL), not a per-day aggregate: later
@@ -508,9 +514,9 @@ browser. When we say iii is **extensible** we mean it.
 Bulk-load links from a CSV in a single streamed upload over a channel.
 
 - Create a bulk-importer worker that accepts a channel, reads CSV rows, and calls link::create for
-  each. Skip a row the application rejects (a code already taken) instead of aborting the batch, but
-  re-throw anything else (a timeout, a worker that is down). Return
-  the imported and skipped counts.
+  each. Skip a row whose code is already taken (link::create's error message ends with "is already
+  taken"; never match the database's error text) instead of aborting the batch, but re-throw
+  anything else (a timeout, a worker that is down). Return the imported and skipped counts.
 - Create channel-client/import-links.js: a Node script that opens a channel and streams a small CSV
   of links to the importer. Take the CSV path as an OPTIONAL argument that defaults to test.csv, so
   `node channel-client/import-links.js` runs with no arguments.

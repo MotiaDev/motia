@@ -76,7 +76,7 @@ with a `TriggerAction`.
 **First import `TriggerAction`** into `link/src/index.ts`:
 
 ```typescript {1} src/index.ts
-import { registerWorker, TriggerAction } from "iii-sdk";
+import { InvocationError, registerWorker, TriggerAction } from "iii-sdk";
 import { Logger } from "@iii-dev/helpers/observability";
 ```
 
@@ -122,7 +122,8 @@ functionality yet, so we'll add that and an HTTP endpoint for it too.
 ### Publish on link.created
 
 Publish an event whenever a link is created. Inside `link::create`, after the database write and
-`state::set`, publish on the `link.created` topic:
+`state::set`, publish on the `link.created` topic. A taken code throws before it gets there, so it
+publishes nothing:
 
 ```typescript {3-6} src/index.ts
 worker.registerFunction("link::create", async (payload: { url: string; code?: string }) => {

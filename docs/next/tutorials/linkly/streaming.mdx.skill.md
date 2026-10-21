@@ -234,9 +234,9 @@ for n in $(seq 1 3); do
 done
 ```
 
-Running the loop again is fine: the links already exist, so `POST /links` answers `409` with a
-`UNIQUE constraint failed: links.code` message from the database, and each redirect still records a
-new click. Change the numbers in `seq` to create new links.
+Running the loop again is fine: the links already exist, so `POST /links` answers `409` with
+``{"error":"code `stream-1` is already taken"}``, and each redirect still records a new click.
+Change the numbers in `seq` to create new links.
 
 Each redirect shows up in the watcher as soon as its click row is written:
 
