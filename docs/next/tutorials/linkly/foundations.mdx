@@ -227,10 +227,12 @@ iii compose --up
 
 `worker-compose.yaml` declares `link` as a `path://` container, so Compose starts it with the rest
 of the project. On the Compose/engine output you will see the `link` worker register `link::create`
-and `link::resolve`. You can see engine logs by tailing the engine log file with:
+and `link::resolve`. You can see engine logs by tailing the engine log file. Compose keeps it inside
+the project, under `.iii/compose/<namespace>/engine.log`, and `iii compose --up` prints its exact
+path when it starts. From the project root:
 
 ```bash
-tail -30 $HOME/.iii/compose/default/engine.log
+tail -30 .iii/compose/default/engine.log
 ```
 
 The output will look something like this:
