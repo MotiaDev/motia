@@ -300,7 +300,8 @@ pub async fn update_binary(
                 spec.name,
                 &from_version_str,
                 &latest_version.to_string(),
-            );
+            )
+            .await;
             Ok(UpdateResult::Updated {
                 binary: spec.name.to_string(),
                 from: previous_version,
@@ -308,7 +309,7 @@ pub async fn update_binary(
             })
         }
         Err(e) => {
-            telemetry::send_cli_update_failed(spec.name, &from_version_str, &e.to_string());
+            telemetry::send_cli_update_failed(spec.name, &from_version_str, &e.to_string()).await;
             Err(UpdateError::Download(e))
         }
     }
@@ -411,7 +412,8 @@ pub async fn self_update(
                 spec.name,
                 &from_version_str,
                 &latest_version.to_string(),
-            );
+            )
+            .await;
             Ok(UpdateResult::Updated {
                 binary: spec.name.to_string(),
                 from: previous_version,
@@ -419,7 +421,7 @@ pub async fn self_update(
             })
         }
         Err(e) => {
-            telemetry::send_cli_update_failed(spec.name, &from_version_str, &e.to_string());
+            telemetry::send_cli_update_failed(spec.name, &from_version_str, &e.to_string()).await;
             Err(UpdateError::Download(e))
         }
     }

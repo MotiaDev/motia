@@ -140,21 +140,23 @@ async fn run_init(args: InitArgs) -> i32 {
     };
 
     if let Err(e) = std::fs::create_dir_all(&root) {
-        crate::cli::telemetry::send_project_init_failed("create_dir", &e.to_string());
-        return print_err(
+        let code = print_err(
             &format!("could not create {}", root.display()),
             &e.to_string(),
             "check parent directory permissions or pick a different --directory",
         );
+        crate::cli::telemetry::send_project_init_failed("create_dir", &e.to_string()).await;
+        return code;
     }
 
     if let Err(e) = check_directory_state(&root, args.allow_non_empty, "project.ini") {
-        crate::cli::telemetry::send_project_init_failed("non_empty_dir", &e);
-        return print_err(
+        let code = print_err(
             "target directory is not empty",
             &e,
             "pass --allow-non-empty to scaffold into an existing project, or pick a different directory",
         );
+        crate::cli::telemetry::send_project_init_failed("non_empty_dir", &e).await;
+        return code;
     }
 
     let device_id = iii::workers::telemetry::environment::get_or_create_device_id();
@@ -169,50 +171,54 @@ async fn run_init(args: InitArgs) -> i32 {
     let mut fetcher = match build_fetcher(args.template_dir.as_deref()) {
         Ok(f) => f,
         Err(e) => {
-            crate::cli::telemetry::send_project_init_failed("fetcher", &e.to_string());
-            return print_err(
+            let code = print_err(
                 "could not build template fetcher",
                 &e.to_string(),
                 "check III_TEMPLATE_URL or pass --template-dir <path>",
             );
+            crate::cli::telemetry::send_project_init_failed("fetcher", &e.to_string()).await;
+            return code;
         }
     };
 
     if let Err(e) = apply_template_idempotent(&mut fetcher, "bare", &root).await {
-        crate::cli::telemetry::send_project_init_failed("apply_bare", &e.to_string());
-        return print_err(
+        let code = print_err(
             "could not apply 'bare' template",
             &e.to_string(),
             "see template fetch error above",
         );
+        crate::cli::telemetry::send_project_init_failed("apply_bare", &e.to_string()).await;
+        return code;
     }
 
     let project_id = match persist_project_ini(&root, &project_name, "init", &device_id).await {
         Ok(id) => id,
         Err(e) => {
-            crate::cli::telemetry::send_project_init_failed("write_project_ini", &e.to_string());
-            return print_err(
+            let code = print_err(
                 "could not write .iii/project.ini",
                 &e.to_string(),
                 "check that the target directory is writable",
             );
+            crate::cli::telemetry::send_project_init_failed("write_project_ini", &e.to_string())
+                .await;
+            return code;
         }
     };
 
     if args.docker
         && let Err(e) = apply_docker(&mut fetcher, &root, &device_id).await
     {
-        crate::cli::telemetry::send_project_init_failed("apply_docker", &e.to_string());
-        return print_err(
+        let code = print_err(
             "could not apply 'docker' template",
             &e.to_string(),
             "remove existing Dockerfile/docker-compose.yml or check write permissions",
         );
+        crate::cli::telemetry::send_project_init_failed("apply_docker", &e.to_string()).await;
+        return code;
     }
 
-    crate::cli::telemetry::send_project_init_succeeded(args.docker, &project_id);
-
     print_init_success(&project_name, &root, target.is_some(), args.docker);
+    crate::cli::telemetry::send_project_init_succeeded(args.docker, &project_id).await;
     0
 }
 
@@ -254,12 +260,13 @@ async fn run_init_with_template(args: InitArgs) -> i32 {
     let _ = console::Term::stderr().show_cursor();
 
     if let Err(e) = result {
-        crate::cli::telemetry::send_project_init_failed("scaffolder", &e.to_string());
-        return print_err(
+        let code = print_err(
             "template scaffold failed",
             &e.to_string(),
             "see scaffolder output above",
         );
+        crate::cli::telemetry::send_project_init_failed("scaffolder", &e.to_string()).await;
+        return code;
     }
 
     let project_id_for_event = if let Some(root) = target_dir.as_ref() {
@@ -279,21 +286,25 @@ async fn run_init_with_template(args: InitArgs) -> i32 {
                 let mut fetcher = match build_fetcher(args.template_dir.as_deref()) {
                     Ok(f) => f,
                     Err(e) => {
-                        crate::cli::telemetry::send_project_init_failed("fetcher", &e.to_string());
-                        return print_err(
+                        let code = print_err(
                             "could not build template fetcher for docker assets",
                             &e.to_string(),
                             "check III_TEMPLATE_URL or pass --template-dir <path>",
                         );
+                        crate::cli::telemetry::send_project_init_failed("fetcher", &e.to_string())
+                            .await;
+                        return code;
                     }
                 };
                 if let Err(e) = apply_docker(&mut fetcher, root, &device_id).await {
-                    crate::cli::telemetry::send_project_init_failed("apply_docker", &e.to_string());
-                    return print_err(
+                    let code = print_err(
                         "could not apply 'docker' template",
                         &e.to_string(),
                         "remove existing Dockerfile/docker-compose.yml or check write permissions",
                     );
+                    crate::cli::telemetry::send_project_init_failed("apply_docker", &e.to_string())
+                        .await;
+                    return code;
                 }
             }
 
@@ -306,7 +317,7 @@ async fn run_init_with_template(args: InitArgs) -> i32 {
         String::new()
     };
 
-    crate::cli::telemetry::send_project_init_succeeded(args.docker, &project_id_for_event);
+    crate::cli::telemetry::send_project_init_succeeded(args.docker, &project_id_for_event).await;
     0
 }
 
