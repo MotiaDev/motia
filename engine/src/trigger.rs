@@ -621,11 +621,22 @@ impl TriggerRegistry {
         }
     }
 
+    fn current_assignment(&self, id: &str, state: &AssignmentSet) -> bool {
+        self.assignments
+            .get(id)
+            .is_some_and(|current| std::ptr::eq(current.value().as_ref(), state))
+    }
+
     fn publish_assignments(&self, trigger: &Trigger, state: &AssignmentSet) {
         let _park = self
             .park_transition
             .lock()
             .expect("park transition poisoned");
+        // A completed teardown may already have been followed by a new binding
+        // with the same public ID. Old completions must not touch that lifecycle.
+        if !self.current_assignment(&trigger.id, state) {
+            return;
+        }
         let active = !state.removed.load(std::sync::atomic::Ordering::SeqCst)
             && state
                 .copies
@@ -650,26 +661,47 @@ impl TriggerRegistry {
     }
 
     pub(crate) async fn replay_shared_assignments(&self, key: TypeKey) {
-        let mut bindings = self
-            .triggers
-            .iter()
-            .filter(|t| t.provider_key() == key)
-            .map(|t| t.value().clone())
-            .collect::<Vec<_>>();
-        bindings.extend(
-            self.pending_triggers
+        // Snapshot the lifecycle as well as the descriptor under the same lock
+        // used by final removal. A replay must never manufacture a new lifecycle.
+        let bindings = {
+            let _park = self
+                .park_transition
+                .lock()
+                .expect("park transition poisoned");
+            let mut bindings = self
+                .triggers
                 .iter()
-                .filter(|t| self.resolve_provider_key(t.value()).as_ref() == Some(&key))
-                .map(|t| {
-                    let mut trigger = t.value().clone();
-                    trigger.provider_namespace = key.0.clone();
-                    trigger
-                }),
-        );
+                .filter(|t| t.provider_key() == key)
+                .map(|t| t.value().clone())
+                .collect::<Vec<_>>();
+            bindings.extend(
+                self.pending_triggers
+                    .iter()
+                    .filter(|t| self.resolve_provider_key(t.value()).as_ref() == Some(&key))
+                    .map(|t| {
+                        let mut trigger = t.value().clone();
+                        trigger.provider_namespace = key.0.clone();
+                        trigger
+                    }),
+            );
+            bindings
+                .into_iter()
+                .map(|trigger| {
+                    // A previously unprovided pending intent gets its first assignment
+                    // lifecycle here, while final removal cannot race the claim.
+                    let state = self
+                        .assignments
+                        .entry(trigger.id.clone())
+                        .or_default()
+                        .clone();
+                    (trigger, state)
+                })
+                .collect::<Vec<_>>()
+        };
         futures::future::join_all(
             bindings
                 .into_iter()
-                .map(|trigger| self.install_assignments(trigger)),
+                .map(|(trigger, state)| self.install_assignment_lifecycle(trigger, state)),
         )
         .await;
     }
@@ -680,11 +712,21 @@ impl TriggerRegistry {
     ) -> Result<RegisterTriggerOutcome, anyhow::Error> {
         let state = self
             .assignments
-            .entry(trigger.id.clone())
-            .or_default()
-            .clone();
+            .get(&trigger.id)
+            .map(|state| state.value().clone())
+            .ok_or_else(|| anyhow::anyhow!("trigger lifecycle was removed"))?;
+        self.install_assignment_lifecycle(trigger, state).await
+    }
+
+    async fn install_assignment_lifecycle(
+        &self,
+        trigger: Trigger,
+        state: Arc<AssignmentSet>,
+    ) -> Result<RegisterTriggerOutcome, anyhow::Error> {
         let _operation = state.operation.lock().await;
-        if state.removed.load(std::sync::atomic::Ordering::SeqCst) {
+        if !self.current_assignment(&trigger.id, &state)
+            || state.removed.load(std::sync::atomic::Ordering::SeqCst)
+        {
             anyhow::bail!("trigger teardown pending");
         }
         // Keep cancellation/partial delivery reachable for last-subscriber teardown.
@@ -778,6 +820,9 @@ impl TriggerRegistry {
                 .park_transition
                 .lock()
                 .expect("park transition poisoned");
+            if !self.current_assignment(id, &state) {
+                return Ok(false);
+            }
             state
                 .removed
                 .store(true, std::sync::atomic::Ordering::SeqCst);
@@ -788,6 +833,9 @@ impl TriggerRegistry {
             }
         }
         let _operation = state.operation.lock().await;
+        if !self.current_assignment(id, &state) {
+            return Ok(false);
+        }
         let trigger = self
             .triggers
             .get(id)
@@ -795,7 +843,12 @@ impl TriggerRegistry {
             .or_else(|| self.pending_triggers.get(id).map(|t| t.value().clone()));
         let Some(trigger) = trigger else {
             if state.copies.lock().expect("copies poisoned").is_empty() {
-                self.assignments.remove(id);
+                let _park = self
+                    .park_transition
+                    .lock()
+                    .expect("park transition poisoned");
+                self.assignments
+                    .remove_if(id, |_, current| Arc::ptr_eq(current, &state));
                 return Ok(false);
             }
             anyhow::bail!("trigger teardown descriptor missing");
@@ -841,6 +894,9 @@ impl TriggerRegistry {
             .park_transition
             .lock()
             .expect("park transition poisoned");
+        if !self.current_assignment(id, &state) {
+            return Ok(false);
+        }
         self.triggers.remove(id);
         self.pending_triggers.remove(id);
         self.assignments.remove(id);
@@ -1103,18 +1159,19 @@ impl TriggerRegistry {
                     tracing::error!(%error, "Failed to remove last trigger subscriber");
                 }
             }
-            for entry in self.assignments.iter() {
+            let assignments = self
+                .assignments
+                .iter()
+                .map(|entry| (entry.key().clone(), entry.value().clone()))
+                .collect::<Vec<_>>();
+            for (id, state) in assignments {
                 let trigger = self
                     .triggers
-                    .get(entry.key())
+                    .get(&id)
                     .map(|t| t.value().clone())
-                    .or_else(|| {
-                        self.pending_triggers
-                            .get(entry.key())
-                            .map(|t| t.value().clone())
-                    });
+                    .or_else(|| self.pending_triggers.get(&id).map(|t| t.value().clone()));
                 if let Some(trigger) = trigger {
-                    self.publish_assignments(&trigger, entry.value());
+                    self.publish_assignments(&trigger, &state);
                 }
             }
             let orphaned: Vec<Trigger> = self
@@ -1402,8 +1459,20 @@ impl TriggerRegistry {
         if self.shared()
             && trigger_type.delivery_contract == Some(TriggerDeliveryContract::SharedV1)
         {
+            // The caller owns a freshly claimed pending intent. Production's
+            // concurrent shared_v1 claim carries its Arc directly to install.
+            let state = {
+                let _park = self
+                    .park_transition
+                    .lock()
+                    .expect("park transition poisoned");
+                self.assignments
+                    .entry(trigger.id.clone())
+                    .or_default()
+                    .clone()
+            };
             return matches!(
-                self.install_assignments(trigger).await,
+                self.install_assignment_lifecycle(trigger, state).await,
                 Ok(RegisterTriggerOutcome::Registered)
             );
         }
@@ -1571,7 +1640,6 @@ impl TriggerRegistry {
             trigger.provider_namespace = key.0.clone();
         }
         let trigger = trigger;
-
         let Some(trigger_type) = resolved.as_ref().and_then(|key| {
             self.trigger_types
                 .get(key)
@@ -1581,8 +1649,14 @@ impl TriggerRegistry {
             // order, and a binding that arrives before its trigger type's
             // provider must survive until the provider shows up.
             tracing::warn!("{}", Self::pending_trigger_warning(&trigger));
-            self.pending_triggers
-                .insert(trigger.id.clone(), trigger.clone());
+            {
+                let _park = self
+                    .park_transition
+                    .lock()
+                    .expect("park transition poisoned");
+                self.pending_triggers
+                    .insert(trigger.id.clone(), trigger.clone());
+            }
 
             // Close the park/drain race: if the type registered between the
             // lookup above and the park, its pending drain may have already
@@ -1595,10 +1669,40 @@ impl TriggerRegistry {
                     .trigger_types
                     .get(&key)
                     .map(|entry| entry.value().clone())
-                && let Some((_, mut parked)) = self.pending_triggers.remove(&trigger.id)
             {
-                parked.provider_namespace = key.0.clone();
-                if self.activate_pending_trigger(&trigger_type, parked).await {
+                let claimed = {
+                    let _park = self
+                        .park_transition
+                        .lock()
+                        .expect("park transition poisoned");
+                    self.pending_triggers
+                        .remove(&trigger.id)
+                        .map(|(_, mut parked)| {
+                            parked.provider_namespace = key.0.clone();
+                            let state = (self.shared()
+                                && trigger_type.delivery_contract
+                                    == Some(TriggerDeliveryContract::SharedV1))
+                            .then(|| {
+                                self.assignments
+                                    .entry(trigger.id.clone())
+                                    .or_default()
+                                    .clone()
+                            });
+                            (parked, state)
+                        })
+                };
+                let Some((parked, state)) = claimed else {
+                    return Ok(RegisterTriggerOutcome::Deferred);
+                };
+                let activated = if let Some(state) = state {
+                    matches!(
+                        self.install_assignment_lifecycle(parked, state).await,
+                        Ok(RegisterTriggerOutcome::Registered)
+                    )
+                } else {
+                    self.activate_pending_trigger(&trigger_type, parked).await
+                };
+                if activated {
                     return Ok(RegisterTriggerOutcome::Registered);
                 }
             }
@@ -1609,7 +1713,19 @@ impl TriggerRegistry {
         if self.shared()
             && trigger_type.delivery_contract == Some(TriggerDeliveryContract::SharedV1)
         {
-            return self.install_assignments(trigger).await;
+            // Only an explicit registration or a locked pending-intent claim
+            // creates a lifecycle; replay carries an existing Arc instead.
+            let state = {
+                let _park = self
+                    .park_transition
+                    .lock()
+                    .expect("park transition poisoned");
+                self.assignments
+                    .entry(trigger.id.clone())
+                    .or_default()
+                    .clone()
+            };
+            return self.install_assignment_lifecycle(trigger, state).await;
         }
         if let Err(err) = trigger_type
             .registrator
@@ -2042,6 +2158,138 @@ mod tests {
             assert!(registry.subscriber_aliases(&canonical).is_empty());
             assert_eq!(provider.stops.load(Ordering::SeqCst), 2);
         }
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_parallel_stale_lifecycle_cannot_damage_reregistered_id() {
+        let registry = TriggerRegistry::new();
+        registry.set_shared_namespace_ownership(true);
+        let provider = assignment_fixture(&registry).await;
+        let mut binding = assignment_binding();
+        binding.worker_id = None; // Durable bindings intentionally reuse public IDs.
+        registry.register_trigger(binding.clone()).await.unwrap();
+        let old_trigger = registry.triggers.get(&binding.id).unwrap().value().clone();
+        let old = registry
+            .assignments
+            .get(&binding.id)
+            .unwrap()
+            .value()
+            .clone();
+        let guard = old.operation.lock().await;
+        let first = registry.revoke_assignments(&binding.id, old.clone());
+        let stale = registry.revoke_assignments(&binding.id, old.clone());
+        tokio::pin!(first, stale);
+        assert!(futures::poll!(&mut first).is_pending());
+        assert!(futures::poll!(&mut stale).is_pending());
+        drop(guard);
+        assert!(first.await.unwrap());
+        assert_eq!(
+            registry.register_trigger(binding.clone()).await.unwrap(),
+            RegisterTriggerOutcome::Registered
+        );
+        let current = registry
+            .assignments
+            .get(&binding.id)
+            .unwrap()
+            .value()
+            .clone();
+        assert!(!Arc::ptr_eq(&old, &current));
+        assert!(
+            !stale.await.unwrap(),
+            "queued stale teardown must not stop the replacement"
+        );
+        assert!(
+            !registry
+                .revoke_assignments(&binding.id, old.clone())
+                .await
+                .unwrap()
+        );
+        assert!(
+            registry
+                .install_assignment_lifecycle(old_trigger.clone(), old.clone())
+                .await
+                .is_err()
+        );
+        registry.publish_assignments(&old_trigger, &old);
+        assert!(registry.current_assignment(&binding.id, &current));
+        assert!(registry.triggers.contains_key(&binding.id));
+        assert!(!registry.pending_triggers.contains_key(&binding.id));
+        assert_eq!(provider.installs.load(Ordering::SeqCst), 2);
+        assert_eq!(provider.stops.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            current
+                .copies
+                .lock()
+                .unwrap()
+                .values()
+                .filter(|copy| copy.2)
+                .count(),
+            1
+        );
+        assert!(
+            registry
+                .unregister_trigger(binding.id.clone(), None)
+                .await
+                .unwrap()
+        );
+        assert_eq!(provider.stops.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_parallel_stale_replay_after_final_subscriber_removal() {
+        let registry = TriggerRegistry::new();
+        registry.set_shared_namespace_ownership(true);
+        let a = assignment_fixture(&registry).await;
+        let b = assignment_fixture(&registry).await;
+        let binding = assignment_binding();
+        assert_eq!(
+            registry.register_trigger(binding.clone()).await.unwrap(),
+            RegisterTriggerOutcome::Registered
+        );
+        let canonical = registry.subscriptions.lock().unwrap().aliases
+            [&(binding.worker_id.unwrap(), binding.id.clone())]
+            .clone();
+
+        // Pause replay at its snapshot/install boundary, before it acquires an
+        // AssignmentSet. No task scheduling or timeout determines this ordering.
+        let stale_replay = registry.triggers.get(&canonical).unwrap().value().clone();
+        assert_eq!(a.installs.load(Ordering::SeqCst), 1);
+        assert_eq!(b.installs.load(Ordering::SeqCst), 1);
+        assert!(
+            registry
+                .unregister_subscriber(binding.worker_id.unwrap(), binding.id.clone(), None)
+                .await
+                .unwrap()
+        );
+        assert!(registry.subscriber_aliases(&canonical).is_empty());
+        assert!(
+            !registry
+                .subscriptions
+                .lock()
+                .unwrap()
+                .intents
+                .contains_key(&canonical)
+        );
+        assert!(!registry.triggers.contains_key(&canonical));
+        assert!(!registry.pending_triggers.contains_key(&canonical));
+        assert_eq!(a.stops.load(Ordering::SeqCst), 1);
+        assert_eq!(b.stops.load(Ordering::SeqCst), 1);
+
+        // Resume exactly the helper called by replay_shared_assignments. Final
+        // teardown has completed, so an old state's tombstone alone cannot fence
+        // a replacement AssignmentSet created from this stale logical binding.
+        let _ = registry.install_assignments(stale_replay).await;
+        assert_eq!(
+            (
+                a.installs.load(Ordering::SeqCst),
+                b.installs.load(Ordering::SeqCst),
+                registry.triggers.contains_key(&canonical),
+                registry.pending_triggers.contains_key(&canonical),
+            ),
+            (1, 1, false, false),
+            "stale replay must not reinstall or republish a removed logical binding"
+        );
+        assert!(registry.subscriber_aliases(&canonical).is_empty());
     }
 
     #[tokio::test]
