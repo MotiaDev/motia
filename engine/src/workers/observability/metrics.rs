@@ -458,6 +458,12 @@ impl MetricsAccumulator {
     /// Adds `count` invocations of `function_id` at once (local invocations
     /// an SDK reports in `localinvocationstats`).
     pub fn add_function_invocations(&self, function_id: &str, count: u64) {
+        if let Some(mut total) = self.invocations_by_function.get_mut(function_id) {
+            *total = total.saturating_add(count);
+            return;
+        }
+
+        // Another invocation may insert the function after the lookup misses.
         self.invocations_by_function
             .entry(function_id.to_string())
             .and_modify(|total| *total = total.saturating_add(count))
@@ -2644,6 +2650,34 @@ mod tests {
         acc.increment_function("myFunc");
 
         assert_eq!(acc.get_function_count("myFunc"), Some(3));
+    }
+
+    #[test]
+    fn test_accumulator_concurrent_first_and_repeated_increments() {
+        const THREADS: usize = 4;
+        const FUNCTIONS: usize = 32;
+        const INCREMENTS: u64 = 64;
+        let acc = MetricsAccumulator::default();
+        let barrier = std::sync::Barrier::new(THREADS);
+
+        std::thread::scope(|scope| {
+            for _ in 0..THREADS {
+                scope.spawn(|| {
+                    for index in 0..FUNCTIONS {
+                        let function_id = format!("concurrent::{index}");
+                        barrier.wait();
+                        for _ in 0..INCREMENTS {
+                            acc.increment_function(&function_id);
+                        }
+                    }
+                });
+            }
+        });
+
+        let expected: std::collections::HashMap<_, _> = (0..FUNCTIONS)
+            .map(|index| (format!("concurrent::{index}"), THREADS as u64 * INCREMENTS))
+            .collect();
+        assert_eq!(acc.get_by_function(), expected);
     }
 
     #[test]

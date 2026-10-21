@@ -4,10 +4,13 @@
 // This software is patent protected. We welcome discussions - reach out at team@iii.dev
 // See LICENSE and PATENTS files for details.
 
-use std::{pin::Pin, sync::Arc};
+use std::{collections::HashMap, ops::Deref, pin::Pin, sync::Arc};
 
 use colored::Colorize;
-use dashmap::DashMap;
+use dashmap::{
+    DashMap,
+    mapref::{multiple::RefMulti, one::Ref},
+};
 use futures::Future;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -323,11 +326,156 @@ impl std::hash::Hash for Trigger {
     }
 }
 
+/// A read-only trigger entry that keeps its registry shard locked.
+pub struct TriggerRef<'a>(Ref<'a, String, Arc<Trigger>>);
+
+impl TriggerRef<'_> {
+    pub fn key(&self) -> &String {
+        self.0.key()
+    }
+
+    pub fn value(&self) -> &Trigger {
+        self.0.value().as_ref()
+    }
+}
+
+impl Deref for TriggerRef<'_> {
+    type Target = Trigger;
+
+    fn deref(&self) -> &Self::Target {
+        self.value()
+    }
+}
+
+/// A read-only trigger entry returned by registry iteration.
+pub struct TriggerIterRef<'a>(RefMulti<'a, String, Arc<Trigger>>);
+
+impl TriggerIterRef<'_> {
+    pub fn key(&self) -> &String {
+        self.0.key()
+    }
+
+    pub fn value(&self) -> &Trigger {
+        self.0.value().as_ref()
+    }
+}
+
+impl Deref for TriggerIterRef<'_> {
+    type Target = Trigger;
+
+    fn deref(&self) -> &Self::Target {
+        self.value()
+    }
+}
+
+/// Live triggers with an index for dispatch by trigger type.
+///
+/// Both maps share each immutable trigger, including its JSON metadata.
+/// All writes hold the id's shard lock while updating the type index, so a
+/// concurrent replacement or removal cannot leave an old destination indexed.
+/// The id map is private and exposes no mutable references. Dispatch reads only
+/// the type index and releases its guard before calling a handler.
+#[derive(Default)]
+pub struct TriggerStore {
+    by_id: DashMap<String, Arc<Trigger>>,
+    by_type: DashMap<String, HashMap<String, Arc<Trigger>>>,
+}
+
+impl TriggerStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn len(&self) -> usize {
+        self.by_id.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.by_id.is_empty()
+    }
+
+    pub fn contains_key(&self, id: &str) -> bool {
+        self.by_id.contains_key(id)
+    }
+
+    pub fn get(&self, id: &str) -> Option<TriggerRef<'_>> {
+        // Keep DashMap's original guard so this read handle remains Send.
+        self.by_id.get(id).map(TriggerRef)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = TriggerIterRef<'_>> {
+        self.by_id.iter().map(TriggerIterRef)
+    }
+
+    pub fn insert(&self, id: String, trigger: Trigger) -> Option<Trigger> {
+        use dashmap::mapref::entry::Entry;
+
+        let trigger = Arc::new(trigger);
+        match self.by_id.entry(id) {
+            Entry::Occupied(mut entry) => {
+                if entry.get().trigger_type != trigger.trigger_type {
+                    self.remove_target(entry.key(), &entry.get().trigger_type);
+                }
+                self.insert_target(entry.key(), &trigger);
+                Some(Arc::unwrap_or_clone(entry.insert(trigger)))
+            }
+            Entry::Vacant(entry) => {
+                self.insert_target(entry.key(), &trigger);
+                entry.insert(trigger);
+                None
+            }
+        }
+    }
+
+    pub fn remove(&self, id: &str) -> Option<(String, Trigger)> {
+        self.remove_if(id, |_, _| true)
+    }
+
+    pub fn remove_if(
+        &self,
+        id: &str,
+        predicate: impl FnOnce(&String, &Trigger) -> bool,
+    ) -> Option<(String, Trigger)> {
+        self.by_id
+            .remove_if(id, |key, trigger| {
+                if !predicate(key, trigger) {
+                    return false;
+                }
+                self.remove_target(key, &trigger.trigger_type);
+                true
+            })
+            .map(|(id, trigger)| (id, Arc::unwrap_or_clone(trigger)))
+    }
+
+    pub(crate) fn targets_for_type(&self, trigger_type: &str) -> Vec<Arc<Trigger>> {
+        self.by_type
+            .get(trigger_type)
+            .map(|targets| targets.values().map(Arc::clone).collect())
+            .unwrap_or_default()
+    }
+
+    fn insert_target(&self, id: &str, trigger: &Arc<Trigger>) {
+        self.by_type
+            .entry(trigger.trigger_type.clone())
+            .or_default()
+            .insert(id.to_string(), Arc::clone(trigger));
+    }
+
+    fn remove_target(&self, id: &str, trigger_type: &str) {
+        // Remove an empty bucket under the same lock as its last entry, so an
+        // insertion into that type cannot be lost between the two operations.
+        self.by_type.remove_if_mut(trigger_type, |_, targets| {
+            targets.remove(id);
+            targets.is_empty()
+        });
+    }
+}
+
 #[derive(Default)]
 pub struct TriggerRegistry {
     /// Providers, by `(namespace, type id)`.
     pub trigger_types: Arc<DashMap<TypeKey, TriggerType>>,
-    pub triggers: Arc<DashMap<String, Trigger>>,
+    pub triggers: Arc<TriggerStore>,
     /// Registration intents whose trigger type is not currently available or
     /// whose activation did not complete: the type never registered, its
     /// provider worker disconnected, the bind could not be delivered, or the
@@ -370,7 +518,7 @@ impl TriggerRegistry {
     pub fn new() -> Self {
         Self {
             trigger_types: Arc::new(DashMap::new()),
-            triggers: Arc::new(DashMap::new()),
+            triggers: Arc::new(TriggerStore::new()),
             pending_triggers: Arc::new(DashMap::new()),
             park_transition: std::sync::Mutex::new(()),
             failing_over: DashMap::new(),
@@ -1378,6 +1526,332 @@ mod tests {
             home_namespace: crate::protocol::default_namespace(),
             provider_namespace: crate::protocol::default_namespace(),
         }
+    }
+
+    fn target_fields(targets: Vec<Arc<Trigger>>) -> Vec<(String, String, Option<Value>)> {
+        targets
+            .iter()
+            .map(|trigger| {
+                (
+                    trigger.function_id.clone(),
+                    trigger.namespace.clone(),
+                    trigger.metadata.clone(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn trigger_store_replacement_updates_type_namespace_and_metadata() {
+        let store = TriggerStore::new();
+        store.insert("other".into(), make_trigger("other", "unrelated"));
+        store.insert("binding".into(), make_trigger("binding", "first"));
+
+        let mut replacement = make_trigger("binding", "first");
+        replacement.namespace = "billing".into();
+        replacement.function_id = "orders::changed".into();
+        replacement.metadata = Some(serde_json::json!({ "revision": 2 }));
+        store.insert(replacement.id.clone(), replacement.clone());
+        let expected = vec![(
+            replacement.function_id.clone(),
+            replacement.namespace.clone(),
+            replacement.metadata.clone(),
+        )];
+        assert_eq!(target_fields(store.targets_for_type("first")), expected);
+
+        replacement.trigger_type = "second".into();
+        store.insert(replacement.id.clone(), replacement);
+        assert!(store.targets_for_type("first").is_empty());
+        assert_eq!(target_fields(store.targets_for_type("second")), expected);
+        assert_eq!(store.targets_for_type("unrelated").len(), 1);
+
+        store.remove("binding");
+        assert!(store.targets_for_type("second").is_empty());
+        assert_eq!(store.targets_for_type("unrelated").len(), 1);
+    }
+
+    #[test]
+    fn trigger_store_shares_metadata_and_moves_it_out_on_removal() {
+        let store = TriggerStore::new();
+        let mut trigger = make_trigger("binding", "event");
+        trigger.metadata = Some(serde_json::json!({ "payload": "x".repeat(4096) }));
+        let payload_pointer = trigger.metadata.as_ref().unwrap()["payload"]
+            .as_str()
+            .unwrap()
+            .as_ptr();
+        store.insert(trigger.id.clone(), trigger);
+
+        let weak = {
+            let by_id = store.by_id.get("binding").unwrap();
+            let by_type = store.by_type.get("event").unwrap();
+            assert!(Arc::ptr_eq(by_id.value(), &by_type["binding"]));
+            Arc::downgrade(by_id.value())
+        };
+        {
+            let entry = store.iter().next().unwrap();
+            assert_eq!(entry.key(), "binding");
+            assert_eq!(
+                entry.value().metadata.as_ref().unwrap()["payload"]
+                    .as_str()
+                    .unwrap()
+                    .as_ptr(),
+                payload_pointer,
+            );
+        }
+
+        let (_, removed) = store.remove("binding").unwrap();
+        assert_eq!(
+            removed.metadata.as_ref().unwrap()["payload"]
+                .as_str()
+                .unwrap()
+                .as_ptr(),
+            payload_pointer,
+            "removal must return the original metadata allocation",
+        );
+        assert!(weak.upgrade().is_none());
+        assert!(store.targets_for_type("event").is_empty());
+    }
+
+    #[test]
+    fn trigger_store_replacement_releases_the_previous_index_owner() {
+        let store = TriggerStore::new();
+        store.insert("binding".into(), make_trigger("binding", "event"));
+
+        // Cover replacement both within a type and across types.
+        for trigger_type in ["event", "other"] {
+            let previous = {
+                let entry = store.by_id.get("binding").unwrap();
+                Arc::downgrade(entry.value())
+            };
+            let replacement = make_trigger("binding", trigger_type);
+            let removed = store.insert("binding".into(), replacement).unwrap();
+            assert_eq!(removed.id, "binding");
+            assert!(
+                previous.upgrade().is_none(),
+                "the type index must release the replaced trigger",
+            );
+            assert_eq!(store.targets_for_type(trigger_type).len(), 1);
+        }
+        assert!(store.targets_for_type("event").is_empty());
+    }
+
+    #[test]
+    fn trigger_dispatch_snapshot_survives_replacement_and_removal() {
+        let store = TriggerStore::new();
+        let mut trigger = make_trigger("binding", "event");
+        trigger.namespace = "orders".into();
+        trigger.metadata = Some(serde_json::json!({ "revision": 1 }));
+        store.insert(trigger.id.clone(), trigger);
+
+        let snapshot = store.targets_for_type("event");
+        assert_eq!(snapshot.len(), 1);
+        assert!(Arc::ptr_eq(
+            &snapshot[0],
+            store.by_id.get("binding").unwrap().value(),
+        ));
+        let previous = Arc::downgrade(&snapshot[0]);
+
+        let mut replacement = make_trigger("binding", "other");
+        replacement.namespace = "billing".into();
+        replacement.metadata = Some(serde_json::json!({ "revision": 2 }));
+        store.insert(replacement.id.clone(), replacement);
+        store.remove("binding");
+
+        assert!(store.is_empty());
+        assert!(store.targets_for_type("event").is_empty());
+        assert!(store.targets_for_type("other").is_empty());
+        assert_eq!(snapshot[0].function_id, "fn_binding");
+        assert_eq!(snapshot[0].namespace, "orders");
+        assert_eq!(
+            snapshot[0].metadata,
+            Some(serde_json::json!({ "revision": 1 }))
+        );
+        drop(snapshot);
+        assert!(previous.upgrade().is_none());
+    }
+
+    #[test]
+    fn trigger_dispatch_snapshot_keeps_members_during_same_type_updates() {
+        let store = TriggerStore::new();
+        store.insert("first".into(), make_trigger("first", "event"));
+        store.insert("second".into(), make_trigger("second", "event"));
+        let snapshot = store.targets_for_type("event");
+        let previous = Arc::downgrade(
+            snapshot
+                .iter()
+                .find(|trigger| trigger.id == "first")
+                .unwrap(),
+        );
+
+        store.insert("third".into(), make_trigger("third", "event"));
+        store.remove("first");
+
+        let current = store.targets_for_type("event");
+        assert_eq!(snapshot.len(), 2);
+        assert!(snapshot.iter().any(|trigger| trigger.id == "first"));
+        assert!(!snapshot.iter().any(|trigger| trigger.id == "third"));
+        assert_eq!(current.len(), 2);
+        assert!(!current.iter().any(|trigger| trigger.id == "first"));
+        assert!(current.iter().any(|trigger| trigger.id == "third"));
+        assert!(Arc::ptr_eq(
+            snapshot
+                .iter()
+                .find(|trigger| trigger.id == "second")
+                .unwrap(),
+            current
+                .iter()
+                .find(|trigger| trigger.id == "second")
+                .unwrap(),
+        ));
+        drop(snapshot);
+        assert!(previous.upgrade().is_none());
+    }
+
+    #[test]
+    fn trigger_store_stale_owner_cleanup_keeps_replacement_indexed() {
+        let store = TriggerStore::new();
+        let previous_owner = Uuid::new_v4();
+        let owner = Uuid::new_v4();
+        let mut trigger = make_trigger("binding", "event");
+        trigger.worker_id = Some(previous_owner);
+        store.insert(trigger.id.clone(), trigger.clone());
+        trigger.worker_id = Some(owner);
+        store.insert(trigger.id.clone(), trigger);
+
+        assert!(
+            store
+                .remove_if("binding", |_, t| t.worker_id == Some(previous_owner))
+                .is_none()
+        );
+        assert_eq!(store.targets_for_type("event").len(), 1);
+        assert!(
+            store
+                .remove_if("binding", |_, t| t.worker_id == Some(owner))
+                .is_some()
+        );
+        assert!(store.targets_for_type("event").is_empty());
+    }
+
+    #[test]
+    fn trigger_store_concurrent_replacement_and_removal_leave_no_stale_targets() {
+        let store = TriggerStore::new();
+        let barrier = std::sync::Barrier::new(2);
+        std::thread::scope(|scope| {
+            for offset in 0..2 {
+                let store = &store;
+                let barrier = &barrier;
+                scope.spawn(move || {
+                    barrier.wait();
+                    for index in 0..128 {
+                        let trigger_type = if (index + offset) % 2 == 0 {
+                            "first"
+                        } else {
+                            "second"
+                        };
+                        store.insert("binding".into(), make_trigger("binding", trigger_type));
+                        if index % 3 == 0 {
+                            store.remove("binding");
+                        }
+                    }
+                });
+            }
+        });
+        store.remove("binding");
+        assert!(store.is_empty());
+        assert!(store.targets_for_type("first").is_empty());
+        assert!(store.targets_for_type("second").is_empty());
+    }
+
+    #[tokio::test]
+    async fn trigger_index_tracks_pending_rehome_failover_and_unregister() {
+        let registry = TriggerRegistry::new();
+        let fallback_worker = Uuid::new_v4();
+        let home_worker = Uuid::new_v4();
+        let mut trigger = resolved_trigger("binding", "event", "shop");
+        trigger.namespace = "billing".into();
+        trigger.metadata = Some(serde_json::json!({ "source": "shop" }));
+        let expected = vec![(
+            trigger.function_id.clone(),
+            trigger.namespace.clone(),
+            trigger.metadata.clone(),
+        )];
+
+        registry.register_trigger(trigger).await.unwrap();
+        assert!(registry.triggers.targets_for_type("event").is_empty());
+
+        let mut fallback = make_trigger_type_ns(DEFAULT_NAMESPACE, "event");
+        fallback.worker_id = Some(fallback_worker);
+        registry.register_trigger_type(fallback).await.unwrap();
+        assert_eq!(
+            target_fields(registry.triggers.targets_for_type("event")),
+            expected
+        );
+
+        let mut home = make_trigger_type_ns("shop", "event");
+        home.worker_id = Some(home_worker);
+        registry.register_trigger_type(home).await.unwrap();
+        assert_eq!(
+            target_fields(registry.triggers.targets_for_type("event")),
+            expected
+        );
+        assert_eq!(
+            registry.triggers.get("binding").unwrap().provider_namespace,
+            "shop"
+        );
+
+        registry.unregister_worker(&home_worker).await;
+        assert_eq!(
+            target_fields(registry.triggers.targets_for_type("event")),
+            expected
+        );
+        assert_eq!(
+            registry.triggers.get("binding").unwrap().provider_namespace,
+            DEFAULT_NAMESPACE
+        );
+
+        registry.unregister_worker(&fallback_worker).await;
+        assert!(registry.triggers.targets_for_type("event").is_empty());
+        assert!(registry.pending_triggers.contains_key("binding"));
+
+        registry
+            .register_trigger_type(make_trigger_type_ns(DEFAULT_NAMESPACE, "event"))
+            .await
+            .unwrap();
+        assert_eq!(
+            target_fields(registry.triggers.targets_for_type("event")),
+            expected
+        );
+        registry
+            .unregister_trigger("binding".into(), None)
+            .await
+            .unwrap();
+        assert!(registry.triggers.targets_for_type("event").is_empty());
+    }
+
+    #[tokio::test]
+    async fn trigger_index_excludes_rejected_bindings_until_provider_replacement() {
+        let registry = TriggerRegistry::new();
+        let worker = Uuid::new_v4();
+        let mut provider = make_trigger_type_ns(DEFAULT_NAMESPACE, "event");
+        provider.worker_id = Some(worker);
+        registry.register_trigger_type(provider).await.unwrap();
+        registry
+            .register_trigger(make_trigger("binding", "event"))
+            .await
+            .unwrap();
+
+        registry.park_rejected_trigger("binding", worker).await;
+        assert!(registry.triggers.targets_for_type("event").is_empty());
+        assert!(registry.pending_triggers.contains_key("binding"));
+
+        registry
+            .register_trigger_type(make_trigger_type_ns(DEFAULT_NAMESPACE, "event"))
+            .await
+            .unwrap();
+        assert_eq!(
+            target_fields(registry.triggers.targets_for_type("event")),
+            vec![("fn_binding".into(), DEFAULT_NAMESPACE.into(), None)]
+        );
     }
 
     /// A binding as a worker at `home` would register it: the provider is

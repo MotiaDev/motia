@@ -2,7 +2,7 @@ mod common;
 
 use std::{net::TcpListener as StdTcpListener, time::Duration};
 
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use futures_util::{SinkExt, StreamExt, stream::SplitSink, stream::SplitStream};
 use iii::{EngineBuilder, protocol::Message, protocol::TriggerAction};
 use serde_json::json;
@@ -374,6 +374,26 @@ fn ws_roundtrip_benchmark(c: &mut Criterion) {
             ));
         });
     });
+
+    let mut group = c.benchmark_group("ws_roundtrip_payload_sizes");
+    for (label, size) in common::payload_sizes().into_iter().take(3) {
+        let payload = common::sized_payload(size);
+        group.throughput(Throughput::Bytes(size as u64));
+        group.bench_with_input(
+            BenchmarkId::from_parameter(label),
+            &payload,
+            |b, payload| {
+                b.iter(|| {
+                    rt.block_on(invoke_and_wait(
+                        &mut writer.borrow_mut(),
+                        &mut reader.borrow_mut(),
+                        payload,
+                    ));
+                });
+            },
+        );
+    }
+    group.finish();
 
     rt.block_on(runtime.shutdown());
 }

@@ -6,7 +6,6 @@
 
 use std::{collections::HashMap, pin::Pin, sync::Arc};
 
-use dashmap::DashMap;
 use function_macros::{function, service};
 use futures::Future;
 use schemars::JsonSchema;
@@ -17,7 +16,9 @@ use crate::{
     engine::{Engine, EngineTrait, Handler, RegisterFunctionRequest, SessionHandler},
     function::FunctionResult,
     protocol::{ErrorBody, StreamChannelRef, WorkerMetrics},
-    trigger::{Trigger, TriggerRegistrator, TriggerType, known_trigger_type_provider},
+    trigger::{
+        Trigger, TriggerRegistrator, TriggerStore, TriggerType, known_trigger_type_provider,
+    },
     worker_connections::{RuntimeWorkerInfo, WorkerConnection, WorkerConnectionTelemetryMeta},
     workers::traits::Worker,
     workers::worker::rbac_session::Session,
@@ -606,35 +607,22 @@ pub struct UnregisterTriggerResult {
 #[derive(Clone)]
 pub struct EngineFunctionsWorker {
     engine: Arc<Engine>,
-    triggers: Arc<DashMap<String, Trigger>>,
+    triggers: Arc<TriggerStore>,
 }
 
 impl EngineFunctionsWorker {
     pub fn new(engine: Arc<Engine>) -> Self {
         Self {
             engine,
-            triggers: Arc::new(DashMap::new()),
+            triggers: Arc::new(TriggerStore::new()),
         }
     }
 
     pub async fn fire_triggers(&self, trigger_type: &str, mut data: Value) {
-        let triggers_to_fire: Vec<_> = self
-            .triggers
-            .iter()
-            .filter(|entry| entry.value().trigger_type == trigger_type)
-            .map(|entry| {
-                let trigger = entry.value();
-                (
-                    trigger.function_id.clone(),
-                    trigger.namespace.clone(),
-                    trigger.metadata.clone(),
-                )
-            })
-            .collect();
+        let triggers_to_fire = self.triggers.targets_for_type(trigger_type);
 
         let trigger_count = triggers_to_fire.len();
-        for (index, (function_id, namespace, metadata)) in triggers_to_fire.into_iter().enumerate()
-        {
+        for (index, trigger) in triggers_to_fire.into_iter().enumerate() {
             let engine = self.engine.clone();
             let data = if index + 1 == trigger_count {
                 data.take()
@@ -642,9 +630,7 @@ impl EngineFunctionsWorker {
                 data.clone()
             };
             tokio::spawn(async move {
-                let _ = engine
-                    .call_value_with_metadata_ns(&namespace, &function_id, data, metadata)
-                    .await;
+                let _ = engine.call_trigger(trigger, data).await;
             });
         }
     }
@@ -1747,7 +1733,7 @@ impl Worker for EngineFunctionsWorker {
     ) -> anyhow::Result<Box<dyn Worker>> {
         Ok(Box::new(EngineFunctionsWorker {
             engine,
-            triggers: Arc::new(DashMap::new()),
+            triggers: Arc::new(TriggerStore::new()),
         }))
     }
 
