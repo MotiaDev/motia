@@ -191,6 +191,7 @@ fn isolated_config_entry() -> (iii::workers::config::WorkerEntry, tempfile::Temp
 fn minimal_config_for_builder_tests() -> (iii::workers::config::EngineConfig, tempfile::TempDir) {
     let (config_entry, config_dir) = isolated_config_entry();
     let config = iii::workers::config::EngineConfig {
+        shared_namespace_ownership: false,
         registration_namespace_grace_ms: 5000,
         modules: Vec::new(),
         workers: vec![
@@ -267,6 +268,7 @@ async fn serve_returns_on_sigterm() {
     // running in parallel.
     let (config_entry, _config_dir) = isolated_config_entry();
     let config = EngineConfig {
+        shared_namespace_ownership: false,
         registration_namespace_grace_ms: 5000,
         modules: Vec::new(),
         workers: vec![
