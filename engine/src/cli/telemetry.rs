@@ -99,7 +99,7 @@ fn send_fire_and_forget(event: ProductEvent) {
 }
 
 /// How long an awaited report may hold the command that is sending it.
-const REPORT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
+const REPORT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 
 /// Lets `iii-compose` report through the same CLI path as every other
 /// command.
@@ -329,7 +329,12 @@ mod tests {
     }
 
     /// Generous slack over the bound, for a slow machine.
-    const RELEASED_WITHIN: std::time::Duration = std::time::Duration::from_secs(3);
+    const RELEASED_WITHIN: std::time::Duration = std::time::Duration::from_secs(4);
+
+    #[test]
+    fn an_awaited_report_may_hold_the_command_for_three_seconds() {
+        assert_eq!(REPORT_TIMEOUT, std::time::Duration::from_secs(3));
+    }
 
     #[tokio::test]
     #[serial]

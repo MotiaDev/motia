@@ -535,6 +535,10 @@ fn check_runtimes(
     }
 }
 
+/// How long `create_project` waits for its `project_created` send before the
+/// command moves on. Matches the engine CLI's `REPORT_TIMEOUT`.
+const CREATED_EVENT_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
+
 async fn create_project(
     product_name: &'static str,
     cli_version: &str,
@@ -601,9 +605,9 @@ async fn create_project(
         }
     }
 
-    // Best-effort flush: wait up to 2s for telemetry to complete, then move on
+    // Best-effort flush: wait up to CREATED_EVENT_WAIT for telemetry to complete, then move on
     if let Some(handle) = created_handle {
-        let _ = tokio::time::timeout(std::time::Duration::from_secs(2), handle).await;
+        let _ = tokio::time::timeout(CREATED_EVENT_WAIT, handle).await;
     }
 
     Ok(())
@@ -636,4 +640,14 @@ fn print_next_steps(
     cliclack::outro("Happy coding!")?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn project_created_may_hold_the_command_for_three_seconds() {
+        assert_eq!(CREATED_EVENT_WAIT, std::time::Duration::from_secs(3));
+    }
 }
