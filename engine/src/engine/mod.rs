@@ -1317,7 +1317,19 @@ impl Engine {
         msg: Cow<'_, Message>,
     ) -> anyhow::Result<()> {
         match msg.as_ref() {
+            Message::UnregisterTriggerResult {
+                id,
+                trigger_type,
+                assignment_id,
+                error,
+            } => {
+                if let Some(token) = assignment_id {
+                    worker.assignment_ack(id, trigger_type, None, token, true, error.clone());
+                }
+                Ok(())
+            }
             Message::TriggerRegistrationResult {
+                assignment_id,
                 id,
                 trigger_type,
                 function_id,
@@ -1325,6 +1337,21 @@ impl Engine {
             } => {
                 tracing::debug!(id = %id, trigger_type = %trigger_type, function_id = %function_id, error = ?error, "TriggerRegistrationResult");
 
+                if let Some(token) = assignment_id {
+                    worker.assignment_ack(
+                        id,
+                        trigger_type,
+                        Some(function_id),
+                        token,
+                        false,
+                        error.clone(),
+                    );
+                    return Ok(());
+                }
+                // An id-only legacy reply must never mutate identified copies.
+                if self.trigger_registry.has_assignment(id) {
+                    return Ok(());
+                }
                 // Synchronous-ack path: a function-path registration is
                 // awaiting this result inside the registrator proxy (see
                 // `TriggerRegistrator for WorkerConnection`), and the trigger
@@ -1377,6 +1404,7 @@ impl Engine {
                     for (owner, alias) in aliases {
                         if let Some(origin) = self.worker_registry.get_worker(&owner) {
                             let forward = Message::TriggerRegistrationResult {
+                                assignment_id: None,
                                 id: alias,
                                 trigger_type: stored_trigger_type.clone(),
                                 function_id: stored_function_id.clone(),
@@ -1420,6 +1448,7 @@ impl Engine {
                 };
 
                 let forward = Message::TriggerRegistrationResult {
+                    assignment_id: None,
                     id: id.clone(),
                     trigger_type: stored_trigger_type,
                     function_id: stored_function_id,
@@ -1581,12 +1610,21 @@ impl Engine {
                         .is_none_or(|id| self.worker_registry.get_worker(&id).is_some())
                 });
 
+                let shared_assignment_key = (self.shared_namespace_ownership()
+                    && trigger_type.delivery_contract
+                        == Some(crate::protocol::TriggerDeliveryContract::SharedV1))
+                .then(|| trigger_type.key());
                 if let Err(error) = self
                     .trigger_registry
                     .register_trigger_type(trigger_type)
                     .await
                 {
                     tracing::warn!(%error, trigger_type_id = %id, "Trigger provider declaration rejected");
+                } else if let Some(key) = shared_assignment_key {
+                    let registry = self.trigger_registry.clone();
+                    worker.spawn_assignment(async move {
+                        registry.replay_shared_assignments(key).await;
+                    });
                 }
 
                 Ok(())
@@ -1599,6 +1637,7 @@ impl Engine {
                 metadata,
                 namespace,
                 trigger_namespace,
+                ..
             } => {
                 tracing::debug!(
                     trigger_id = %id,
@@ -1620,6 +1659,7 @@ impl Engine {
                             .send_msg(
                                 worker,
                                 Message::TriggerRegistrationResult {
+                                    assignment_id: None,
                                     id: id.clone(),
                                     trigger_type: trigger_type.clone(),
                                     function_id: function_id.clone(),
@@ -1750,6 +1790,7 @@ impl Engine {
                         reg_function_id, target_namespace
                     );
                     let result_msg = Message::TriggerRegistrationResult {
+                        assignment_id: None,
                         id: reg_trigger_id,
                         trigger_type: reg_trigger_type,
                         function_id: reg_function_id,
@@ -1759,24 +1800,63 @@ impl Engine {
                     return Ok(());
                 }
 
-                match self
-                    .trigger_registry
-                    .register_trigger(Trigger {
-                        id: reg_trigger_id.clone(),
-                        trigger_type: reg_trigger_type.clone(),
-                        function_id: reg_function_id.clone(),
-                        config: reg_config,
-                        worker_id: Some(worker.id),
-                        metadata: metadata.clone(),
-                        namespace: target_namespace,
-                        trigger_namespace: trigger_namespace.clone(),
-                        home_namespace,
-                        // Written by the registry once it resolves; this is
-                        // only the value it starts from.
-                        provider_namespace: crate::protocol::default_namespace(),
-                    })
-                    .await
-                {
+                let binding = Trigger {
+                    id: reg_trigger_id.clone(),
+                    trigger_type: reg_trigger_type.clone(),
+                    function_id: reg_function_id.clone(),
+                    config: reg_config,
+                    worker_id: Some(worker.id),
+                    metadata: metadata.clone(),
+                    namespace: target_namespace,
+                    trigger_namespace: trigger_namespace.clone(),
+                    home_namespace,
+                    // Written by the registry once it resolves; this is
+                    // only the value it starts from.
+                    provider_namespace: crate::protocol::default_namespace(),
+                };
+                if self.trigger_registry.acknowledged_binding(&binding) {
+                    let engine = self.clone();
+                    let origin = worker.clone();
+                    worker.spawn_assignment(async move {
+                        let worker = origin;
+                        let result = engine.trigger_registry.register_trigger(binding).await;
+                        if matches!(
+                            result,
+                            Ok(crate::trigger::RegisterTriggerOutcome::Registered)
+                        ) {
+                            let _ = engine
+                                .send_msg(
+                                    &worker,
+                                    Message::TriggerRegistrationResult {
+                                        assignment_id: None,
+                                        id: reg_trigger_id,
+                                        trigger_type: reg_trigger_type,
+                                        function_id: reg_function_id,
+                                        error: None,
+                                    },
+                                )
+                                .await;
+                        } else if let Err(error) = result {
+                            let _ = engine
+                                .send_msg(
+                                    &worker,
+                                    Message::TriggerRegistrationResult {
+                                        assignment_id: None,
+                                        id: reg_trigger_id,
+                                        trigger_type: reg_trigger_type,
+                                        function_id: reg_function_id,
+                                        error: Some(crate::protocol::ErrorBody::new(
+                                            "trigger_registration_failed",
+                                            error.to_string(),
+                                        )),
+                                    },
+                                )
+                                .await;
+                        }
+                    });
+                    return Ok(());
+                }
+                match self.trigger_registry.register_trigger(binding).await {
                     // A Deferred outcome is not an error: the intent is
                     // parked engine-side and activates when the trigger type
                     // registers, so no failure ack goes to the worker.
@@ -1793,6 +1873,7 @@ impl Engine {
                             err.to_string(),
                         );
                         let result_msg = Message::TriggerRegistrationResult {
+                            assignment_id: None,
                             id: reg_trigger_id,
                             trigger_type: reg_trigger_type,
                             function_id: reg_function_id,
@@ -1804,13 +1885,25 @@ impl Engine {
 
                 Ok(())
             }
-            Message::UnregisterTrigger { id, trigger_type } => {
+            Message::UnregisterTrigger {
+                id, trigger_type, ..
+            } => {
                 tracing::debug!(
                     trigger_id = %id,
                     trigger_type = %trigger_type.as_deref().unwrap_or("<missing>"),
                     "UnregisterTrigger"
                 );
 
+                if self.trigger_registry.acknowledged_subscriber(worker.id, id) {
+                    let registry = self.trigger_registry.clone();
+                    let owner = worker.id;
+                    let id = id.clone();
+                    let kind = trigger_type.clone();
+                    worker.spawn_assignment(async move {
+                        let _ = registry.unregister_subscriber(owner, id, kind).await;
+                    });
+                    return Ok(());
+                }
                 let _ = self
                     .trigger_registry
                     .unregister_subscriber(worker.id, id.clone(), trigger_type.clone())
@@ -3118,6 +3211,12 @@ impl Engine {
         // release. Those would leak, with `function_owners` pointing at a dead
         // worker. Aborting stops the drain at its next message.
         self.abort_namespace_resolution(worker);
+        for task in worker.assignment_tasks.iter() {
+            task.abort();
+        }
+        worker.assignment_tasks.clear();
+        worker.pending_trigger_acks.clear();
+        worker.pending_assignments.clear();
 
         let regular_functions = worker.get_regular_function_ids().await;
         let external_functions = worker.get_external_function_ids().await;
@@ -5488,6 +5587,7 @@ mod tests {
         let worker = WorkerConnection::with_session(tx, session_forbidding("secret::charge"));
 
         let msg = Message::RegisterTrigger {
+            assignment_id: None,
             id: "t-forbidden".to_string(),
             trigger_type: "http".to_string(),
             function_id: "secret::charge".to_string(),
@@ -5839,6 +5939,7 @@ mod tests {
 
         // Now register a trigger of that type
         let register_trigger_msg = Message::RegisterTrigger {
+            assignment_id: None,
             id: "trigger_1".to_string(),
             trigger_type: "my_trigger_type".to_string(),
             function_id: "handler_func".to_string(),
@@ -5886,6 +5987,7 @@ mod tests {
 
         // Register a trigger
         let register_trigger_msg = Message::RegisterTrigger {
+            assignment_id: None,
             id: "unreg_trigger".to_string(),
             trigger_type: "unreg_type".to_string(),
             function_id: "handler_func".to_string(),
@@ -5911,6 +6013,7 @@ mod tests {
 
         // Now unregister the trigger
         let unregister_trigger_msg = Message::UnregisterTrigger {
+            assignment_id: None,
             id: "unreg_trigger".to_string(),
             trigger_type: Some("unreg_type".to_string()),
         };
@@ -7254,6 +7357,7 @@ mod tests {
 
         // Register a trigger
         let register_trigger_msg = Message::RegisterTrigger {
+            assignment_id: None,
             id: "cleanup_trigger".to_string(),
             trigger_type: "cleanup_trigger_type".to_string(),
             function_id: "some_func".to_string(),
@@ -7499,6 +7603,7 @@ mod tests {
         );
 
         let msg = Message::TriggerRegistrationResult {
+            assignment_id: None,
             id: "trig-1".to_string(),
             trigger_type: "http".to_string(),
             function_id: "fn-1".to_string(),
@@ -7521,6 +7626,7 @@ mod tests {
             trigger_type,
             function_id,
             error,
+            ..
         }) = outbound
         else {
             panic!("expected TriggerRegistrationResult, got {:?}", outbound);
@@ -7603,6 +7709,7 @@ mod tests {
             );
 
             let msg = Message::TriggerRegistrationResult {
+                assignment_id: None,
                 id: "trig-race".to_string(),
                 trigger_type: "http".to_string(),
                 function_id: "fn-1".to_string(),
@@ -7673,6 +7780,7 @@ mod tests {
             );
 
             let msg = Message::TriggerRegistrationResult {
+                assignment_id: None,
                 id: "trig-race".to_string(),
                 trigger_type: "http".to_string(),
                 function_id: "fn-1".to_string(),
@@ -7751,6 +7859,7 @@ mod tests {
         );
 
         let msg = Message::TriggerRegistrationResult {
+            assignment_id: None,
             id: "trig-2".to_string(),
             trigger_type: "http".to_string(),
             function_id: "fn-2".to_string(),
@@ -7782,6 +7891,7 @@ mod tests {
         let registrator = WorkerConnection::new(registrator_tx);
 
         let msg = Message::TriggerRegistrationResult {
+            assignment_id: None,
             id: "ghost".to_string(),
             trigger_type: "http".to_string(),
             function_id: "fn-x".to_string(),
@@ -7829,6 +7939,7 @@ mod tests {
         let spoofer = WorkerConnection::new(spoofer_tx);
 
         let msg = Message::TriggerRegistrationResult {
+            assignment_id: None,
             id: "trig-3".to_string(),
             trigger_type: "http".to_string(),
             function_id: "fn-3".to_string(),
@@ -7858,6 +7969,7 @@ mod tests {
         let worker = WorkerConnection::new(tx);
 
         let msg = Message::RegisterTrigger {
+            assignment_id: None,
             id: "trig-1".to_string(),
             trigger_type: "totally-made-up".to_string(),
             function_id: "fn-1".to_string(),
@@ -7947,6 +8059,7 @@ mod tests {
                 .router_msg(
                     &worker,
                     &Message::RegisterTrigger {
+                        assignment_id: None,
                         id: "t1".to_string(),
                         trigger_type: "cron".to_string(),
                         function_id: "svc::run".to_string(),
@@ -8209,6 +8322,7 @@ mod tests {
 
         // Bad sequencing: the trigger arrives before its type's provider.
         let msg = Message::RegisterTrigger {
+            assignment_id: None,
             id: "trig-early".to_string(),
             trigger_type: "late_type".to_string(),
             function_id: "fn-1".to_string(),
@@ -8269,6 +8383,7 @@ mod tests {
         // The message path stamps the trigger with the origin connection as
         // owner, so the parked intent is connection-owned.
         let msg = Message::RegisterTrigger {
+            assignment_id: None,
             id: "trig-orphan".to_string(),
             trigger_type: "never_registered".to_string(),
             function_id: "fn-1".to_string(),
@@ -8350,6 +8465,7 @@ mod tests {
         let worker_b = WorkerConnection::new(b_tx);
         engine.worker_registry.register_worker(worker_b.clone());
         let reg_msg = Message::RegisterTrigger {
+            assignment_id: None,
             id: "trig-b-echo".to_string(),
             trigger_type: "type_x".to_string(),
             function_id: "b::echo".to_string(),
@@ -8377,6 +8493,7 @@ mod tests {
         // B explicitly unregisters the parked binding: dropping the intent
         // is the whole unregister.
         let unreg_msg = Message::UnregisterTrigger {
+            assignment_id: None,
             id: "trig-b-echo".to_string(),
             trigger_type: Some("type_x".to_string()),
         };
@@ -9371,6 +9488,7 @@ mod tests {
                 invocation: None,
             };
             let reg_trigger = Message::RegisterTrigger {
+                assignment_id: None,
                 id: "t1".to_string(),
                 trigger_type: "evt".to_string(),
                 function_id: "raced_fn".to_string(),
@@ -9777,6 +9895,7 @@ mod tests {
 
         // Register a trigger
         let t_msg = Message::RegisterTrigger {
+            assignment_id: None,
             id: "cleanup_trigger".to_string(),
             trigger_type: "cleanup_trigger_type".to_string(),
             function_id: "handler_func".to_string(),
@@ -9948,6 +10067,7 @@ mod tests {
             .unwrap();
 
         let register_trigger_msg = Message::RegisterTrigger {
+            assignment_id: None,
             id: "trigger_meta_1".to_string(),
             trigger_type: "metadata_type".to_string(),
             function_id: "handler_func".to_string(),
@@ -10079,6 +10199,7 @@ mod tests {
 
         for msg in [
             Message::RegisterTrigger {
+                assignment_id: None,
                 id: "t1".to_string(),
                 trigger_type: "unknown-type".to_string(),
                 function_id: "orders::handler".to_string(),
@@ -10088,6 +10209,7 @@ mod tests {
                 trigger_namespace: None,
             },
             Message::UnregisterTrigger {
+                assignment_id: None,
                 id: "t1".to_string(),
                 trigger_type: None,
             },

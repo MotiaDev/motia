@@ -238,6 +238,20 @@ impl std::fmt::Display for RegistratorUnavailable {
 impl std::error::Error for RegistratorUnavailable {}
 
 pub trait TriggerRegistrator: Send + Sync {
+    fn register_assignment(
+        &self,
+        trigger: Trigger,
+        _token: String,
+    ) -> Pin<Box<dyn Future<Output = Result<(), anyhow::Error>> + Send + '_>> {
+        self.register_trigger(trigger)
+    }
+    fn unregister_assignment(
+        &self,
+        trigger: Trigger,
+        _token: String,
+    ) -> Pin<Box<dyn Future<Output = Result<(), anyhow::Error>> + Send + '_>> {
+        self.unregister_trigger(trigger)
+    }
     fn register_trigger(
         &self,
         trigger: Trigger,
@@ -533,12 +547,22 @@ struct SharedSubscriptions {
 }
 
 #[derive(Default)]
+struct AssignmentSet {
+    operation: tokio::sync::Mutex<()>,
+    removed: std::sync::atomic::AtomicBool,
+    // Entries include unconfirmed deliveries: they remain teardown debt until
+    // positively stopped or their provider session disconnects.
+    copies: std::sync::Mutex<HashMap<Option<Uuid>, (Arc<TriggerType>, String, bool)>>,
+}
+
+#[derive(Default)]
 pub struct TriggerRegistry {
     /// Providers, by `(namespace, type id)`.
     pub trigger_types: Arc<DashMap<TypeKey, TriggerType>>,
     shared_namespace_ownership: std::sync::OnceLock<bool>,
     provider_owners: std::sync::Mutex<HashMap<TypeKey, Vec<Arc<TriggerType>>>>,
     subscriptions: std::sync::Mutex<SharedSubscriptions>,
+    assignments: DashMap<String, Arc<AssignmentSet>>,
     pub triggers: Arc<TriggerStore>,
     /// Registration intents whose trigger type is not currently available or
     /// whose activation did not complete: the type never registered, its
@@ -567,6 +591,7 @@ impl TriggerRegistry {
             shared_namespace_ownership: std::sync::OnceLock::new(),
             provider_owners: std::sync::Mutex::new(HashMap::new()),
             subscriptions: std::sync::Mutex::new(SharedSubscriptions::default()),
+            assignments: DashMap::new(),
         }
     }
 
@@ -579,6 +604,242 @@ impl TriggerRegistry {
             .get()
             .copied()
             .unwrap_or(false)
+    }
+
+    fn assignment_providers(&self, key: &TypeKey) -> Vec<Arc<TriggerType>> {
+        let owners = self
+            .provider_owners
+            .lock()
+            .expect("provider owners poisoned");
+        let Some(members) = owners.get(key) else {
+            return Vec::new();
+        };
+        if members[0].delivery_mode == TriggerDeliveryMode::Parallel {
+            members.clone()
+        } else {
+            members.iter().take(1).cloned().collect()
+        }
+    }
+
+    fn publish_assignments(&self, trigger: &Trigger, state: &AssignmentSet) {
+        let _park = self
+            .park_transition
+            .lock()
+            .expect("park transition poisoned");
+        let active = !state.removed.load(std::sync::atomic::Ordering::SeqCst)
+            && state
+                .copies
+                .lock()
+                .expect("copies poisoned")
+                .values()
+                .any(|copy| copy.2);
+        if active {
+            self.pending_triggers.remove(&trigger.id);
+            self.triggers.insert(trigger.id.clone(), trigger.clone());
+        } else {
+            self.triggers.remove(&trigger.id);
+            if !state.removed.load(std::sync::atomic::Ordering::SeqCst) {
+                self.pending_triggers
+                    .insert(trigger.id.clone(), trigger.clone());
+            } else {
+                // Tombstone retains its descriptor until teardown debt is paid.
+                self.pending_triggers
+                    .insert(trigger.id.clone(), trigger.clone());
+            }
+        }
+    }
+
+    pub(crate) async fn replay_shared_assignments(&self, key: TypeKey) {
+        let mut bindings = self
+            .triggers
+            .iter()
+            .filter(|t| t.provider_key() == key)
+            .map(|t| t.value().clone())
+            .collect::<Vec<_>>();
+        bindings.extend(
+            self.pending_triggers
+                .iter()
+                .filter(|t| self.resolve_provider_key(t.value()).as_ref() == Some(&key))
+                .map(|t| {
+                    let mut trigger = t.value().clone();
+                    trigger.provider_namespace = key.0.clone();
+                    trigger
+                }),
+        );
+        futures::future::join_all(
+            bindings
+                .into_iter()
+                .map(|trigger| self.install_assignments(trigger)),
+        )
+        .await;
+    }
+
+    async fn install_assignments(
+        &self,
+        trigger: Trigger,
+    ) -> Result<RegisterTriggerOutcome, anyhow::Error> {
+        let state = self
+            .assignments
+            .entry(trigger.id.clone())
+            .or_default()
+            .clone();
+        let _operation = state.operation.lock().await;
+        if state.removed.load(std::sync::atomic::Ordering::SeqCst) {
+            anyhow::bail!("trigger teardown pending");
+        }
+        // Keep cancellation/partial delivery reachable for last-subscriber teardown.
+        if !self.triggers.contains_key(&trigger.id) {
+            self.pending_triggers
+                .insert(trigger.id.clone(), trigger.clone());
+        }
+        let providers = self.assignment_providers(&trigger.provider_key());
+        let installs = providers
+            .into_iter()
+            .filter_map(|provider| {
+                let mut copies = state.copies.lock().expect("copies poisoned");
+                if copies.contains_key(&provider.worker_id) {
+                    return None;
+                }
+                let token = Uuid::new_v4().to_string();
+                copies.insert(provider.worker_id, (provider.clone(), token.clone(), false));
+                Some((provider, token))
+            })
+            .collect::<Vec<_>>();
+        let outcomes = futures::future::join_all(installs.into_iter().map(|(provider, token)| {
+            let state = &state;
+            let trigger = &trigger;
+            async move {
+                let result = provider
+                    .registrator
+                    .register_assignment(trigger.clone(), token.clone())
+                    .await;
+                let member = self
+                    .assignment_providers(&trigger.provider_key())
+                    .iter()
+                    .any(|current| current.worker_id == provider.worker_id);
+                {
+                    let mut copies = state.copies.lock().expect("copies poisoned");
+                    if let Some(copy) = copies.get_mut(&provider.worker_id) {
+                        if copy.1 == token {
+                            copy.2 = result.is_ok() && member;
+                            if !member
+                                || result.as_ref().is_err_and(|e| {
+                                    e.downcast_ref::<RegistratorUnavailable>().is_none()
+                                })
+                            {
+                                copies.remove(&provider.worker_id);
+                            }
+                        }
+                    }
+                }
+                self.publish_assignments(trigger, state);
+                result
+            }
+        }))
+        .await;
+        self.publish_assignments(&trigger, &state);
+        // Success is the required membership snapshot, not merely one healthy
+        // copy. Partial installs remain live and reachable for teardown.
+        if outcomes.iter().any(Result::is_err) {
+            return Ok(RegisterTriggerOutcome::Deferred);
+        }
+        if self.triggers.contains_key(&trigger.id) {
+            Ok(RegisterTriggerOutcome::Registered)
+        } else {
+            Ok(RegisterTriggerOutcome::Deferred)
+        }
+    }
+
+    async fn revoke_assignments(
+        &self,
+        id: &str,
+        state: Arc<AssignmentSet>,
+    ) -> Result<bool, anyhow::Error> {
+        state
+            .removed
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        let _operation = state.operation.lock().await;
+        let trigger = self
+            .triggers
+            .get(id)
+            .map(|t| t.value().clone())
+            .or_else(|| self.pending_triggers.get(id).map(|t| t.value().clone()));
+        let Some(trigger) = trigger else {
+            if state.copies.lock().expect("copies poisoned").is_empty() {
+                self.assignments.remove(id);
+                return Ok(false);
+            }
+            anyhow::bail!("trigger teardown descriptor missing");
+        };
+        let copies = state
+            .copies
+            .lock()
+            .expect("copies poisoned")
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+        let results = futures::future::join_all(copies.into_iter().map(|(provider, token, _)| {
+            let state = &state;
+            let trigger = &trigger;
+            async move {
+                let connected = self
+                    .assignment_providers(&trigger.provider_key())
+                    .iter()
+                    .any(|p| p.worker_id == provider.worker_id);
+                let result = if connected {
+                    provider
+                        .registrator
+                        .unregister_assignment(trigger.clone(), token.clone())
+                        .await
+                } else {
+                    Ok(())
+                };
+                if result.is_ok() {
+                    state
+                        .copies
+                        .lock()
+                        .expect("copies poisoned")
+                        .remove(&provider.worker_id);
+                }
+                result
+            }
+        }))
+        .await;
+        if let Some(error) = results.into_iter().find_map(Result::err) {
+            return Err(error);
+        }
+        let _park = self
+            .park_transition
+            .lock()
+            .expect("park transition poisoned");
+        self.triggers.remove(id);
+        self.pending_triggers.remove(id);
+        self.assignments.remove(id);
+        Ok(true)
+    }
+
+    pub(crate) fn has_assignment(&self, id: &str) -> bool {
+        self.assignments.contains_key(id)
+    }
+
+    pub(crate) fn acknowledged_binding(&self, trigger: &Trigger) -> bool {
+        self.shared()
+            && self
+                .resolve_provider_key(trigger)
+                .and_then(|key| {
+                    self.trigger_types
+                        .get(&key)
+                        .map(|t| t.delivery_contract == Some(TriggerDeliveryContract::SharedV1))
+                })
+                .unwrap_or(false)
+    }
+
+    pub(crate) fn acknowledged_subscriber(&self, worker: Uuid, alias: &str) -> bool {
+        let subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
+        subscriptions
+            .aliases
+            .get(&(worker, alias.to_string()))
+            .is_some_and(|id| self.assignments.contains_key(id))
     }
 
     pub(crate) fn subscriber_aliases(&self, canonical: &str) -> Vec<(Uuid, String)> {
@@ -783,29 +1044,50 @@ impl TriggerRegistry {
                 .filter(|(owner, _)| owner == worker_id)
                 .map(|(_, alias)| alias.clone())
                 .collect();
+            for entry in self.assignments.iter() {
+                entry
+                    .copies
+                    .lock()
+                    .expect("copies poisoned")
+                    .remove(&Some(*worker_id));
+            }
+            // A departing session cannot retire an acknowledged sibling.
+            {
+                let mut owners = self
+                    .provider_owners
+                    .lock()
+                    .expect("provider owners poisoned");
+                owners.retain(|key, members| {
+                    members.retain(|member| member.worker_id != Some(*worker_id));
+                    if let Some(first) = members.first() {
+                        self.trigger_types
+                            .insert(key.clone(), first.as_ref().clone());
+                        true
+                    } else {
+                        self.trigger_types.remove(key);
+                        false
+                    }
+                });
+            }
             for alias in aliases {
                 if let Err(error) = self.unregister_subscriber(*worker_id, alias, None).await {
                     tracing::error!(%error, "Failed to remove last trigger subscriber");
                 }
             }
-            // Membership changes do not assign/replay physical bindings. Assignment
-            // activation and fencing belong to the subsequent delivery phase.
-            let mut owners = self
-                .provider_owners
-                .lock()
-                .expect("provider owners poisoned");
-            owners.retain(|key, members| {
-                members.retain(|member| member.worker_id != Some(*worker_id));
-                if let Some(first) = members.first() {
-                    self.trigger_types
-                        .insert(key.clone(), first.as_ref().clone());
-                    true
-                } else {
-                    self.trigger_types.remove(key);
-                    false
+            for entry in self.assignments.iter() {
+                let trigger = self
+                    .triggers
+                    .get(entry.key())
+                    .map(|t| t.value().clone())
+                    .or_else(|| {
+                        self.pending_triggers
+                            .get(entry.key())
+                            .map(|t| t.value().clone())
+                    });
+                if let Some(trigger) = trigger {
+                    self.publish_assignments(&trigger, entry.value());
                 }
-            });
-            drop(owners);
+            }
             let orphaned: Vec<Trigger> = self
                 .triggers
                 .iter()
@@ -996,6 +1278,9 @@ impl TriggerRegistry {
             owners.insert(key.clone(), vec![Arc::clone(&trigger_type)]);
             self.trigger_types
                 .insert(key.clone(), trigger_type.as_ref().clone());
+            if trigger_type.delivery_contract == Some(TriggerDeliveryContract::SharedV1) {
+                return Ok(());
+            }
         }
 
         tracing::info!(
@@ -1234,10 +1519,11 @@ impl TriggerRegistry {
         }
         let trigger = trigger;
 
-        let Some(trigger_type) = resolved
-            .as_ref()
-            .and_then(|key| self.trigger_types.get(key))
-        else {
+        let Some(trigger_type) = resolved.as_ref().and_then(|key| {
+            self.trigger_types
+                .get(key)
+                .map(|entry| entry.value().clone())
+        }) else {
             // Park the intent instead of failing: workers may connect in any
             // order, and a binding that arrives before its trigger type's
             // provider must survive until the provider shows up.
@@ -1264,6 +1550,11 @@ impl TriggerRegistry {
             return Ok(RegisterTriggerOutcome::Deferred);
         };
 
+        if self.shared()
+            && trigger_type.delivery_contract == Some(TriggerDeliveryContract::SharedV1)
+        {
+            return self.install_assignments(trigger).await;
+        }
         if let Err(err) = trigger_type
             .registrator
             .register_trigger(trigger.clone())
@@ -1345,6 +1636,9 @@ impl TriggerRegistry {
         id: String,
         trigger_type: Option<String>,
     ) -> Result<bool, anyhow::Error> {
+        if let Some(state) = self.assignments.get(&id).map(|entry| entry.value().clone()) {
+            return self.revoke_assignments(&id, state).await;
+        }
         tracing::info!(
             "Unregistering trigger: {} of type: {}",
             id.purple(),
@@ -3987,6 +4281,7 @@ mod tests {
                 .router_msg(
                     &a,
                     &Message::UnregisterTrigger {
+                        assignment_id: None,
                         id: "a".into(),
                         trigger_type: None,
                     },
@@ -4003,6 +4298,7 @@ mod tests {
                 .router_msg(
                     &b,
                     &Message::UnregisterTrigger {
+                        assignment_id: None,
                         id: "b".into(),
                         trigger_type: None,
                     },
@@ -4054,6 +4350,7 @@ mod tests {
                 .router_msg(
                     &foreign,
                     &Message::UnregisterTrigger {
+                        assignment_id: None,
                         id: "private-alias".into(),
                         trigger_type: None,
                     },

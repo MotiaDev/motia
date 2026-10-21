@@ -268,6 +268,8 @@ pub struct WorkerConnection {
     /// (function-path) registrations wait on an entry here — see the
     /// `TriggerRegistrator` impl in `traits.rs`.
     pub pending_trigger_acks: Arc<DashMap<String, oneshot::Sender<Option<ErrorBody>>>>,
+    pub(crate) assignment_tasks: Arc<DashMap<Uuid, tokio::task::AbortHandle>>,
+    pub(crate) pending_assignments: Arc<DashMap<String, (String, String, String, bool)>>,
     /// Signaled when a reconnecting successor of this worker reattaches
     /// (`Message::Reattach`): the connection's read loop must exit (its exit
     /// path runs the connection's cleanup). Shared across clones so the
@@ -316,6 +318,8 @@ impl WorkerConnection {
             namespace: None,
             session: None,
             pending_trigger_acks: Arc::new(DashMap::new()),
+            pending_assignments: Arc::new(DashMap::new()),
+            assignment_tasks: Arc::new(DashMap::new()),
             evict: Arc::new(Notify::new()),
             has_reader: Arc::new(AtomicBool::new(false)),
             cleanup_claimed: Arc::new(AtomicBool::new(false)),
@@ -345,6 +349,8 @@ impl WorkerConnection {
             namespace: None,
             session: Some(Arc::new(session)),
             pending_trigger_acks: Arc::new(DashMap::new()),
+            pending_assignments: Arc::new(DashMap::new()),
+            assignment_tasks: Arc::new(DashMap::new()),
             evict: Arc::new(Notify::new()),
             has_reader: Arc::new(AtomicBool::new(false)),
             cleanup_claimed: Arc::new(AtomicBool::new(false)),

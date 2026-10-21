@@ -453,3 +453,351 @@ async fn function_path_register_trigger_binds_in_the_callers_namespace() {
     let _ = orders.close(None).await;
     let _ = default.close(None).await;
 }
+
+// KAN-319 fixtures implement only the approved engine wire contract. They are
+// not production HTTP/cron adapters and do not exercise the firing gateway.
+async fn assignment_send(ws: &mut Client, value: Value) {
+    ws.send(WsMessage::Text(value.to_string().into()))
+        .await
+        .expect("send assignment fixture message");
+}
+
+async fn assignment_frame(ws: &mut Client, kind: &str) -> Value {
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while let Some(frame) = ws.next().await {
+            let frame = frame.expect("assignment socket frame");
+            if let WsMessage::Text(text) = frame {
+                let value: Value = serde_json::from_str(&text).expect("assignment json");
+                if value["type"] == kind {
+                    return value;
+                }
+            }
+        }
+        panic!("provider socket closed before {kind}");
+    })
+    .await
+    .unwrap_or_else(|_| panic!("missing {kind}: shared_v1 must deliver parallel assignments without waiting on its own read-loop ack"))
+}
+
+/// A Pong fences all earlier input on this socket. Preserve unexpected frames
+/// so a negative replay assertion cannot silently consume an extra assignment.
+async fn assignment_barrier(ws: &mut Client) -> Vec<Value> {
+    assignment_send(ws, json!({"type":"ping"})).await;
+    tokio::time::timeout(Duration::from_secs(2), async {
+        let mut frames = Vec::new();
+        while let Some(frame) = ws.next().await {
+            if let WsMessage::Text(text) = frame.expect("barrier frame") {
+                let value: Value = serde_json::from_str(&text).unwrap();
+                if value["type"] == "pong" {
+                    return frames;
+                }
+                frames.push(value);
+            }
+        }
+        panic!("provider closed before barrier");
+    })
+    .await
+    .expect("provider read loop must stay available for installation/stop acks")
+}
+
+fn parallel_declaration() -> Value {
+    json!({"type":"registertriggertype", "id":"fixture:parallel", "description":"parallel route fixture",
+        "delivery_mode":"parallel", "delivery_contract":"shared_v1"})
+}
+
+async fn assignment_providers() -> (Arc<Engine>, Client, Client, tempfile::TempDir) {
+    use iii::workers::config::{EngineConfig, WorkerEntry};
+    let directory = tempfile::tempdir_in(".").unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    let builder = iii::EngineBuilder::new()
+        .with_config(EngineConfig {
+            shared_namespace_ownership: true,
+            workers: vec![
+                WorkerEntry {
+                    name: "configuration".into(),
+                    image: None,
+                    config: Some(
+                        json!({"adapter":{"name":"fs","config":{"directory":directory.path()}}}),
+                    ),
+                },
+                WorkerEntry {
+                    name: "iii-worker-manager".into(),
+                    image: None,
+                    config: Some(json!({"host":"127.0.0.1", "port":port})),
+                },
+            ],
+            ..EngineConfig::default()
+        })
+        .build()
+        .await
+        .unwrap();
+    let engine = builder.engine_handle();
+    assert!(engine.shared_namespace_ownership());
+    let manager = builder
+        .running()
+        .iter()
+        .find(|worker| worker.entry.name == "iii-worker-manager")
+        .unwrap();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    manager
+        .worker
+        .start_background_tasks(shutdown_rx, shutdown_tx)
+        .await
+        .unwrap();
+    let mut a = connect(port).await;
+    let mut b = connect(port).await;
+    send_register_worker(&mut a, "parallel-provider-a", Some("orders")).await;
+    send_register_worker(&mut b, "parallel-provider-b", Some("orders")).await;
+    assignment_barrier(&mut a).await;
+    assignment_barrier(&mut b).await;
+    (engine, a, b, directory)
+}
+
+async fn assignment_subscribe(ws: &mut Client, alias: &str) {
+    assignment_send(
+        ws,
+        json!({"type":"registertrigger", "id":alias,
+        "trigger_type":"fixture:parallel", "function_id":"orders::route", "namespace":"orders",
+        "config":{"api_path":"/orders", "http_method":"POST"}}),
+    )
+    .await;
+}
+
+fn assignment_token(frame: &Value) -> &str {
+    frame["assignment_id"]
+        .as_str()
+        .filter(|id| !id.is_empty())
+        .unwrap_or_else(|| {
+            panic!("shared_v1 requires opaque assignment_id, not enqueue-only success: {frame}")
+        })
+}
+
+async fn assignment_install(
+    ws: &mut Client,
+    frame: &Value,
+    installed: &mut std::collections::HashMap<String, String>,
+) {
+    assert_eq!(frame["type"], "registertrigger");
+    assert_eq!(frame["config"]["api_path"], "/orders");
+    assert_eq!(frame["namespace"], "orders");
+    let token = assignment_token(frame).to_owned();
+    assert!(
+        installed
+            .insert(frame["id"].as_str().unwrap().to_owned(), token.clone())
+            .is_none(),
+        "a provider must not install the same route twice"
+    );
+    // Positive ack only after this provider's local route table is installed.
+    assignment_send(
+        ws,
+        json!({"type":"triggerregistrationresult", "id":frame["id"],
+        "trigger_type":frame["trigger_type"], "function_id":frame["function_id"],
+        "assignment_id":token}),
+    )
+    .await;
+}
+
+async fn assignment_stop(
+    ws: &mut Client,
+    frame: &Value,
+    installed: &mut std::collections::HashMap<String, String>,
+) {
+    assert_eq!(frame["type"], "unregistertrigger");
+    let token = assignment_token(frame);
+    assert_eq!(
+        installed.remove(frame["id"].as_str().unwrap()).as_deref(),
+        Some(token),
+        "stop must revoke the exact installed assignment"
+    );
+    // No future deliveries from this fixture are possible after local removal.
+    assignment_send(
+        ws,
+        json!({"type":"unregistertriggerresult", "id":frame["id"],
+        "trigger_type":frame["trigger_type"], "assignment_id":token}),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn shared_trigger_parallel_two_real_providers_install_and_stop_same_canonical_route() {
+    let (engine, mut a, mut b, _directory) = assignment_providers().await;
+    assignment_send(&mut a, parallel_declaration()).await;
+    assignment_send(&mut b, parallel_declaration()).await;
+    assignment_barrier(&mut a).await;
+    assignment_barrier(&mut b).await;
+
+    // The subscriber IS provider A: an inline await would deadlock its own ack.
+    assignment_subscribe(&mut a, "route-a").await;
+    let (install_a, install_b) = tokio::join!(
+        assignment_frame(&mut a, "registertrigger"),
+        assignment_frame(&mut b, "registertrigger")
+    );
+    assert_eq!(
+        install_a["id"], install_b["id"],
+        "both providers serve one canonical route"
+    );
+    assert_ne!(
+        assignment_token(&install_a),
+        assignment_token(&install_b),
+        "tokens are per provider assignment"
+    );
+    let mut routes_a = std::collections::HashMap::new();
+    let mut routes_b = std::collections::HashMap::new();
+    assignment_install(&mut a, &install_a, &mut routes_a).await;
+    let early = assignment_barrier(&mut a).await;
+    assert!(
+        !early
+            .iter()
+            .any(|v| v["type"] == "triggerregistrationresult" && v["error"].is_null()),
+        "required membership snapshot cannot report success before B installs: {early:?}"
+    );
+    assignment_install(&mut b, &install_b, &mut routes_b).await;
+    assignment_barrier(&mut b).await;
+    assert!(
+        eventually(|| engine
+            .trigger_registry
+            .triggers
+            .contains_key(install_a["id"].as_str().unwrap()))
+        .await
+    );
+
+    assignment_send(
+        &mut a,
+        json!({"type":"unregistertrigger", "id":"route-a", "trigger_type":"fixture:parallel"}),
+    )
+    .await;
+    let (stop_a, stop_b) = tokio::join!(
+        assignment_frame(&mut a, "unregistertrigger"),
+        assignment_frame(&mut b, "unregistertrigger")
+    );
+    assignment_stop(&mut a, &stop_a, &mut routes_a).await;
+    assignment_stop(&mut b, &stop_b, &mut routes_b).await;
+    assignment_barrier(&mut a).await;
+    assignment_barrier(&mut b).await;
+    assert!(routes_a.is_empty() && routes_b.is_empty());
+    assert!(
+        eventually(|| !engine
+            .trigger_registry
+            .triggers
+            .contains_key(install_a["id"].as_str().unwrap())
+            && engine.trigger_registry.pending_triggers.is_empty())
+        .await
+    );
+    let _ = a.close(None).await;
+    let _ = b.close(None).await;
+}
+
+#[tokio::test]
+async fn shared_trigger_parallel_join_replays_only_new_provider_and_removal_preserves_peer() {
+    let (engine, mut a, mut b, _directory) = assignment_providers().await;
+    assignment_send(&mut a, parallel_declaration()).await;
+    assignment_barrier(&mut a).await;
+    assignment_subscribe(&mut a, "join-route").await;
+    let first = assignment_frame(&mut a, "registertrigger").await;
+    let canonical = first["id"].as_str().unwrap().to_owned();
+    let mut routes_a = std::collections::HashMap::new();
+    let mut routes_b = std::collections::HashMap::new();
+    assignment_install(&mut a, &first, &mut routes_a).await;
+    assignment_barrier(&mut a).await;
+    assignment_send(&mut b, parallel_declaration()).await;
+    let replay = assignment_frame(&mut b, "registertrigger").await;
+    assert_eq!(replay["id"], first["id"]);
+    assert_ne!(assignment_token(&replay), assignment_token(&first));
+    assignment_install(&mut b, &replay, &mut routes_b).await;
+    assignment_barrier(&mut b).await;
+    assert!(
+        !assignment_barrier(&mut a)
+            .await
+            .iter()
+            .any(|v| v["type"] == "registertrigger" || v["type"] == "unregistertrigger"),
+        "joining replay must leave incumbent assignment untouched"
+    );
+    assignment_send(&mut b, parallel_declaration()).await;
+    assert!(
+        !assignment_barrier(&mut b)
+            .await
+            .iter()
+            .any(|v| v["type"] == "registertrigger"),
+        "same-session announcement is idempotent"
+    );
+
+    b.close(None).await.unwrap();
+    assert!(
+        eventually(|| engine
+            .worker_registry
+            .list_workers()
+            .iter()
+            .all(|worker| worker.name.as_deref() != Some("parallel-provider-b")))
+        .await
+    );
+    assert!(engine.trigger_registry.triggers.contains_key(&canonical));
+    assert_eq!(
+        routes_a.get(&canonical).map(String::as_str),
+        Some(assignment_token(&first))
+    );
+    assert!(
+        !assignment_barrier(&mut a)
+            .await
+            .iter()
+            .any(|v| v["type"] == "registertrigger" || v["type"] == "unregistertrigger"),
+        "removing B must not reinstall or revoke A"
+    );
+    assignment_send(
+        &mut a,
+        json!({"type":"unregistertrigger", "id":"join-route"}),
+    )
+    .await;
+    let stop = assignment_frame(&mut a, "unregistertrigger").await;
+    assignment_stop(&mut a, &stop, &mut routes_a).await;
+    assignment_barrier(&mut a).await;
+    let _ = a.close(None).await;
+}
+
+#[tokio::test]
+async fn shared_trigger_parallel_rejected_copy_cannot_park_healthy_sibling() {
+    let (engine, mut a, mut b, _directory) = assignment_providers().await;
+    assignment_send(&mut a, parallel_declaration()).await;
+    assignment_send(&mut b, parallel_declaration()).await;
+    assignment_barrier(&mut a).await;
+    assignment_barrier(&mut b).await;
+    assignment_subscribe(&mut a, "partial-route").await;
+    let (first, second) = tokio::join!(
+        assignment_frame(&mut a, "registertrigger"),
+        assignment_frame(&mut b, "registertrigger")
+    );
+    let mut routes_a = std::collections::HashMap::new();
+    assignment_install(&mut a, &first, &mut routes_a).await;
+    assignment_send(&mut b, json!({"type":"triggerregistrationresult", "id":second["id"],
+        "trigger_type":second["trigger_type"], "function_id":second["function_id"],
+        "assignment_id":assignment_token(&second), "error":{"code":"install_rejected", "message":"fixture refuses this copy"}})).await;
+    assignment_barrier(&mut b).await;
+    assignment_barrier(&mut a).await;
+    let canonical = first["id"].as_str().unwrap();
+    assert!(
+        engine.trigger_registry.triggers.contains_key(canonical),
+        "one failed copy cannot remove the healthy acknowledged sibling"
+    );
+    assert!(
+        !engine
+            .trigger_registry
+            .pending_triggers
+            .contains_key(canonical),
+        "healthy sibling must not become wholly parked"
+    );
+    assert_eq!(
+        routes_a.get(canonical).map(String::as_str),
+        Some(assignment_token(&first))
+    );
+    assignment_send(
+        &mut a,
+        json!({"type":"unregistertrigger", "id":"partial-route"}),
+    )
+    .await;
+    let stop = assignment_frame(&mut a, "unregistertrigger").await;
+    assignment_stop(&mut a, &stop, &mut routes_a).await;
+    assignment_barrier(&mut a).await;
+    let _ = a.close(None).await;
+    let _ = b.close(None).await;
+}

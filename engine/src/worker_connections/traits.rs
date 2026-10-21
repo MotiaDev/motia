@@ -27,7 +27,151 @@ use crate::{
 /// are still covered by the late-unwind path in `router_msg`).
 const REGISTRATION_ACK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
+impl WorkerConnection {
+    pub(crate) fn spawn_assignment(&self, work: impl Future<Output = ()> + Send + 'static) {
+        if self
+            .cleanup_claimed
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return;
+        }
+        let id = Uuid::new_v4();
+        let tasks = self.assignment_tasks.clone();
+        let (ready, start) = oneshot::channel();
+        let task = tokio::spawn(async move {
+            struct Finished(
+                std::sync::Arc<dashmap::DashMap<Uuid, tokio::task::AbortHandle>>,
+                Uuid,
+            );
+            impl Drop for Finished {
+                fn drop(&mut self) {
+                    self.0.remove(&self.1);
+                }
+            }
+            let _finished = Finished(tasks, id);
+            if start.await.is_ok() {
+                work.await;
+            }
+        });
+        self.assignment_tasks.insert(id, task.abort_handle());
+        if self
+            .cleanup_claimed
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            task.abort();
+        }
+        let _ = ready.send(());
+    }
+
+    async fn assignment(&self, trigger: Trigger, token: String, stop: bool) -> anyhow::Result<()> {
+        if self
+            .cleanup_claimed
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(anyhow::Error::new(RegistratorUnavailable));
+        }
+        let key = format!("{token}:{stop}");
+        let (tx, rx) = oneshot::channel();
+        self.pending_assignments.insert(
+            key.clone(),
+            (
+                trigger.id.clone(),
+                trigger.trigger_type.clone(),
+                trigger.function_id.clone(),
+                stop,
+            ),
+        );
+        self.pending_trigger_acks.insert(key.clone(), tx);
+        struct Pending<'a>(&'a WorkerConnection, String);
+        impl Drop for Pending<'_> {
+            fn drop(&mut self) {
+                self.0.pending_trigger_acks.remove(&self.1);
+                self.0.pending_assignments.remove(&self.1);
+            }
+        }
+        let _pending = Pending(self, key);
+        let message = if stop {
+            Message::UnregisterTrigger {
+                assignment_id: Some(token),
+                id: trigger.id,
+                trigger_type: Some(trigger.trigger_type),
+            }
+        } else {
+            Message::RegisterTrigger {
+                assignment_id: Some(token),
+                id: trigger.id,
+                trigger_type: trigger.trigger_type,
+                function_id: trigger.function_id,
+                config: trigger.config,
+                metadata: trigger.metadata,
+                namespace: (trigger.namespace != crate::protocol::DEFAULT_NAMESPACE)
+                    .then_some(trigger.namespace),
+                trigger_namespace: (trigger.provider_namespace
+                    != crate::protocol::DEFAULT_NAMESPACE)
+                    .then_some(trigger.provider_namespace),
+            }
+        };
+        let mut disconnected = self.cleanup_done.subscribe();
+        let operation = async {
+            self.channel
+                .send(Outbound::Protocol(message))
+                .await
+                .map_err(|_| anyhow::Error::new(RegistratorUnavailable))?;
+            match rx.await {
+                Ok(None) => Ok(()),
+                Ok(Some(error)) => Err(anyhow::anyhow!("{error}")),
+                Err(_) => Err(anyhow::Error::new(RegistratorUnavailable)),
+            }
+        };
+        tokio::select! {
+            result = tokio::time::timeout(REGISTRATION_ACK_TIMEOUT, operation) => result.unwrap_or_else(|_| Err(anyhow::Error::new(RegistratorUnavailable))),
+            _ = disconnected.wait_for(|done| *done) => Err(anyhow::Error::new(RegistratorUnavailable)),
+        }
+    }
+
+    pub(crate) fn assignment_ack(
+        &self,
+        id: &str,
+        kind: &str,
+        function: Option<&str>,
+        token: &str,
+        stop: bool,
+        error: Option<ErrorBody>,
+    ) {
+        let key = format!("{token}:{stop}");
+        let valid = self.pending_assignments.get(&key).is_some_and(|entry| {
+            entry.0 == id
+                && entry.1 == kind
+                && function.is_none_or(|function| entry.2 == function)
+                && entry.3 == stop
+        });
+        if valid
+            && !self
+                .cleanup_claimed
+                .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            if let Some((_, tx)) = self.pending_trigger_acks.remove(&key) {
+                let _ = tx.send(error);
+            }
+        }
+    }
+}
+
 impl TriggerRegistrator for WorkerConnection {
+    fn register_assignment(
+        &self,
+        trigger: Trigger,
+        token: String,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + '_>> {
+        Box::pin(self.assignment(trigger, token, false))
+    }
+    fn unregister_assignment(
+        &self,
+        trigger: Trigger,
+        token: String,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + '_>> {
+        Box::pin(self.assignment(trigger, token, true))
+    }
     fn register_trigger(
         &self,
         trigger: Trigger,
@@ -56,6 +200,7 @@ impl TriggerRegistrator for WorkerConnection {
 
             let sent = sender
                 .send(Outbound::Protocol(Message::RegisterTrigger {
+                    assignment_id: None,
                     id: trigger.id,
                     trigger_type: trigger.trigger_type,
                     function_id: trigger.function_id,
@@ -114,6 +259,7 @@ impl TriggerRegistrator for WorkerConnection {
         Box::pin(async move {
             sender
                 .send(Outbound::Protocol(Message::RegisterTrigger {
+                    assignment_id: None,
                     id: trigger.id,
                     trigger_type: trigger.trigger_type,
                     function_id: trigger.function_id,
@@ -150,6 +296,7 @@ impl TriggerRegistrator for WorkerConnection {
         Box::pin(async move {
             sender
                 .send(Outbound::Protocol(Message::UnregisterTrigger {
+                    assignment_id: None,
                     id: trigger.id,
                     trigger_type: Some(trigger.trigger_type),
                 }))
@@ -351,6 +498,372 @@ mod tests {
         tx.send(error).unwrap();
     }
 
+    // KAN-319: drive the production registry/router, not a proposed assignment API.
+    async fn shared_provider() -> (
+        std::sync::Arc<crate::engine::Engine>,
+        WorkerConnection,
+        mpsc::Receiver<Outbound>,
+    ) {
+        crate::workers::observability::metrics::ensure_default_meter();
+        let engine = std::sync::Arc::new(crate::engine::Engine::new());
+        engine.set_shared_namespace_ownership(true);
+        let (worker, rx) = make_worker();
+        engine.worker_registry.register_worker(worker.clone());
+        engine.begin_namespace_resolution(&worker);
+        engine.resolve_connection_namespace(&worker, "orders").await;
+        let declaration: Message = serde_json::from_value(json!({
+            "type": "registertriggertype", "id": "http", "description": "assignment fixture",
+            "delivery_mode": "parallel", "delivery_contract": "shared_v1"
+        }))
+        .unwrap();
+        engine.router_msg(&worker, &declaration).await.unwrap();
+        (engine, worker, rx)
+    }
+
+    fn shared_binding(id: &str, owner: Option<Uuid>) -> Trigger {
+        let mut binding = trigger(id, owner);
+        binding.home_namespace = "orders".into();
+        binding.namespace = "orders".into();
+        binding
+    }
+
+    async fn delivery(rx: &mut mpsc::Receiver<Outbound>) -> Value {
+        let Outbound::Protocol(message) = rx.recv().await.expect("assignment enqueued") else {
+            panic!("expected protocol assignment");
+        };
+        serde_json::to_value(message).unwrap()
+    }
+
+    async fn registration_ack(
+        engine: &crate::engine::Engine,
+        worker: &WorkerConnection,
+        frame: &Value,
+        assignment: Value,
+        error: Value,
+    ) {
+        let message: Message = serde_json::from_value(json!({
+            "type": "triggerregistrationresult", "id": frame["id"],
+            "trigger_type": frame["trigger_type"], "function_id": frame["function_id"],
+            "assignment_id": assignment, "error": error
+        }))
+        .unwrap();
+        engine.router_msg(worker, &message).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_ack_legacy_helper_still_accepts_positive_ack() {
+        // Existing helper remains the disabled-path control, not an assignment bypass.
+        let (worker, mut rx) = make_worker();
+        let (result, ()) = tokio::join!(
+            worker.register_trigger(trigger("legacy-control", None)),
+            ack(&worker, &mut rx, "legacy-control", None),
+        );
+        result.unwrap();
+        assert!(worker.pending_trigger_acks.is_empty());
+    }
+
+    #[test]
+    fn shared_trigger_ack_assignment_wire_roundtrips() {
+        for input in [
+            json!({"type":"registertrigger", "id":"route", "trigger_type":"http", "function_id":"fn1", "config":{}, "assignment_id":"generation-1"}),
+            json!({"type":"unregistertrigger", "id":"route", "trigger_type":"http", "assignment_id":"generation-1"}),
+            json!({"type":"triggerregistrationresult", "id":"route", "trigger_type":"http", "function_id":"fn1", "assignment_id":"generation-1"}),
+        ] {
+            let message: Message = serde_json::from_value(input).unwrap();
+            assert_eq!(
+                serde_json::to_value(message).unwrap()["assignment_id"],
+                "generation-1",
+                "assignment identity must survive the shared_v1 wire"
+            );
+        }
+    }
+
+    #[test]
+    fn shared_trigger_ack_stop_result_is_additive() {
+        let input = json!({"type":"unregistertriggerresult", "id":"route", "trigger_type":"http", "assignment_id":"generation-1"});
+        let decoded = serde_json::from_value::<Message>(input.clone());
+        assert!(
+            decoded.is_ok(),
+            "shared_v1 requires positive stop acknowledgement: {decoded:?}"
+        );
+        assert_eq!(serde_json::to_value(decoded.unwrap()).unwrap(), input);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn shared_trigger_ack_timeout_is_not_installation() {
+        let (engine, worker, mut rx) = shared_provider().await;
+        let task = tokio::spawn({
+            let engine = engine.clone();
+            async move {
+                engine
+                    .trigger_registry
+                    .register_trigger(shared_binding("timeout", None))
+                    .await
+            }
+        });
+        let frame = delivery(&mut rx).await;
+        assert!(
+            !task.is_finished(),
+            "queue enqueue is not installation acknowledgement"
+        );
+        tokio::time::advance(REGISTRATION_ACK_TIMEOUT + std::time::Duration::from_millis(1)).await;
+        let outcome = task.await.unwrap();
+        assert!(
+            !matches!(
+                outcome,
+                Ok(crate::trigger::RegisterTriggerOutcome::Registered)
+            ),
+            "shared_v1 timeout must fail or remain pending, never accept installation: {outcome:?}"
+        );
+        assert!(
+            !engine
+                .trigger_registry
+                .triggers
+                .contains_key(frame["id"].as_str().unwrap())
+        );
+        assert!(worker.pending_trigger_acks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_ack_owned_queue_waits_for_positive_installation() {
+        let (engine, worker, mut rx) = shared_provider().await;
+        let task = tokio::spawn({
+            let engine = engine.clone();
+            async move {
+                engine
+                    .trigger_registry
+                    .register_trigger(shared_binding("owned", Some(Uuid::new_v4())))
+                    .await
+            }
+        });
+        let frame = delivery(&mut rx).await;
+        assert!(
+            !task.is_finished(),
+            "connection-owned shared_v1 enqueue must not report installed"
+        );
+        assert!(
+            frame["assignment_id"].is_string(),
+            "shared_v1 install requires an opaque assignment_id: {frame}"
+        );
+        registration_ack(
+            &engine,
+            &worker,
+            &frame,
+            frame["assignment_id"].clone(),
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            task.await.unwrap().unwrap(),
+            crate::trigger::RegisterTriggerOutcome::Registered
+        );
+        assert!(worker.pending_trigger_acks.is_empty());
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_ack_stale_generation_cannot_complete_pending_install() {
+        let (engine, worker, mut rx) = shared_provider().await;
+        let task = tokio::spawn({
+            let engine = engine.clone();
+            async move {
+                engine
+                    .trigger_registry
+                    .register_trigger(shared_binding("generation", None))
+                    .await
+            }
+        });
+        let frame = delivery(&mut rx).await;
+        registration_ack(
+            &engine,
+            &worker,
+            &frame,
+            json!("retired-generation"),
+            Value::Null,
+        )
+        .await;
+        tokio::task::yield_now().await;
+        assert!(
+            !task.is_finished(),
+            "an id-only match must not accept a stale assignment generation"
+        );
+        assert!(
+            frame["assignment_id"].is_string(),
+            "assignment identity missing: {frame}"
+        );
+        registration_ack(
+            &engine,
+            &worker,
+            &frame,
+            frame["assignment_id"].clone(),
+            Value::Null,
+        )
+        .await;
+        assert_eq!(
+            task.await.unwrap().unwrap(),
+            crate::trigger::RegisterTriggerOutcome::Registered
+        );
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_ack_foreign_session_cannot_complete_pending_install() {
+        let (engine, worker, mut rx) = shared_provider().await;
+        let (foreign, _foreign_rx) = make_worker();
+        engine.worker_registry.register_worker(foreign.clone());
+        let task = tokio::spawn({
+            let engine = engine.clone();
+            async move {
+                engine
+                    .trigger_registry
+                    .register_trigger(shared_binding("session", None))
+                    .await
+            }
+        });
+        let frame = delivery(&mut rx).await;
+        registration_ack(
+            &engine,
+            &foreign,
+            &frame,
+            frame["assignment_id"].clone(),
+            Value::Null,
+        )
+        .await;
+        tokio::task::yield_now().await;
+        assert!(
+            !task.is_finished(),
+            "foreign session cannot install another provider's assignment"
+        );
+        assert!(
+            frame["assignment_id"].is_string(),
+            "session fencing needs assignment identity: {frame}"
+        );
+        registration_ack(
+            &engine,
+            &worker,
+            &frame,
+            frame["assignment_id"].clone(),
+            Value::Null,
+        )
+        .await;
+        task.await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_ack_disconnect_does_not_fail_open() {
+        let (engine, worker, mut rx) = shared_provider().await;
+        let task = tokio::spawn({
+            let engine = engine.clone();
+            async move {
+                engine
+                    .trigger_registry
+                    .register_trigger(shared_binding("disconnect", None))
+                    .await
+            }
+        });
+        let frame = delivery(&mut rx).await;
+        // Isolate transport loss first. Concurrent registry removal can block
+        // this current-thread executor on a DashMap write while registration
+        // holds its read guard across the pending ack. That is not the ack
+        // behavior under test and would prevent even a timeout from firing.
+        worker.pending_trigger_acks.clear();
+        let outcome = tokio::time::timeout(std::time::Duration::from_secs(2), task)
+            .await
+            .expect("dropped ack channel must resolve installation without fail-open")
+            .unwrap();
+        engine.trigger_registry.unregister_worker(&worker.id).await;
+        assert!(
+            !matches!(
+                outcome,
+                Ok(crate::trigger::RegisterTriggerOutcome::Registered)
+            ),
+            "disconnect before ack is not successful installation: {outcome:?}"
+        );
+        assert!(
+            !engine
+                .trigger_registry
+                .triggers
+                .contains_key(frame["id"].as_str().unwrap())
+        );
+    }
+
+    #[tokio::test]
+    async fn shared_trigger_ack_removed_intent_rejects_late_installation_ack() {
+        let (engine, worker, mut rx) = shared_provider().await;
+        let registration = tokio::spawn({
+            let engine = engine.clone();
+            async move {
+                engine
+                    .trigger_registry
+                    .register_trigger(shared_binding("removed", None))
+                    .await
+            }
+        });
+        let install = delivery(&mut rx).await;
+        registration_ack(
+            &engine,
+            &worker,
+            &install,
+            install["assignment_id"].clone(),
+            Value::Null,
+        )
+        .await;
+        registration.await.unwrap().unwrap();
+        let removal = tokio::spawn({
+            let engine = engine.clone();
+            async move {
+                engine
+                    .trigger_registry
+                    .unregister_trigger("removed".into(), None)
+                    .await
+            }
+        });
+        let stop = delivery(&mut rx).await;
+        assert_eq!(stop["type"], "unregistertrigger");
+        assert!(
+            stop["assignment_id"].is_string(),
+            "removal must revoke an identified assignment before forgetting intent: {stop}"
+        );
+        assert_eq!(stop["assignment_id"], install["assignment_id"]);
+        assert!(
+            !removal.is_finished(),
+            "enqueued stop is not positive teardown acknowledgement"
+        );
+        registration_ack(
+            &engine,
+            &worker,
+            &install,
+            install["assignment_id"].clone(),
+            Value::Null,
+        )
+        .await;
+        assert!(
+            !removal.is_finished(),
+            "late installation ack cannot satisfy pending stop"
+        );
+        let stopped: Message = serde_json::from_value(json!({
+            "type":"unregistertriggerresult", "id":stop["id"],
+            "trigger_type":stop["trigger_type"], "assignment_id":stop["assignment_id"]
+        }))
+        .unwrap();
+        engine.router_msg(&worker, &stopped).await.unwrap();
+        assert!(removal.await.unwrap().unwrap());
+        registration_ack(
+            &engine,
+            &worker,
+            &install,
+            install["assignment_id"].clone(),
+            Value::Null,
+        )
+        .await;
+        assert!(!engine.trigger_registry.triggers.contains_key("removed"));
+        assert!(
+            !engine
+                .trigger_registry
+                .pending_triggers
+                .contains_key("removed")
+        );
+        assert!(worker.pending_trigger_acks.is_empty());
+    }
+
     #[tokio::test]
     async fn register_trigger_sends_message_and_accepts_on_ok_ack() {
         let (worker, mut rx) = make_worker();
@@ -436,7 +949,9 @@ mod tests {
         worker.unregister_trigger(trigger).await.unwrap();
         let msg = rx.recv().await.unwrap();
         match msg {
-            Outbound::Protocol(Message::UnregisterTrigger { id, trigger_type }) => {
+            Outbound::Protocol(Message::UnregisterTrigger {
+                id, trigger_type, ..
+            }) => {
                 assert_eq!(id, "t2");
                 assert_eq!(trigger_type, Some("cron".into()));
             }

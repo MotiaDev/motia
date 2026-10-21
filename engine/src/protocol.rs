@@ -144,6 +144,8 @@ pub enum Message {
         namespace: Option<String>,
     },
     RegisterTrigger {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        assignment_id: Option<String>,
         id: String,
         trigger_type: String,
         function_id: String,
@@ -168,6 +170,8 @@ pub enum Message {
         trigger_namespace: Option<String>,
     },
     TriggerRegistrationResult {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        assignment_id: Option<String>,
         id: String,
         trigger_type: String,
         function_id: String,
@@ -175,9 +179,19 @@ pub enum Message {
         error: Option<ErrorBody>,
     },
     UnregisterTrigger {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        assignment_id: Option<String>,
         id: String,
         #[serde(default)]
         trigger_type: Option<String>,
+    },
+    UnregisterTriggerResult {
+        id: String,
+        trigger_type: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        assignment_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        error: Option<ErrorBody>,
     },
     RegisterFunction {
         id: String,
@@ -415,7 +429,9 @@ mod tests {
         let message: Message = serde_json::from_str(raw).expect("message should deserialize");
 
         match message {
-            Message::UnregisterTrigger { id, trigger_type } => {
+            Message::UnregisterTrigger {
+                id, trigger_type, ..
+            } => {
                 assert_eq!(id, "abc");
                 assert_eq!(trigger_type, None);
             }
@@ -473,7 +489,9 @@ mod tests {
         let message: Message = serde_json::from_str(raw).expect("message should deserialize");
 
         match message {
-            Message::UnregisterTrigger { id, trigger_type } => {
+            Message::UnregisterTrigger {
+                id, trigger_type, ..
+            } => {
                 assert_eq!(id, "abc");
                 assert_eq!(trigger_type.as_deref(), Some("http"));
             }
