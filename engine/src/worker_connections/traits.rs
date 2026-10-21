@@ -166,14 +166,19 @@ impl TriggerRegistrator for WorkerConnection {
     }
 }
 
-impl FunctionHandler for WorkerConnection {
-    fn handle_function<'a>(
+/// Internal proof that permit.send was never reached. Never inferred from a
+/// public error code or a socket/writer failure after enqueue.
+pub(crate) struct NotEnqueued(pub ErrorBody);
+
+impl WorkerConnection {
+    pub(crate) fn enqueue_function<'a>(
         &'a self,
         invocation_id: Option<Uuid>,
         function_id: String,
         input: Value,
         metadata: Option<Value>,
-    ) -> Pin<Box<dyn Future<Output = FunctionResult<Option<Value>, ErrorBody>> + Send + 'a>> {
+        pending: Option<&'a crate::invocation::InvocationHandler>,
+    ) -> Pin<Box<dyn Future<Output = Result<(), NotEnqueued>> + Send + 'a>> {
         // Capture OTel context from current tracing span BEFORE async move
         // This ensures we get the trace context from the #[tracing::instrument] span.
         let current_span = Span::current();
@@ -210,11 +215,11 @@ impl FunctionHandler for WorkerConnection {
             };
 
             let stopped = || {
-                FunctionResult::Failure(ErrorBody {
+                Err(NotEnqueued(ErrorBody {
                     code: "invocation_stopped".into(),
                     message: "Invocation stopped".into(),
                     stacktrace: None,
-                })
+                }))
             };
             if self
                 .cleanup_claimed
@@ -231,11 +236,11 @@ impl FunctionHandler for WorkerConnection {
                 _ = cleanup_done.wait_for(|done| *done) => return stopped(),
                 result = self.channel.reserve() => match result {
                     Ok(permit) => permit,
-                    Err(err) => return FunctionResult::Failure(ErrorBody {
+                    Err(err) => return Err(NotEnqueued(ErrorBody {
                         code: "channel_send_failed".into(),
                         message: err.to_string(),
                         stacktrace: None,
-                    }),
+                    })),
                 },
             };
 
@@ -249,12 +254,21 @@ impl FunctionHandler for WorkerConnection {
                 return stopped();
             }
             if self.channel.is_closed() {
-                return FunctionResult::Failure(ErrorBody {
+                return Err(NotEnqueued(ErrorBody {
                     code: "channel_send_failed".into(),
                     message: "channel closed".into(),
                     stacktrace: None,
-                });
+                }));
             }
+            // Serialize the enqueue with terminal removal. This guard is
+            // synchronous and is dropped before returning, never across await.
+            let registration = match (pending, invocation_id) {
+                (Some(pending), Some(id)) => match pending.pending(&id) {
+                    Some(registration) => Some(registration),
+                    None => return stopped(),
+                },
+                _ => None,
+            };
             if let Some(id) = invocation_id {
                 invocations.insert(id);
             }
@@ -268,7 +282,26 @@ impl FunctionHandler for WorkerConnection {
                 metadata,
                 namespace: None,
             }));
-            FunctionResult::Deferred
+            drop(registration);
+            Ok(())
+        })
+    }
+}
+
+impl FunctionHandler for WorkerConnection {
+    fn handle_function<'a>(
+        &'a self,
+        invocation_id: Option<Uuid>,
+        function_id: String,
+        input: Value,
+        metadata: Option<Value>,
+    ) -> Pin<Box<dyn Future<Output = FunctionResult<Option<Value>, ErrorBody>> + Send + 'a>> {
+        let enqueue = self.enqueue_function(invocation_id, function_id, input, metadata, None);
+        Box::pin(async move {
+            match enqueue.await {
+                Ok(()) => FunctionResult::Deferred,
+                Err(error) => FunctionResult::Failure(error.0),
+            }
         })
     }
 }

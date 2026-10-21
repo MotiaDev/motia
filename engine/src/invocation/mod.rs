@@ -58,31 +58,100 @@ type Invocations = Arc<DashMap<Uuid, Invocation>>;
 
 // Remove unfinished registrations when dispatch fails or its future is dropped.
 struct InvocationRegistration<'a> {
-    invocations: &'a Invocations,
+    handler: &'a InvocationHandler,
     id: Uuid,
 }
 
 impl Drop for InvocationRegistration<'_> {
     fn drop(&mut self) {
-        self.invocations.remove(&self.id);
+        self.handler.remove(&self.id);
     }
 }
 
 #[derive(Default)]
 pub struct InvocationHandler {
     invocations: Invocations,
+    executors: DashMap<Uuid, (WorkerConnection, crate::engine::RoutingReservation)>,
+    callers: DashMap<Uuid, WorkerConnection>,
 }
 impl InvocationHandler {
     pub fn new() -> Self {
         Self {
             invocations: Arc::new(DashMap::new()),
+            executors: DashMap::new(),
+            callers: DashMap::new(),
         }
     }
 
+    fn clear_worker_id(worker: WorkerConnection, id: Uuid) {
+        if let Ok(mut ids) = worker.invocations.try_write() {
+            ids.remove(&id);
+            return;
+        }
+        // Drop cannot await. Capacity waits/cancellation never retain this lock;
+        // the uncommon concurrent teardown case completes on the runtime.
+        tokio::spawn(async move { worker.remove_invocation(&id).await });
+    }
+
+    pub(crate) fn reserve_executor(
+        &self,
+        id: Uuid,
+        worker: WorkerConnection,
+        reservation: crate::engine::RoutingReservation,
+    ) -> bool {
+        let Some(_pending) = self.invocations.get(&id) else {
+            return false;
+        };
+        self.executors.insert(id, (worker, reservation));
+        true
+    }
+
+    pub(crate) fn release_executor(&self, id: &Uuid) {
+        if let Some((_, (worker, reservation))) = self.executors.remove(id) {
+            drop(reservation);
+            Self::clear_worker_id(worker, *id);
+        }
+    }
+
+    pub(crate) fn pending(
+        &self,
+        id: &Uuid,
+    ) -> Option<dashmap::mapref::one::Ref<'_, Uuid, Invocation>> {
+        self.invocations.get(id)
+    }
+
+    pub(crate) fn remove_from_executor(&self, id: &Uuid, worker: Uuid) -> Option<Invocation> {
+        // Same lock order as reserve_executor: pending first, executor second.
+        let entry = match self.invocations.entry(*id) {
+            dashmap::mapref::entry::Entry::Occupied(entry) => entry,
+            dashmap::mapref::entry::Entry::Vacant(_) => return None,
+        };
+        let executor = self.executors.get(id);
+        if executor.as_ref().is_some_and(|entry| entry.0.id != worker) {
+            return None;
+        }
+        drop(executor);
+        let invocation = entry.remove();
+        self.finish_registration(id);
+        Some(invocation)
+    }
+
     pub fn remove(&self, invocation_id: &Uuid) -> Option<Invocation> {
-        self.invocations
+        let invocation = self
+            .invocations
             .remove(invocation_id)
-            .map(|(_, sender)| sender)
+            .map(|(_, invocation)| invocation);
+        if invocation.is_some() {
+            self.finish_registration(invocation_id);
+        }
+        invocation
+    }
+
+    fn finish_registration(&self, invocation_id: &Uuid) {
+        self.release_executor(invocation_id);
+        if let Some((_, caller)) = self.callers.remove(invocation_id) {
+            Self::clear_worker_id(caller, *invocation_id);
+        }
     }
 
     pub fn halt_invocation(&self, invocation_id: &Uuid) {
@@ -245,7 +314,7 @@ impl InvocationHandler {
 
         let invocation_fut = async {
             let invocation_id = invocation_id.unwrap_or_else(Uuid::new_v4);
-            let (sender, receiver) = oneshot::channel();
+            let (sender, mut receiver) = oneshot::channel();
             // A worker can reply or disconnect before its handler returns Deferred.
             self.invocations.insert(invocation_id, Invocation {
                 id: invocation_id,
@@ -256,7 +325,7 @@ impl InvocationHandler {
                 baggage,
             });
             let _registration = InvocationRegistration {
-                invocations: &self.invocations,
+                handler: self,
                 id: invocation_id,
             };
 
@@ -271,20 +340,20 @@ impl InvocationHandler {
                     }));
                 }
                 invocations.insert(invocation_id);
+                self.callers.insert(invocation_id, caller.clone());
             }
 
             // Start timer for invocation duration
             let start_time = std::time::Instant::now();
             let metrics = get_engine_metrics();
 
-            let result = call_handler_with_metadata(
-                function_handler,
-                Some(invocation_id),
-                body,
-                session,
-                metadata,
-            )
-            .await;
+            let result = tokio::select! {
+                biased;
+                result = &mut receiver => return result,
+                result = call_handler_with_metadata(
+                    function_handler, Some(invocation_id), body, session, metadata,
+                ) => result,
+            };
 
             // Calculate duration
             let duration = start_time.elapsed().as_secs_f64();

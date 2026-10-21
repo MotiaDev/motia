@@ -381,6 +381,68 @@ pub(crate) enum InvocationKind {
     External,
 }
 
+// Selection and reservation share this short, synchronous owner-set lock.
+// Removed owners remain here until the dispatcher snapshot dies: unregistering
+// must not release work that is already running.
+#[derive(Default)]
+struct SharedRouting {
+    owners: Vec<RoutingOwner>,
+    cursor: usize,
+}
+
+struct RoutingOwner {
+    worker: WorkerConnection,
+    load: Arc<std::sync::atomic::AtomicUsize>,
+    eligible: bool,
+}
+
+pub(crate) struct RoutingReservation(Arc<std::sync::atomic::AtomicUsize>);
+
+impl Drop for RoutingReservation {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+impl SharedRouting {
+    fn join(&mut self, worker: &WorkerConnection) {
+        if let Some(owner) = self.owners.iter_mut().find(|o| o.worker.id == worker.id) {
+            owner.eligible = true;
+            return;
+        }
+        self.owners.push(RoutingOwner {
+            worker: worker.clone(),
+            load: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
+            eligible: true,
+        });
+    }
+
+    fn reserve(&mut self, tried: &[Uuid]) -> Option<(WorkerConnection, RoutingReservation)> {
+        let len = self.owners.len();
+        let index = (0..len)
+            .map(|offset| (self.cursor + offset) % len)
+            .filter(|&i| {
+                let owner = &self.owners[i];
+                owner.eligible
+                    && !tried.contains(&owner.worker.id)
+                    && !owner
+                        .worker
+                        .cleanup_claimed
+                        .load(std::sync::atomic::Ordering::SeqCst)
+                    && !owner.worker.channel.is_closed()
+            })
+            .min_by_key(|&i| {
+                self.owners[i]
+                    .load
+                    .load(std::sync::atomic::Ordering::SeqCst)
+            })?;
+        self.cursor = (index + 1) % len;
+        let owner = &self.owners[index];
+        owner.load.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Some((owner.worker.clone(), RoutingReservation(owner.load.clone())))
+    }
+}
+
 #[derive(Clone)]
 pub struct Engine {
     pub worker_registry: Arc<WorkerConnectionRegistry>,
@@ -417,6 +479,7 @@ pub struct Engine {
     /// function_owners retains the first UUID as a legacy ownership index;
     /// this entry is the authoritative descriptor and complete session set.
     shared_functions: Arc<DashMap<(String, String), SessionFunction>>,
+    shared_routing: Arc<DashMap<(String, String), Arc<std::sync::Mutex<SharedRouting>>>>,
     /// Records the current owning WS connection for each live worker name,
     /// keyed by `(namespace, worker_name)`. Populated when a worker sends
     /// `engine::workers::register` (see `claim_worker_name`) and CAS-released by
@@ -486,6 +549,7 @@ impl Engine {
             channel_manager: Arc::new(ChannelManager::new()),
             function_owners: Arc::new(DashMap::new()),
             shared_functions: Arc::new(DashMap::new()),
+            shared_routing: Arc::new(DashMap::new()),
             worker_name_owners: Arc::new(DashMap::new()),
             namespace_states: Arc::new(DashMap::new()),
             namespace_grace_tasks: Arc::new(DashMap::new()),
@@ -2164,9 +2228,11 @@ impl Engine {
                     "InvocationResult"
                 );
 
-                worker.remove_invocation(invocation_id).await;
-
-                if let Some(invocation) = self.invocations.remove(invocation_id) {
+                if let Some(invocation) = self
+                    .invocations
+                    .remove_from_executor(invocation_id, worker.id)
+                {
+                    worker.remove_invocation(invocation_id).await;
                     let Message::InvocationResult { result, error, .. } = msg.into_owned() else {
                         unreachable!("matched InvocationResult above");
                     };
@@ -2785,14 +2851,16 @@ impl Engine {
 
         let (tx, mut rx) = mpsc::channel::<Outbound>(64);
 
-        let writer = tokio::spawn(async move {
+        let worker = WorkerConnection::with_session(tx.clone(), session);
+        let writer_worker = worker.clone();
+        let mut writer = tokio::spawn(async move {
             while let Some(outbound) = rx.recv().await {
                 let send_result = match outbound {
                     Outbound::Protocol(msg) => match serde_json::to_string(&msg) {
                         Ok(payload) => ws_tx.send(WsMessage::Text(payload.into())).await,
                         Err(err) => {
                             tracing::error!(peer = %peer, error = ?err, "serialize error");
-                            continue;
+                            break;
                         }
                     },
                     Outbound::Raw(frame) => ws_tx.send(frame).await,
@@ -2802,9 +2870,10 @@ impl Engine {
                     break;
                 }
             }
+            // Ineligible immediately on writer completion, before teardown awaits.
+            rx.close();
+            writer_worker.evict.notify_one();
         });
-
-        let worker = WorkerConnection::with_session(tx.clone(), session);
         // Mark before registering: from the moment this connection is
         // discoverable, a Reattach targeting it can rely on this read loop
         // to exit on eviction and run the cleanup.
@@ -2845,6 +2914,7 @@ impl Engine {
                 // stale registration replayed from this socket after eviction
                 // would re-claim ids for a retired identity.
                 biased;
+                _ = &mut writer => break,
                 _ = worker.evict.notified() => {
                     tracing::info!(worker_id = %worker.id, peer = %peer, "Worker evicted by reattaching successor");
                     break;
@@ -2860,7 +2930,12 @@ impl Engine {
                                 continue;
                             }
                             match serde_json::from_str::<Message>(&text) {
-                                Ok(msg) => self.router_msg_owned(&worker, msg).await?,
+                                Ok(msg) => {
+                                    if let Err(error) = self.router_msg_owned(&worker, msg).await {
+                                        tracing::warn!(%error, "Worker routing failed");
+                                        break;
+                                    }
+                                }
                                 Err(err) => tracing::warn!(peer = %peer, error = ?err, "json decode error"),
                             }
                         }
@@ -2869,7 +2944,12 @@ impl Engine {
                             if !handle_telemetry_frame(&bytes, &peer).await {
                                 // Not a telemetry frame, try to decode as regular protocol message
                                 match serde_json::from_slice::<Message>(&bytes) {
-                                    Ok(msg) => self.router_msg_owned(&worker, msg).await?,
+                                    Ok(msg) => {
+                                    if let Err(error) = self.router_msg_owned(&worker, msg).await {
+                                        tracing::warn!(%error, "Worker routing failed");
+                                        break;
+                                    }
+                                }
                                     Err(err) => {
                                         tracing::warn!(peer = %peer, error = ?err, "binary decode error")
                                     }
@@ -3093,7 +3173,9 @@ impl Engine {
         {
             let mut worker_invocations = worker.invocations.write().await;
             tracing::debug!(worker_id = %worker.id, invocations = ?worker_invocations, "Worker invocations");
-            for invocation_id in worker_invocations.drain() {
+            let pending: Vec<_> = worker_invocations.drain().collect();
+            drop(worker_invocations);
+            for invocation_id in pending {
                 tracing::debug!(invocation_id = %invocation_id, "Halting invocation");
                 self.invocations.halt_invocation(&invocation_id);
             }
@@ -3290,6 +3372,56 @@ impl Engine {
     /// which is what the prior two-map design allowed. On takeover (a departed
     /// or tearing-down previous owner) the entry is overwritten with the new
     /// `(worker_id, kind)`, so a later restart that changes kind is reflected.
+    fn shared_dispatcher(
+        &self,
+        routing: Arc<std::sync::Mutex<SharedRouting>>,
+        function_id: String,
+    ) -> Arc<crate::function::HandlerFn> {
+        let invocations = self.invocations.clone();
+        Arc::new(move |id, input, _session, metadata| {
+            let routing = routing.clone();
+            let invocations = invocations.clone();
+            let function_id = function_id.clone();
+            Box::pin(async move {
+                let mut tried = Vec::new();
+                let mut error = ErrorBody::new("invocation_stopped", "Invocation stopped");
+                loop {
+                    let selected = routing
+                        .lock()
+                        .expect("shared routing poisoned")
+                        .reserve(&tried);
+                    let Some((worker, reservation)) = selected else {
+                        return FunctionResult::Failure(error);
+                    };
+                    tried.push(worker.id);
+                    let Some(id) = id else {
+                        return FunctionResult::Failure(error);
+                    };
+                    if !invocations.reserve_executor(id, worker.clone(), reservation) {
+                        return FunctionResult::Failure(error);
+                    }
+                    match worker
+                        .enqueue_function(
+                            Some(id),
+                            function_id.clone(),
+                            input.clone(),
+                            metadata.clone(),
+                            Some(&invocations),
+                        )
+                        .await
+                    {
+                        Ok(()) => return FunctionResult::Deferred,
+                        Err(not_enqueued) => {
+                            error = not_enqueued.0;
+                            // Only this internal, proven pre-send failure can retry.
+                            invocations.release_executor(&id);
+                        }
+                    }
+                }
+            })
+        })
+    }
+
     fn register_shared_function(
         &self,
         namespace: &str,
@@ -3333,6 +3465,17 @@ impl Engine {
                     ));
                 }
                 *shared = SessionFunction::new(worker.id, function);
+                let routing = self
+                    .shared_routing
+                    .get(&key)
+                    .expect("shared routing exists")
+                    .clone();
+                routing
+                    .lock()
+                    .expect("shared routing poisoned")
+                    .join(worker);
+                shared.function.handler =
+                    self.shared_dispatcher(routing, request.function_id.clone());
                 self.functions.register_function_ns(
                     namespace,
                     request.function_id,
@@ -3340,6 +3483,12 @@ impl Engine {
                 );
             } else {
                 shared.join(worker.id, function.handler);
+                self.shared_routing
+                    .get(&key)
+                    .expect("shared routing exists")
+                    .lock()
+                    .expect("shared routing poisoned")
+                    .join(worker);
             }
             return Ok(());
         }
@@ -3374,7 +3523,13 @@ impl Engine {
             ));
         }
 
-        let shared = SessionFunction::new(worker.id, function);
+        let mut shared = SessionFunction::new(worker.id, function);
+        let mut routing = SharedRouting::default();
+        routing.join(worker);
+        let routing = Arc::new(std::sync::Mutex::new(routing));
+        shared.function.handler =
+            self.shared_dispatcher(routing.clone(), request.function_id.clone());
+        self.shared_routing.insert(key.clone(), routing);
         let canonical = shared.function.clone();
         self.shared_functions.insert(key, shared);
         let _owner_guard = match ownership {
@@ -3516,11 +3671,22 @@ impl Engine {
                     if !shared.remove(*worker_id) {
                         return false;
                     }
+                    if let Some(routing) = self.shared_routing.get(&key) {
+                        let mut routing = routing.lock().expect("shared routing poisoned");
+                        if let Some(owner) = routing
+                            .owners
+                            .iter_mut()
+                            .find(|o| o.worker.id == *worker_id)
+                        {
+                            owner.eligible = false;
+                        }
+                    }
                     if let Some(first) = shared.first_owner() {
                         entry.insert((first, InvocationKind::Regular));
                     } else {
                         drop(shared);
                         self.shared_functions.remove(&key);
+                        self.shared_routing.remove(&key);
                         self.remove_function_from_engine(namespace, function_id);
                         entry.remove();
                     }
@@ -3780,6 +3946,298 @@ mod tests {
             metadata: Some(json!({"version": 1})),
             invocation: None,
         }
+    }
+
+    // Routing tests observe the real dispatcher and outbound enqueue boundary.
+    // Receiving a frame is the barrier; no sleeps decide cancellation/failure order.
+    async fn routing_pair() -> (Engine, [WorkerConnection; 2], [mpsc::Receiver<Outbound>; 2]) {
+        let engine = membership_engine();
+        let (a, a_rx) = membership_worker(&engine).await;
+        let (b, b_rx) = membership_worker(&engine).await;
+        for owner in [&a, &b] {
+            engine
+                .router_msg(owner, &membership_registration())
+                .await
+                .unwrap();
+        }
+        (engine, [a, b], [a_rx, b_rx])
+    }
+
+    fn routing_start(
+        engine: &Engine,
+    ) -> tokio::task::JoinHandle<Result<Option<serde_json::Value>, crate::protocol::ErrorBody>>
+    {
+        let engine = engine.clone();
+        tokio::spawn(async move {
+            engine
+                .call_with_metadata_ns("orders", "svc::shared", json!({}), None)
+                .await
+        })
+    }
+
+    async fn routing_next(receivers: &mut [mpsc::Receiver<Outbound>; 2]) -> (usize, uuid::Uuid) {
+        let [a, b] = receivers;
+        let (owner, frame) = tokio::time::timeout(Duration::from_secs(2), async {
+            tokio::select! {
+                frame = a.recv() => (0, frame),
+                frame = b.recv() => (1, frame),
+            }
+        })
+        .await
+        .expect("a live owner must receive the invocation");
+        match frame.expect("owner outbound channel open") {
+            Outbound::Protocol(Message::InvokeFunction {
+                invocation_id: Some(id),
+                ..
+            }) => (owner, id),
+            other => panic!("expected invocation at enqueue barrier, got {other:?}"),
+        }
+    }
+
+    async fn routing_reply(
+        engine: &Engine,
+        owner: &WorkerConnection,
+        id: uuid::Uuid,
+        error: Option<crate::protocol::ErrorBody>,
+    ) {
+        engine
+            .router_msg(
+                owner,
+                &Message::InvocationResult {
+                    invocation_id: id,
+                    function_id: "svc::shared".to_string(),
+                    result: error.is_none().then(|| json!("ok")),
+                    error,
+                    traceparent: None,
+                    baggage: None,
+                },
+            )
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_sequential_ties_cycle_in_insertion_order() {
+        let (engine, owners, mut receivers) = routing_pair().await;
+        let mut selected = Vec::new();
+        for _ in 0..6 {
+            let call = routing_start(&engine);
+            let (owner, id) = routing_next(&mut receivers).await;
+            selected.push(owner);
+            routing_reply(&engine, &owners[owner], id, None).await;
+            assert_eq!(call.await.unwrap().unwrap(), Some(json!("ok")));
+            assert_eq!(owners[owner].invocation_count().await, 0);
+        }
+        assert_eq!(
+            selected,
+            vec![0, 1, 0, 1, 0, 1],
+            "idle shared owners need cyclic ties, not first-owner routing"
+        );
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_reserves_before_deferred_reply() {
+        let (engine, owners, mut receivers) = routing_pair().await;
+        let first = routing_start(&engine);
+        let (a, a_id) = routing_next(&mut receivers).await;
+        let second = routing_start(&engine);
+        let (b, b_id) = routing_next(&mut receivers).await;
+        // Both replies are held beyond the enqueue barrier. Deferred is not terminal.
+        routing_reply(&engine, &owners[a], a_id, None).await;
+        routing_reply(&engine, &owners[b], b_id, None).await;
+        first.await.unwrap().unwrap();
+        second.await.unwrap().unwrap();
+        assert_ne!(
+            a, b,
+            "a held reservation must send the next call to the idle peer"
+        );
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_closed_outbound_retries_only_before_enqueue() {
+        let (engine, owners, [a_rx, mut b_rx]) = routing_pair().await;
+        drop(a_rx); // Proven not-enqueued failure, while membership still includes A.
+        let mut call = routing_start(&engine);
+        let outcome = tokio::time::timeout(Duration::from_secs(2), async {
+            tokio::select! {
+                frame = b_rx.recv() => {
+                    let Outbound::Protocol(Message::InvokeFunction { invocation_id: Some(id), .. }) = frame.unwrap() else {
+                        panic!("expected retry on peer");
+                    };
+                    routing_reply(&engine, &owners[1], id, None).await;
+                    call.await.unwrap()
+                }
+                result = &mut call => result.unwrap(),
+            }
+        }).await.expect("closed outbound must not hang or retry forever");
+        assert!(
+            outcome.is_ok(),
+            "proven pre-enqueue failure must retry the remaining live owner: {outcome:?}"
+        );
+        assert_eq!(owners[0].invocation_count().await, 0);
+        assert_eq!(owners[1].invocation_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_all_outbound_closed_terminates_and_releases() {
+        let (engine, owners, receivers) = routing_pair().await;
+        drop(receivers);
+        let result = tokio::time::timeout(Duration::from_secs(2), routing_start(&engine))
+            .await
+            .expect("each failed owner can be tried at most once")
+            .unwrap();
+        assert!(result.is_err());
+        for owner in &owners {
+            assert_eq!(owner.invocation_count().await, 0);
+        }
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_cancel_before_enqueue_releases_reservation() {
+        let (engine, owners, mut receivers) = routing_pair().await;
+        // Hold executor bookkeeping so dispatch suspends after selection but
+        // before permit.send. Polling proves that exact cancellation boundary.
+        let lock = owners[0].invocations.write().await;
+        let mut call =
+            Box::pin(engine.call_with_metadata_ns("orders", "svc::shared", json!({}), None));
+        assert!(futures::poll!(call.as_mut()).is_pending());
+        assert!(receivers[0].try_recv().is_err());
+        assert!(receivers[1].try_recv().is_err());
+        drop(call);
+        drop(lock);
+        assert_eq!(owners[0].invocation_count().await, 0);
+        let next = routing_start(&engine);
+        let (peer, id) = routing_next(&mut receivers).await;
+        routing_reply(&engine, &owners[peer], id, None).await;
+        next.await.unwrap().unwrap();
+        assert_eq!(
+            peer, 1,
+            "cancelled selection must release load without resetting the tie cursor"
+        );
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_cancel_after_enqueue_releases_executor_bookkeeping() {
+        let (engine, owners, mut receivers) = routing_pair().await;
+        let call = routing_start(&engine);
+        let (owner, id) = routing_next(&mut receivers).await;
+        assert!(owners[owner].invocations.read().await.contains(&id));
+        call.abort();
+        assert!(call.await.unwrap_err().is_cancelled()); // Cancellation completion barrier.
+        assert_eq!(
+            owners[owner].invocation_count().await,
+            0,
+            "dropping a pending call must release its executor reservation and ID"
+        );
+        assert!(
+            engine.invocations.remove(&id).is_none(),
+            "cancelled pending sender must be removed"
+        );
+        routing_reply(&engine, &owners[owner], id, None).await; // Late result is harmless.
+        let next = routing_start(&engine);
+        let (peer, next_id) = routing_next(&mut receivers).await;
+        routing_reply(&engine, &owners[peer], next_id, None).await;
+        next.await.unwrap().unwrap();
+        assert_ne!(owner, peer, "cancel must not reset the cyclic cursor");
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_halt_and_error_release_once() {
+        let (engine, owners, mut receivers) = routing_pair().await;
+        let first = routing_start(&engine);
+        let (owner, id) = routing_next(&mut receivers).await;
+        engine.invocations.halt_invocation(&id);
+        assert_eq!(first.await.unwrap().unwrap_err().code, "invocation_stopped");
+        engine.invocations.halt_invocation(&id);
+        routing_reply(&engine, &owners[owner], id, None).await;
+        assert_eq!(
+            owners[owner].invocation_count().await,
+            0,
+            "halt releases the executor even without a reply"
+        );
+        let second = routing_start(&engine);
+        let (peer, id) = routing_next(&mut receivers).await;
+        routing_reply(
+            &engine,
+            &owners[peer],
+            id,
+            Some(crate::protocol::ErrorBody::new("fixture_error", "expected")),
+        )
+        .await;
+        assert_eq!(second.await.unwrap().unwrap_err().code, "fixture_error");
+        routing_reply(&engine, &owners[peer], id, None).await;
+        assert_eq!(owners[peer].invocation_count().await, 0);
+        assert_ne!(owner, peer);
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_foreign_result_cannot_complete_or_release_reservation() {
+        let (engine, owners, mut receivers) = routing_pair().await;
+        let caller_engine = engine.clone();
+        let mut call =
+            Box::pin(caller_engine.call_with_metadata_ns("orders", "svc::shared", json!({}), None));
+        assert!(futures::poll!(call.as_mut()).is_pending());
+        let (owner, id) = routing_next(&mut receivers).await;
+        routing_reply(&engine, &owners[1 - owner], id, None).await;
+        assert!(
+            futures::poll!(call.as_mut()).is_pending(),
+            "foreign owner must not consume the executor's pending result"
+        );
+        routing_reply(&engine, &owners[owner], id, None).await;
+        assert_eq!(call.await.unwrap(), Some(json!("ok")));
+        routing_reply(&engine, &owners[owner], id, None).await;
+        assert_eq!(owners[owner].invocation_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_post_enqueue_disconnect_never_replays() {
+        let (engine, owners, mut receivers) = routing_pair().await;
+        let call = routing_start(&engine);
+        let (owner, _id) = routing_next(&mut receivers).await;
+        engine.cleanup_worker(&owners[owner]).await; // Teardown completion barrier.
+        let error = tokio::time::timeout(Duration::from_secs(2), call)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap_err();
+        assert_eq!(error.code, "invocation_stopped");
+        assert!(
+            receivers[1 - owner].try_recv().is_err(),
+            "work already enqueued must never replay on a peer"
+        );
+        let next = routing_start(&engine);
+        let (peer, id) = routing_next(&mut receivers).await;
+        assert_ne!(owner, peer);
+        routing_reply(&engine, &owners[peer], id, None).await;
+        next.await.unwrap().unwrap();
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_routing_unregister_preserves_running_reservation() {
+        let (engine, owners, mut receivers) = routing_pair().await;
+        let call = routing_start(&engine);
+        let (owner, id) = routing_next(&mut receivers).await;
+        engine
+            .router_msg(
+                &owners[owner],
+                &Message::UnregisterFunction {
+                    id: "svc::shared".to_string(),
+                },
+            )
+            .await
+            .unwrap();
+        assert!(
+            owners[owner].invocations.read().await.contains(&id),
+            "unregister is not terminal for work already running"
+        );
+        let next = routing_start(&engine);
+        let (peer, peer_id) = routing_next(&mut receivers).await;
+        assert_ne!(owner, peer);
+        routing_reply(&engine, &owners[peer], peer_id, None).await;
+        next.await.unwrap().unwrap();
+        routing_reply(&engine, &owners[owner], id, None).await;
+        call.await.unwrap().unwrap();
+        assert_eq!(owners[owner].invocation_count().await, 0);
     }
 
     fn membership_assert_descriptor(engine: &Engine) {

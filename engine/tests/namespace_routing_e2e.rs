@@ -499,6 +499,262 @@ async fn spawn_engine_with_http_functions() -> (u16, Arc<Engine>, String) {
     (port, engine, format!("http://{addr}/echo"))
 }
 
+// Shared-routing fixtures use the real startup flag and two live WS workers.
+// A received invocation and an acknowledged oneshot reply are explicit barriers.
+struct SharedRoutingFixture {
+    engine: Arc<Engine>,
+    events: tokio::sync::mpsc::Receiver<SharedRoutingEvent>,
+    tasks: Vec<tokio::task::JoinHandle<()>>,
+    owners: [iii::worker_connections::WorkerConnection; 2],
+    _builder: iii::EngineBuilder,
+    _directory: tempfile::TempDir,
+}
+
+struct SharedRoutingEvent {
+    owner: usize,
+    id: uuid::Uuid,
+    reply: tokio::sync::oneshot::Sender<Value>,
+}
+
+impl Drop for SharedRoutingFixture {
+    fn drop(&mut self) {
+        for task in &self.tasks {
+            task.abort();
+        }
+    }
+}
+
+async fn shared_routing_barrier(ws: &mut Ws) {
+    ws.send(text(json!({"type": "ping"}))).await.unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while let Some(Ok(frame)) = ws.next().await {
+            let Ok(raw) = frame.to_text() else { continue };
+            let message: Value = serde_json::from_str(raw).unwrap();
+            assert_ne!(
+                message["type"], "registrationrejected",
+                "compatible join rejected: {message}"
+            );
+            if message["type"] == "pong" {
+                return;
+            }
+        }
+        panic!("socket closed before registration barrier");
+    })
+    .await
+    .expect("registration pong");
+}
+
+async fn shared_routing_fixture() -> SharedRoutingFixture {
+    use iii::workers::config::{EngineConfig, WorkerEntry};
+
+    let directory = tempfile::tempdir().unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    let builder = iii::EngineBuilder::new().with_config(EngineConfig {
+        shared_namespace_ownership: true,
+        workers: vec![
+            WorkerEntry {
+                name: "configuration".to_string(),
+                image: None,
+                config: Some(json!({"adapter": {"name": "fs", "config": {"directory": directory.path()}}})),
+            },
+            WorkerEntry {
+                name: "iii-worker-manager".to_string(),
+                image: None,
+                config: Some(json!({"host": "127.0.0.1", "port": port})),
+            },
+        ],
+        ..EngineConfig::default()
+    }).build().await.unwrap();
+    let engine = builder.engine_handle();
+    assert!(engine.shared_namespace_ownership());
+    let manager = builder
+        .running()
+        .iter()
+        .find(|worker| worker.entry.name == "iii-worker-manager")
+        .unwrap();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    manager
+        .worker
+        .start_background_tasks(shutdown_rx, shutdown_tx)
+        .await
+        .unwrap();
+
+    let (events_tx, events) = tokio::sync::mpsc::channel(32);
+    let mut tasks = Vec::new();
+    let mut owners = Vec::new();
+    for (owner, name) in ["routing-alpha", "routing-beta"].into_iter().enumerate() {
+        let mut ws = connect(port).await;
+        declare_worker(&mut ws, name, Some("orders")).await;
+        wait_for_result(&mut ws, "engine::workers::register").await;
+        ws.send(text(json!({
+            "type": "registerfunction", "id": "svc::shared",
+            "description": "canonical routing fixture",
+            "request_format": null, "response_format": null,
+        })))
+        .await
+        .unwrap();
+        shared_routing_barrier(&mut ws).await;
+        let worker = engine
+            .worker_registry
+            .workers
+            .iter()
+            .find(|entry| entry.name.as_deref() == Some(name))
+            .expect("registered WS worker")
+            .value()
+            .clone();
+        owners.push(worker);
+        let events_tx = events_tx.clone();
+        tasks.push(tokio::spawn(async move {
+            let mut pending = futures_util::stream::FuturesUnordered::new();
+            loop {
+                tokio::select! {
+                    frame = ws.next() => {
+                        let Some(Ok(frame)) = frame else { break };
+                        let Ok(raw) = frame.to_text() else { continue };
+                        let message: Value = serde_json::from_str(raw).unwrap();
+                        if message["type"] == "invokefunction" && message["function_id"] == "svc::shared" {
+                            let id: uuid::Uuid = serde_json::from_value(message["invocation_id"].clone()).unwrap();
+                            let (reply, gate) = tokio::sync::oneshot::channel::<Value>();
+                            if events_tx.send(SharedRoutingEvent { owner, id, reply }).await.is_err() { break; }
+                            pending.push(async move { (id, gate.await) });
+                        }
+                    }
+                    Some((id, response)) = pending.next(), if !pending.is_empty() => {
+                        if let Ok(response) = response {
+                            let result = json!({
+                                "type": "invocationresult", "invocation_id": id,
+                                "function_id": "svc::shared", "result": response,
+                            });
+                            if ws.send(text(result)).await.is_err() { break; }
+                        }
+                    }
+                }
+            }
+        }));
+    }
+    SharedRoutingFixture {
+        engine,
+        events,
+        tasks,
+        owners: owners.try_into().ok().unwrap(),
+        _builder: builder,
+        _directory: directory,
+    }
+}
+
+fn shared_routing_call(
+    engine: &Arc<Engine>,
+) -> tokio::task::JoinHandle<Result<Option<Value>, iii::protocol::ErrorBody>> {
+    use iii::engine::EngineTrait;
+    let engine = engine.clone();
+    tokio::spawn(async move {
+        engine
+            .call_with_metadata_ns("orders", "svc::shared", json!({}), None)
+            .await
+    })
+}
+
+async fn shared_routing_event(fixture: &mut SharedRoutingFixture) -> SharedRoutingEvent {
+    tokio::time::timeout(Duration::from_secs(3), fixture.events.recv())
+        .await
+        .expect("live owner must receive invocation")
+        .expect("executor event channel open")
+}
+
+#[tokio::test]
+async fn shared_namespace_ws_sequential_ties_alternate_actual_workers() {
+    let mut fixture = shared_routing_fixture().await;
+    let mut selected = Vec::new();
+    for _ in 0..6 {
+        let call = shared_routing_call(&fixture.engine);
+        let event = shared_routing_event(&mut fixture).await;
+        selected.push(event.owner);
+        event.reply.send(json!(event.owner)).unwrap();
+        assert_eq!(call.await.unwrap().unwrap(), Some(json!(event.owner)));
+    }
+    assert_eq!(
+        selected,
+        vec![0, 1, 0, 1, 0, 1],
+        "real WS calls must use cyclic insertion-order ties"
+    );
+}
+
+#[tokio::test]
+async fn shared_namespace_ws_oneshot_held_reply_routes_to_idle_peer() {
+    let mut fixture = shared_routing_fixture().await;
+    let first = shared_routing_call(&fixture.engine);
+    let a = shared_routing_event(&mut fixture).await;
+    let second = shared_routing_call(&fixture.engine);
+    let b = shared_routing_event(&mut fixture).await;
+    // Replies cannot race selection: neither oneshot has been released yet.
+    a.reply.send(json!("first")).unwrap();
+    b.reply.send(json!("second")).unwrap();
+    assert_eq!(first.await.unwrap().unwrap(), Some(json!("first")));
+    assert_eq!(second.await.unwrap().unwrap(), Some(json!("second")));
+    assert_ne!(
+        a.owner, b.owner,
+        "held A must route B, including after Deferred"
+    );
+}
+
+#[tokio::test]
+async fn shared_namespace_ws_cancel_releases_executor_before_late_reply() {
+    let mut fixture = shared_routing_fixture().await;
+    let call = shared_routing_call(&fixture.engine);
+    let event = shared_routing_event(&mut fixture).await;
+    assert!(
+        fixture.owners[event.owner]
+            .invocations
+            .read()
+            .await
+            .contains(&event.id)
+    );
+    call.abort();
+    assert!(call.await.unwrap_err().is_cancelled());
+    assert_eq!(
+        fixture.owners[event.owner].invocation_count().await,
+        0,
+        "cancel completion must clear WS executor bookkeeping"
+    );
+    event.reply.send(json!("late")).unwrap();
+    let next = shared_routing_call(&fixture.engine);
+    let peer = shared_routing_event(&mut fixture).await;
+    peer.reply.send(json!("peer")).unwrap();
+    next.await.unwrap().unwrap();
+    assert_ne!(event.owner, peer.owner);
+}
+
+#[tokio::test]
+async fn shared_namespace_ws_post_enqueue_loss_does_not_replay_and_preserves_peer() {
+    let mut fixture = shared_routing_fixture().await;
+    let call = shared_routing_call(&fixture.engine);
+    let event = shared_routing_event(&mut fixture).await; // Positive enqueue barrier.
+    let owner = fixture.owners[event.owner].clone();
+    let mut done = owner.cleanup_done.subscribe();
+    fixture.tasks[event.owner].abort();
+    tokio::time::timeout(Duration::from_secs(5), done.wait_for(|value| *value))
+        .await
+        .expect("observed socket loss must finish teardown")
+        .unwrap();
+    let error = tokio::time::timeout(Duration::from_secs(3), call)
+        .await
+        .expect("post-enqueue disconnect must terminate the call")
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(error.code, "invocation_stopped");
+    assert!(
+        fixture.events.try_recv().is_err(),
+        "ambiguous enqueued work must not be replayed"
+    );
+    let next = shared_routing_call(&fixture.engine);
+    let peer = shared_routing_event(&mut fixture).await;
+    assert_ne!(event.owner, peer.owner);
+    peer.reply.send(json!("surviving peer")).unwrap();
+    assert_eq!(next.await.unwrap().unwrap(), Some(json!("surviving peer")));
+}
+
 /// A namespaced worker's HTTP-invocation function must be reachable from that
 /// worker's namespace — and must not be silently parked in `default`.
 ///
