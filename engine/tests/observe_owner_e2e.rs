@@ -603,6 +603,57 @@ async fn a_reporter_that_hosts_the_target_is_not_held() {
     assert_eq!(t.engine.observers.report_waits(), 0);
 }
 
+/// A reporter whose reports keep overflowing is not held for each of them
+/// (protocol.md §3.4): after a hold, the engine reads it for at least a
+/// quarter as long before it may hold it again, and drops what overflows
+/// meanwhile. What it sends behind its reports, its answer to another
+/// worker's call and its own call, gets through after one hold, not one hold
+/// per report.
+#[tokio::test]
+async fn a_reporter_whose_reports_keep_overflowing_is_held_once_not_per_report() {
+    let t = spawn_engine(ObserversConfig {
+        default_max_in_flight: 1,
+        max_queue_per_observer: 4,
+        ..ObserversConfig::default()
+    })
+    .await;
+    let (mut orders, _) = owner(&t, "orders", &["orders::create"]).await;
+    orders.register_function("orders::ping").await;
+    registered(&t.engine, "default", "orders::ping").await;
+    let mut sink = host(&t, "sink", &["sink::slow"]).await;
+    let mut caller = connect(&t, "caller", true).await;
+    let source = json!({ "function_id": "orders::create" });
+    acked_observer(
+        &mut orders,
+        &mut sink,
+        observer("slow", source, "sink::slow"),
+        "orders::create",
+    )
+    .await;
+
+    // Each report overflows the queue: one hold per report would take 10 s.
+    let sent = std::time::Instant::now();
+    for _ in 0..40 {
+        let items = (0..8)
+            .map(|_| item("orders::create", &["slow"], "success"))
+            .collect();
+        orders.send(report(items)).await;
+    }
+    let call = caller.call("orders::ping", json!({})).await;
+    orders.serve("orders::ping", json!("pong")).await;
+    let info = get(&mut orders, "slow").await;
+    assert_eq!(caller.result(call).await["result"], "pong");
+    assert!(
+        sent.elapsed() < std::time::Duration::from_millis(1000),
+        "answered after {:?}",
+        sent.elapsed()
+    );
+    assert_eq!(t.engine.observers.report_waits(), 1);
+    assert_eq!(info["fires"], 5);
+    assert_eq!(info["dropped"]["OVERFLOW"], 40 * 8 - 5);
+    sink.invoked("sink::slow").await;
+}
+
 /// Registers `http::on-request` (owner-delivered, routed by `path`) and
 /// `http::auto` on an `observe.v1` owner that acks everything.
 async fn http_owner(t: &TestEngine) -> Client {

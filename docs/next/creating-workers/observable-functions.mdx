@@ -136,9 +136,12 @@ first. Both go through the engine, which applies the observer's policy (`max_fir
 on an auto function.
 
 `emit` never waits. When you emit faster than the targets take, the observers' queues fill and the
-engine stops reading your worker's connection until they have room again (at most 250 ms at a
-time). Meanwhile the SDK keeps what it can in its bounded report buffer and drops the rest, counted
-as `BUFFER_FULL`, and everything else your worker sends waits behind its reports.
+engine stops reading your worker's connection until they have room again, for at most 250 ms.
+Meanwhile the SDK keeps what it can in its bounded report buffer and drops the rest, counted as
+`BUFFER_FULL`, and everything else your worker sends (its calls, its answers to calls) waits behind
+its reports. After each hold the engine reads your worker's connection for at least a quarter as
+long before it holds it again, and drops what overflows meanwhile as `OVERFLOW`: your worker is
+held at most four fifths of the time.
 
 The event's `caller` follows where you call `emit`: inside your function's own handler, the event is
 that invocation (its id and its caller); inside another handler, that handler is the caller; outside

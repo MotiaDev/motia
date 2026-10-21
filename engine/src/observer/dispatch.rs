@@ -108,6 +108,26 @@ pub(crate) const DROP_EXPORT_INTERVAL: Duration = Duration::from_secs(1);
 /// [`ObserverRegistry::wait_for_room`]).
 pub(crate) const REPORT_BACKPRESSURE_WAIT: Duration = Duration::from_millis(250);
 
+/// A hold of a reporting connection is followed by at least
+/// `1 / REPORT_HOLD_PER_READ` of its length spent reading before the next one
+/// (see [`ReportHold`]).
+pub(crate) const REPORT_HOLD_PER_READ: u32 = 4;
+
+/// When a reporting connection may be held again, kept by its reader (see
+/// [`ObserverRegistry::wait_for_room`]). After a hold the engine reads the
+/// connection for at least a quarter as long ([`REPORT_HOLD_PER_READ`]), and
+/// a report that overflows meanwhile is dropped (`OVERFLOW`) without holding
+/// it. So the connection is held at most four fifths of the time, and what it
+/// sends besides reports (its calls, its answers to calls) waits at most
+/// [`REPORT_BACKPRESSURE_WAIT`] plus five times the time the engine takes to
+/// read the reports ahead of it, however long they keep overflowing. Reading
+/// meanwhile means decoding reports only to drop them: reading half the time
+/// cost a one-vCPU engine about a third of its activations in an emit flood.
+#[derive(Debug, Default)]
+pub struct ReportHold {
+    not_before: Option<tokio::time::Instant>,
+}
+
 /// Queue slots an observer keeps once its queue drains; a burst that grew it
 /// past this gives the rest back.
 const QUEUE_KEPT: usize = 64;
@@ -1076,10 +1096,18 @@ impl ObserverRegistry {
     /// its SDK drops the excess from its bounded report buffer
     /// (`BUFFER_FULL`), where it costs the engine nothing, instead of the
     /// engine decoding every report to drop it as `OVERFLOW`.
-    pub async fn wait_for_room(&self, full: &[Arc<Observer>]) {
-        let deadline = tokio::time::Instant::now() + REPORT_BACKPRESSURE_WAIT;
+    ///
+    /// Everything else the worker sends waits behind its reports, so `hold`
+    /// bounds how much of the time it is held: not again until the reader
+    /// has read for a quarter as long as it waited (see [`ReportHold`]).
+    pub async fn wait_for_room(&self, hold: &mut ReportHold, full: &[Arc<Observer>]) {
+        let started = tokio::time::Instant::now();
+        if hold.not_before.is_some_and(|at| started < at) {
+            return;
+        }
+        let deadline = started + REPORT_BACKPRESSURE_WAIT;
         let mut waited = false;
-        for observer in full {
+        'full: for observer in full {
             loop {
                 let room = self.queue_budget.room.notified();
                 tokio::pin!(room);
@@ -1095,9 +1123,13 @@ impl ObserverRegistry {
                     self.report_waits.fetch_add(1, Ordering::Relaxed);
                 }
                 if tokio::time::timeout_at(deadline, room).await.is_err() {
-                    return;
+                    break 'full;
                 }
             }
+        }
+        if waited {
+            let ended = tokio::time::Instant::now();
+            hold.not_before = Some(ended + (ended - started) / REPORT_HOLD_PER_READ);
         }
     }
 
@@ -2198,7 +2230,11 @@ mod tests {
         let started = tokio::time::Instant::now();
         let waiting = tokio::spawn({
             let (registry, observer) = (registry.clone(), observer.clone());
-            async move { registry.wait_for_room(&[observer]).await }
+            async move {
+                registry
+                    .wait_for_room(&mut super::ReportHold::default(), &[observer])
+                    .await
+            }
         });
         for _ in 0..8 {
             tokio::task::yield_now().await;
@@ -2224,16 +2260,104 @@ mod tests {
         let registry = engine.observers.clone();
         let started = tokio::time::Instant::now();
         registry
-            .wait_for_room(std::slice::from_ref(&observer))
+            .wait_for_room(
+                &mut super::ReportHold::default(),
+                std::slice::from_ref(&observer),
+            )
             .await;
         assert!(started.elapsed() >= super::REPORT_BACKPRESSURE_WAIT);
 
         registry.next_queued(&observer);
         registry.next_queued(&observer);
         let started = tokio::time::Instant::now();
-        registry.wait_for_room(&[observer]).await;
+        registry
+            .wait_for_room(&mut super::ReportHold::default(), &[observer])
+            .await;
         assert_eq!(started.elapsed(), std::time::Duration::ZERO);
         assert_eq!(registry.report_waits(), 1);
+    }
+
+    /// After a hold, the reader is not held again, though the queue is still
+    /// full, until it has read for a quarter as long as it waited: a worker
+    /// whose reports keep overflowing is read at least a fifth of the time.
+    #[tokio::test(start_paused = true)]
+    async fn a_reader_is_not_held_again_until_it_read_for_a_quarter_as_long() {
+        let engine = Arc::new(Engine::new());
+        let observer = full_queue(&engine, 4).await;
+        let registry = engine.observers.clone();
+        let mut hold = super::ReportHold::default();
+        let wait = super::REPORT_BACKPRESSURE_WAIT;
+        let read = wait / super::REPORT_HOLD_PER_READ;
+
+        let started = tokio::time::Instant::now();
+        registry
+            .wait_for_room(&mut hold, std::slice::from_ref(&observer))
+            .await;
+        assert_eq!(started.elapsed(), wait);
+        for _ in 0..3 {
+            let started = tokio::time::Instant::now();
+            registry
+                .wait_for_room(&mut hold, std::slice::from_ref(&observer))
+                .await;
+            assert_eq!(started.elapsed(), std::time::Duration::ZERO);
+        }
+        assert_eq!(registry.report_waits(), 1);
+
+        tokio::time::advance(read - std::time::Duration::from_millis(1)).await;
+        registry
+            .wait_for_room(&mut hold, std::slice::from_ref(&observer))
+            .await;
+        assert_eq!(registry.report_waits(), 1, "read for less than a quarter");
+
+        tokio::time::advance(std::time::Duration::from_millis(1)).await;
+        let started = tokio::time::Instant::now();
+        registry.wait_for_room(&mut hold, &[observer]).await;
+        assert!(started.elapsed() >= wait);
+        assert_eq!(registry.report_waits(), 2);
+    }
+
+    /// A hold that ends because the queue got back to half counts too: the
+    /// reader then reads for a quarter as long before it can be held again.
+    #[tokio::test(start_paused = true)]
+    async fn a_hold_that_ends_with_room_also_paces_the_reader() {
+        let engine = Arc::new(Engine::new());
+        let observer = full_queue(&engine, 4).await;
+        let registry = engine.observers.clone();
+        let waiting = tokio::spawn({
+            let (registry, observer) = (registry.clone(), observer.clone());
+            async move {
+                let mut hold = super::ReportHold::default();
+                registry.wait_for_room(&mut hold, &[observer]).await;
+                hold
+            }
+        });
+        let held = std::time::Duration::from_millis(40);
+        tokio::time::sleep(held).await;
+        registry.next_queued(&observer);
+        registry.next_queued(&observer);
+        let mut hold = waiting.await.unwrap();
+        assert_eq!(registry.report_waits(), 1);
+
+        // Full again: not held before the reader has read for 10 ms.
+        let budget = registry.queue_budget.clone();
+        {
+            let mut flow = super::lock(&observer.flow);
+            for n in 4..6 {
+                let event = event(n);
+                assert!(budget.charge(&event));
+                flow.queue
+                    .push_back(super::PendingActivation::queued(event, budget.clone()));
+            }
+        }
+        let read = held / super::REPORT_HOLD_PER_READ;
+        tokio::time::advance(read - std::time::Duration::from_millis(1)).await;
+        registry
+            .wait_for_room(&mut hold, std::slice::from_ref(&observer))
+            .await;
+        assert_eq!(registry.report_waits(), 1);
+        tokio::time::advance(std::time::Duration::from_millis(1)).await;
+        registry.wait_for_room(&mut hold, &[observer]).await;
+        assert_eq!(registry.report_waits(), 2);
     }
 
     /// A disposed observer's queue is gone: the reader reads on at once.
@@ -2245,7 +2369,11 @@ mod tests {
         let started = tokio::time::Instant::now();
         let waiting = tokio::spawn({
             let (registry, observer) = (registry.clone(), observer.clone());
-            async move { registry.wait_for_room(&[observer]).await }
+            async move {
+                registry
+                    .wait_for_room(&mut super::ReportHold::default(), &[observer])
+                    .await
+            }
         });
         for _ in 0..8 {
             tokio::task::yield_now().await;
@@ -2391,7 +2519,11 @@ mod tests {
         budget.limit.store(event(0).cost() + 1, Ordering::SeqCst);
         let waiting = tokio::spawn({
             let (registry, observer) = (registry.clone(), observer.clone());
-            async move { registry.wait_for_room(&[observer]).await }
+            async move {
+                registry
+                    .wait_for_room(&mut super::ReportHold::default(), &[observer])
+                    .await
+            }
         });
         for _ in 0..8 {
             tokio::task::yield_now().await;
