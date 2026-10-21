@@ -153,6 +153,9 @@ impl WorkerConnectionRegistry {
             .collect()
     }
 
+    /// Stores the metadata from `engine::workers::register` and sets the
+    /// connection's receive limit from it and from the connection's declared
+    /// features, which [`Self::set_worker_features`] must store first.
     #[allow(clippy::too_many_arguments)]
     pub fn update_worker_metadata(
         &self,
@@ -168,8 +171,11 @@ impl WorkerConnectionRegistry {
         namespace: Option<String>,
     ) {
         if let Some(mut worker) = self.workers.get_mut(worker_id) {
-            let (limit, requires_upgrade) =
-                crate::workers::worker::receive_message_limit(Some(&runtime), version.as_deref());
+            let (limit, requires_upgrade) = crate::workers::worker::receive_message_limit(
+                Some(&runtime),
+                version.as_deref(),
+                &worker.features,
+            );
             worker.receive_message_limit.store(limit, Ordering::Relaxed);
             worker
                 .receive_limit_requires_upgrade

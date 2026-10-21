@@ -30,9 +30,19 @@ Applications send and receive these messages through the usual function APIs.
 
 The receiving worker must run SDK version **0.24.5 or later** to accept messages larger than
 16 MiB. An updated engine checks the serialized envelope against the target worker's receive limit
-and returns `payload_too_large` to the caller when the target cannot accept it. The engine also
-limits browser workers, workers with a missing or unknown SDK version, and workers running an SDK
-older than 0.24.5 to **16 MiB**.
+and returns `payload_too_large` to the caller when the target cannot accept it. The engine sets
+that limit when the worker registers:
+
+- A browser worker gets **16 MiB**.
+- A worker that declares the protocol features of SDK 0.25 or later (`observe.v1` or
+  `local-dispatch.v1`, which every 0.25 SDK declares) gets **64 MiB**, whatever version it
+  reports.
+- Any other worker gets **64 MiB** when the version it reports is an SDK version of 0.24.5 or
+  later, written as semver (`0.24.6`) or PEP 440 (`0.24.5.post1`). It gets **16 MiB** when the
+  version is missing, cannot be parsed, or is older, including pre-releases of 0.24.5.
+
+A Rust worker on SDK 0.24.5 or 0.24.6 that sets `WorkerMetadata.version` to its own version
+instead of the SDK version therefore stays at 16 MiB. Upgrade it to SDK 0.25 or later.
 
 Above **64 MiB**, the Rust, Node, Python, and Go SDKs reject the message locally with
 `payload_too_large`; the error message links to this [Payload size](#payload-size) section. Engines

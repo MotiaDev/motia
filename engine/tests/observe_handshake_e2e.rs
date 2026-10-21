@@ -1,7 +1,8 @@
 //! The observe handshake over a real WebSocket connection: the engine
 //! advertises its features in `workerregistered`, records the features a
-//! worker declares on `engine::workers::register`, and decodes the
-//! `unregistertriggertype` every SDK has always sent.
+//! worker declares on `engine::workers::register` (and sizes what it sends the
+//! worker by them), and decodes the `unregistertriggertype` every SDK has
+//! always sent.
 
 mod observe_support;
 
@@ -9,11 +10,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
-use iii::engine::Engine;
+use iii::engine::{Engine, EngineTrait};
 use iii::protocol::{DEFAULT_NAMESPACE, ENGINE_FEATURES};
 use iii::trigger::type_key;
 use serde_json::{Value, json};
-use tokio_tungstenite::tungstenite::Message as WsMessage;
+use tokio_tungstenite::tungstenite::{Message as WsMessage, protocol::WebSocketConfig};
 use uuid::Uuid;
 
 type Ws =
@@ -233,4 +234,138 @@ async fn another_connection_cannot_retire_a_trigger_type() {
         engine.trigger_registry.trigger_types.contains_key(&key),
         "only the provider may retire its type"
     );
+}
+
+/// Over one 16 MiB WebSocket frame, within the 64 MiB that SDK 0.24.5 and
+/// later receive.
+const OVER_ONE_FRAME: usize = 20 * 1024 * 1024;
+const SDK_RECEIVE_LIMIT: usize = 64 * 1024 * 1024;
+
+/// A worker announced with `data` (its `engine::workers::register` payload)
+/// that serves `function_id` by answering with the length of the string it
+/// receives. Its socket accepts what SDK 0.24.5 and later accept, so only the
+/// engine's receive limit for it decides whether a large call arrives.
+async fn size_worker(port: u16, function_id: &str, data: Value) -> tokio::task::JoinHandle<()> {
+    let config = WebSocketConfig::default()
+        .max_frame_size(Some(SDK_RECEIVE_LIMIT))
+        .max_message_size(Some(SDK_RECEIVE_LIMIT));
+    let (mut ws, _) = tokio_tungstenite::connect_async_with_config(
+        format!("ws://127.0.0.1:{port}/"),
+        Some(config),
+        false,
+    )
+    .await
+    .expect("connect");
+    let registered = tokio::time::timeout(Duration::from_secs(5), ws.next())
+        .await
+        .expect("workerregistered arrives")
+        .expect("stream yields")
+        .expect("frame decodes");
+    assert!(registered.to_text().unwrap().contains("workerregistered"));
+    send(
+        &mut ws,
+        json!({
+            "type": "invokefunction",
+            "function_id": "engine::workers::register",
+            "data": data,
+            "action": { "type": "void" },
+        }),
+    )
+    .await;
+    send(
+        &mut ws,
+        json!({ "type": "registerfunction", "id": function_id }),
+    )
+    .await;
+    let function_id = function_id.to_string();
+    tokio::spawn(async move {
+        while let Some(Ok(frame)) = ws.next().await {
+            let Ok(text) = frame.to_text() else { continue };
+            let Ok(message) = serde_json::from_str::<Value>(text) else {
+                continue;
+            };
+            if message["type"] != "invokefunction" || message["function_id"] != function_id.as_str()
+            {
+                continue;
+            }
+            let size = message["data"].as_str().map_or(0, str::len);
+            let result = json!({
+                "type": "invocationresult",
+                "invocation_id": message["invocation_id"],
+                "function_id": function_id,
+                "result": size,
+            });
+            send(&mut ws, result).await;
+        }
+    })
+}
+
+/// The engine sends a worker more than one 16 MiB frame only when the worker
+/// runs an SDK that receives it. A Rust worker reports its own crate version
+/// (`WorkerMetadata.version`) and a Python pre-release reports its PyPI
+/// version (`0.25.0rc5`), so the version alone does not identify the SDK: the
+/// features declared by SDK 0.25 and later do.
+#[tokio::test]
+async fn the_receive_limit_follows_the_declared_sdk_not_the_reported_version() {
+    let (port, engine) = spawn_engine().await;
+    let features = json!(["observe.v1", "local-dispatch.v1"]);
+    let cases = [
+        // SDK 0.25 or later, whatever version the worker reports.
+        ("rust", Some("0.3.0"), Some(features.clone()), true),
+        ("node", None, Some(features.clone()), true),
+        // No features (SDK 0.24.5 and 0.24.6): the version must be the SDK's,
+        // semver or PEP 440.
+        ("python", Some("0.25.0rc5"), None, true),
+        ("python", Some("0.24.5.post1"), None, true),
+        ("rust", Some("0.24.6"), None, true),
+        ("rust", Some("0.3.0"), None, false),
+        ("python", Some("0.24.5rc1"), None, false),
+        ("node", None, None, false),
+        // A browser receives one 16 MiB frame at most.
+        ("browser", Some("0.25.0"), Some(features.clone()), false),
+    ];
+    let payload = "x".repeat(OVER_ONE_FRAME);
+
+    for (index, (runtime, version, features, receives)) in cases.into_iter().enumerate() {
+        let case = format!("runtime={runtime} version={version:?} features={features:?}");
+        let function_id = format!("limit::size-{index}");
+        let mut data = json!({ "runtime": runtime, "name": format!("limit-{index}") });
+        if let Some(version) = version {
+            data["version"] = json!(version);
+        }
+        if let Some(features) = features {
+            data["features"] = features;
+        }
+        let worker = size_worker(port, &function_id, data).await;
+        assert!(
+            eventually(|| engine
+                .functions
+                .get(DEFAULT_NAMESPACE, &function_id)
+                .is_some())
+            .await,
+            "{case}: the worker registered its function"
+        );
+
+        let result = tokio::time::timeout(
+            Duration::from_secs(30),
+            engine.call(&function_id, payload.as_str()),
+        )
+        .await
+        .unwrap_or_else(|_| panic!("{case}: the call completes"));
+        if receives {
+            match result {
+                Ok(value) => assert_eq!(value, Some(json!(OVER_ONE_FRAME)), "{case}"),
+                Err(error) => panic!("{case}: {}: {}", error.code, error.message),
+            }
+        } else {
+            let error = result.expect_err(&case);
+            assert_eq!(error.code, "payload_too_large", "{case}");
+            assert!(
+                error.message.contains("accepts up to 16777216 bytes"),
+                "{case}: {}",
+                error.message
+            );
+        }
+        worker.abort();
+    }
 }

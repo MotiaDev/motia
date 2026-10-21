@@ -113,6 +113,9 @@ Rules:
 - The engine adds `caller`, `observe_depth`, and `activation` to an `InvokeFunction` only when the
   receiving connection declared `observe.v1`.
 - The engine decodes every worker-to-engine observe message from any connection.
+- A connection that declared `observe.v1` or `local-dispatch.v1` runs SDK 0.25 or later, so the
+  engine sends it messages up to 64 MiB whatever `version` it reports (16 MiB for
+  `runtime: "browser"`). See [Payload size](../creating-workers/channels#payload-size).
 - An SDK enables `observe()` only when the engine advertised `observe.v1`; against an older engine,
   `observe()` fails with `UNSUPPORTED`. An SDK runs one of its own functions in-process only after
   the engine confirmed that function with `FunctionRegistered { local_dispatch: true }`.

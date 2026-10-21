@@ -1651,7 +1651,9 @@ impl EngineFunctionsWorker {
 
         // Before the buffered registrations drain (the caller drains right
         // after this returns): what the engine sends for them depends on
-        // whether the connection speaks observe.
+        // whether the connection speaks observe. Also before
+        // `update_worker_metadata` below, which sizes the connection's receive
+        // limit by these features.
         let features_fixed = !input.features.is_empty()
             && self
                 .engine
@@ -3068,6 +3070,44 @@ mod tests {
         assert!(!snapshot.features.observe_v1());
         assert!(!snapshot.features.local_dispatch_v1());
         assert!(snapshot.features.declared().is_empty());
+    }
+
+    /// Only SDK 0.25 and later declare features, and a Rust worker reports
+    /// its own crate version: the features stored by the same call set the
+    /// 64 MiB receive limit. They stay fixed, so a later call without them
+    /// keeps it.
+    #[tokio::test]
+    async fn register_worker_metadata_sizes_the_receive_limit_by_the_declared_features() {
+        use std::sync::atomic::Ordering;
+
+        let (engine, module) = setup_engine_and_module();
+        let (tx, _rx) = tokio::sync::mpsc::channel(1);
+        let worker = crate::worker_connections::WorkerConnection::new(tx);
+        let snapshot = worker.clone();
+        engine.worker_registry.register_worker(worker);
+
+        let mut input = register_worker_input_with_namespace(&snapshot.id.to_string(), None);
+        input.runtime = Some("rust".to_string());
+        input.version = Some("0.3.0".to_string());
+        input.features = vec!["observe.v1".to_string(), "local-dispatch.v1".to_string()];
+        module.register_worker_metadata(input.clone()).await;
+        assert_eq!(
+            snapshot.receive_message_limit.load(Ordering::Relaxed),
+            crate::workers::worker::MAX_JSON_MESSAGE_BYTES
+        );
+        assert!(
+            !snapshot
+                .receive_limit_requires_upgrade
+                .load(Ordering::Relaxed)
+        );
+
+        input.features = Vec::new();
+        module.register_worker_metadata(input).await;
+        assert_eq!(
+            snapshot.receive_message_limit.load(Ordering::Relaxed),
+            crate::workers::worker::MAX_JSON_MESSAGE_BYTES,
+            "the features stay fixed"
+        );
     }
 
     fn register_worker_input_with_namespace(
