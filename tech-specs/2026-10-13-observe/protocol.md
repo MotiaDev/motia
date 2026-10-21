@@ -332,7 +332,17 @@ invoke(item):
 - **The queues are bounded together.** Besides `max_queue` per observer, the
   events waiting in all queues may take 64 MiB (approximate sizes, each event
   counted once however many queues hold it). An item that does not fit is
-  dropped as `OVERFLOW`, like one that finds its queue full.
+  dropped as `OVERFLOW`, like one that finds its queue full; an item larger
+  than the whole budget never fits and is dropped as `TOO_LARGE`.
+- **Events too large on their own.** A routed completion whose kept payloads
+  (the union of what the function's observers capture or filter on) exceed
+  the evaluators' 64 MiB is dropped as `TOO_LARGE` for each observer, before
+  evaluation. An activation the engine does not send because it is larger
+  than the target worker receives (`payload_too_large`) is a `TOO_LARGE` drop
+  too, not an activation failure: the target never saw it. Unlike `OVERFLOW`,
+  `TOO_LARGE` says nothing about load, so the engine also logs a warning (at
+  most once a minute per observer) with the observer, function, size and
+  limit.
 - **Backpressure on reports.** When a report's item overflows an observer's
   queue, the engine stops reading from the reporting connection until that
   queue is back to half of `max_queue` and the queues together are under half
@@ -518,7 +528,7 @@ These strings are the wire contract (`engine/src/protocol.rs`, `observe_codes`).
 | *(owner delivery, §3.5)* | `OBSERVER_NOT_FOUND`, `NOT_FUNCTION_OWNER`, `NOT_OWNER_DELIVERED`, `OBSERVER_NOT_ACTIVE`, `TARGET_MISMATCH`, `OVERFLOW`, `LOOP_GUARD`, `TIMEOUT` (the target did not answer within `activation_timeout_ms`), `function_not_found` / `invocation_stopped` (target unavailable), `invocation_error`, or the target's own error code |
 | *(owner delivery, SDK-side)* | `FILTERS_NOT_MATCHED` (`obs.call` on a payload the observer's filters reject; nothing sent), `NOT_OWNER_DELIVERED` (`obs.emit` / `obs.call` on an auto function), `OBSERVER_NOT_ACTIVE` (`obs.call` on a removed or rejected observer) |
 | *(state reasons)* | `OWNER_UNAVAILABLE`, `TARGET_UNAVAILABLE`, `OBSERVER_DISCONNECTED`, `EXPIRED`, `MAX_FIRES`, `UNOBSERVED` |
-| *(drop reasons)* | `INACTIVE`, `LOOP_GUARD`, `MAX_FIRES`, `OVERFLOW`, `REPORTER_NOT_OWNER`, `CANCELLED` (the observed call was cancelled before its result), `INVALID_REPORT` (a malformed report item), `BUFFER_FULL` / `TOO_LARGE` (SDK-side, via stats; an SDK reason the engine does not know is counted as `OTHER`) |
+| *(drop reasons)* | `INACTIVE`, `LOOP_GUARD`, `MAX_FIRES`, `OVERFLOW`, `REPORTER_NOT_OWNER`, `CANCELLED` (the observed call was cancelled before its result), `INVALID_REPORT` (a malformed report item), `TOO_LARGE` (one event over a limit it must fit in whole: the engine's 64 MiB, the target's receive limit, or SDK-side the report buffer), `BUFFER_FULL` (SDK-side, via stats; an SDK reason the engine does not know is counted as `OTHER`) |
 | *(activation failures)* | `TIMEOUT`, `TARGET_UNAVAILABLE`, `TARGET_ERROR`: counted, not drops (§3.4) |
 
 ## 5. Security notes

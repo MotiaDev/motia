@@ -52,6 +52,11 @@ older than the updated size check forward messages as a single frame without che
 limit. An older worker may then disconnect if the message is too large for it. Use an engine and
 SDKs from the same release, or newer.
 
+Observer activations follow the same limits, and the engine keeps at most **64 MiB** of one observed
+event (every field its observers capture, input and output counted separately). An event over either
+limit is not delivered: the observer counts a `TOO_LARGE` drop and the engine logs a warning. See
+[Observers / Event size](../using-iii/observers#event-size).
+
 Use a channel for payloads above **64 MiB**. Channels stream payload bytes separately from the JSON
 function envelope. See [Using channels](#using-channels).
 

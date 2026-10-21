@@ -135,6 +135,9 @@ pub struct ObserverRegistry {
     /// The task that sends drop counts to the metric is running (see
     /// [`ObserverRegistry::export_drops`]).
     drop_export: std::sync::atomic::AtomicBool,
+    /// Invocations the engine did not send because the target worker cannot
+    /// receive them, newest last (see [`ObserverRegistry::refused_send`]).
+    refused_sends: Mutex<std::collections::VecDeque<dispatch::RefusedSend>>,
 }
 
 impl Default for ObserverRegistry {
@@ -177,6 +180,7 @@ impl ObserverRegistry {
             revisions: DashMap::new(),
             revision_order: Mutex::new(std::collections::VecDeque::new()),
             drop_export: std::sync::atomic::AtomicBool::new(false),
+            refused_sends: Mutex::new(std::collections::VecDeque::new()),
         }
     }
 

@@ -1094,7 +1094,7 @@ metric is updated once a second):
 | `CANCELLED`          | An observed invocation ended without a result (its caller gave up); counted for each observer that was waiting for it. |
 | `INVALID_REPORT`     | An `InvocationsObserved` item did not decode or had an unknown `status`.              |
 | `BUFFER_FULL`        | SDK-side: the reporter's buffer was full (via `LocalInvocationStats`).                |
-| `TOO_LARGE`          | SDK-side: one report item was larger than the buffer (via `LocalInvocationStats`).    |
+| `TOO_LARGE`          | One event too large on its own, whatever the load: what its observers capture or filter on is over the 64 MiB the engine keeps for an event, the activation is larger than the target worker accepts (a refused activation is a drop, not an activation failure), or, SDK-side, one report item was larger than the 8 MiB buffer (via `LocalInvocationStats`). The engine logs a warning at most once a minute per observer. |
 | `OTHER`              | An SDK-side reason the engine does not know.                                          |
 
 ## Namespaces

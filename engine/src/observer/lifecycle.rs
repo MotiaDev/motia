@@ -266,13 +266,17 @@ pub(crate) struct DropCounters {
     /// A report item naming the observer was malformed (an unknown
     /// `status`).
     pub invalid_report: AtomicU64,
+    /// The event alone was larger than a limit it must fit in whole: what
+    /// the engine holds for observers, or what the target worker receives.
+    /// No amount of waiting makes room for it, unlike `OVERFLOW`.
+    pub too_large: AtomicU64,
     /// Each counter's value when it last went to the metric, in
     /// [`Self::counters`] order (see [`Self::unexported`]).
-    exported: [AtomicU64; 7],
+    exported: [AtomicU64; 8],
 }
 
 impl DropCounters {
-    fn counters(&self) -> [(&'static str, &AtomicU64); 7] {
+    fn counters(&self) -> [(&'static str, &AtomicU64); 8] {
         [
             (observe_codes::INACTIVE, &self.inactive),
             (observe_codes::LOOP_GUARD, &self.loop_guard),
@@ -281,6 +285,7 @@ impl DropCounters {
             (observe_codes::REPORTER_NOT_OWNER, &self.reporter_not_owner),
             (CANCELLED, &self.cancelled),
             (INVALID_REPORT, &self.invalid_report),
+            (observe_codes::TOO_LARGE, &self.too_large),
         ]
     }
 
@@ -457,6 +462,9 @@ pub struct Observer {
     pub(crate) flow: Mutex<Flow>,
     timers: Mutex<Timers>,
     pub(crate) last_loop_warn_ms: AtomicU64,
+    /// When a `TOO_LARGE` drop was last logged (see
+    /// [`super::dispatch::drop_too_large`]).
+    pub(crate) last_too_large_warn_ms: AtomicU64,
     /// Set for an observer the legacy shim made from a `RegisterTrigger`.
     pub(crate) legacy: Option<LegacyBinding>,
 }
@@ -515,6 +523,7 @@ impl Observer {
             flow: Mutex::new(Flow::default()),
             timers: Mutex::new(Timers::default()),
             last_loop_warn_ms: AtomicU64::new(0),
+            last_too_large_warn_ms: AtomicU64::new(0),
             legacy: new.legacy.map(|trigger| LegacyBinding {
                 trigger,
                 answered: AtomicBool::new(false),
