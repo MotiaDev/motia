@@ -4,8 +4,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use iii::EngineBuilder;
 use iii::workers::config::{EngineConfig, WorkerEntry};
-use iii::workers::reload::{ReloadDiff, ReloadManager, RunningWorker, WorkerRegistrations};
+use iii::workers::reload::{
+    ReloadDiff, ReloadManager, RunningWorker, WorkerRegistrations, diff_entries,
+};
 use iii::workers::traits::Worker;
+use serde_json::json;
 
 fn write_config(contents: &str) -> tempfile::NamedTempFile {
     let mut f = tempfile::NamedTempFile::new().expect("tempfile");
@@ -92,6 +95,56 @@ async fn duplicate_worker_names_get_instance_ids() {
     // worker_type strips the #N suffix for factory lookup
     assert_eq!(stream_entries[0].worker_type(), "iii-stream");
     assert_eq!(stream_entries[1].worker_type(), "iii-stream");
+}
+
+async fn parse(yaml: &str) -> Vec<WorkerEntry> {
+    let f = write_config(yaml);
+    ReloadManager::parse_and_normalize(f.path().to_str().unwrap())
+        .await
+        .expect("normalize should succeed")
+}
+
+#[tokio::test]
+async fn reload_keeps_sandbox_binding() {
+    let yaml = "sandbox:\n  adapter: fake\n  namespace: fake-ns\nworkers: []\n";
+    let (first, second) = (parse(yaml).await, parse(yaml).await);
+    let router = first
+        .iter()
+        .find(|e| e.name == "iii-sandbox")
+        .expect("router injected");
+    assert_eq!(
+        router.config,
+        Some(json!({"adapter": "fake", "namespace": "fake-ns"}))
+    );
+    assert!(
+        diff_entries(&first, &second)
+            .unchanged
+            .contains(&"iii-sandbox".to_string())
+    );
+    let unbound = parse("workers: []\n").await;
+    assert_eq!(
+        unbound
+            .iter()
+            .find(|e| e.name == "iii-sandbox")
+            .unwrap()
+            .config,
+        None
+    );
+}
+
+#[tokio::test]
+async fn changed_sandbox_binding_marks_router_changed() {
+    let diff = diff_entries(
+        &parse("sandbox:\n  adapter: fake\n").await,
+        &parse("sandbox:\n  adapter: other\n").await,
+    );
+    assert_eq!(
+        diff.changed
+            .iter()
+            .map(|e| e.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["iii-sandbox"]
+    );
 }
 
 /// Minimal config whose `configuration` worker persists into a throwaway

@@ -68,8 +68,8 @@ pub struct EngineConfig {
     pub modules: Vec<WorkerEntry>,
     #[serde(default)]
     pub workers: Vec<WorkerEntry>,
-    /// Binds the `sandbox::*` router to an adapter worker; absent means the
-    /// router is not mounted.
+    /// Binds the `sandbox::*` router to an adapter worker; absent leaves the
+    /// router unbound, so it answers S303.
     #[serde(default)]
     pub sandbox: Option<SandboxRouterConfig>,
 }
@@ -226,6 +226,9 @@ fn migration_guidance(name: &str) -> String {
         "iii-exec" => "translate to Compose lifecycle scripts",
         "iii-engine-functions" | "iii-telemetry" | "iii-observability" => {
             "remove this redundant entry; the engine provides it automatically"
+        }
+        "iii-sandbox" => {
+            "remove it; set sandbox.adapter (Compose: engine.sandbox) and configure the sandbox-builtin worker"
         }
         _ => "move this worker to worker-compose.yaml",
     };
@@ -505,6 +508,34 @@ pub fn assign_instance_ids(entries: &mut Vec<WorkerEntry>) {
     }
 }
 
+/// Flattens `workers` + `modules`, injects every missing mandatory worker
+/// (binding the injected `iii-sandbox` router to `config.sandbox`), and
+/// assigns instance ids. Boot and reload share it so a binding change diffs
+/// as a changed `iii-sandbox` entry.
+pub fn normalize_worker_entries(config: EngineConfig) -> Vec<WorkerEntry> {
+    let sandbox = config
+        .sandbox
+        .map(|binding| serde_json::to_value(binding).expect("SandboxRouterConfig serializes"));
+    let mut entries = config.workers;
+    entries.extend(config.modules);
+
+    let names: HashSet<String> = entries.iter().map(|e| e.name.clone()).collect();
+    for registration in inventory::iter::<WorkerRegistration> {
+        if registration.mandatory && !names.contains(registration.name) {
+            entries.push(WorkerEntry {
+                name: registration.name.to_string(),
+                image: None,
+                config: sandbox
+                    .clone()
+                    .filter(|_| registration.name == "iii-sandbox"),
+            });
+        }
+    }
+
+    assign_instance_ids(&mut entries);
+    entries
+}
+
 fn mandatory_worker_names() -> HashSet<&'static str> {
     inventory::iter::<WorkerRegistration>
         .into_iter()
@@ -727,26 +758,8 @@ impl EngineBuilder {
 
         crate::workers::observability::metrics::ensure_default_meter();
 
-        let mut workers = config.workers;
-        workers.extend(config.modules);
-
+        let workers = normalize_worker_entries(config);
         tracing::info!("Building engine with {} workers", workers.len());
-        let worker_names = workers
-            .iter()
-            .map(|entry| entry.name.clone())
-            .collect::<HashSet<String>>();
-
-        for registration in inventory::iter::<WorkerRegistration> {
-            if registration.mandatory && !worker_names.contains(registration.name) {
-                workers.push(WorkerEntry {
-                    name: registration.name.to_string(),
-                    image: None,
-                    config: None,
-                });
-            }
-        }
-
-        assign_instance_ids(&mut workers);
 
         // Resolve the effective `iii-worker-manager` port before creating
         // workers so an engine-owned external worker such as `iii-sandbox`
@@ -1304,7 +1317,7 @@ mod tests {
         let path = dir.path().join("config.yaml");
         std::fs::write(
             &path,
-            "workers:\n  - name: configuration\n  - name: iii-worker-manager\n  - name: iii-worker-manager#rbac\n  - name: iii-http-functions\nmodules:\n  - name: iii-stream\n  - name: iii-sandbox\n",
+            "workers:\n  - name: configuration\n  - name: iii-worker-manager\n  - name: iii-worker-manager#rbac\n  - name: iii-http-functions\nmodules:\n  - name: iii-stream\n",
         )
         .unwrap();
 
@@ -1321,7 +1334,6 @@ mod tests {
             "iii-worker-manager",
             "iii-http-functions",
             "iii-stream",
-            "iii-sandbox",
         ] {
             assert!(
                 declared.contains(allowed),
@@ -1382,7 +1394,7 @@ mod tests {
         let path = dir.path().join("config.yaml");
         std::fs::write(
             &path,
-            "workers:\n  - name: iii-http\n  - name: iii-http#1\n  - name: state\n  - name: iii-bridge\n  - name: custom-worker\nmodules:\n  - name: iii-exec\n  - name: iii-observability\n",
+            "workers:\n  - name: iii-http\n  - name: iii-http#1\n  - name: state\n  - name: iii-bridge\n  - name: custom-worker\nmodules:\n  - name: iii-exec\n  - name: iii-observability\n  - name: iii-sandbox\n",
         )
         .unwrap();
 
@@ -1419,6 +1431,10 @@ mod tests {
         );
         assert!(
             message.contains("'custom-worker' -> move this worker to worker-compose.yaml"),
+            "{message}"
+        );
+        assert!(
+            message.contains("'iii-sandbox' -> remove it; set sandbox.adapter (Compose: engine.sandbox) and configure the sandbox-builtin worker"),
             "{message}"
         );
         assert!(

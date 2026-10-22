@@ -16,7 +16,7 @@ use std::sync::Arc;
 use tokio::sync::watch;
 
 use super::config::{
-    EngineConfig, WorkerEntry, WorkerRegistry, assign_instance_ids,
+    EngineConfig, WorkerEntry, WorkerRegistry, normalize_worker_entries,
     runtime_worker_info_from_registration,
 };
 use super::registry::WorkerRegistration;
@@ -122,26 +122,7 @@ impl ReloadManager {
         let cfg = EngineConfig::config_file(path)
             .map_err(|e| anyhow::anyhow!("reload: parse failed: {}", e))?;
 
-        let mut entries: Vec<WorkerEntry> = Vec::new();
-        entries.extend(cfg.workers);
-        entries.extend(cfg.modules);
-
-        let names: std::collections::HashSet<String> =
-            entries.iter().map(|e| e.name.clone()).collect();
-
-        for registration in inventory::iter::<WorkerRegistration> {
-            if registration.mandatory && !names.contains(registration.name) {
-                entries.push(WorkerEntry {
-                    name: registration.name.to_string(),
-                    image: None,
-                    config: None,
-                });
-            }
-        }
-
-        assign_instance_ids(&mut entries);
-
-        Ok(entries)
+        Ok(normalize_worker_entries(cfg))
     }
 
     /// Walks `diff.unchanged` and asks each tracked worker whether its
