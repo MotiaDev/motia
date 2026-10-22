@@ -1,7 +1,11 @@
 use iii_sandbox_contract::{
-    CatalogListRequest, ChannelDirection, DOCS_BASE, EnvShape, ExecRequest, ExecResponse,
-    GrepRequest, ListRequest, MkdirRequest, ReadResponse, RunResponse, SandboxErrorCode,
-    SedRequest, StopRequest, StreamChannelRef, WriteContent, WriteRequest, code_of, error_payload,
+    AdapterInfo, AdapterInfoRequest, CatalogListRequest, ChannelDirection, ContractVersion,
+    DOCS_BASE, EnvShape, ExecRequest, ExecResponse, GrepRequest, ListRequest, LogRecord, LogStream,
+    MkdirRequest, ReadResponse, RouterInfo, RunResponse, SandboxErrorCode, SedRequest, State,
+    StopRequest, StreamChannelRef, WorkerDestroyRequest, WorkerDestroyResponse, WorkerLogsRequest,
+    WorkerLogsResponse, WorkerPrepareRequest, WorkerPrepareResponse, WorkerSource,
+    WorkerStartRequest, WorkerStartResponse, WorkerStatus, WorkerStatusRequest, WorkerStopRequest,
+    WriteContent, WriteRequest, code_of, error_payload,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, from_value, json, to_value};
@@ -295,4 +299,159 @@ fn serialized_requests_parse_back() {
         first_only: false,
         ignore_case: false,
     });
+}
+
+// ---------------------------------------------------------------------------
+// adapter info and worker-VM family
+// ---------------------------------------------------------------------------
+
+#[test]
+fn router_info_unbound_json() {
+    let unbound = RouterInfo {
+        adapter: None,
+        namespace: None,
+        contract: ContractVersion::CURRENT,
+        info: None,
+    };
+    assert_eq!(
+        to_value(unbound).unwrap(),
+        json!({"adapter": null, "namespace": null, "contract": {"major": 1, "minor": 0}, "info": null})
+    );
+}
+
+#[test]
+fn adapter_info_json() {
+    let v = json!({
+        "adapter": "sandbox-builtin",
+        "adapter_version": "1.0.0",
+        "contract": {"major": 1, "minor": 0}
+    });
+    let info: AdapterInfo = from_value(v.clone()).unwrap();
+    assert_eq!(info.contract.major, 1);
+    assert_eq!(to_value(&info).unwrap(), v);
+    from_value::<AdapterInfoRequest>(json!({})).expect("empty request parses");
+}
+
+#[test]
+fn worker_source_is_kind_tagged() {
+    let bundle = WorkerSource::Bundle {
+        package: "my-bundle".into(),
+        host_path: "/c".into(),
+    };
+    assert_eq!(
+        to_value(bundle).unwrap(),
+        json!({"kind": "bundle", "package": "my-bundle", "host_path": "/c"})
+    );
+    let local = WorkerSource::Local {
+        host_path: "/p".into(),
+        run_override: None,
+    };
+    assert_eq!(
+        to_value(local).unwrap(),
+        json!({"kind": "local", "host_path": "/p", "run_override": null})
+    );
+}
+
+#[test]
+fn worker_status_and_log_record_json() {
+    let status = WorkerStatus {
+        vm_id: "vm".into(),
+        instance: 2,
+        state: State::Exited,
+        exit_code: None,
+        signal: Some(9),
+        started_at_ms: 10,
+        ended_at_ms: Some(20),
+    };
+    let v = to_value(status).unwrap();
+    assert_eq!(v["state"], "exited");
+    assert_eq!(v["exit_code"], Value::Null);
+    assert_eq!(v["signal"], 9);
+
+    let record = LogRecord {
+        stream: LogStream::Stderr,
+        line: "x".into(),
+        ts_ms: 1,
+        cursor: 7,
+    };
+    assert_eq!(
+        to_value(record).unwrap(),
+        json!({"stream": "stderr", "line": "x", "ts_ms": 1, "cursor": 7})
+    );
+}
+
+#[test]
+fn worker_start_request_round_trips() {
+    let v = json!({
+        "auth": "tok",
+        "state_key": "k",
+        "worker_name": "my-bundle",
+        "source": {"kind": "bundle", "package": "my-bundle", "host_path": "/c"},
+        "env": {"A": "1"},
+        "engine_url": "ws://127.0.0.1:49134"
+    });
+    let req: WorkerStartRequest = from_value(v.clone()).unwrap();
+    assert_eq!(to_value(req).unwrap(), v);
+}
+
+fn round_trips<T: Serialize + DeserializeOwned>(name: &str, example: &Value) {
+    let t: T = from_value(example.clone()).unwrap_or_else(|e| panic!("{name}: {e}"));
+    assert_eq!(&to_value(t).unwrap(), example, "{name}");
+}
+
+/// Maps a fixture key to its type by name; a key with no arm fails the test.
+macro_rules! round_trip_by_name {
+    ($name:expr, $example:expr, $($ty:ident),+ $(,)?) => {
+        match $name {
+            $(stringify!($ty) => round_trips::<$ty>($name, $example),)+
+            other => panic!("no round-trip arm for fixture key {other}"),
+        }
+    };
+}
+
+#[test]
+fn wire_examples_round_trip() {
+    let examples: BTreeMap<String, Value> =
+        serde_json::from_str(include_str!("fixtures/wire_examples.json")).expect("fixture parses");
+
+    // Types declared in info.rs and worker.rs; the fixture needs one example for each.
+    let declared: BTreeSet<String> = [
+        include_str!("../src/info.rs"),
+        include_str!("../src/worker.rs"),
+    ]
+    .into_iter()
+    .flat_map(str::lines)
+    .filter_map(|l| {
+        l.strip_prefix("pub struct ")
+            .or_else(|| l.strip_prefix("pub enum "))
+    })
+    .map(|rest| rest.chars().take_while(|c| c.is_alphanumeric()).collect())
+    .collect();
+    assert_eq!(examples.keys().cloned().collect::<BTreeSet<_>>(), declared);
+
+    for (name, example) in &examples {
+        round_trip_by_name!(
+            name.as_str(),
+            example,
+            ContractVersion,
+            AdapterInfoRequest,
+            AdapterInfo,
+            RouterInfo,
+            WorkerPrepareRequest,
+            WorkerPrepareResponse,
+            WorkerStartRequest,
+            WorkerSource,
+            WorkerStartResponse,
+            WorkerStatusRequest,
+            WorkerStatus,
+            State,
+            WorkerLogsRequest,
+            WorkerLogsResponse,
+            LogRecord,
+            LogStream,
+            WorkerStopRequest,
+            WorkerDestroyRequest,
+            WorkerDestroyResponse,
+        );
+    }
 }

@@ -1,6 +1,10 @@
 mod channel;
 mod ephemeral;
 mod errors;
+mod info;
+mod worker;
 pub use channel::*;
 pub use ephemeral::*;
 pub use errors::*;
+pub use info::*;
+pub use worker::*;
