@@ -87,7 +87,7 @@ scaffolder-core = { workspace = true }
 console = { workspace = true }
 open = { workspace = true }
 ctrlc = { workspace = true }
-tokio = { version = "1", features = ["process", "macros", "rt-multi-thread", "fs", "signal", "time", "io-std"] }
+tokio = { version = "1", features = ["process", "macros", "rt-multi-thread", "fs", "signal", "time", "io-std", "io-util"] }
 tower = { version = "0.5", features = ["util", "timeout", "limit"] }
 tower-http = { version = "0.6", features = ["cors", "timeout"] }
 tracing = "0.1"

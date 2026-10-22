@@ -52,6 +52,13 @@ older than the updated size check forward messages as a single frame without che
 limit. An older worker may then disconnect if the message is too large for it. Use an engine and
 SDKs from the same release, or newer.
 
+The engine reads up to **64 MiB** per message from a worker, whether the message arrives as one
+frame or as fragments, so it also accepts the single large frames of SDKs older than 0.24.5. When a
+worker sends a larger message, the engine drops it and the connection stays open. A call gets
+`payload_too_large` as its result, and when a function returns a result that is too large, its
+caller gets `payload_too_large` instead. Other calls on the connection are not affected. A message
+the engine cannot answer, such as a call that expects no result, is dropped and logged.
+
 Observer activations follow the same limits, and the engine keeps at most **64 MiB** of one observed
 event (every field its observers capture, input and output counted separately). An event over either
 limit is not delivered: the observer counts a `TOO_LARGE` drop and the engine logs a warning. See

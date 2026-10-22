@@ -9,9 +9,16 @@
 //!
 //! axum's `WebSocket` sends every message as one frame and exposes no frame
 //! API, so the worker endpoint upgrades to a tokio-tungstenite stream instead
-//! and fragments large envelopes itself (see [`json_frames`]).
+//! and fragments large envelopes itself (see [`json_frames`]). The engine
+//! reads the other direction itself, with [`InboundReader`], so that a message
+//! over the limit is dropped instead of ending the connection.
 
-use std::future::Future;
+use std::{
+    future::Future,
+    io,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use axum::{
     body::Body,
@@ -29,6 +36,7 @@ use axum::{
 use futures_util::{Sink, SinkExt};
 use hyper::upgrade::{OnUpgrade, Upgraded};
 use hyper_util::rt::TokioIo;
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf, ReadHalf, WriteHalf};
 use tokio_tungstenite::{
     WebSocketStream,
     tungstenite::{
@@ -44,8 +52,61 @@ use tokio_tungstenite::{
     },
 };
 
-/// An upgraded worker connection.
-pub(crate) type WorkerSocket = WebSocketStream<TokioIo<Upgraded>>;
+use super::inbound::InboundReader;
+
+type UpgradedIo = TokioIo<Upgraded>;
+
+/// An upgraded worker connection: the engine reads frames from it with
+/// [`InboundReader`] and writes messages to it through tungstenite.
+pub(crate) struct WorkerSocket {
+    pub(crate) reader: InboundReader<ReadHalf<UpgradedIo>>,
+    pub(crate) writer: WebSocketStream<WriteOnly<WriteHalf<UpgradedIo>>>,
+}
+
+/// The write half of a connection, as the stream tungstenite writes to.
+/// tungstenite reads its stream only when the engine polls it for messages,
+/// which it never does, so reading reports end of stream.
+pub(crate) struct WriteOnly<W>(W);
+
+impl<W: Unpin> AsyncRead for WriteOnly<W> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        _buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+}
+
+impl<W: AsyncWrite + Unpin> AsyncWrite for WriteOnly<W> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.0).poll_write(cx, buf)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.0).poll_flush(cx)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.0).poll_shutdown(cx)
+    }
+
+    fn poll_write_vectored(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[io::IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.0).poll_write_vectored(cx, bufs)
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        self.0.is_write_vectored()
+    }
+}
 
 /// Payload bytes in each frame of an outbound JSON envelope larger than one
 /// frame: 1 MiB, the fragment size the SDKs use toward the engine.
@@ -108,7 +169,7 @@ where
 /// worker listener serves), but hands the connection over as a
 /// tokio-tungstenite stream, which can write individual frames.
 pub(crate) struct WorkerSocketUpgrade {
-    config: WebSocketConfig,
+    max_message_size: usize,
     sec_websocket_key: HeaderValue,
     on_upgrade: OnUpgrade,
 }
@@ -143,7 +204,7 @@ where
             .ok_or_else(ConnectionNotUpgradable::default)?;
 
         Ok(Self {
-            config: WebSocketConfig::default(),
+            max_message_size: super::MAX_JSON_MESSAGE_BYTES,
             sec_websocket_key,
             on_upgrade,
         })
@@ -151,15 +212,10 @@ where
 }
 
 impl WorkerSocketUpgrade {
-    /// Largest frame payload the engine reads from the worker.
-    pub(crate) fn max_frame_size(mut self, max: usize) -> Self {
-        self.config = self.config.max_frame_size(Some(max));
-        self
-    }
-
-    /// Largest message the engine reads from the worker.
+    /// Largest message the engine reads from the worker, as one frame or as
+    /// fragments. A larger one is dropped (see [`InboundReader`]).
     pub(crate) fn max_message_size(mut self, max: usize) -> Self {
-        self.config = self.config.max_message_size(Some(max));
+        self.max_message_size = max;
         self
     }
 
@@ -171,7 +227,7 @@ impl WorkerSocketUpgrade {
         Fut: Future<Output = ()> + Send + 'static,
     {
         let on_upgrade = self.on_upgrade;
-        let config = self.config;
+        let max_message_size = self.max_message_size;
         tokio::spawn(async move {
             let upgraded = match on_upgrade.await {
                 Ok(upgraded) => upgraded,
@@ -180,13 +236,18 @@ impl WorkerSocketUpgrade {
                     return;
                 }
             };
-            let socket = WebSocketStream::from_raw_socket(
-                TokioIo::new(upgraded),
+            let (read, write) = tokio::io::split(TokioIo::new(upgraded));
+            let writer = WebSocketStream::from_raw_socket(
+                WriteOnly(write),
                 Role::Server,
-                Some(config),
+                Some(WebSocketConfig::default()),
             )
             .await;
-            callback(socket).await;
+            callback(WorkerSocket {
+                reader: InboundReader::new(read, max_message_size),
+                writer,
+            })
+            .await;
         });
 
         Response::builder()
@@ -502,6 +563,250 @@ mod tests {
             let (_client, received) = deliver(config, &payload).await;
             let message = received.expect("every frame must fit in 1 MiB");
             assert!(message["result"] == payload.as_str());
+        }
+
+        /// Connects a raw worker; returns it with its worker id.
+        async fn connect(address: SocketAddr) -> (Client, Uuid) {
+            let (mut client, _) = tokio_tungstenite::connect_async(format!("ws://{address}/"))
+                .await
+                .unwrap();
+            let registered = next_json(&mut client).await.unwrap();
+            assert_eq!(registered["type"], "workerregistered");
+            let worker_id = registered["worker_id"].as_str().unwrap().parse().unwrap();
+            (client, worker_id)
+        }
+
+        /// Sends `envelope` as one text frame, or fragmented at 1 MiB as the
+        /// SDKs do.
+        async fn send_envelope(client: &mut Client, envelope: String, fragmented: bool) {
+            use futures_util::SinkExt;
+            if fragmented {
+                for frame in super::json_frames(envelope) {
+                    client.send(frame).await.unwrap();
+                }
+            } else {
+                client.send(Message::text(envelope)).await.unwrap();
+            }
+        }
+
+        /// An `invokefunction` whose `data.blob` is `blob_len` bytes.
+        fn invoke(invocation_id: Uuid, function_id: &str, blob_len: usize) -> String {
+            format!(
+                r#"{{"type":"invokefunction","invocation_id":"{invocation_id}","function_id":"{function_id}","data":{{"blob":"{}"}}}}"#,
+                "x".repeat(blob_len)
+            )
+        }
+
+        /// `test::size` returns the length of `data.blob`.
+        fn register_size_function(engine: &Engine) {
+            use crate::{
+                engine::{EngineTrait, Handler, RegisterFunctionRequest},
+                function::FunctionResult,
+            };
+            engine.register_function_handler(
+                RegisterFunctionRequest {
+                    function_id: "test::size".to_string(),
+                    description: None,
+                    request_format: None,
+                    response_format: None,
+                    metadata: None,
+                },
+                Handler::new(|input: Value| async move {
+                    let len = input["blob"].as_str().map_or(0, str::len);
+                    FunctionResult::Success(Some(serde_json::json!(len)))
+                }),
+            );
+        }
+
+        async fn result_for(client: &mut Client, invocation_id: Uuid) -> Value {
+            loop {
+                let message = next_json(client).await.expect("connection stays open");
+                if message["type"] == "invocationresult"
+                    && message["invocation_id"] == invocation_id.to_string()
+                {
+                    return message;
+                }
+            }
+        }
+
+        fn assert_payload_too_large(result: &Value, size: usize) {
+            assert_eq!(result["error"]["code"], "payload_too_large", "{result}");
+            let message = result["error"]["message"].as_str().unwrap();
+            assert!(
+                message.contains(&format!("{size} bytes"))
+                    && message.contains(&MAX_JSON_MESSAGE_BYTES.to_string())
+                    && message.contains("channels"),
+                "{message}"
+            );
+            assert!(result["result"].is_null(), "{result}");
+        }
+
+        /// Pings and waits for the pong, skipping other frames.
+        async fn ping(client: &mut Client, payload: &'static [u8]) {
+            use futures_util::SinkExt;
+            client
+                .send(Message::Ping(payload.to_vec().into()))
+                .await
+                .unwrap();
+            loop {
+                let frame = tokio::time::timeout(Duration::from_secs(10), client.next())
+                    .await
+                    .expect("pong in time")
+                    .expect("connection open")
+                    .expect("valid frame");
+                match frame {
+                    Message::Pong(data) if data.as_ref() == payload => return,
+                    Message::Text(_) | Message::Ping(_) | Message::Pong(_) => continue,
+                    other => panic!("unexpected frame {other:?}"),
+                }
+            }
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn single_20_mib_frame_invoke_is_processed() {
+            // SDKs older than 0.24.5 send a message over 16 MiB as one frame.
+            let (address, engine) = serve().await;
+            register_size_function(&engine);
+            let (mut client, _) = connect(address).await;
+            let invocation_id = Uuid::new_v4();
+            send_envelope(
+                &mut client,
+                invoke(invocation_id, "test::size", 20 * MIB),
+                false,
+            )
+            .await;
+            let result = result_for(&mut client, invocation_id).await;
+            assert_eq!(result["result"], 20 * MIB, "{result}");
+        }
+
+        async fn oversized_invoke_is_answered_and_the_connection_stays(fragmented: bool) {
+            let (address, engine) = serve().await;
+            register_size_function(&engine);
+            let (mut client, _) = connect(address).await;
+            let invocation_id = Uuid::new_v4();
+            let envelope = invoke(invocation_id, "test::size", 65 * MIB);
+            let size = envelope.len();
+            send_envelope(&mut client, envelope, fragmented).await;
+
+            let result = result_for(&mut client, invocation_id).await;
+            assert_payload_too_large(&result, size);
+            assert_eq!(result["function_id"], "test::size");
+
+            // A small call on the same connection still works.
+            let small = Uuid::new_v4();
+            send_envelope(&mut client, invoke(small, "test::size", 10), false).await;
+            assert_eq!(result_for(&mut client, small).await["result"], 10);
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn fragmented_65_mib_invoke_gets_payload_too_large_and_the_connection_stays() {
+            oversized_invoke_is_answered_and_the_connection_stays(true).await;
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn single_65_mib_frame_invoke_gets_payload_too_large_and_the_connection_stays() {
+            oversized_invoke_is_answered_and_the_connection_stays(false).await;
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn oversized_invocation_result_gives_the_caller_payload_too_large() {
+            use serde_json::json;
+
+            let (address, engine) = serve().await;
+            let (mut target, target_id) = connect(address).await;
+            let announce = json!({
+                "type": "invokefunction",
+                "function_id": "engine::workers::register",
+                "data": { "runtime": "test", "version": "0.25.0", "name": "target" },
+                "action": { "type": "void" },
+            });
+            send_envelope(&mut target, announce.to_string(), false).await;
+            let register = json!({ "type": "registerfunction", "id": "test::big" });
+            send_envelope(&mut target, register.to_string(), false).await;
+            tokio::time::timeout(Duration::from_secs(10), async {
+                while engine.functions.get("default", "test::big").is_none() {
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            })
+            .await
+            .expect("test::big registered");
+
+            let (mut caller, caller_id) = connect(address).await;
+            let call_id = Uuid::new_v4();
+            let call = json!({
+                "type": "invokefunction",
+                "invocation_id": call_id,
+                "function_id": "test::big",
+                "data": {},
+            });
+            send_envelope(&mut caller, call.to_string(), false).await;
+
+            let forwarded = loop {
+                let message = next_json(&mut target).await.unwrap();
+                if message["type"] == "invokefunction" && message["function_id"] == "test::big" {
+                    break message;
+                }
+            };
+            let forwarded_id: Uuid = forwarded["invocation_id"]
+                .as_str()
+                .unwrap()
+                .parse()
+                .unwrap();
+
+            // 65 MiB in Python's field order, `type` last: the engine finds
+            // it at the end of the message.
+            let result = format!(
+                r#"{{"invocation_id":"{forwarded_id}","function_id":"test::big","result":"{}","type":"invocationresult"}}"#,
+                "y".repeat(65 * MIB)
+            );
+            let size = result.len();
+            send_envelope(&mut target, result, true).await;
+
+            let answer = result_for(&mut caller, call_id).await;
+            assert_payload_too_large(&answer, size);
+
+            // Both sides let go of the invocation, and the target stays
+            // connected.
+            let target_worker = engine.worker_registry.get_worker(&target_id).unwrap();
+            assert!(
+                !target_worker
+                    .invocations
+                    .read()
+                    .await
+                    .contains(&forwarded_id)
+            );
+            let caller_worker = engine.worker_registry.get_worker(&caller_id).unwrap();
+            tokio::time::timeout(Duration::from_secs(5), async {
+                while caller_worker.invocations.read().await.contains(&call_id) {
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            })
+            .await
+            .expect("the caller's invocation is released");
+            ping(&mut target, b"target").await;
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn ping_is_answered_while_an_oversized_message_is_dropped() {
+            use futures_util::SinkExt;
+
+            let (address, _engine) = serve().await;
+            let (mut client, _) = connect(address).await;
+            let invocation_id = Uuid::new_v4();
+            let envelope = invoke(invocation_id, "test::size", 65 * MIB);
+            let size = envelope.len();
+            let mut frames = super::json_frames(envelope);
+            let last = frames.pop().unwrap();
+            // Every fragment but the last: the message is over the limit, and
+            // the engine is discarding it.
+            for frame in frames {
+                client.send(frame).await.unwrap();
+            }
+            ping(&mut client, b"mid-message").await;
+            client.send(last).await.unwrap();
+
+            assert_payload_too_large(&result_for(&mut client, invocation_id).await, size);
+            ping(&mut client, b"after").await;
         }
     }
 }
