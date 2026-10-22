@@ -297,6 +297,12 @@ pub enum ComposeError {
         available: String,
     },
 
+    #[error(
+        "{needed_by} needs the sandbox adapter '{adapter}', and --frozen does not edit the file. \
+         Run up once without --frozen, or: iii trigger compose::add worker=iii-sandbox"
+    )]
+    SandboxAdapterNotDeclared { adapter: String, needed_by: String },
+
     #[error("container '{container}': its package has not been installed yet")]
     PackageNotInstalled { container: String },
 
@@ -621,6 +627,7 @@ impl ComposeError {
             Self::WorkerSourceChanged { .. } => "WORKER_SOURCE_CHANGED",
             Self::NotAPackageContainer { .. } => "NOT_A_PACKAGE_CONTAINER",
             Self::UnsupportedPlatform { .. } => "UNSUPPORTED_PLATFORM",
+            Self::SandboxAdapterNotDeclared { .. } => "SANDBOX_ADAPTER_NOT_DECLARED",
             Self::PackageNotInstalled { .. } => "PACKAGE_NOT_INSTALLED",
             Self::PackageDownloadFailed { .. } => "PACKAGE_DOWNLOAD_FAILED",
             Self::PackageDigestMismatch { .. } => "PACKAGE_DIGEST_MISMATCH",

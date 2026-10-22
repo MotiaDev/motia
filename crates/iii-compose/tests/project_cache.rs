@@ -581,3 +581,33 @@ async fn remove_validates_every_worker_before_writing_the_batch() {
     assert_eq!(err.code(), "UNKNOWN_CONTAINER");
     assert_eq!(std::fs::read_to_string(file).unwrap(), before);
 }
+
+#[tokio::test]
+async fn frozen_up_refuses_an_undeclared_adapter_and_writes_nothing() {
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::create_dir(tmp.path().join("vm")).unwrap();
+    std::fs::write(
+        tmp.path().join("vm/iii.worker.yaml"),
+        "runtime: {base_image: python}\nscripts: {start: run}\n",
+    )
+    .unwrap();
+    let file = tmp.path().join("worker-compose.yaml");
+    let lock = tmp.path().join("worker-compose.lock");
+    let text = "containers:\n  vm:\n    worker: path://./vm\n";
+    let locked = "version: 1\ncontainers: {}\n";
+    std::fs::write(&file, text).unwrap();
+    std::fs::write(&lock, locked).unwrap();
+
+    let daemon = daemon();
+    let err = daemon
+        .up_frozen(Some(&file), None, "frozen".into())
+        .await
+        .unwrap_err();
+    assert_eq!(err.code(), "SANDBOX_ADAPTER_NOT_DECLARED");
+    assert_eq!(
+        err.to_string(),
+        "vm needs the sandbox adapter 'sandbox-builtin', and --frozen does not edit the file. Run up once without --frozen, or: iii trigger compose::add worker=iii-sandbox"
+    );
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), text);
+    assert_eq!(std::fs::read_to_string(&lock).unwrap(), locked);
+}

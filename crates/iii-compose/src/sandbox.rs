@@ -4,17 +4,22 @@
 // This software is patent protected. We welcome discussions - reach out at team@iii.dev
 // See LICENSE and PATENTS files for details.
 
-//! Which containers need the sandbox adapter, and the start order that puts
-//! the adapter ahead of them.
+//! Which containers need the sandbox adapter, the generated container that
+//! installs it, and the start order that puts the adapter ahead of them.
 
-use std::path::Path;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
 
-use iii_sandbox_contract::DEFAULT_ADAPTER;
+use iii_sandbox_contract::{CONTRACT_MAJOR, DEFAULT_ADAPTER};
 use sha2::{Digest, Sha256};
 
 use crate::{
     config::{ComposeFile, WorkerSource},
+    edit::{self, NewContainer, Source},
     error::Result,
+    lockfile::PreparedLock,
     manifest::read_manifest,
 };
 
@@ -58,6 +63,23 @@ pub fn needs(file: &ComposeFile) -> Vec<Need> {
         needs.push(Need::Explicit);
     }
     needs
+}
+
+/// The VM container keys in `needs`, or `engine.sandbox` when the section is
+/// the only need: what a message names as needing the adapter.
+pub(crate) fn needed_by(needs: &[Need]) -> Vec<&str> {
+    let keys: Vec<&str> = needs
+        .iter()
+        .filter_map(|need| match need {
+            Need::VmBundle(key) | Need::VmLocal(key) => Some(key.as_str()),
+            Need::Explicit => None,
+        })
+        .collect();
+    if keys.is_empty() {
+        vec!["engine.sandbox"]
+    } else {
+        keys
+    }
 }
 
 /// `engine.sandbox.adapter`, else [`DEFAULT_ADAPTER`]. An attached project has
@@ -119,6 +141,138 @@ pub(crate) fn wire_adapter(file: &mut ComposeFile) -> Result<()> {
     }
 }
 
+/// `package://<adapter>` at the newest release within this engine's contract
+/// major, pinned to that exact version.
+pub(crate) async fn adapter_request(adapter: &str) -> Result<NewContainer> {
+    let mut request = edit::parse_worker(adapter)?;
+    if let Source::Package { reference, version } = &mut request.source {
+        let node =
+            crate::registry::resolve_node(&request.key, reference, &format!("^{CONTRACT_MAJOR}"))
+                .await?;
+        *version = Some(node.version);
+    }
+    Ok(request)
+}
+
+/// What the sandbox step does to the file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum AdapterChange {
+    Upsert(NewContainer),
+    Remove(String),
+}
+
+/// Adds the adapter a VM needs, re-resolves (`refresh`) or removes
+/// (`allow_remove`) the one Compose generated. An operator's adapter, of any
+/// key, version or source, is never touched. `file` must be lock-attached.
+pub(crate) async fn adapter_change(
+    text: &str,
+    file: &ComposeFile,
+    refresh: bool,
+    allow_remove: bool,
+) -> Result<Option<AdapterChange>> {
+    let adapter = adapter_name(file);
+    let needed = !needs(file).is_empty();
+    let Some(key) = adapter_key(file, adapter)? else {
+        if !needed {
+            return Ok(None);
+        }
+        return Ok(Some(AdapterChange::Upsert(adapter_request(adapter).await?)));
+    };
+    let container = &file.containers[&key];
+    // `compose::add` marks a `path://` request too; only a package is ours.
+    if !matches!(container.worker, WorkerSource::Package { .. })
+        || !edit::is_generated_container(text, &key)?
+    {
+        return Ok(None);
+    }
+    if !needed {
+        return Ok(allow_remove.then_some(AdapterChange::Remove(key)));
+    }
+    if !refresh {
+        return Ok(None);
+    }
+    let mut request = adapter_request(adapter).await?;
+    let unchanged = matches!(&request.source, Source::Package { version, .. }
+        if version.as_deref() == container.version.as_deref());
+    request.key = key;
+    Ok((!unchanged).then_some(AdapterChange::Upsert(request)))
+}
+
+/// `compose::add iii-sandbox`: the engine's router is built in, so the request
+/// means its adapter.
+pub(crate) fn is_iii_sandbox(worker: &NewContainer) -> bool {
+    worker.key == "iii-sandbox" && matches!(worker.source, Source::Package { .. })
+}
+
+/// What `compose::add iii-sandbox` asks for: the declared adapter as it is
+/// declared, else a new one.
+pub(crate) async fn iii_sandbox_request(file: &ComposeFile) -> Result<NewContainer> {
+    let adapter = adapter_name(file);
+    let Some(key) = adapter_key(file, adapter)? else {
+        return adapter_request(adapter).await;
+    };
+    let container = &file.containers[&key];
+    let mut request = edit::parse_worker(&match &container.worker {
+        WorkerSource::Package { reference } => format!("package://{reference}"),
+        WorkerSource::Path { declared, .. } => declared.clone(),
+    })?;
+    request.key = key;
+    if let Source::Package { version, .. } = &mut request.source {
+        version.clone_from(&container.version);
+    }
+    Ok(request)
+}
+
+/// Applies [`adapter_change`] to `edited` and `current`, then prepares the lock
+/// again: the adapter at its exact version, every other entry at the version
+/// the first pass chose, so nothing else resolves differently.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn apply_adapter_change(
+    path: &Path,
+    edited: &mut String,
+    current: &mut ComposeFile,
+    prepared: &mut PreparedLock,
+    force: &mut BTreeSet<String>,
+    selected: &mut BTreeMap<String, String>,
+    refresh: bool,
+    allow_remove: bool,
+) -> Result<Option<AdapterChange>> {
+    let Some(change) = adapter_change(edited, current, refresh, allow_remove).await? else {
+        return Ok(None);
+    };
+    let next = match &change {
+        AdapterChange::Upsert(request) => {
+            if let Source::Package {
+                version: Some(version),
+                ..
+            } = &request.source
+            {
+                force.insert(request.key.clone());
+                selected.insert(request.key.clone(), version.clone());
+            }
+            match edit::upsert_container(edited, request)? {
+                edit::Outcome::Added(text) | edit::Outcome::Replaced { text, .. } => Some(text),
+                edit::Outcome::Unchanged => None,
+            }
+        }
+        AdapterChange::Remove(key) => edit::remove_container(edited, key)?,
+    };
+    if let Some(next) = next {
+        *edited = next;
+    }
+    *current = ComposeFile::parse(edited, path)?;
+    let mut versions = selected.clone();
+    for key in current.containers.keys() {
+        if let Some(version) = prepared.resolved_version(key) {
+            versions
+                .entry(key.clone())
+                .or_insert_with(|| version.to_string());
+        }
+    }
+    *prepared = crate::lockfile::prepare_metadata_with_versions(current, force, &versions).await?;
+    Ok(Some(change))
+}
+
 /// The VM's identity at the adapter: hex SHA-256 over the project's state
 /// directory, a NUL, then the container key.
 pub fn state_key(state_dir: &Path, key: &str) -> String {
@@ -130,7 +284,7 @@ pub fn state_key(state_dir: &Path, key: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     fn parse(dir: &Path, text: &str) -> ComposeFile {
@@ -243,6 +397,120 @@ mod tests {
         );
         wire_adapter(&mut file).unwrap();
         assert!(file.containers["dev"].start_after.is_empty());
+    }
+
+    /// A registry whose `/resolve` answers `sandbox-builtin` 1.2.3 for this
+    /// host, and serves `archive` as its artifact.
+    pub(crate) async fn adapter_registry(archive: &[u8]) -> wiremock::MockServer {
+        use wiremock::{Mock, MockServer, ResponseTemplate, matchers};
+        let server = MockServer::start().await;
+        Mock::given(matchers::method("POST"))
+            .and(matchers::path("/resolve"))
+            .and(matchers::body_partial_json(
+                serde_json::json!({ "worker": "sandbox-builtin" }),
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "graph": [{
+                    "name": "sandbox-builtin",
+                    "version": "1.2.3",
+                    "type": "binary",
+                    "binaries": { (crate::registry::host_targets()[0]): {
+                        "sha256": hex::encode(Sha256::digest(archive)),
+                        "url": format!("{}/artifact", server.uri()),
+                    }},
+                }]
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(matchers::method("GET"))
+            .and(matchers::path("/artifact"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(archive.to_vec()))
+            .mount(&server)
+            .await;
+        server
+    }
+
+    /// `text` with a generated `sandbox-builtin` 1.2.3 appended.
+    fn with_generated_adapter(text: &str) -> String {
+        let request = edit::parse_worker("sandbox-builtin@1.2.3").unwrap();
+        let edit::Outcome::Added(text) = edit::upsert_container(text, &request).unwrap() else {
+            panic!("the adapter is new");
+        };
+        text
+    }
+
+    #[tokio::test]
+    async fn the_adapter_resolves_within_the_contract_major_and_pins_the_exact_release() {
+        let server = adapter_registry(b"").await;
+        let request = crate::registry::TEST_REGISTRY
+            .scope(server.uri(), adapter_request("sandbox-builtin"))
+            .await
+            .unwrap();
+        assert_eq!(
+            request.source,
+            edit::Source::Package {
+                reference: "api.workers.iii.dev/sandbox-builtin".into(),
+                version: Some("1.2.3".into())
+            }
+        );
+        let asked: serde_json::Value =
+            serde_json::from_slice(&server.received_requests().await.unwrap()[0].body).unwrap();
+        assert_eq!(asked["version"], "^1");
+        let edit::Outcome::Added(text) =
+            edit::upsert_container("containers: {}\n", &request).unwrap()
+        else {
+            panic!("the adapter is new");
+        };
+        assert!(edit::is_generated_container(&text, "sandbox-builtin").unwrap());
+    }
+
+    #[tokio::test]
+    async fn a_generated_adapter_goes_with_its_last_vm() {
+        let dir = tempfile::tempdir().unwrap();
+        let text = with_generated_adapter("containers: {}\n");
+        let file = parse(dir.path(), &text);
+        assert_eq!(
+            adapter_change(&text, &file, false, true).await.unwrap(),
+            Some(AdapterChange::Remove("sandbox-builtin".into()))
+        );
+        // up, build and add never remove it, so up leaves the file as it is.
+        assert_eq!(
+            adapter_change(&text, &file, false, false).await.unwrap(),
+            None
+        );
+    }
+
+    #[tokio::test]
+    async fn an_operator_adapter_is_never_added_twice_refreshed_or_removed() {
+        let dir = tempfile::tempdir().unwrap();
+        let dir = dir.path();
+        // No mock: any registry call fails the test instead of leaving the host.
+        let registry = wiremock::MockServer::start().await;
+        let change = |text: String, bundle: bool| {
+            let mut file = parse(dir, &text);
+            if bundle {
+                file.containers["app"].resolved_package = Some(package("name: app, type: bundle"));
+            }
+            crate::registry::TEST_REGISTRY.scope(registry.uri(), async move {
+                adapter_change(&text, &file, true, true).await.unwrap()
+            })
+        };
+        let pinned = "containers:\n  sb: {worker: package://sandbox-builtin, version: 1.0.0}\n";
+        let app = "  app: {worker: package://app, version: 1.0.0}\n";
+        assert_eq!(change(format!("{pinned}{app}"), true).await, None);
+        assert_eq!(change(pinned.to_string(), false).await, None);
+
+        manifest(dir, "dev", "name: sandbox-builtin\n");
+        let checkout = "containers:\n  sandbox-builtin: {worker: path://./dev}\n";
+        assert_eq!(change(format!("{checkout}{app}"), true).await, None);
+    }
+
+    #[test]
+    fn compose_add_iii_sandbox_names_the_adapter() {
+        assert!(is_iii_sandbox(&edit::parse_worker("iii-sandbox").unwrap()));
+        assert!(!is_iii_sandbox(
+            &edit::parse_worker("./iii-sandbox").unwrap()
+        ));
     }
 
     #[test]
