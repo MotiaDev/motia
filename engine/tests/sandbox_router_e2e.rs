@@ -354,3 +354,44 @@ async fn invocation_stopped_on_adapter_disconnect_clears_handshake() {
         .unwrap_err();
     assert_eq!(code_of(&err.message), Some(SandboxErrorCode::S302));
 }
+
+#[tokio::test]
+async fn idle_adapter_disconnect_answers_s301_and_clears_handshake() {
+    let (port, engine) = spawn_engine(bound()).await;
+    let fake = fake_adapter(port, 1, &engine).await;
+
+    call(&engine, "sandbox::exec", json!({}), None)
+        .await
+        .expect("exec succeeds and caches the handshake");
+
+    fake.task.abort();
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    while FAKE_IDS
+        .iter()
+        .any(|id| engine.functions.get("fake-ns", id).is_some())
+    {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "fake adapter ids were never removed from fake-ns"
+        );
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+
+    // The handshake is cached, so this reaches the forward, not adapter::info.
+    let err = call(&engine, "sandbox::exec", json!({}), None)
+        .await
+        .unwrap_err();
+    assert_eq!(code_of(&err.message), Some(SandboxErrorCode::S301));
+    let p = payload(&err);
+    assert_eq!(p["retryable"], true);
+    assert_eq!(
+        p["message"],
+        "adapter fake not connected in namespace fake-ns; compose::add iii-sandbox in that project installs it"
+    );
+
+    let _fake = fake_adapter(port, 2, &engine).await;
+    let err = call(&engine, "sandbox::exec", json!({}), None)
+        .await
+        .unwrap_err();
+    assert_eq!(code_of(&err.message), Some(SandboxErrorCode::S302));
+}
