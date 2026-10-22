@@ -577,10 +577,13 @@ pub struct TriggerRegistry {
     // Reserved before provider I/O, including ownerless registrations. A
     // cancelled future leaves its descriptor/debt visible until explicit teardown.
     legacy_installs: DashMap<String, Arc<LegacyInstall>>,
-    // Observation only, never lifecycle authority. Legacy replies have no wire
-    // generation: once a session/id is reused, even a positive reply is ambiguous.
-    // Retain that tombstone so an old ACK cannot confirm a successor installation.
+    // Observation only, never lifecycle authority. Keep the current candidate
+    // separately from all wire identities seen in this connection session.
     legacy_observations: std::sync::Mutex<HashMap<(Uuid, String), Option<Arc<LegacyInstall>>>>,
+    // Legacy ACKs identify session/id/type/function, but not config, namespace
+    // or generation. Reusing that entire tuple is ambiguous forever in this
+    // session, including A -> B -> A. A distinct type/function can be confirmed.
+    legacy_ack_history: std::sync::Mutex<std::collections::HashSet<(Uuid, String, String, String)>>,
     retired_providers: std::sync::Mutex<std::collections::HashSet<Uuid>>,
     #[cfg(test)]
     removal_pause: std::sync::Mutex<
@@ -629,6 +632,7 @@ impl TriggerRegistry {
             legacy_uncertain: Default::default(),
             legacy_installs: Default::default(),
             legacy_observations: Default::default(),
+            legacy_ack_history: Default::default(),
             retired_providers: Default::default(),
             #[cfg(test)]
             removal_pause: Default::default(),
@@ -906,20 +910,23 @@ impl TriggerRegistry {
                 .insert(trigger.id.clone(), install.clone());
             if self.shared() {
                 if let Some(owner) = provider.worker_id {
-                    use std::collections::hash_map::Entry;
-                    match self
-                        .legacy_observations
+                    let distinguishable = self
+                        .legacy_ack_history
+                        .lock()
+                        .expect("legacy ACK history poisoned")
+                        .insert((
+                            owner,
+                            trigger.id.clone(),
+                            trigger.trigger_type.clone(),
+                            trigger.function_id.clone(),
+                        ));
+                    self.legacy_observations
                         .lock()
                         .expect("legacy observations poisoned")
-                        .entry((owner, trigger.id.clone()))
-                    {
-                        Entry::Vacant(entry) => {
-                            entry.insert(Some(install.clone()));
-                        }
-                        Entry::Occupied(mut entry) => {
-                            entry.insert(None);
-                        }
-                    }
+                        .insert(
+                            (owner, trigger.id.clone()),
+                            distinguishable.then(|| install.clone()),
+                        );
                 }
             }
         }
@@ -1620,6 +1627,10 @@ impl TriggerRegistry {
                     .lock()
                     .expect("legacy observations poisoned")
                     .retain(|(owner, _), _| owner != worker_id);
+                self.legacy_ack_history
+                    .lock()
+                    .expect("legacy ACK history poisoned")
+                    .retain(|(owner, _, _, _)| owner != worker_id);
                 let mut uncertain = self
                     .legacy_uncertain
                     .lock()
@@ -2437,18 +2448,9 @@ impl TriggerRegistry {
                 .park_transition
                 .lock()
                 .expect("park_transition lock poisoned");
-            // Keep only id/session tombstones: a later untagged result cannot
-            // distinguish the removed registration from a same-session retry.
-            for ((_, observed_id), observation) in self
-                .legacy_observations
-                .lock()
-                .expect("legacy observations poisoned")
-                .iter_mut()
-            {
-                if observed_id == &id {
-                    *observation = None;
-                }
-            }
+            // A failed unregister leaves the immutable live binding intact.
+            // Keep its observation until removal actually commits; counting
+            // still checks the exact publication and current registrator.
             if self.legacy_installs.remove(&id).is_some() {
                 // An in-flight unfenced install may already execute. Invalidate
                 // its completion and keep uncertainty even after removing intent.
@@ -2489,6 +2491,17 @@ impl TriggerRegistry {
             .expect("park_transition lock poisoned");
         self.triggers.remove(&id);
         self.pending_triggers.remove(&id);
+        // Retain wire identity history, not confirmation of a removed binding.
+        for ((_, observed_id), observation) in self
+            .legacy_observations
+            .lock()
+            .expect("legacy observations poisoned")
+            .iter_mut()
+        {
+            if observed_id == &id {
+                *observation = None;
+            }
+        }
 
         Ok(true)
     }

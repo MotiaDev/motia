@@ -1896,3 +1896,193 @@ async fn shared_namespace_introspection_legacy_unconfirmed_closed_ack_channel_is
 async fn shared_namespace_introspection_legacy_unconfirmed_replay_is_not_active() {
     introspection_legacy_unconfirmed("replay").await;
 }
+
+// The stop fails before touching the adapter; installation still uses the real
+// WS registrator and its positive ACK, rather than treating Ok as confirmation.
+struct IntrospectionRejectStop {
+    worker: iii::worker_connections::WorkerConnection,
+    stops: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl iii::trigger::TriggerRegistrator for IntrospectionRejectStop {
+    fn register_trigger(
+        &self,
+        trigger: iii::trigger::Trigger,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<()>> + Send + '_>> {
+        iii::trigger::TriggerRegistrator::register_trigger(&self.worker, trigger)
+    }
+
+    fn unregister_trigger(
+        &self,
+        _trigger: iii::trigger::Trigger,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<()>> + Send + '_>> {
+        self.stops.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Box::pin(async {
+            Err(anyhow::anyhow!(
+                "fixture stop rejected before adapter mutation"
+            ))
+        })
+    }
+}
+
+async fn introspection_legacy_result(ws: &mut IntrospectionClient, install: &Value) {
+    assert!(install.get("assignment_id").is_none(), "{install}");
+    introspection_send(
+        ws,
+        json!({"type":"triggerregistrationresult", "id":install["id"],
+            "trigger_type":install["trigger_type"], "function_id":install["function_id"]}),
+    )
+    .await;
+    introspection_barrier(ws).await;
+}
+
+#[tokio::test]
+async fn shared_namespace_introspection_legacy_failed_unregister_preserves_confirmation() {
+    let (port, engine, _builder, _directory) = introspection_engine(true).await;
+    let mut provider = introspection_replica(port, "failed-stop-provider", "orders").await;
+    let worker = engine
+        .worker_registry
+        .list_workers()
+        .into_iter()
+        .find(|worker| worker.name.as_deref() == Some("failed-stop-provider"))
+        .unwrap();
+    let stops = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    engine
+        .trigger_registry
+        .register_trigger_type(iii::trigger::TriggerType::new_ns(
+            "orders",
+            "fixture:introspection",
+            "legacy stop failure fixture",
+            Box::new(IntrospectionRejectStop {
+                worker: worker.clone(),
+                stops: stops.clone(),
+            }),
+            Some(worker.id),
+        ))
+        .await
+        .unwrap();
+    let registration_engine = engine.clone();
+    let registration = tokio::spawn(async move {
+        call_engine_fn(
+            &registration_engine,
+            "engine::register_trigger",
+            json!({"trigger_type":"fixture:introspection", "function_id":"svc::shared",
+                "config":{"topic":"failed-stop"}, "trigger_namespace":"orders",
+                "_caller_worker_id":worker.id.to_string()}),
+        )
+        .await
+    });
+    let install = introspection_frame(&mut provider, "registertrigger").await;
+    let installed_routes =
+        std::collections::HashSet::from([install["id"].as_str().unwrap().to_owned()]);
+    introspection_legacy_result(&mut provider, &install).await;
+    let registered = registration.await.unwrap();
+    let id = registered["id"].as_str().unwrap();
+    let before = introspection_trigger_list(&engine, false).await;
+    assert_eq!(before["registered_triggers"][0]["active_owner_count"], 1);
+    assert_eq!(before["registered_triggers"][0]["degraded"], false);
+    let error = engine
+        .trigger_registry
+        .unregister_trigger(id.to_owned(), None)
+        .await
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("fixture stop rejected"),
+        "{error}"
+    );
+    assert_eq!(stops.load(std::sync::atomic::Ordering::SeqCst), 1);
+    assert!(
+        installed_routes.contains(id),
+        "failed stop did not touch adapter route"
+    );
+    assert!(
+        engine.trigger_registry.triggers.contains_key(id),
+        "failed unregister retains binding"
+    );
+    for include_pending in [false, true] {
+        let listed = introspection_trigger_list(&engine, include_pending).await;
+        let rows = listed["registered_triggers"].as_array().unwrap();
+        assert_eq!(rows.len(), 1, "{listed}");
+        assert_eq!(rows[0]["id"], id);
+        assert_eq!(
+            (
+                rows[0]["active_owner_count"].clone(),
+                rows[0]["degraded"].clone()
+            ),
+            (json!(1), json!(false)),
+            "failed unregister must preserve positive confirmation of the still-installed binding: {listed}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn shared_namespace_introspection_legacy_reused_id_distinct_function_ack_confirms_successor()
+{
+    let (port, engine, _builder, _directory) = introspection_engine(true).await;
+    let mut provider = introspection_replica(port, "descriptor-provider", "orders").await;
+    introspection_send(
+        &mut provider,
+        json!({"type":"registertriggertype",
+        "id":"fixture:introspection", "description":"distinct descriptor fixture"}),
+    )
+    .await;
+    introspection_barrier(&mut provider).await;
+    let binding = iii::trigger::Trigger {
+        id: "distinct-descriptor-reuse".into(),
+        trigger_type: "fixture:introspection".into(),
+        function_id: "svc::shared".into(),
+        config: json!({}),
+        worker_id: None,
+        metadata: None,
+        namespace: "orders".into(),
+        trigger_namespace: Some("orders".into()),
+        home_namespace: "orders".into(),
+        provider_namespace: "orders".into(),
+    };
+    let registry = engine.trigger_registry.clone();
+    let first_binding = binding.clone();
+    let first = tokio::spawn(async move { registry.register_trigger(first_binding).await });
+    let old_install = introspection_frame(&mut provider, "registertrigger").await;
+    introspection_legacy_result(&mut provider, &old_install).await;
+    first.await.unwrap().unwrap();
+    let before = introspection_trigger_list(&engine, false).await;
+    assert_eq!(before["registered_triggers"][0]["active_owner_count"], 1);
+    engine
+        .trigger_registry
+        .unregister_trigger(binding.id.clone(), None)
+        .await
+        .unwrap();
+    introspection_frame(&mut provider, "unregistertrigger").await;
+    let mut successor_binding = binding;
+    successor_binding.function_id = "svc::distinct-successor".into();
+    let registry = engine.trigger_registry.clone();
+    let successor = tokio::spawn(async move { registry.register_trigger(successor_binding).await });
+    let new_install = introspection_frame(&mut provider, "registertrigger").await;
+    assert_eq!(old_install["id"], new_install["id"]);
+    assert_ne!(old_install["function_id"], new_install["function_id"]);
+    // A delayed predecessor ACK must not certify the new function. Legacy
+    // completion may still return Ok; only introspection provenance is tested.
+    introspection_legacy_result(&mut provider, &old_install).await;
+    successor.await.unwrap().unwrap();
+    let unconfirmed = introspection_trigger_list(&engine, false).await;
+    assert_eq!(
+        unconfirmed["registered_triggers"][0]["active_owner_count"],
+        0
+    );
+    assert_eq!(unconfirmed["registered_triggers"][0]["degraded"], true);
+    // Unlike identical session/id/type/function reuse, this positive result is
+    // distinguishable on the existing wire, without inventing a generation.
+    introspection_legacy_result(&mut provider, &new_install).await;
+    let confirmed = introspection_trigger_list(&engine, false).await;
+    let rows = confirmed["registered_triggers"].as_array().unwrap();
+    assert_eq!(rows.len(), 1, "{confirmed}");
+    assert_eq!(rows[0]["function_id"], "svc::distinct-successor");
+    assert_eq!(
+        (
+            rows[0]["active_owner_count"].clone(),
+            rows[0]["degraded"].clone()
+        ),
+        (json!(1), json!(false)),
+        "a distinct-function successor ACK is authoritative without accepting the delayed old ACK: {confirmed}"
+    );
+}
