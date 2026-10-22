@@ -231,6 +231,37 @@ async fn managed_daemon_requires_restart_when_its_owner_engine_section_changes()
 }
 
 #[tokio::test]
+async fn changing_engine_sandbox_requires_an_engine_restart() {
+    isolate_state();
+    let tmp = project_dir();
+    let file = tmp.path().join("worker-compose.yaml");
+    std::fs::write(
+        &file,
+        "engine: { workers: {} }\ncontainers:\n  api:\n    worker: path://./workers/api\n",
+    )
+    .unwrap();
+    let initial = iii_compose::ComposeFile::load(&file).unwrap();
+    let policy = EnginePolicy::managed(&initial).unwrap();
+    std::fs::write(
+        &file,
+        "engine:\n  workers: {}\n  sandbox: {adapter: sandbox-docker}\ncontainers:\n  api:\n    worker: path://./workers/api\n",
+    )
+    .unwrap();
+
+    let daemon = Daemon::start(
+        "ws://127.0.0.1:1/ws".to_string(),
+        format!("managed-sandbox-change-test-{}", std::process::id()),
+        None,
+        policy,
+    );
+    let err = match daemon.project(&file).await {
+        Err(err) => err,
+        Ok(_) => panic!("a changed engine.sandbox must require a restart"),
+    };
+    assert_eq!(err.code(), "ENGINE_RESTART_REQUIRED");
+}
+
+#[tokio::test]
 async fn up_rechecks_the_owner_engine_section_after_the_project_is_cached() {
     isolate_state();
     let tmp = tempfile::tempdir().unwrap();

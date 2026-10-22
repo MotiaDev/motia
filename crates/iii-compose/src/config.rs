@@ -332,6 +332,25 @@ pub struct EngineSpec {
     /// engine validates it.
     pub observers: Option<serde_yaml::Value>,
     pub workers: BTreeMap<String, serde_yaml::Value>,
+    /// Which adapter the engine's `sandbox::*` router forwards to. `None` is no
+    /// section: the managed engine still binds the default adapter.
+    pub sandbox: Option<SandboxSpec>,
+}
+
+/// The `engine.sandbox` section. The adapter name is not checked here: the
+/// engine rejects a binding it cannot resolve (`INVALID_SANDBOX_CONFIG`).
+#[derive(Debug, Clone, PartialEq, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SandboxSpec {
+    #[serde(default = "default_sandbox_adapter")]
+    pub adapter: String,
+    /// The namespace the adapter runs in; the owning project's when absent.
+    #[serde(default)]
+    pub namespace: Option<String>,
+}
+
+fn default_sandbox_adapter() -> String {
+    iii_sandbox_contract::DEFAULT_ADAPTER.to_string()
 }
 
 #[derive(Debug, Clone)]
@@ -505,6 +524,7 @@ fn validate_engine(raw: RawEngineSpec) -> Result<EngineSpec> {
         registration_namespace_grace_ms: raw.registration_namespace_grace_ms,
         observers,
         workers,
+        sandbox: raw.sandbox,
     })
 }
 
@@ -1038,6 +1058,8 @@ struct RawEngineSpec {
     #[serde(default, deserialize_with = "deserialize_unique_map")]
     #[schemars(with = "BTreeMap<String, serde_json::Value>")]
     workers: IndexMap<String, serde_yaml::Value>,
+    #[serde(default)]
+    sandbox: Option<SandboxSpec>,
 }
 
 #[derive(Debug, Deserialize)]

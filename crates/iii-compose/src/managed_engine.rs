@@ -69,7 +69,7 @@ impl ManagedEngine {
                 .map_err(|source| ComposeError::EngineSpawnFailed {
                     message: format!("could not claim the managed engine namespace: {source}"),
                 })??;
-        let config_path = materialize_engine_config(spec, namespace_dir)?;
+        let config_path = materialize_engine_config(spec, namespace_dir, daemon_namespace)?;
         let log_path = engine_log_path(namespace_dir);
         let mut engine = Self::spawn_with_materialized_config(
             &executable,
@@ -246,6 +246,14 @@ struct MaterializedEngineConfig<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     observers: Option<&'a serde_yaml::Value>,
     workers: Vec<MaterializedWorker<'a>>,
+    /// Always written, so the router is bound whether or not the file asks.
+    sandbox: MaterializedSandbox<'a>,
+}
+
+#[derive(Serialize)]
+struct MaterializedSandbox<'a> {
+    adapter: &'a str,
+    namespace: &'a str,
 }
 
 #[derive(Serialize)]
@@ -254,7 +262,13 @@ struct MaterializedWorker<'a> {
     config: &'a serde_yaml::Value,
 }
 
-fn materialize_engine_config(spec: &EngineSpec, namespace_dir: &Path) -> Result<PathBuf> {
+/// `owner_namespace` is the project's own: the adapter runs there unless
+/// `engine.sandbox.namespace` says otherwise.
+fn materialize_engine_config(
+    spec: &EngineSpec,
+    namespace_dir: &Path,
+    owner_namespace: &str,
+) -> Result<PathBuf> {
     std::fs::create_dir_all(namespace_dir).map_err(|source| ComposeError::Io {
         path: namespace_dir.to_path_buf(),
         source,
@@ -288,6 +302,19 @@ fn materialize_engine_config(spec: &EngineSpec, namespace_dir: &Path) -> Result<
         registration_namespace_grace_ms: spec.registration_namespace_grace_ms,
         observers: spec.observers.as_ref(),
         workers,
+        sandbox: MaterializedSandbox {
+            adapter: spec
+                .sandbox
+                .as_ref()
+                .map_or(iii_sandbox_contract::DEFAULT_ADAPTER, |sandbox| {
+                    sandbox.adapter.as_str()
+                }),
+            namespace: spec
+                .sandbox
+                .as_ref()
+                .and_then(|sandbox| sandbox.namespace.as_deref())
+                .unwrap_or(owner_namespace),
+        },
     };
     let text = serde_yaml::to_string(&document).map_err(|err| ComposeError::EngineSpawnFailed {
         message: format!("could not serialize managed engine configuration: {err}"),
@@ -932,7 +959,7 @@ containers: {}
     #[test]
     fn materialized_config_contains_only_engine_fields_in_canonical_worker_order() {
         let dir = tempfile::tempdir().unwrap();
-        let path = materialize_engine_config(&engine_spec(), dir.path()).unwrap();
+        let path = materialize_engine_config(&engine_spec(), dir.path(), "app").unwrap();
         let document: serde_yaml::Value =
             serde_yaml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
 
@@ -956,6 +983,53 @@ containers: {}
     }
 
     #[test]
+    fn materialized_config_binds_sandbox_builtin_in_the_owner_namespace() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = materialize_engine_config(&engine_spec(), dir.path(), "orders").unwrap();
+        let document: serde_yaml::Value =
+            serde_yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+
+        assert_eq!(
+            document["sandbox"],
+            serde_yaml::from_str::<serde_yaml::Value>(
+                "{adapter: sandbox-builtin, namespace: orders}"
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn materialized_config_uses_the_engine_sandbox_section() {
+        for (section, expected) in [
+            (
+                "{adapter: sandbox-docker}",
+                "{adapter: sandbox-docker, namespace: orders}",
+            ),
+            (
+                "{adapter: sandbox-docker, namespace: shared}",
+                "{adapter: sandbox-docker, namespace: shared}",
+            ),
+        ] {
+            let spec = crate::ComposeFile::parse(
+                &format!("engine:\n  sandbox: {section}\ncontainers: {{}}\n"),
+                "/srv/app/worker-compose.yaml",
+            )
+            .unwrap()
+            .engine
+            .unwrap();
+            let dir = tempfile::tempdir().unwrap();
+            let path = materialize_engine_config(&spec, dir.path(), "orders").unwrap();
+            let document: serde_yaml::Value =
+                serde_yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+
+            assert_eq!(
+                document["sandbox"],
+                serde_yaml::from_str::<serde_yaml::Value>(expected).unwrap()
+            );
+        }
+    }
+
+    #[test]
     fn materialized_config_infers_worker_manager_endpoint_from_engine_url() {
         let spec = crate::ComposeFile::parse(
             r#"
@@ -970,7 +1044,7 @@ containers: {}
         .engine
         .unwrap();
         let dir = tempfile::tempdir().unwrap();
-        let path = materialize_engine_config(&spec, dir.path()).unwrap();
+        let path = materialize_engine_config(&spec, dir.path(), "app").unwrap();
         let document: serde_yaml::Value =
             serde_yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
 
@@ -1044,7 +1118,7 @@ containers: {}
         .engine
         .unwrap();
         let dir = tempfile::tempdir().unwrap();
-        let path = materialize_engine_config(&spec, dir.path()).unwrap();
+        let path = materialize_engine_config(&spec, dir.path(), "app").unwrap();
         let document: serde_yaml::Value =
             serde_yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
 
@@ -1067,7 +1141,7 @@ port: 60123
 
         let dir = tempfile::tempdir().unwrap();
         let state_dir = dir.path().join("daemon");
-        let path = materialize_engine_config(&engine_spec(), &state_dir).unwrap();
+        let path = materialize_engine_config(&engine_spec(), &state_dir, "app").unwrap();
 
         assert_eq!(
             std::fs::metadata(&state_dir).unwrap().permissions().mode() & 0o777,
@@ -1313,7 +1387,7 @@ port: 60123
         let dir = tempfile::tempdir().unwrap();
         let script = dir.path().join("fake-iii");
         let namespace_dir = dir.path().join("daemon");
-        let config = materialize_engine_config(&engine_spec(), &namespace_dir).unwrap();
+        let config = materialize_engine_config(&engine_spec(), &namespace_dir, "app").unwrap();
         let log = namespace_dir.join("engine.log");
         write_executable(&script, "#!/bin/sh\nexit 0\n");
         std::fs::create_dir(&log).unwrap();

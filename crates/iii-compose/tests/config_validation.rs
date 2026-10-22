@@ -5,7 +5,7 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use iii_compose::{ComposeFile, RestartPolicy};
+use iii_compose::{ComposeFile, RestartPolicy, config::SandboxSpec};
 
 fn parse(text: &str) -> Result<ComposeFile, iii_compose::ComposeError> {
     ComposeFile::parse(text, PathBuf::from("/srv/app/worker-compose.yaml"))
@@ -1121,5 +1121,42 @@ containers:
     assert!(
         err.to_string().contains("config_name"),
         "the error should point at the key that replaced it: {err}"
+    );
+}
+
+#[test]
+fn engine_sandbox_section_defaults_to_sandbox_builtin() {
+    let engine = parse("engine:\n  sandbox: {}\ncontainers: {}\n")
+        .unwrap()
+        .engine
+        .unwrap();
+    assert_eq!(
+        engine.sandbox,
+        Some(SandboxSpec {
+            adapter: "sandbox-builtin".into(),
+            namespace: None
+        })
+    );
+    let engine =
+        parse("engine:\n  sandbox: {adapter: sandbox-docker, namespace: shared}\ncontainers: {}\n")
+            .unwrap()
+            .engine
+            .unwrap();
+    assert_eq!(engine.sandbox.unwrap().namespace.as_deref(), Some("shared"));
+    assert_eq!(
+        parse("engine: {workers: {}}\ncontainers: {}\n")
+            .unwrap()
+            .engine
+            .unwrap()
+            .sandbox,
+        None
+    );
+}
+
+#[test]
+fn engine_sandbox_rejects_unknown_keys() {
+    assert_eq!(
+        code("engine:\n  sandbox: {adaptor: x}\ncontainers: {}\n"),
+        "INVALID_COMPOSE_FILE"
     );
 }
