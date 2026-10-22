@@ -276,62 +276,6 @@ struct WorkerInfo {
     factory: WorkerFactory,
 }
 
-struct ExternalProcessWorker {
-    inner: Box<dyn Worker>,
-}
-
-impl ExternalProcessWorker {
-    fn new(inner: Box<dyn Worker>) -> Self {
-        Self { inner }
-    }
-}
-
-#[async_trait::async_trait]
-impl Worker for ExternalProcessWorker {
-    fn name(&self) -> &'static str {
-        self.inner.name()
-    }
-
-    async fn create(_engine: Arc<Engine>, _config: Option<Value>) -> anyhow::Result<Box<dyn Worker>>
-    where
-        Self: Sized,
-    {
-        Err(anyhow::anyhow!(
-            "ExternalProcessWorker::create should not be called directly"
-        ))
-    }
-
-    async fn initialize(&self) -> anyhow::Result<()> {
-        self.inner.initialize().await
-    }
-
-    async fn start_background_tasks(
-        &self,
-        shutdown_rx: tokio::sync::watch::Receiver<bool>,
-        shutdown_tx: tokio::sync::watch::Sender<bool>,
-    ) -> anyhow::Result<()> {
-        self.inner
-            .start_background_tasks(shutdown_rx, shutdown_tx)
-            .await
-    }
-
-    async fn destroy(&self) -> anyhow::Result<()> {
-        self.inner.destroy().await
-    }
-
-    async fn is_alive(&self) -> bool {
-        self.inner.is_alive().await
-    }
-
-    fn is_external_process(&self) -> bool {
-        true
-    }
-
-    fn register_functions(&self, engine: Arc<Engine>) {
-        self.inner.register_functions(engine);
-    }
-}
-
 // =============================================================================
 // WorkerRegistry (unified registry for modules and adapters)
 // =============================================================================
@@ -381,7 +325,6 @@ impl WorkerRegistry {
     /// Creates a worker instance using the engine-owned resolution chain:
     /// 1. Validates that built-in workers cannot have an `image` field.
     /// 2. Tries the built-in registry.
-    /// 3. Resolves the closed set of engine-owned sibling processes.
     ///
     /// Project workers are deliberately not resolved here. Compose owns their
     /// installation and lifecycle.
@@ -417,28 +360,6 @@ impl WorkerRegistry {
             if let Some(factory) = factory {
                 return factory(engine, config).await;
             }
-        }
-
-        // 3. Engine-owned external worker (currently iii-sandbox only).
-        if image.is_none()
-            && let Some(mut info) = super::external::resolve_external_module(name)
-        {
-            tracing::info!(
-                "Resolved '{}' as external worker '{}' ({})",
-                name,
-                info.name,
-                info.binary_path.display()
-            );
-            // Preserve the actual config path for engine-owned child
-            // processes. The engine WS URL travels separately via
-            // III_ENGINE_URL, exported by ExternalWorker::spawn.
-            if let Some(path) = engine.config_path() {
-                info.env
-                    .push(("III_CONFIG_PATH".to_string(), path.display().to_string()));
-            }
-            let module =
-                super::external::ExternalWorker::new(info, config, engine.worker_manager_port());
-            return Ok(Box::new(ExternalProcessWorker::new(Box::new(module))));
         }
 
         anyhow::bail!(
@@ -553,13 +474,9 @@ fn builtin_worker_description(worker_type: &str) -> Option<&'static str> {
 
 pub(crate) fn runtime_worker_info_from_registration(
     entry: &WorkerEntry,
-    worker: &dyn Worker,
+    _worker: &dyn Worker,
     registrations: &super::reload::WorkerRegistrations,
 ) -> Option<crate::worker_connections::RuntimeWorkerInfo> {
-    if worker.is_external_process() {
-        return None;
-    }
-
     let worker_type = entry.worker_type().to_string();
     let mut function_ids = registrations.function_ids.clone();
     function_ids.sort();
@@ -760,42 +677,6 @@ impl EngineBuilder {
 
         let workers = normalize_worker_entries(config);
         tracing::info!("Building engine with {} workers", workers.len());
-
-        // Resolve the effective `iii-worker-manager` port before creating
-        // workers so an engine-owned external worker such as `iii-sandbox`
-        // connects back to this engine. We pick the first
-        // `iii-worker-manager` entry whose config parses -- fixtures like
-        // `sdk/fixtures/config-test.yaml` sometimes declare two manager
-        // instances on different ports for test isolation, and there's no
-        // unambiguous "primary" beyond declaration order. Fall back to
-        // DEFAULT_PORT if no entry is present or its config is shaped
-        // unexpectedly.
-        let manager_config = workers
-            .iter()
-            .find(|e| e.worker_type() == "iii-worker-manager")
-            .and_then(|e| e.config.clone())
-            .and_then(|v| serde_json::from_value::<super::worker::WorkerManagerConfig>(v).ok());
-        let resolved_port = manager_config
-            .as_ref()
-            .map(|c| c.port)
-            .unwrap_or(super::worker::DEFAULT_PORT);
-        self.engine.set_worker_manager_port(resolved_port);
-
-        // Publish the absolute config path so worker-spawning code can hand
-        // it to child processes (III_CONFIG_PATH). Absolutized because the
-        // CLI default is the bare relative name "config.yaml" and children
-        // may resolve it from a different cwd.
-        if let Some(ref path) = self.config_path {
-            let abs = std::path::Path::new(path);
-            let abs = if abs.is_absolute() {
-                abs.to_path_buf()
-            } else {
-                std::env::current_dir()
-                    .map(|cwd| cwd.join(abs))
-                    .unwrap_or_else(|_| abs.to_path_buf())
-            };
-            self.engine.set_config_path(abs);
-        }
 
         for entry in workers {
             tracing::debug!("Creating worker: {}", entry.name);
@@ -2637,60 +2518,6 @@ workers:
         );
     }
 
-    // =========================================================================
-    // Engine worker_manager_port resolution
-    //
-    // The external `iii-sandbox` process must connect to the configured
-    // `iii-worker-manager`, including on non-default ports. These tests pin
-    // the value resolved and published by the builder.
-    // =========================================================================
-
-    #[test]
-    fn engine_worker_manager_port_defaults_to_default_port() {
-        // Direct `Engine::new` (used by test paths) must report DEFAULT_PORT
-        // until a builder sets it. Anything else would be a silent config
-        // regression masquerading as test isolation.
-        let engine = Engine::new();
-        assert_eq!(
-            engine.worker_manager_port(),
-            super::super::worker::DEFAULT_PORT,
-            "fresh Engine must default to DEFAULT_PORT"
-        );
-    }
-
-    #[tokio::test]
-    async fn engine_builder_resolves_custom_worker_manager_port_from_config() {
-        // When config.yaml sets a non-default port for `iii-worker-manager`,
-        // `EngineBuilder::build` must surface it to engine-owned external
-        // workers.
-        //
-        // Pick a port no one else binds. 49199 matches the value used in
-        // `sdk/fixtures/config-test.yaml` -- if that fixture's port ever
-        // needs rewording, this test keeps the plumbing honest.
-        let custom_port: u16 = 49199;
-        let (config_entry, _config_dir) = isolated_config_entry();
-        let builder = EngineBuilder::new()
-            .add_worker("configuration", Some(config_entry))
-            .add_worker(
-                "iii-worker-manager",
-                Some(serde_json::json!({
-                    "host": "127.0.0.1",
-                    "port": custom_port,
-                })),
-            )
-            .build()
-            .await
-            .expect("build with custom iii-worker-manager port");
-
-        assert_eq!(
-            builder.engine().worker_manager_port(),
-            custom_port,
-            "builder must resolve iii-worker-manager port from config"
-        );
-
-        builder.destroy().await.expect("destroy engine");
-    }
-
     #[tokio::test]
     async fn engine_builder_resolves_global_registration_namespace_grace() {
         if std::env::var_os("III_NAMESPACE_GRACE_MS").is_some() {
@@ -2722,97 +2549,6 @@ workers:
         );
 
         builder.destroy().await.expect("destroy engine");
-    }
-
-    #[tokio::test]
-    async fn engine_builder_falls_back_to_default_when_no_manager_entry() {
-        // Edge: configs that don't declare `iii-worker-manager` still get
-        // one injected via the `mandatory` registration path. That entry
-        // has no custom config, so the port resolution must land on
-        // DEFAULT_PORT. Losing this fallback would regress every existing
-        // deployment that doesn't explicitly pin a port.
-        let (config_entry, _config_dir) = isolated_config_entry();
-        let builder = EngineBuilder::new()
-            .with_config(EngineConfig {
-                registration_namespace_grace_ms: default_registration_namespace_grace_ms(),
-                modules: Vec::new(),
-                workers: Vec::new(),
-                observers: Default::default(),
-                sandbox: None,
-            })
-            .add_worker("configuration", Some(config_entry))
-            .build()
-            .await
-            .expect("build with no explicit workers");
-
-        assert_eq!(
-            builder.engine().worker_manager_port(),
-            super::super::worker::DEFAULT_PORT,
-            "absent/default iii-worker-manager must resolve to DEFAULT_PORT"
-        );
-
-        builder.destroy().await.expect("destroy engine");
-    }
-
-    #[test]
-    fn engine_worker_manager_port_is_set_once() {
-        // OnceLock semantics: first set wins. This guards against a future
-        // refactor that might try to mutate the port mid-lifetime (e.g. from
-        // a config hot-reload), which would silently drift external worker
-        // connections. If the port genuinely needs to change, the user
-        // should restart the engine.
-        let engine = Engine::new();
-        engine.set_worker_manager_port(49199);
-        engine.set_worker_manager_port(50000); // ignored
-        assert_eq!(
-            engine.worker_manager_port(),
-            49199,
-            "second set_worker_manager_port must be a no-op"
-        );
-    }
-
-    #[tokio::test]
-    async fn engine_builder_publishes_absolute_config_path() {
-        // Spawned workers receive III_CONFIG_PATH from `Engine::config_path`;
-        // a relative path (the CLI default is the bare "config.yaml") would
-        // resolve against the CHILD's cwd and defeat the whole handshake.
-        let (config_entry, _config_dir) = isolated_config_entry();
-        let builder = EngineBuilder::new()
-            .with_config(EngineConfig {
-                registration_namespace_grace_ms: default_registration_namespace_grace_ms(),
-                modules: Vec::new(),
-                workers: Vec::new(),
-                observers: Default::default(),
-                sandbox: None,
-            })
-            .add_worker("configuration", Some(config_entry))
-            .with_config_path("config.yaml")
-            .build()
-            .await
-            .expect("build with relative config path");
-
-        let path = builder
-            .engine()
-            .config_path()
-            .expect("config path must be published on the engine")
-            .to_path_buf();
-        assert!(
-            path.is_absolute(),
-            "published config path must be absolute, got {}",
-            path.display()
-        );
-        assert!(
-            path.ends_with("config.yaml"),
-            "published config path must keep the file name, got {}",
-            path.display()
-        );
-
-        builder.destroy().await.expect("destroy engine");
-    }
-
-    #[test]
-    fn engine_config_path_is_none_for_in_memory_configs() {
-        assert!(Engine::new().config_path().is_none());
     }
 
     #[test]
@@ -2848,10 +2584,6 @@ workers:
             .build()
             .await
             .expect("an empty starter config must boot (mandatory workers injected)");
-        assert_eq!(
-            builder.engine().worker_manager_port(),
-            super::super::worker::DEFAULT_PORT,
-        );
         builder.destroy().await.expect("destroy engine");
     }
 }

@@ -454,15 +454,6 @@ pub struct Engine {
     /// rejection and draining a rejected worker's buffered registrations.
     namespace_grace_tasks: Arc<DashMap<Uuid, tokio::task::JoinHandle<()>>>,
     pub(crate) active_scope: Arc<std::sync::Mutex<Option<crate::workers::reload::ScopeBuilder>>>,
-    /// Effective `iii-worker-manager` port, resolved from config at build
-    /// time. Set once by `EngineBuilder::build`; subsequent reads see the
-    /// same value for the engine's lifetime. Engine-owned external workers
-    /// use it to connect back to the actual configured port.
-    worker_manager_port: Arc<std::sync::OnceLock<u16>>,
-    /// Absolute path of the config file this engine was built from, when
-    /// file-backed. Set once by `EngineBuilder::build`. Handed to spawned
-    /// engine-owned child processes as `III_CONFIG_PATH`.
-    config_path: Arc<std::sync::OnceLock<std::path::PathBuf>>,
     /// Registration namespace grace in milliseconds, resolved from the global
     /// engine config by `EngineBuilder::build`. Read through
     /// [`Engine::registration_namespace_grace`], where the `III_NAMESPACE_GRACE_MS`
@@ -526,8 +517,6 @@ impl Engine {
             namespace_states: Arc::new(DashMap::new()),
             namespace_grace_tasks: Arc::new(DashMap::new()),
             active_scope,
-            worker_manager_port: Arc::new(std::sync::OnceLock::new()),
-            config_path: Arc::new(std::sync::OnceLock::new()),
             registration_namespace_grace_ms: Arc::new(std::sync::OnceLock::new()),
         }
     }
@@ -553,38 +542,6 @@ impl Engine {
     /// `EngineBuilder::build`; later calls are ignored (OnceLock semantics).
     pub fn set_registration_namespace_grace_ms(&self, ms: u64) {
         let _ = self.registration_namespace_grace_ms.set(ms);
-    }
-
-    /// Returns the effective `iii-worker-manager` port. Resolved from config
-    /// by `EngineBuilder::build` (see `set_worker_manager_port`); falls back
-    /// to `workers::worker::DEFAULT_PORT` if never set (direct `Engine::new`
-    /// paths used only by tests).
-    pub fn worker_manager_port(&self) -> u16 {
-        self.worker_manager_port
-            .get()
-            .copied()
-            .unwrap_or(crate::workers::worker::DEFAULT_PORT)
-    }
-
-    /// Records the effective port. Called once by `EngineBuilder::build`
-    /// after scanning the worker list for an `iii-worker-manager` entry.
-    /// Subsequent calls are ignored (OnceLock semantics) so the port cannot
-    /// drift mid-lifetime.
-    pub fn set_worker_manager_port(&self, port: u16) {
-        let _ = self.worker_manager_port.set(port);
-    }
-
-    /// Absolute config file path when the engine is file-backed; `None` for
-    /// programmatic/in-memory configs. See the field doc for why spawned
-    /// workers need it.
-    pub fn config_path(&self) -> Option<&std::path::Path> {
-        self.config_path.get().map(|p| p.as_path())
-    }
-
-    /// Records the config file path. Called once by `EngineBuilder::build`;
-    /// later calls are ignored (OnceLock semantics).
-    pub fn set_config_path(&self, path: std::path::PathBuf) {
-        let _ = self.config_path.set(path);
     }
 
     pub fn upsert_runtime_worker(&self, worker: RuntimeWorkerInfo) {
