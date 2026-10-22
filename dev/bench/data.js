@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792595345610,
+  "lastUpdate": 1792674820511,
   "repoUrl": "https://github.com/iii-hq/iii",
   "entries": {
     "iii Engine Benchmarks": [
@@ -59011,6 +59011,676 @@ window.BENCHMARK_DATA = {
             "name": "ws_roundtrip/invoke_echo",
             "value": 156574,
             "range": "± 9368",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "iii-ci[bot]@users.noreply.github.com",
+            "name": "iii-ci[bot]"
+          },
+          "committer": {
+            "email": "iii-ci[bot]@users.noreply.github.com",
+            "name": "iii-ci[bot]"
+          },
+          "distinct": true,
+          "id": "33bc16bc28d9d1650b149a0d4b56e351e62e8166",
+          "message": "chore: bump versions for release -- iii(iii/v0.25.0-rc.6)\n\nCo-authored-by: iii harness (codex/gpt-6-astra) <noreply@iii.dev>",
+          "timestamp": "2026-10-22T12:39:02Z",
+          "tree_id": "8bd3320850ba24180fcdf5b12de64c5f33d4e2be",
+          "url": "https://github.com/iii-hq/iii/commit/33bc16bc28d9d1650b149a0d4b56e351e62e8166"
+        },
+        "date": 1792674818097,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "concurrent_invocation/1",
+            "value": 1719,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "concurrent_invocation/8",
+            "value": 12421,
+            "range": "± 214",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "concurrent_invocation/32",
+            "value": 54340,
+            "range": "± 2974",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "concurrent_invocation/128",
+            "value": 213793,
+            "range": "± 4709",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "control_plane_churn/functions_register_remove/100",
+            "value": 39596,
+            "range": "± 1701",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "control_plane_churn/workers_register_unregister/100",
+            "value": 219469,
+            "range": "± 4846",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "control_plane_churn/triggers_register_unregister/100",
+            "value": 114944,
+            "range": "± 4206",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "control_plane_churn/functions_register_remove/1000",
+            "value": 400261,
+            "range": "± 3856",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "control_plane_churn/workers_register_unregister/1000",
+            "value": 5923804,
+            "range": "± 288158",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "control_plane_churn/triggers_register_unregister/1000",
+            "value": 1170754,
+            "range": "± 38719",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "control_plane_churn/functions_register_remove/5000",
+            "value": 2055314,
+            "range": "± 73535",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "control_plane_churn/workers_register_unregister/5000",
+            "value": 36802663,
+            "range": "± 2549138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "control_plane_churn/triggers_register_unregister/5000",
+            "value": 5893101,
+            "range": "± 239433",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "core_runtime/engine_call_registered_handler",
+            "value": 1557,
+            "range": "± 99",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metrics_accumulator/existing_function",
+            "value": 17,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "metrics_accumulator/first_invocations",
+            "value": 11255,
+            "range": "± 222",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "invoke_function_payload_sizes/1kb",
+            "value": 1166,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "invoke_function_payload_sizes/10kb",
+            "value": 1420,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "invoke_function_payload_sizes/100kb",
+            "value": 3124,
+            "range": "± 101",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "invoke_function_payload_sizes/1mb",
+            "value": 38129,
+            "range": "± 1758",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store/set_overwrite",
+            "value": 364,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store/get_hit",
+            "value": 262,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store/get_miss",
+            "value": 76,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store/delete",
+            "value": 469,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store/update_set_field",
+            "value": 312,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store/update_increment",
+            "value": 344,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store/update_merge",
+            "value": 662,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store_contention/1",
+            "value": 234,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store_contention/4",
+            "value": 980,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store_contention/16",
+            "value": 3843,
+            "range": "± 66",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store_contention/64",
+            "value": 20826,
+            "range": "± 426",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store/list_100_items",
+            "value": 26977,
+            "range": "± 1144",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store/list_keys_with_prefix",
+            "value": 322,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "kv_store/list_groups",
+            "value": 233,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "observe_dispatch/auto/0",
+            "value": 1151,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "observe_dispatch/auto/1",
+            "value": 2679,
+            "range": "± 75",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "observe_dispatch/auto/8",
+            "value": 13960,
+            "range": "± 1443",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "observe_dispatch/auto/64",
+            "value": 105388,
+            "range": "± 74683",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "observe_dispatch/filtered/16",
+            "value": 2744,
+            "range": "± 99",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "observe_dispatch/filtered/256",
+            "value": 8918,
+            "range": "± 722",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "observe_dispatch/filtered/1024",
+            "value": 34527,
+            "range": "± 2043",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_serialize/Ping",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_serialize/Pong",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_serialize/RegisterFunction",
+            "value": 81,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_serialize/RegisterTrigger",
+            "value": 133,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_serialize/InvokeFunction",
+            "value": 251,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_serialize/InvocationResult",
+            "value": 264,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_serialize/InvocationResult_Error",
+            "value": 177,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_serialize/WorkerRegistered",
+            "value": 120,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_deserialize/Ping",
+            "value": 72,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_deserialize/Pong",
+            "value": 71,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_deserialize/RegisterFunction",
+            "value": 329,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_deserialize/RegisterTrigger",
+            "value": 449,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_deserialize/InvokeFunction",
+            "value": 804,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_deserialize/InvocationResult",
+            "value": 779,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_deserialize/InvocationResult_Error",
+            "value": 380,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_deserialize/WorkerRegistered",
+            "value": 188,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_roundtrip/Ping",
+            "value": 75,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_roundtrip/Pong",
+            "value": 74,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_roundtrip/RegisterFunction",
+            "value": 420,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_roundtrip/RegisterTrigger",
+            "value": 597,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_roundtrip/InvokeFunction",
+            "value": 1072,
+            "range": "± 79",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_roundtrip/InvocationResult",
+            "value": 1080,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_roundtrip/InvocationResult_Error",
+            "value": 543,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "protocol_roundtrip/WorkerRegistered",
+            "value": 313,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pubsub_fanout/1",
+            "value": 23681,
+            "range": "± 1009",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pubsub_fanout/8",
+            "value": 32019,
+            "range": "± 1449",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pubsub_fanout/32",
+            "value": 65222,
+            "range": "± 3154",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pubsub_fanout/128",
+            "value": 211728,
+            "range": "± 12351",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "queue_enqueue/push_single",
+            "value": 4116,
+            "range": "± 103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "queue_enqueue_concurrent/1",
+            "value": 3973,
+            "range": "± 153",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "queue_enqueue_concurrent/4",
+            "value": 13900,
+            "range": "± 1759",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "queue_enqueue_concurrent/16",
+            "value": 55421,
+            "range": "± 3047",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "queue_enqueue_concurrent/64",
+            "value": 220869,
+            "range": "± 7041",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "queue_enqueue_payload_sizes/1kb",
+            "value": 3543,
+            "range": "± 137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "queue_enqueue_payload_sizes/10kb",
+            "value": 3834,
+            "range": "± 377",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "queue_enqueue_payload_sizes/100kb",
+            "value": 5997,
+            "range": "± 407",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "queue_enqueue_payload_sizes/1mb",
+            "value": 59304,
+            "range": "± 2783",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "trigger_fanout/1",
+            "value": 22939,
+            "range": "± 2845",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "trigger_fanout/8",
+            "value": 32635,
+            "range": "± 638",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "trigger_fanout/32",
+            "value": 82559,
+            "range": "± 3172",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "trigger_fanout/128",
+            "value": 280777,
+            "range": "± 7362",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "trigger_selection/empty",
+            "value": 26,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "trigger_selection/single",
+            "value": 2767,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "trigger_selection/matched_8",
+            "value": 17139,
+            "range": "± 136",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "trigger_selection/mixed_100",
+            "value": 16954,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "trigger_selection/mixed_1000",
+            "value": 17037,
+            "range": "± 96",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "trigger_selection/no_match_1000",
+            "value": 26,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "trigger_selection/register_unregister",
+            "value": 824,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_cleanup/functions/10",
+            "value": 5250,
+            "range": "± 17058",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_cleanup/functions/50",
+            "value": 15841,
+            "range": "± 1473",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_cleanup/functions/200",
+            "value": 52798,
+            "range": "± 6089",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_cleanup/invocations/10",
+            "value": 2792,
+            "range": "± 55",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_cleanup/invocations/50",
+            "value": 3496,
+            "range": "± 216",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_cleanup/invocations/200",
+            "value": 6549,
+            "range": "± 149",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_cleanup/triggers/10",
+            "value": 10974,
+            "range": "± 15093",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_cleanup/triggers/50",
+            "value": 39044,
+            "range": "± 5098",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_cleanup/triggers/200",
+            "value": 136838,
+            "range": "± 20439",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_invocation_tracking/add_remove_sequential",
+            "value": 385,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_invocation_tracking_concurrent/1",
+            "value": 456,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_invocation_tracking_concurrent/8",
+            "value": 3382,
+            "range": "± 99",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_invocation_tracking_concurrent/32",
+            "value": 19446,
+            "range": "± 359",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_invocation_tracking_concurrent/128",
+            "value": 82326,
+            "range": "± 1843",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "worker_invocation_tracking/add_with_200_existing",
+            "value": 393,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ws_roundtrip/invoke_echo",
+            "value": 57715,
+            "range": "± 2016",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ws_roundtrip_payload_sizes/1kb",
+            "value": 58556,
+            "range": "± 2839",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ws_roundtrip_payload_sizes/10kb",
+            "value": 80328,
+            "range": "± 8251",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ws_roundtrip_payload_sizes/100kb",
+            "value": 334234,
+            "range": "± 19268",
             "unit": "ns/iter"
           }
         ]
