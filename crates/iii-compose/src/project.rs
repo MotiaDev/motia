@@ -61,6 +61,9 @@ pub struct Project {
     post_runs: crate::hooks::PostRunSupervisor,
     logs: LogStore,
     store: StateStore,
+    /// `DaemonState::sandbox_token`, copied out so a lifecycle call needs no
+    /// state lock to read it.
+    sandbox_token: String,
     inner: Mutex<Inner>,
     shutdown: crate::shutdown::ShutdownController,
 }
@@ -211,6 +214,11 @@ impl Project {
         let mut state =
             recovered.unwrap_or_else(|| DaemonState::new(&file.path, &project_namespace));
         state.namespace = project_namespace.clone();
+        // Saved by `reconcile_recovered` below, so a restart reuses it.
+        let sandbox_token = state
+            .sandbox_token
+            .get_or_insert_with(|| uuid::Uuid::new_v4().simple().to_string())
+            .clone();
         let log_dir = store.dir().join("logs");
         let logs = LogStore::open(log_dir.clone()).map_err(|source| ComposeError::Io {
             path: log_dir,
@@ -228,6 +236,7 @@ impl Project {
             post_runs: crate::hooks::PostRunSupervisor::default(),
             logs,
             store,
+            sandbox_token,
             inner: Mutex::new(Inner {
                 children: BTreeMap::new(),
                 state,
@@ -925,6 +934,7 @@ impl Project {
             logs: &self.logs,
             package_cache: &package_cache,
             vm_dir: &vm_dir,
+            sandbox_token: &self.sandbox_token,
             empty_env_diagnostics: &empty_env_diagnostics,
         };
 
@@ -980,6 +990,7 @@ impl Project {
             logs: &self.logs,
             package_cache: &package_cache,
             vm_dir: &vm_dir,
+            sandbox_token: &self.sandbox_token,
             empty_env_diagnostics: &empty_env_diagnostics,
         };
 
@@ -1070,6 +1081,7 @@ impl Project {
                 logs: &self.logs,
                 package_cache: &package_cache,
                 vm_dir: &vm_dir,
+                sandbox_token: &self.sandbox_token,
                 empty_env_diagnostics: &empty_env_diagnostics,
             };
             let mut stopped = Vec::with_capacity(removed.len());
@@ -1105,6 +1117,7 @@ impl Project {
             logs: &self.logs,
             package_cache: &package_cache,
             vm_dir: &vm_dir,
+            sandbox_token: &self.sandbox_token,
             empty_env_diagnostics: &empty_env_diagnostics,
         };
         let up = lifecycle::up(
@@ -1164,6 +1177,7 @@ impl Project {
             logs: &self.logs,
             package_cache: &package_cache,
             vm_dir: &vm_dir,
+            sandbox_token: &self.sandbox_token,
             empty_env_diagnostics: &empty_env_diagnostics,
         };
 
@@ -1207,6 +1221,7 @@ impl Project {
             logs: &self.logs,
             package_cache: &package_cache,
             vm_dir: &vm_dir,
+            sandbox_token: &self.sandbox_token,
             empty_env_diagnostics: &empty_env_diagnostics,
         };
 
@@ -1441,6 +1456,44 @@ mod reconnect_shutdown_tests {
                 .await,
             None
         );
+    }
+}
+
+#[cfg(test)]
+mod sandbox_token_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn the_sandbox_token_is_minted_once_and_survives_a_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("worker-compose.yaml");
+        std::fs::write(
+            &path,
+            "containers:\n  worker:\n    worker: path://.\n    scripts: { run: sleep 60 }\n",
+        )
+        .unwrap();
+        let namespace = format!("token-{}", uuid::Uuid::new_v4());
+        let open = || async {
+            Project::open(
+                &namespace,
+                "default".into(),
+                ComposeFile::load(&path).unwrap(),
+                Arc::new(EngineClient::connect(
+                    "ws://127.0.0.1:1/ws",
+                    "compose",
+                    "token-test",
+                )),
+                "ws://127.0.0.1:1/ws".into(),
+            )
+            .await
+            .unwrap()
+        };
+
+        let first = open().await;
+        assert_eq!(first.sandbox_token.len(), 32);
+        let saved = first.store.load().unwrap().unwrap();
+        assert_eq!(saved.sandbox_token.as_deref(), Some(&*first.sandbox_token));
+        assert_eq!(open().await.sandbox_token, first.sandbox_token);
     }
 }
 

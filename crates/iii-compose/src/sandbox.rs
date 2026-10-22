@@ -273,6 +273,32 @@ pub(crate) async fn apply_adapter_change(
     Ok(Some(change))
 }
 
+/// What only the adapter container gets, over its own environment: the worker
+/// token, the two host directories a guest may mount from (the compose file's
+/// and the package cache), and `III_DISABLE_TRACE_PAYLOADS` so iii-sdk records
+/// no handler input (`auth`, the guest `env`, `channel.access_key`) as the
+/// `iii.invocation.input` span event. The caller lays this over `user_env`, so
+/// an operator value cannot undo it.
+pub(crate) fn adapter_env(
+    token: &str,
+    compose_file: &Path,
+    package_cache: &Path,
+) -> BTreeMap<String, String> {
+    let compose_dir = compose_file.parent().unwrap_or(Path::new(""));
+    // shortcut: a root with a path separator in it cannot be joined, so the
+    // adapter gets no roots and refuses every host_path (S501); rare enough to
+    // fix when someone hits it.
+    let roots = std::env::join_paths([compose_dir, package_cache]).unwrap_or_default();
+    BTreeMap::from([
+        ("III_SANDBOX_WORKER_TOKEN".to_string(), token.to_string()),
+        (
+            "III_SANDBOX_HOST_ROOTS".to_string(),
+            roots.to_string_lossy().into_owned(),
+        ),
+        ("III_DISABLE_TRACE_PAYLOADS".to_string(), "1".to_string()),
+    ])
+}
+
 /// The VM's identity at the adapter: hex SHA-256 over the project's state
 /// directory, a NUL, then the container key.
 pub fn state_key(state_dir: &Path, key: &str) -> String {
@@ -285,6 +311,8 @@ pub fn state_key(state_dir: &Path, key: &str) -> String {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use std::path::PathBuf;
+
     use super::*;
 
     fn parse(dir: &Path, text: &str) -> ComposeFile {
@@ -511,6 +539,25 @@ pub(crate) mod tests {
         assert!(!is_iii_sandbox(
             &edit::parse_worker("./iii-sandbox").unwrap()
         ));
+    }
+
+    #[test]
+    fn adapter_env_carries_the_token_and_both_roots() {
+        let env = adapter_env(
+            "t0k",
+            Path::new("/srv/app/worker-compose.yaml"),
+            Path::new("/home/u/.iii/compose/packages"),
+        );
+        assert_eq!(env["III_SANDBOX_WORKER_TOKEN"], "t0k");
+        // Keeps auth, env and channel.access_key out of the trace store.
+        assert_eq!(env["III_DISABLE_TRACE_PAYLOADS"], "1");
+        assert_eq!(
+            std::env::split_paths(&env["III_SANDBOX_HOST_ROOTS"]).collect::<Vec<_>>(),
+            vec![
+                PathBuf::from("/srv/app"),
+                PathBuf::from("/home/u/.iii/compose/packages")
+            ]
+        );
     }
 
     #[test]

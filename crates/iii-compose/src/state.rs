@@ -119,6 +119,13 @@ pub struct DaemonState {
     /// written before it was recorded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner: Option<Owner>,
+    /// Secret that lets this project's engine call the sandbox adapter's
+    /// `worker::*` functions. Minted when the project first opens, kept in this
+    /// 0600 file so a restarted daemon hands the same value to an adopted
+    /// adapter, and given to the adapter container only. `None` in state
+    /// written before it existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox_token: Option<String>,
 }
 
 /// One compose process, fingerprinted like the children it records.
@@ -157,6 +164,7 @@ impl DaemonState {
             namespace: namespace.to_string(),
             containers: BTreeMap::new(),
             owner: None,
+            sandbox_token: None,
         }
     }
 
