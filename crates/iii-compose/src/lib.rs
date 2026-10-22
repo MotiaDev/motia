@@ -46,6 +46,7 @@ pub mod registry;
 pub mod remote;
 pub mod report;
 mod restart;
+pub mod sandbox;
 mod shutdown;
 pub mod spawn;
 pub mod state;

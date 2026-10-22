@@ -1091,6 +1091,7 @@ impl Daemon {
         }
 
         self.prepare(&operation_id, std::future::ready(())).await?;
+        crate::sandbox::wire_adapter(&mut current)?;
         persist_mutation(path, &text, &edited, &prepared)?;
 
         let project = self.project(path).await?;
@@ -1554,6 +1555,7 @@ impl Daemon {
         // the removed container needs its old scripts and environment.
         let project = self.project(path).await?;
         self.prepare(&operation_id, std::future::ready(())).await?;
+        crate::sandbox::wire_adapter(&mut current)?;
         persist_mutation(path, &text, &edited, &prepared)?;
 
         let (stopped, up) = project

@@ -193,11 +193,12 @@ impl Project {
     pub(crate) async fn open_with_shutdown(
         daemon_namespace: &str,
         project_namespace: String,
-        file: ComposeFile,
+        mut file: ComposeFile,
         engine: Arc<EngineClient>,
         engine_url: String,
         shutdown: crate::shutdown::ShutdownController,
     ) -> Result<Arc<Self>> {
+        crate::sandbox::wire_adapter(&mut file)?;
         let store = StateStore::for_project(daemon_namespace, &file.path)?;
         let file_path = file.path.clone();
 
@@ -254,8 +255,18 @@ impl Project {
         prepared: &crate::lockfile::PreparedLock,
     ) -> Result<()> {
         let mut current = self.file.write().await;
-        prepared.write_if_changed()?;
-        for (key, container) in &mut current.containers {
+        // Built aside and swapped in, so a wiring cycle leaves both the lock and
+        // the held file as they were.
+        let mut next = current.clone();
+        // `up` may just have written the adapter into an already loaded project.
+        if let Some(key) =
+            crate::sandbox::adapter_key(resolved, crate::sandbox::adapter_name(resolved))?
+            && !next.containers.contains_key(&key)
+        {
+            next.containers
+                .insert(key.clone(), resolved.containers[&key].clone());
+        }
+        for (key, container) in &mut next.containers {
             let Some(source) = resolved.containers.get(key) else {
                 continue;
             };
@@ -263,6 +274,9 @@ impl Project {
                 container.resolved_package = source.resolved_package.clone();
             }
         }
+        crate::sandbox::wire_adapter(&mut next)?;
+        prepared.write_if_changed()?;
+        *current = next;
         Ok(())
     }
 
