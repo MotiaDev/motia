@@ -21,6 +21,7 @@
 
 use std::{
     collections::BTreeMap,
+    process::ExitStatus,
     time::{Duration, Instant},
 };
 
@@ -124,7 +125,7 @@ pub struct LifecycleCtx<'a> {
 enum StartAttempt {
     Ready {
         record: ChildRecord,
-        child: Supervised,
+        child: Box<Child>,
         recovery: Option<RetryRecovery>,
     },
     Failed(ComposeError),
@@ -148,8 +149,45 @@ impl From<ComposeError> for StartFailure {
     }
 }
 
+/// One supervised container: a local process group, or a VM its adapter runs.
+pub enum Child {
+    Process(Supervised),
+    Vm(crate::sandbox::RemoteVm),
+}
+
+impl Child {
+    pub fn poll(&self) -> Outcome {
+        match self {
+            Self::Process(process) => process.poll(),
+            Self::Vm(vm) => vm.poll(),
+        }
+    }
+
+    pub async fn wait(&self) -> ExitStatus {
+        match self {
+            Self::Process(process) => process.wait().await,
+            Self::Vm(vm) => vm.wait().await,
+        }
+    }
+
+    pub async fn stop(&self, grace: Duration) -> ExitStatus {
+        match self {
+            Self::Process(process) => process.stop(grace).await,
+            Self::Vm(vm) => vm.stop(grace).await,
+        }
+    }
+
+    /// Inherited from an earlier daemon rather than started here.
+    pub fn is_adopted(&self) -> bool {
+        match self {
+            Self::Process(process) => process.is_adopted(),
+            Self::Vm(vm) => vm.is_adopted(),
+        }
+    }
+}
+
 /// Containers currently supervised by this daemon, keyed by container id.
-pub type Children = BTreeMap<String, Supervised>;
+pub type Children = BTreeMap<String, Child>;
 
 /// Starts `target` (or the whole graph) in dependency order.
 ///
@@ -325,7 +363,7 @@ async fn up_scoped(
                         report::ready(key, took);
                     }
                     records.insert(key.clone(), record);
-                    children.insert(key.clone(), child);
+                    children.insert(key.clone(), *child);
                     started.push(key.clone());
                     if let Some(operation) = crate::operation::active(&operation_id) {
                         operation
@@ -596,7 +634,7 @@ async fn restart_one_scoped(
                 report::ready(key, took);
             }
             records.insert(key.to_string(), record);
-            children.insert(key.to_string(), child);
+            children.insert(key.to_string(), *child);
             ContainerResult {
                 container: key.to_string(),
                 state: ChildStatus::Ready,
@@ -955,7 +993,7 @@ async fn start_one_attempt(
     match start_one_until_shutdown(ctx, key, shutdown, operation_id).await {
         Ok((record, child)) => StartAttempt::Ready {
             record,
-            child,
+            child: Box::new(child),
             recovery: None,
         },
         Err(StartFailure::Failed(error)) => StartAttempt::Failed(error),
@@ -968,7 +1006,7 @@ async fn start_one_until_shutdown(
     key: &str,
     mut shutdown: Option<crate::shutdown::ShutdownSignal>,
     operation_id: Option<&str>,
-) -> std::result::Result<(ChildRecord, Supervised), StartFailure> {
+) -> std::result::Result<(ChildRecord, Child), StartFailure> {
     macro_rules! wait_or_interrupt {
         ($future:expr) => {{
             if let Some(signal) = shutdown.as_mut() {
@@ -1154,6 +1192,7 @@ async fn start_one_until_shutdown(
             container: key.to_string(),
             message: err.to_string(),
         })?;
+    let child = Child::Process(child);
     report::starting(key, "waiting for engine registration");
     if let Some(operation) = operation_id.and_then(crate::operation::active) {
         operation
@@ -1202,7 +1241,7 @@ async fn start_one_until_shutdown(
         return Err(StartFailure::Failed(error));
     }
 
-    let record = ChildRecord::from_supervised(&child, ChildStatus::Ready);
+    let record = ChildRecord::from_child(&child, ChildStatus::Ready);
     Ok((record, child))
 }
 
@@ -1527,10 +1566,12 @@ async fn fire_post_run(ctx: &LifecycleCtx<'_>, spawn_ctx: &SpawnCtx<'_>, contain
     }
 }
 
+/// Anything not known to have exited: a VM its adapter cannot answer for right
+/// now is still held, never started a second time.
 fn is_running(children: &Children, key: &str) -> bool {
     children
         .get(key)
-        .is_some_and(|child| matches!(child.poll(), Outcome::Running))
+        .is_some_and(|child| !matches!(child.poll(), Outcome::Exited(_)))
 }
 
 /// Containers to act on, in dependency order: the whole graph, or the target

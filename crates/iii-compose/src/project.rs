@@ -36,7 +36,7 @@ use crate::{
     config::{ComposeFile, RestartConfig},
     engine::EngineClient,
     error::{ComposeError, Result},
-    lifecycle::{self, Children, LifecycleCtx, OpResult},
+    lifecycle::{self, Child, Children, LifecycleCtx, OpResult},
     logs::{LogCursor, LogStore, LogStream, LogsOutcome},
     process::Supervised,
     restart,
@@ -318,7 +318,12 @@ impl Project {
             inner
                 .children
                 .iter()
-                .filter(|(_, child)| matches!(child.poll(), crate::process::Outcome::Running))
+                .filter(|(_, child)| {
+                    matches!(
+                        child.poll(),
+                        crate::process::Outcome::Running | crate::process::Outcome::Unknown
+                    )
+                })
                 .map(|(key, _)| {
                     let budget = file
                         .containers
@@ -413,7 +418,8 @@ impl Project {
                 .iter()
                 .filter_map(|(key, child)| match child.poll() {
                     crate::process::Outcome::Exited(status) => Some((key.clone(), status)),
-                    crate::process::Outcome::Running => None,
+                    // An adapter that does not answer says nothing about its VM.
+                    crate::process::Outcome::Running | crate::process::Outcome::Unknown => None,
                 })
                 .collect()
         };
@@ -776,37 +782,59 @@ impl Project {
             .collect();
 
         for (key, record) in recorded {
-            match reconcile(&record) {
-                Reconciliation::Adopt => match Supervised::adopt(record.pid, &record.birth) {
-                    Some(child) if !owner_alive => left_behind.push((key.clone(), child)),
-                    Some(child) => {
-                        daemon_line(
-                            &self.project_namespace,
-                            &format!("{key} survived (pid {}), adopted", record.pid),
-                            Tone::Plain,
-                        );
-                        inner.children.insert(key.clone(), child);
-                    }
-                    // `reconcile` verified the identity a moment ago, so this
-                    // means the process exited in between. Record it as gone
-                    // rather than claiming an adoption that did not happen.
-                    None => {
-                        daemon_line(
-                            &self.project_namespace,
-                            &format!("{key} exited while it was being adopted"),
-                            Tone::Warn,
-                        );
-                        if let Some(entry) = inner.state.containers.get_mut(&key) {
-                            entry.status = ChildStatus::Failed;
-                            entry.last_error =
-                                Some("exited while it was being adopted".to_string());
+            match (reconcile(&record), record.pid, &record.birth) {
+                (Reconciliation::Adopt, Some(pid), Some(birth)) => {
+                    match Supervised::adopt(pid, birth) {
+                        Some(child) if !owner_alive => left_behind.push((key.clone(), child)),
+                        Some(child) => {
+                            daemon_line(
+                                &self.project_namespace,
+                                &format!("{key} survived (pid {pid}), adopted"),
+                                Tone::Plain,
+                            );
+                            inner.children.insert(key.clone(), Child::Process(child));
+                        }
+                        // `reconcile` verified the identity a moment ago, so this
+                        // means the process exited in between. Record it as gone
+                        // rather than claiming an adoption that did not happen.
+                        None => {
+                            daemon_line(
+                                &self.project_namespace,
+                                &format!("{key} exited while it was being adopted"),
+                                Tone::Warn,
+                            );
+                            if let Some(entry) = inner.state.containers.get_mut(&key) {
+                                entry.status = ChildStatus::Failed;
+                                entry.last_error =
+                                    Some("exited while it was being adopted".to_string());
+                            }
                         }
                     }
-                },
+                }
                 // Stopped by this daemon and recorded as such: the expected
                 // state after `down`, not an anomaly worth a line.
-                Reconciliation::Stopped => {}
-                Reconciliation::Gone => {
+                (Reconciliation::Stopped, ..) => {}
+                (Reconciliation::Unverifiable, Some(pid), _) => {
+                    // Never signalled: the pid is alive but unproven.
+                    daemon_line(
+                        &self.project_namespace,
+                        &format!(
+                            "{key}: pid {pid} is alive but is not provably ours; left running \
+                             for manual cleanup"
+                        ),
+                        Tone::Warn,
+                    );
+                    if let Some(entry) = inner.state.containers.get_mut(&key) {
+                        entry.status = ChildStatus::Failed;
+                        entry.last_error = Some(format!("pid {pid} could not be verified"));
+                    }
+                }
+                // `reconcile` adopts or doubts only a recorded process, so the
+                // rest is gone: a process that is not running, or a VM.
+                (
+                    Reconciliation::Gone | Reconciliation::Adopt | Reconciliation::Unverifiable,
+                    ..,
+                ) => {
                     daemon_line(
                         &self.project_namespace,
                         &format!("{key} exited while the daemon was away"),
@@ -815,23 +843,6 @@ impl Project {
                     if let Some(entry) = inner.state.containers.get_mut(&key) {
                         entry.status = ChildStatus::Failed;
                         entry.last_error = Some("exited while the daemon was away".to_string());
-                    }
-                }
-                Reconciliation::Unverifiable => {
-                    // Never signalled: the pid is alive but unproven.
-                    daemon_line(
-                        &self.project_namespace,
-                        &format!(
-                            "{key}: pid {} is alive but is not provably ours; left running \
-                             for manual cleanup",
-                            record.pid
-                        ),
-                        Tone::Warn,
-                    );
-                    if let Some(entry) = inner.state.containers.get_mut(&key) {
-                        entry.status = ChildStatus::Failed;
-                        entry.last_error =
-                            Some(format!("pid {} could not be verified", record.pid));
                     }
                 }
             }
@@ -1252,7 +1263,10 @@ impl Project {
                     .or_else(|| stored.as_ref().and_then(|state| state.containers.get(key)));
                 let running = inner.as_ref().is_some_and(|inner| {
                     inner.children.get(key).is_some_and(|child| {
-                        matches!(child.poll(), crate::process::Outcome::Running)
+                        matches!(
+                            child.poll(),
+                            crate::process::Outcome::Running | crate::process::Outcome::Unknown
+                        )
                     })
                 });
                 let state = match (running, record.map(|record| record.status)) {
@@ -1267,7 +1281,7 @@ impl Project {
                         .containers
                         .get(key)
                         .and_then(|container| container.version_label()),
-                    pid: record.filter(|_| running).map(|record| record.pid),
+                    pid: record.filter(|_| running).and_then(|record| record.pid),
                     owned: inner
                         .as_ref()
                         .is_some_and(|inner| inner.children.contains_key(key)),
@@ -1438,7 +1452,9 @@ mod reconnect_shutdown_tests {
                 "worker".into(),
                 crate::state::ChildRecord::from_supervised(&child, ChildStatus::Ready),
             );
-            inner.children.insert("worker".into(), child);
+            inner
+                .children
+                .insert("worker".into(), Child::Process(child));
             project.store.save(&inner.state).unwrap();
         }
         let mut reconnect = Box::pin(project.reconcile_after_reconnect());

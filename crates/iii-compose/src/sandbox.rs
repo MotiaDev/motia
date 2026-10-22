@@ -10,17 +10,28 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::Path,
+    process::ExitStatus,
+    time::Duration,
 };
 
-use iii_sandbox_contract::{CONTRACT_MAJOR, DEFAULT_ADAPTER};
+use iii_sandbox_contract::{
+    CONTRACT_MAJOR, DEFAULT_ADAPTER, SandboxErrorCode, State, WORKER_STATUS, WORKER_STOP,
+    WorkerStartResponse, WorkerStatus, WorkerStatusRequest, WorkerStopRequest, adapter_function_id,
+    code_of,
+};
+use iii_sdk::{IIIClient, protocol::TriggerRequest};
 use sha2::{Digest, Sha256};
+use tokio::sync::watch;
 
 use crate::{
     config::{ComposeFile, WorkerSource},
     edit::{self, NewContainer, Source},
     error::Result,
     lockfile::PreparedLock,
+    logs::LogSink,
     manifest::read_manifest,
+    process::{DEFAULT_STOP_GRACE, Outcome},
+    state::VmRecord,
 };
 
 /// Why a project needs the sandbox adapter.
@@ -342,6 +353,272 @@ pub fn state_key(state_dir: &Path, key: &str) -> String {
     hex::encode(digest.finalize())
 }
 
+/// How long [`RemoteVm::stop`] keeps asking an adapter that does not answer.
+const STOP_RETRY: Duration = Duration::from_secs(60);
+/// `worker::status` cadence, and the pause between unanswered stops.
+const POLL_INTERVAL: Duration = Duration::from_secs(1);
+/// A status call's budget, and what a stop call gets beyond its grace.
+const CALL_SLACK: Duration = Duration::from_secs(10);
+
+/// A VM container, supervised through its adapter's `worker::*` functions. A
+/// task polls `worker::status` every second into a watch, so `poll` never
+/// blocks; it ends at an exit, or when this handle drops.
+pub struct RemoteVm {
+    pub record: VmRecord,
+    client: IIIClient,
+    token: String,
+    outcome: watch::Receiver<Outcome>,
+    /// `None` for a VM adopted from an earlier daemon.
+    logs: Option<LogSink>,
+}
+
+impl RemoteVm {
+    #[expect(dead_code, reason = "the VM start path and VM adoption call it")]
+    pub(crate) fn spawn(
+        client: IIIClient,
+        record: VmRecord,
+        token: String,
+        logs: Option<LogSink>,
+    ) -> Self {
+        let (sender, outcome) = watch::channel(Outcome::Running);
+        let (poller, vm, auth) = (client.clone(), record.clone(), token.clone());
+        tokio::spawn(async move {
+            loop {
+                let tick = async {
+                    tokio::time::sleep(POLL_INTERVAL).await;
+                    let mut reply = worker_status(&poller, &vm, &auth).await;
+                    if let Some(live) = superseded_by(&reply, &vm) {
+                        let _ = worker_stop(&poller, &live, &auth, DEFAULT_STOP_GRACE).await;
+                        reply = worker_status(&poller, &vm, &auth).await;
+                    }
+                    outcome_of(reply)
+                };
+                tokio::select! {
+                    // Every receiver is gone, so the `RemoteVm` is.
+                    () = sender.closed() => return,
+                    outcome = tick => {
+                        let exited = matches!(outcome, Outcome::Exited(_));
+                        sender.send_replace(outcome);
+                        if exited {
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+        Self {
+            record,
+            client,
+            token,
+            outcome,
+            logs,
+        }
+    }
+
+    pub fn poll(&self) -> Outcome {
+        self.outcome.borrow().clone()
+    }
+
+    /// Resolves at the first `Exited` the poller sees.
+    pub async fn wait(&self) -> ExitStatus {
+        let mut outcome = self.outcome.clone();
+        let exited = outcome
+            .wait_for(|outcome| matches!(outcome, Outcome::Exited(_)))
+            .await
+            .map(|outcome| outcome.clone());
+        match exited {
+            Ok(Outcome::Exited(status)) => status,
+            _ => vm_exit(None, None),
+        }
+    }
+
+    /// `worker::stop` with `grace`. Only an answer from the adapter ends it: a
+    /// bus error is retried every second until the VM is seen to exit or
+    /// [`STOP_RETRY`] passes, then this warns and returns, so `down` cannot
+    /// hang on an adapter that is gone.
+    pub async fn stop(&self, grace: Duration) -> ExitStatus {
+        let deadline = tokio::time::Instant::now() + STOP_RETRY;
+        loop {
+            if let Outcome::Exited(status) = self.poll() {
+                return status;
+            }
+            let mut reply = worker_stop(&self.client, &self.record, &self.token, grace).await;
+            if let Some(live) = superseded_by(&reply, &self.record) {
+                let _ = worker_stop(&self.client, &live, &self.token, grace).await;
+                reply = worker_stop(&self.client, &self.record, &self.token, grace).await;
+            }
+            let answered = match &reply {
+                Ok(_) => true,
+                Err(error) => sandbox_code(error).is_some(),
+            };
+            if answered {
+                return match outcome_of(reply) {
+                    Outcome::Exited(status) => status,
+                    Outcome::Running | Outcome::Unknown => vm_exit(None, None),
+                };
+            }
+            if tokio::time::Instant::now() >= deadline {
+                let VmRecord {
+                    adapter,
+                    vm_id,
+                    instance,
+                    ..
+                } = &self.record;
+                crate::report::daemon_line(
+                    &format!(
+                        "{adapter}: VM {vm_id} instance {instance} did not answer worker::stop; \
+                         it may still be running"
+                    ),
+                    true,
+                );
+                return vm_exit(None, None);
+            }
+            let mut outcome = self.outcome.clone();
+            tokio::select! {
+                () = tokio::time::sleep(POLL_INTERVAL) => {}
+                Ok(_) = outcome.wait_for(|outcome| matches!(outcome, Outcome::Exited(_))) => {}
+            }
+        }
+    }
+
+    pub(crate) fn is_adopted(&self) -> bool {
+        self.logs.is_none()
+    }
+}
+
+/// What one `worker::status` (or `worker::stop`) reply says about the VM. A
+/// bus error says nothing (`Unknown`); a VM superseded by another boot (S503
+/// after its retry) or gone from the adapter (S504) has exited with no code.
+pub(crate) fn outcome_of(status: std::result::Result<WorkerStatus, iii_sdk::Error>) -> Outcome {
+    match status {
+        Ok(status) => match status.state {
+            State::Preparing | State::Running => Outcome::Running,
+            State::Unknown => Outcome::Unknown,
+            State::Exited | State::Stopped => {
+                Outcome::Exited(vm_exit(status.exit_code, status.signal))
+            }
+        },
+        Err(error) => match sandbox_code(&error) {
+            Some(SandboxErrorCode::S503 | SandboxErrorCode::S504) => {
+                Outcome::Exited(vm_exit(None, None))
+            }
+            _ => Outcome::Unknown,
+        },
+    }
+}
+
+/// The live VM an S502 or S503 names in its `fix`.
+pub(crate) fn live_instance(error: &iii_sdk::Error) -> Option<WorkerStartResponse> {
+    let iii_sdk::Error::Remote { message, .. } = error else {
+        return None;
+    };
+    if !matches!(
+        code_of(message)?,
+        SandboxErrorCode::S502 | SandboxErrorCode::S503
+    ) {
+        return None;
+    }
+    let payload: serde_json::Value = serde_json::from_str(message).ok()?;
+    serde_json::from_value(payload.get("fix")?.clone()).ok()
+}
+
+/// The S-code an adapter answered with; `None` for anything else on the bus.
+fn sandbox_code(error: &iii_sdk::Error) -> Option<SandboxErrorCode> {
+    match error {
+        iii_sdk::Error::Remote { message, .. } => code_of(message),
+        _ => None,
+    }
+}
+
+/// On S503 another boot of `vm` is live: the one to stop before asking again,
+/// so a restart never starts a second VM beside it.
+fn superseded_by(
+    reply: &std::result::Result<WorkerStatus, iii_sdk::Error>,
+    vm: &VmRecord,
+) -> Option<VmRecord> {
+    let error = reply.as_ref().err()?;
+    if sandbox_code(error) != Some(SandboxErrorCode::S503) {
+        return None;
+    }
+    let live = live_instance(error)?;
+    Some(VmRecord {
+        vm_id: live.vm_id,
+        instance: live.instance,
+        ..vm.clone()
+    })
+}
+
+/// A VM's end as a process status, so the restart policy reads it unchanged.
+/// No code (a stop, a lost VM) reads as SIGKILL, so `code()` is `None`.
+fn vm_exit(code: Option<i32>, signal: Option<i32>) -> ExitStatus {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        ExitStatus::from_raw(match (code, signal) {
+            (Some(code), _) => (code & 0xff) << 8,
+            (None, Some(signal)) if (1..0x7f).contains(&signal) => signal,
+            (None, _) => 9,
+        })
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::ExitStatusExt;
+        let _ = signal;
+        ExitStatus::from_raw(code.unwrap_or(1) as u32)
+    }
+}
+
+async fn worker_status(
+    client: &IIIClient,
+    vm: &VmRecord,
+    token: &str,
+) -> std::result::Result<WorkerStatus, iii_sdk::Error> {
+    let request = WorkerStatusRequest {
+        auth: token.to_string(),
+        vm_id: vm.vm_id.clone(),
+        instance: vm.instance,
+    };
+    call(client, vm, WORKER_STATUS, &request, CALL_SLACK).await
+}
+
+async fn worker_stop(
+    client: &IIIClient,
+    vm: &VmRecord,
+    token: &str,
+    grace: Duration,
+) -> std::result::Result<WorkerStatus, iii_sdk::Error> {
+    let request = WorkerStopRequest {
+        auth: token.to_string(),
+        vm_id: vm.vm_id.clone(),
+        instance: vm.instance,
+        grace_ms: grace.as_millis() as u64,
+    };
+    call(client, vm, WORKER_STOP, &request, grace + CALL_SLACK).await
+}
+
+/// `<adapter>::<suffix>` in the adapter's namespace. A reply that is not a
+/// `WorkerStatus` is a `Serde` error, which `outcome_of` reads as `Unknown`.
+async fn call(
+    client: &IIIClient,
+    vm: &VmRecord,
+    suffix: &str,
+    request: &impl serde::Serialize,
+    timeout: Duration,
+) -> std::result::Result<WorkerStatus, iii_sdk::Error> {
+    let reply = client
+        .trigger(
+            TriggerRequest {
+                function_id: adapter_function_id(&vm.adapter, suffix),
+                payload: serde_json::to_value(request)?,
+                action: None,
+                timeout_ms: Some(timeout.as_millis() as u64),
+            }
+            .namespace(vm.namespace.as_str()),
+        )
+        .await?;
+    Ok(serde_json::from_value(reply)?)
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use std::path::PathBuf;
@@ -633,6 +910,79 @@ pub(crate) mod tests {
         assert!(!other.contains_key("III_SANDBOX_WORKER_TOKEN"));
         assert!(!other.contains_key("III_SANDBOX_HOST_ROOTS"));
         assert_eq!(other["III_DISABLE_TRACE_PAYLOADS"], "0");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bus_errors_are_unknown_and_s504_is_an_exit_without_code() {
+        use iii_sandbox_contract::error_payload;
+
+        let remote = |code: &str, message: &str| iii_sdk::Error::Remote {
+            code: code.into(),
+            message: message.into(),
+            stacktrace: None,
+        };
+        let status = |state, exit_code, signal| WorkerStatus {
+            vm_id: "v".into(),
+            instance: 1,
+            state,
+            exit_code,
+            signal,
+            started_at_ms: 0,
+            ended_at_ms: None,
+        };
+        assert_eq!(outcome_of(Err(iii_sdk::Error::Timeout)), Outcome::Unknown);
+        assert_eq!(
+            outcome_of(Err(remote("function_not_found", "gone"))),
+            Outcome::Unknown
+        );
+        let Outcome::Exited(s) = outcome_of(Err(remote(
+            "invocation_failed",
+            &error_payload(SandboxErrorCode::S504, "no vm", None, None).to_string(),
+        ))) else {
+            panic!()
+        };
+        assert_eq!(s.code(), None);
+        let stale = remote(
+            "invocation_failed",
+            &error_payload(
+                SandboxErrorCode::S503,
+                "stale",
+                Some(serde_json::json!({"vm_id": "v", "instance": 3})),
+                None,
+            )
+            .to_string(),
+        );
+        assert_eq!(
+            live_instance(&stale).map(|l| (l.vm_id, l.instance)),
+            Some(("v".to_string(), 3))
+        );
+        // S503 after the retry: superseded.
+        let Outcome::Exited(s) = outcome_of(Err(stale)) else {
+            panic!()
+        };
+        assert_eq!(s.code(), None);
+        assert!(live_instance(&iii_sdk::Error::Timeout).is_none());
+        assert_eq!(
+            outcome_of(Ok(status(State::Preparing, None, None))),
+            Outcome::Running
+        );
+        assert_eq!(
+            outcome_of(Ok(status(State::Running, None, None))),
+            Outcome::Running
+        );
+        assert_eq!(
+            outcome_of(Ok(status(State::Unknown, None, None))),
+            Outcome::Unknown
+        );
+        let Outcome::Exited(s) = outcome_of(Ok(status(State::Exited, Some(3), None))) else {
+            panic!()
+        };
+        assert_eq!(s.code(), Some(3));
+        let Outcome::Exited(s) = outcome_of(Ok(status(State::Stopped, None, Some(15)))) else {
+            panic!()
+        };
+        assert_eq!(s.code(), None);
     }
 
     #[test]

@@ -255,7 +255,8 @@ impl Supervised {
                 // leader may have exited and its PID gone to somebody else.
                 match self.poll() {
                     Outcome::Exited(status) => status,
-                    Outcome::Running => {
+                    // A local process is never `Unknown`.
+                    Outcome::Running | Outcome::Unknown => {
                         signal_group(self.pgid, Signal::SIGKILL);
                         self.wait().await
                     }

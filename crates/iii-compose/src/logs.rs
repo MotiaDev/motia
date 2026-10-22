@@ -105,6 +105,15 @@ struct LogMessage {
     message: Vec<u8>,
 }
 
+/// One container's way into the project's log writer, owned by whoever feeds
+/// it, so a detached task can write without borrowing the store.
+#[derive(Clone)]
+#[expect(dead_code, reason = "the VM start path feeds VM logs through it")]
+pub(crate) struct LogSink {
+    container: String,
+    sender: tokio::sync::mpsc::Sender<LogMessage>,
+}
+
 /// One project-wide log writer and query surface.
 pub struct LogStore {
     dir: PathBuf,
@@ -197,6 +206,14 @@ impl LogStore {
 
     pub fn dir(&self) -> &Path {
         &self.dir
+    }
+
+    #[expect(dead_code, reason = "the VM start path feeds VM logs through it")]
+    pub(crate) fn sink(&self, container: &str) -> LogSink {
+        LogSink {
+            container: container.to_string(),
+            sender: self.sender.clone(),
+        }
     }
 
     /// Drains both child streams until EOF and keeps every record after the

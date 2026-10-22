@@ -23,7 +23,7 @@ use serde_json::{Value, json};
 
 use crate::{
     error::{ComposeError, Result},
-    process::Supervised,
+    lifecycle::Child,
 };
 
 /// How often readiness is re-checked. Short enough that a fast worker is not
@@ -335,7 +335,7 @@ impl EngineClient {
         &self,
         namespace: &str,
         container: &str,
-        child: &Supervised,
+        child: &Child,
         timeout: Duration,
         baseline: &ReadinessBaseline,
         log_dir: &std::path::Path,
@@ -358,7 +358,7 @@ impl EngineClient {
         &self,
         namespace: &str,
         container: &str,
-        child: &Supervised,
+        child: &Child,
         timeout: Duration,
         baseline: &ReadinessBaseline,
         log_dir: &std::path::Path,
