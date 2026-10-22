@@ -202,7 +202,7 @@ npm install iii-browser-sdk
 ```
 
 `iii-browser-sdk` installs at 0.24.x while the backend workers pin `iii-sdk` 0.23.0. The two work
-together: each one talks to the engine, never to the other.
+together: each one connects to the engine, never to the other.
 
 Then tell the app where the proxy is and which token to send. Create `frontend/.env.local`; Vite
 reads it at startup. `VITE_LINKLY_TOKEN` must equal `LINKLY_BROWSER_TOKEN` in the project's `.env`,
