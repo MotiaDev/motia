@@ -778,7 +778,15 @@ impl TriggerRegistry {
             .trigger_types
             .get(&provider.key())
             .is_some_and(|current| current.worker_id == provider.worker_id);
-        if !provider_live {
+        // A lost install ACK may follow a successful local start. Preserve
+        // that execution uncertainty after releasing the I/O reservation, even
+        // while the provider is still connected: neither disconnect nor a home
+        // declaration can turn this pending intent into permission to hand over.
+        if !provider_live
+            || result
+                .as_ref()
+                .is_err_and(|error| error.downcast_ref::<RegistratorUnavailable>().is_some())
+        {
             self.legacy_uncertain
                 .lock()
                 .expect("legacy uncertainty poisoned")
@@ -3295,6 +3303,129 @@ mod tests {
             "subscriber retry cannot bypass the same legacy fence"
         );
         assert_eq!(home.installs.load(Ordering::SeqCst), 0);
+    }
+
+    // KAN-321 regression: a lost install ACK is not proof that legacy work stopped.
+    #[tokio::test]
+    async fn shared_trigger_single_active_legacy_ack_timeout_then_home_announcement_stays_parked() {
+        #[derive(Default)]
+        struct LegacyAckTimeout {
+            installs: AtomicUsize,
+            stops: AtomicUsize,
+            release_ack_timeout: tokio::sync::Notify,
+        }
+
+        impl TriggerRegistrator for Arc<LegacyAckTimeout> {
+            fn register_trigger(
+                &self,
+                _: Trigger,
+            ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + '_>> {
+                Box::pin(async move {
+                    // The adapter starts local work, but its positive ACK is lost.
+                    self.installs.fetch_add(1, Ordering::SeqCst);
+                    self.release_ack_timeout.notified().await;
+                    Err(anyhow::Error::new(RegistratorUnavailable))
+                })
+            }
+
+            fn unregister_trigger(
+                &self,
+                _: Trigger,
+            ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + '_>> {
+                self.stops.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async { Ok(()) })
+            }
+        }
+
+        let mut unsafe_handovers = Vec::new();
+        for disconnected in [false, true] {
+            let registry = TriggerRegistry::new();
+            registry.set_shared_namespace_ownership(true);
+            let legacy = Arc::new(LegacyAckTimeout::default());
+            let home = Arc::new(SingleActiveFixture::default());
+            let legacy_owner = Uuid::from_u128(301);
+            registry
+                .register_trigger_type(TriggerType::new_ns(
+                    if disconnected {
+                        "orders"
+                    } else {
+                        DEFAULT_NAMESPACE
+                    },
+                    "fixture",
+                    "legacy install ACK timeout",
+                    Box::new(legacy.clone()),
+                    Some(legacy_owner),
+                ))
+                .await
+                .unwrap();
+            let mut binding = assignment_binding();
+            binding.worker_id = Some(Uuid::from_u128(303));
+            let registration = registry.register_trigger(binding.clone());
+            tokio::pin!(registration);
+            assert!(futures::poll!(&mut registration).is_pending());
+            assert_eq!(legacy.installs.load(Ordering::SeqCst), 1);
+            let canonical = registry.subscriptions.lock().unwrap().aliases
+                [&(binding.worker_id.unwrap(), binding.id.clone())]
+                .clone();
+            assert!(registry.legacy_installs.contains_key(&canonical));
+            // Explicit completion barrier: timeout happens BEFORE disconnect or
+            // home declaration, rather than while the legacy reservation exists.
+            legacy.release_ack_timeout.notify_one();
+            assert_eq!(
+                registration.await.unwrap(),
+                RegisterTriggerOutcome::Deferred
+            );
+            assert!(!registry.legacy_installs.contains_key(&canonical));
+            assert!(!registry.has_assignment(&canonical));
+            assert!(!registry.triggers.contains_key(&canonical));
+            assert!(registry.pending_triggers.contains_key(&canonical));
+            if disconnected {
+                registry.unregister_worker(&legacy_owner).await;
+                assert!(
+                    !registry
+                        .trigger_types
+                        .contains_key(&type_key("orders", "fixture"))
+                );
+            } else {
+                assert!(
+                    registry
+                        .trigger_types
+                        .contains_key(&type_key(DEFAULT_NAMESPACE, "fixture"))
+                );
+            }
+            single_active_provider(
+                &registry,
+                "orders",
+                Uuid::from_u128(302),
+                home.clone(),
+                true,
+            )
+            .await;
+            // Await the complete production replay, not an absence/quiet-time
+            // window. The legacy adapter is still running in BOTH scenarios:
+            // a lost install ACK or socket loss cannot supply a positive stop.
+            registry
+                .replay_shared_assignments(type_key("orders", "fixture"))
+                .await;
+            assert_eq!(legacy.stops.load(Ordering::SeqCst), 0);
+            if home.installs.load(Ordering::SeqCst) != 0
+                || registry.has_assignment(&canonical)
+                || registry.triggers.contains_key(&canonical)
+                || !registry.pending_triggers.contains_key(&canonical)
+            {
+                unsafe_handovers.push((
+                    disconnected,
+                    home.installs.load(Ordering::SeqCst),
+                    registry.has_assignment(&canonical),
+                    registry.triggers.contains_key(&canonical),
+                    registry.pending_triggers.contains_key(&canonical),
+                ));
+            }
+        }
+        assert!(
+            unsafe_handovers.is_empty(),
+            "lost legacy install ACK cannot authorize shared_v1 replay without positive stop; (disconnected, installs, lifecycle, live, pending)={unsafe_handovers:?}"
+        );
     }
 
     fn make_trigger(id: &str, trigger_type: &str) -> Trigger {
