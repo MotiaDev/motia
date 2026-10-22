@@ -1341,7 +1341,11 @@ impl Daemon {
             .iter()
             .map(|worker| worker.key.clone())
             .collect::<Vec<_>>();
-        if requested_names.is_empty() {
+        // `workers_to_update` leaves this to the sandbox step, which must still run.
+        let generated_adapter =
+            crate::sandbox::adapter_key(&compose, crate::sandbox::adapter_name(&compose))?
+                .filter(|key| generated.contains(key));
+        if requested_names.is_empty() && generated_adapter.is_none() {
             crate::report::daemon_line("Everything already up to date.", false);
             if let Some(operation) = crate::operation::active(&operation_id) {
                 operation
@@ -1361,7 +1365,7 @@ impl Daemon {
         let _overlay = UpdateOverlayGuard::new(path, &operation_id);
         let (roots, all_explicit_exact_unchanged) = update_roots(&compose, &asked)?;
 
-        if all_explicit_exact_unchanged {
+        if all_explicit_exact_unchanged && !roots.is_empty() {
             report_unchanged(path, &operation_id, &requested_names, UP_TO_DATE).await;
             return Ok(MutationOutcome::from_operations(
                 OpStatus::Ok,
@@ -1441,7 +1445,10 @@ impl Daemon {
         // something else still starts after, is left as it is. Say so rather
         // than let it silently stop moving.
         if workers.is_empty() {
-            for key in generated.iter().filter(|key| !planned.contains(*key)) {
+            for key in generated
+                .iter()
+                .filter(|key| !planned.contains(*key) && generated_adapter.as_ref() != Some(*key))
+            {
                 if crate::edit::is_generated_container(&edited, key)? {
                     crate::report::daemon_line(
                         &format!(
@@ -3731,6 +3738,58 @@ containers:
             asked.iter().all(|worker| worker.key != "sandbox-builtin"),
             "{asked:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn update_all_refreshes_a_generated_adapter_that_is_the_only_package() {
+        let mut archive = tar::Builder::new(flate2::write::GzEncoder::new(
+            Vec::new(),
+            flate2::Compression::default(),
+        ));
+        let script = b"#!/bin/sh\nexit 0\n";
+        let mut header = tar::Header::new_gnu();
+        header.set_size(script.len() as u64);
+        header.set_mode(0o755);
+        header.set_cksum();
+        archive
+            .append_data(&mut header, "sandbox-builtin", &script[..])
+            .unwrap();
+        let archive = archive.into_inner().unwrap().finish().unwrap();
+        let server = crate::sandbox::tests::adapter_registry(&archive).await;
+
+        let adapter = crate::edit::parse_worker("sandbox-builtin@1.0.0").unwrap();
+        let crate::edit::Outcome::Added(text) = crate::edit::upsert_container(
+            "containers:\n  vm:\n    worker: path://./vm\n",
+            &adapter,
+        )
+        .unwrap() else {
+            panic!("the adapter is new");
+        };
+        let (_dir, path) = vm_project(&text);
+        let daemon = Daemon::start(
+            "ws://127.0.0.1:1/ws".to_string(),
+            format!("update-adapter-{}", uuid::Uuid::new_v4()),
+            None,
+            EnginePolicy::External,
+        );
+        // Whatever the restart's outcome: no engine is listening.
+        let _ = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            crate::registry::TEST_REGISTRY.scope(
+                server.uri(),
+                daemon.update(Some(&path), &[], "update".into()),
+            ),
+        )
+        .await;
+        let text = std::fs::read_to_string(&path).unwrap();
+        let compose = ComposeFile::parse(&text, &path).unwrap();
+        assert_eq!(
+            compose.containers["sandbox-builtin"].version.as_deref(),
+            Some("1.2.3"),
+            "{text}"
+        );
+        assert!(crate::edit::is_generated_container(&text, "sandbox-builtin").unwrap());
+        daemon.shutdown().await;
     }
 
     #[tokio::test]
