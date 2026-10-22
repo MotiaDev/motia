@@ -2086,3 +2086,102 @@ async fn shared_namespace_introspection_legacy_reused_id_distinct_function_ack_c
         "a distinct-function successor ACK is authoritative without accepting the delayed old ACK: {confirmed}"
     );
 }
+
+#[tokio::test]
+async fn shared_namespace_introspection_legacy_rejected_replacement_preserves_previous_confirmation()
+ {
+    let (port, engine, _builder, _directory) = introspection_engine(true).await;
+    let mut provider = introspection_replica(port, "rejected-replacement-provider", "orders").await;
+    introspection_send(
+        &mut provider,
+        json!({"type":"registertriggertype", "id":"fixture:introspection",
+            "description":"rejected ownerless replacement fixture"}),
+    )
+    .await;
+    introspection_barrier(&mut provider).await;
+    let original = iii::trigger::Trigger {
+        id: "rejected-ownerless-replacement".into(),
+        trigger_type: "fixture:introspection".into(),
+        function_id: "svc::shared".into(),
+        config: json!({"topic":"original-installed-route"}),
+        worker_id: None,
+        metadata: None,
+        namespace: "orders".into(),
+        trigger_namespace: Some("orders".into()),
+        home_namespace: "orders".into(),
+        provider_namespace: "orders".into(),
+    };
+    let registry = engine.trigger_registry.clone();
+    let first_binding = original.clone();
+    let first = tokio::spawn(async move { registry.register_trigger(first_binding).await });
+    let first_install = introspection_frame(&mut provider, "registertrigger").await;
+    let installed_routes = std::collections::HashMap::from([(
+        first_install["id"].as_str().unwrap().to_owned(),
+        first_install["function_id"].as_str().unwrap().to_owned(),
+    )]);
+    introspection_legacy_result(&mut provider, &first_install).await;
+    first.await.unwrap().unwrap();
+    let before = introspection_trigger_list(&engine, false).await;
+    assert_eq!(before["registered_triggers"][0]["active_owner_count"], 1);
+    assert_eq!(before["registered_triggers"][0]["degraded"], false);
+
+    let mut replacement = original.clone();
+    replacement.function_id = "svc::rejected-successor".into();
+    replacement.config = json!({"topic":"rejected-route"});
+    let registry = engine.trigger_registry.clone();
+    let replace = tokio::spawn(async move { registry.register_trigger(replacement).await });
+    let rejected_install = introspection_frame(&mut provider, "registertrigger").await;
+    assert_eq!(rejected_install["id"], first_install["id"]);
+    assert_ne!(
+        rejected_install["function_id"],
+        first_install["function_id"]
+    );
+    assert!(rejected_install.get("assignment_id").is_none());
+    // The adapter rejects the new route without changing its installed map.
+    // This is a descriptor-specific negative result, not a timeout or guessed
+    // ACK for an indistinguishable successor.
+    introspection_send(
+        &mut provider,
+        json!({"type":"triggerregistrationresult", "id":rejected_install["id"],
+            "trigger_type":rejected_install["trigger_type"],
+            "function_id":rejected_install["function_id"],
+            "error":{"code":"replacement_rejected", "message":"original adapter route retained"}}),
+    )
+    .await;
+    introspection_barrier(&mut provider).await;
+    let error = replace.await.unwrap().unwrap_err();
+    assert!(
+        error.to_string().contains("replacement_rejected"),
+        "{error}"
+    );
+    assert_eq!(
+        installed_routes.get(&original.id),
+        Some(&original.function_id)
+    );
+    let published = engine.trigger_registry.triggers.get(&original.id).unwrap();
+    assert_eq!(published.function_id, original.function_id);
+    assert_eq!(published.config, original.config);
+    drop(published);
+    assert!(
+        !engine
+            .trigger_registry
+            .pending_triggers
+            .contains_key(&original.id)
+    );
+    for include_pending in [false, true] {
+        let listed = introspection_trigger_list(&engine, include_pending).await;
+        let rows = listed["registered_triggers"].as_array().unwrap();
+        assert_eq!(rows.len(), 1, "{listed}");
+        assert_eq!(rows[0]["id"], original.id);
+        assert_eq!(rows[0]["function_id"], original.function_id);
+        assert_eq!(rows[0]["config"], original.config);
+        assert_eq!(
+            (
+                rows[0]["active_owner_count"].clone(),
+                rows[0]["degraded"].clone()
+            ),
+            (json!(1), json!(false)),
+            "rejected replacement must retain confirmation of the still-published original installation: {listed}"
+        );
+    }
+}

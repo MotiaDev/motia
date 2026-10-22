@@ -877,6 +877,7 @@ impl TriggerRegistry {
             published: Default::default(),
         });
         let was_live;
+        let mut previous_observation = None;
         {
             let _park = self
                 .park_transition
@@ -920,13 +921,15 @@ impl TriggerRegistry {
                             trigger.trigger_type.clone(),
                             trigger.function_id.clone(),
                         ));
-                    self.legacy_observations
+                    previous_observation = self
+                        .legacy_observations
                         .lock()
                         .expect("legacy observations poisoned")
                         .insert(
                             (owner, trigger.id.clone()),
                             distinguishable.then(|| install.clone()),
-                        );
+                        )
+                        .flatten();
                 }
             }
         }
@@ -994,6 +997,43 @@ impl TriggerRegistry {
             Err(error) => {
                 if !was_live {
                     self.pending_triggers.remove(&trigger.id);
+                }
+                // A rejected distinguishable replacement did not publish a new
+                // binding. Restore only evidence for the exact surviving Arc,
+                // session and registrator, never for ambiguous wire reuse. The
+                // reservation check above and park lock fence removal/retirement;
+                // the candidate comparison also prevents overwriting a successor.
+                if let Some(previous) = previous_observation {
+                    if previous.provider == provider.worker_id
+                        && Arc::ptr_eq(&previous.registrator, &provider.registrator)
+                        && previous
+                            .acknowledged
+                            .load(std::sync::atomic::Ordering::SeqCst)
+                        && self.legacy_publication_current(&previous)
+                        && self
+                            .trigger_types
+                            .get(&previous.trigger.provider_key())
+                            .is_some_and(|current| {
+                                current.worker_id == previous.provider
+                                    && Arc::ptr_eq(&current.registrator, &previous.registrator)
+                            })
+                    {
+                        let mut observations = self
+                            .legacy_observations
+                            .lock()
+                            .expect("legacy observations poisoned");
+                        if let Some(observation) = observations.get_mut(&(
+                            provider.worker_id.expect("observed session"),
+                            trigger.id.clone(),
+                        )) {
+                            if observation
+                                .as_ref()
+                                .is_some_and(|current| Arc::ptr_eq(current, &install))
+                            {
+                                *observation = Some(previous);
+                            }
+                        }
+                    }
                 }
                 Err(error)
             }
