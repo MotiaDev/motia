@@ -43,6 +43,7 @@ register_worker(address: str | None = None, options: InitOptions | None = None) 
       Enable worker metrics via OpenTelemetry. Default ``True``.
     </ParamField>
     <ParamField body="headers" type="dict[str, str] | None">
+      Custom HTTP headers sent during the WebSocket handshake, on the main connection and on streaming channels. ``Authorization: Bearer $III_TOKEN`` is added unless you set ``Authorization`` here.
     </ParamField>
     <ParamField body="invocation_timeout_ms" type="int">
       Default timeout for ``worker.trigger()`` invocations in milliseconds. Default ``30000``.
@@ -81,6 +82,10 @@ other = register_worker('ws://localhost:49134', InitOptions(worker_name='my-work
 
   </Tab>
 </Tabs>
+
+<Note>
+  Set the `III_TOKEN` environment variable to authenticate the worker. When `III_TOKEN` is set and not blank, the SDK sends `Authorization: Bearer <token>` on the WebSocket handshake of the main connection and of channel readers and writers. An `Authorization` header passed in `headers` wins (matched case-insensitively). The SDK never logs the token. See [Connect a backend worker](/creating-workers/worker-manager#connect-a-backend-worker).
+</Note>
 
 ## Methods
 
@@ -658,7 +663,7 @@ Configuration options passed to ``register_worker``.
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `enable_metrics_reporting` | `bool` | No | Enable worker metrics via OpenTelemetry. Default ``True``. |
-| `headers` | `dict[str, str] \| None` | No | - |
+| `headers` | `dict[str, str] \| None` | No | Custom HTTP headers sent during the WebSocket handshake, on the<br />main connection and on streaming channels. ``Authorization: Bearer $III_TOKEN``<br />is added unless you set ``Authorization`` here. |
 | `invocation_timeout_ms` | `int` | No | Default timeout for ``worker.trigger()`` invocations in milliseconds. Default ``30000``. |
 | `namespace` | `str \| None` | No | Namespace this worker belongs to. Falls back to the ``III_NAMESPACE`` env var; when neither is set the engine applies ``default``. The worker and its functions register here; ordinary ``trigger`` targets and ``register_trigger`` bindings also inherit it unless the call names another namespace. Implicit calls to engine-owned ``engine::*`` functions resolve in ``default``; pass an explicit namespace to override that behavior. |
 | `otel` | `OtelConfig \| dict[str, Any] \| None` | No | OpenTelemetry configuration. Enabled by default. Set ``\{'enabled': False\}`` or env ``OTEL_ENABLED=false`` to disable. |

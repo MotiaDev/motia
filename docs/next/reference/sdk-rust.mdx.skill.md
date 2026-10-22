@@ -36,7 +36,7 @@ register_worker(address: &str, options: InitOptions) -> IIIClient
       Custom worker metadata. Auto-detected if `None`.
     </ParamField>
     <ParamField body="headers" type="Option<HashMap<String, String>>">
-      Custom HTTP headers sent during the WebSocket handshake.
+      Custom HTTP headers sent during the WebSocket handshake, on the main connection and on streaming channels. `Authorization: Bearer $III_TOKEN` is added unless you set `Authorization` here.
     </ParamField>
     <ParamField body="otel" type="Option<iii_helpers::observability::OtelConfig>">
       OpenTelemetry configuration.
@@ -47,6 +47,10 @@ register_worker(address: &str, options: InitOptions) -> IIIClient
   </Expandable>
 </ParamField>
 
+
+<Note>
+  Set the `III_TOKEN` environment variable to authenticate the worker. When `III_TOKEN` is set and not blank, the SDK sends `Authorization: Bearer <token>` on the WebSocket handshake of the main connection and of channel readers and writers. An `Authorization` header passed in `headers` wins (matched case-insensitively). The SDK never logs the token. See [Connect a backend worker](/creating-workers/worker-manager#connect-a-backend-worker).
+</Note>
 
 ## Methods
 
@@ -512,7 +516,7 @@ Configuration options passed to `register_worker`.
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
 | `metadata` | Option&lt;iii::[`WorkerMetadata`](#workermetadata)&gt; | No | Custom worker metadata. Auto-detected if `None`. |
-| `headers` | `Option<HashMap<String, String>>` | No | Custom HTTP headers sent during the WebSocket handshake. |
+| `headers` | `Option<HashMap<String, String>>` | No | Custom HTTP headers sent during the WebSocket handshake, on the main connection and<br />on streaming channels. `Authorization: Bearer $III_TOKEN` is added unless you set<br />`Authorization` here. |
 | `otel` | `Option<iii_helpers::observability::OtelConfig>` | No | OpenTelemetry configuration. |
 | `namespace` | `Option<String>` | No | Namespace this worker belongs to. Resolution order:<br />`namespace` > env `III_NAMESPACE` > `None` (the engine then applies its<br />default namespace). Mirrors the `III_WORKER_NAME` precedence.<br /><br />It scopes more than the registration. The worker and its functions<br />register here, and everything the worker does afterwards follows it: a<br />`IIIClient::trigger` resolves its target here and a<br />`IIIClient::register_trigger` binds here, unless the call names<br />another namespace. |
 
