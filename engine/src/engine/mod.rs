@@ -2736,8 +2736,25 @@ impl Engine {
                         response_format: res.clone(),
                         metadata: reg_metadata,
                     };
-                    match self.register_shared_function(&namespace, worker, request) {
-                        Ok(()) => worker.include_function_id(&reg_id).await,
+                    // As with HTTP publication, cleanup claims before taking
+                    // this ID lock. Publish and record the ID together so cleanup
+                    // either prevents registration or captures it for removal.
+                    let registration = {
+                        let mut ids = worker.function_ids.write().await;
+                        if worker
+                            .cleanup_claimed
+                            .load(std::sync::atomic::Ordering::SeqCst)
+                        {
+                            return Ok(());
+                        }
+                        let result = self.register_shared_function(&namespace, worker, request);
+                        if result.is_ok() {
+                            ids.insert(reg_id.clone());
+                        }
+                        result
+                    };
+                    match registration {
+                        Ok(()) => {}
                         Err(conflict) => {
                             self.send_msg(
                                 worker,
@@ -4398,6 +4415,206 @@ mod tests {
         assert!(worker.get_external_function_ids().await.is_empty());
     }
 
+    fn regular_cleanup_assert_absent(engine: &Engine, namespace: &str) {
+        let key = (namespace.to_string(), "svc::shared".to_string());
+        assert!(
+            !engine.function_owners.contains_key(&key),
+            "cleanup must forbid dead Regular ownership in {namespace}"
+        );
+        assert!(!engine.shared_functions.contains_key(&key));
+        assert!(!engine.shared_routing.contains_key(&key));
+        assert!(engine.functions.get(namespace, "svc::shared").is_none());
+        assert!(engine.service_registry.get(namespace, "svc").is_none());
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_regular_cleanup_wins_before_dispatch_resumes() {
+        let engine = membership_engine();
+        let (worker, _rx) = membership_worker(&engine).await;
+        let message = membership_registration();
+        let (resume, barrier) = tokio::sync::oneshot::channel::<()>();
+        // Model dispatch that has passed the router's namespace gate, but
+        // whose Regular registration body has not yet resumed.
+        let registration = async {
+            barrier.await.expect("release dispatch barrier");
+            engine.dispatch_msg(&worker, &message).await
+        };
+        tokio::pin!(registration);
+        assert!(futures::poll!(registration.as_mut()).is_pending());
+        assert!(worker.get_regular_function_ids().await.is_empty());
+        engine.cleanup_worker(&worker).await;
+        assert!(*worker.cleanup_done.borrow());
+        assert!(!engine.namespace_states.contains_key(&worker.id));
+        resume.send(()).unwrap();
+        registration.await.expect("resumed dispatch");
+
+        regular_cleanup_assert_absent(&engine, "orders");
+        regular_cleanup_assert_absent(&engine, DEFAULT_NAMESPACE);
+        assert!(worker.get_regular_function_ids().await.is_empty());
+    }
+
+    async fn regular_cleanup_during_registration_hook(with_peer: bool) {
+        let engine = Arc::new(membership_engine());
+        let (peer, _peer_rx) = membership_worker(&engine).await;
+        let incumbent = if with_peer {
+            engine
+                .router_msg(&peer, &membership_registration())
+                .await
+                .unwrap();
+            Some(engine.functions.get("orders", "svc::shared").unwrap())
+        } else {
+            None
+        };
+        let (mut worker, _rx) = membership_worker(&engine).await;
+        let release = Arc::new(tokio::sync::Notify::new());
+        let hook_calls = Arc::new(AtomicUsize::new(0));
+        let hook_release = release.clone();
+        let calls = hook_calls.clone();
+        engine.functions.register_function_ns(
+            DEFAULT_NAMESPACE,
+            "test::registration_barrier".to_string(),
+            crate::function::Function {
+                _function_id: "test::registration_barrier".to_string(),
+                _description: None,
+                request_format: None,
+                response_format: None,
+                metadata: None,
+                handler: Arc::new(move |_, input, _, _| {
+                    let release = hook_release.clone();
+                    let calls = calls.clone();
+                    Box::pin(async move {
+                        assert_eq!(input["namespace"], "orders");
+                        calls.fetch_add(1, Ordering::SeqCst);
+                        release.notified().await;
+                        FunctionResult::Success(Some(json!({})))
+                    })
+                }),
+            },
+        );
+        let mut session = session_forbidding("");
+        session.engine = engine.clone();
+        session.config = Arc::new(
+            serde_json::from_value(json!({
+                "rbac": {"on_function_registration_function_id": "test::registration_barrier"}
+            }))
+            .expect("test hook configuration"),
+        );
+        worker.session = Some(Arc::new(session));
+        let message = membership_registration();
+        let registration = engine.dispatch_msg(&worker, &message);
+        tokio::pin!(registration);
+        assert!(futures::poll!(registration.as_mut()).is_pending());
+        assert_eq!(hook_calls.load(Ordering::SeqCst), 1, "hook is suspended");
+        assert!(worker.get_regular_function_ids().await.is_empty());
+        engine.cleanup_worker(&worker).await;
+        assert!(*worker.cleanup_done.borrow());
+        assert!(!engine.namespace_states.contains_key(&worker.id));
+        release.notify_one();
+        registration
+            .await
+            .expect("resume suspended registration hook");
+
+        // A peer's canonical dispatcher and both owner representations must
+        // survive unchanged; no late dead member may join either namespace.
+        if let Some(before) = incumbent {
+            membership_assert_descriptor(&engine);
+            let key = ("orders".to_string(), "svc::shared".to_string());
+            assert_eq!(engine.function_owners.get(&key).unwrap().0, peer.id);
+            assert_eq!(
+                engine.shared_functions.get(&key).unwrap().owner_ids(),
+                vec![peer.id]
+            );
+            let routing = engine.shared_routing.get(&key).unwrap().clone();
+            assert_eq!(
+                routing
+                    .lock()
+                    .unwrap()
+                    .owners
+                    .iter()
+                    .map(|o| o.worker.id)
+                    .collect::<Vec<_>>(),
+                vec![peer.id]
+            );
+            let after = engine.functions.get("orders", "svc::shared").unwrap();
+            assert!(Arc::ptr_eq(&before.handler, &after.handler));
+        } else {
+            regular_cleanup_assert_absent(&engine, "orders");
+        }
+        regular_cleanup_assert_absent(&engine, DEFAULT_NAMESPACE);
+        assert!(worker.get_regular_function_ids().await.is_empty());
+        engine.cleanup_worker(&peer).await;
+        regular_cleanup_assert_absent(&engine, "orders");
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_regular_cleanup_wins_during_suspended_registration_hook() {
+        regular_cleanup_during_registration_hook(false).await;
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_regular_cleanup_suspended_hook_preserves_surviving_peer() {
+        regular_cleanup_during_registration_hook(true).await;
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_regular_cleanup_id_barrier_forbids_early_publication() {
+        let engine = membership_engine();
+        let (worker, _rx) = membership_worker(&engine).await;
+        let message = membership_registration();
+        // Publication and insertion must share the ID lock: while this guard
+        // blocks insertion, registration must not expose any owner/dispatcher.
+        let ids = worker.function_ids.write().await;
+        let registration = engine.dispatch_msg(&worker, &message);
+        tokio::pin!(registration);
+        assert!(futures::poll!(registration.as_mut()).is_pending());
+        let cleanup = engine.cleanup_worker(&worker);
+        tokio::pin!(cleanup);
+        assert!(futures::poll!(cleanup.as_mut()).is_pending());
+        assert!(worker.cleanup_claimed.load(Ordering::SeqCst));
+        let published_before_id_barrier = engine
+            .shared_functions
+            .contains_key(&("orders".to_string(), "svc::shared".to_string()));
+        drop(ids);
+        let (result, ()) = tokio::join!(registration, cleanup);
+        result.expect("registration racing cleanup");
+        assert!(*worker.cleanup_done.borrow());
+        regular_cleanup_assert_absent(&engine, "orders");
+        regular_cleanup_assert_absent(&engine, DEFAULT_NAMESPACE);
+        assert!(
+            !published_before_id_barrier,
+            "Regular owner was published before the lifecycle/ID barrier, allowing cleanup to miss its ID"
+        );
+        assert!(worker.get_regular_function_ids().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_regular_cleanup_after_publication_captures_id() {
+        let engine = membership_engine();
+        let (worker, _rx) = membership_worker(&engine).await;
+        engine
+            .router_msg(&worker, &membership_registration())
+            .await
+            .unwrap();
+        assert_eq!(
+            worker.get_regular_function_ids().await,
+            vec!["svc::shared".to_string()]
+        );
+        membership_assert_descriptor(&engine);
+        // Hold cleanup immediately after it snapshots Regular IDs. When it
+        // resumes, that snapshot must remove all five published registries.
+        let external_ids = worker.external_function_ids.write().await;
+        let cleanup = engine.cleanup_worker(&worker);
+        tokio::pin!(cleanup);
+        assert!(futures::poll!(cleanup.as_mut()).is_pending());
+        assert!(worker.cleanup_claimed.load(Ordering::SeqCst));
+        assert!(!*worker.cleanup_done.borrow());
+        drop(external_ids);
+        cleanup.await;
+        assert!(*worker.cleanup_done.borrow());
+        regular_cleanup_assert_absent(&engine, "orders");
+        regular_cleanup_assert_absent(&engine, DEFAULT_NAMESPACE);
+    }
+
     // Routing tests observe the real dispatcher and outbound enqueue boundary.
     // Receiving a frame is the barrier; no sleeps decide cancellation/failure order.
     async fn routing_pair() -> (Engine, [WorkerConnection; 2], [mpsc::Receiver<Outbound>; 2]) {
@@ -5120,7 +5337,20 @@ mod tests {
     }
 
     async fn membership_mismatch_preserves_incumbent(field: &str) {
-        let engine = membership_engine();
+        let engine = Arc::new(membership_engine());
+        if field == "kind" {
+            let module = HttpFunctionsWorker::create(
+                engine.clone(),
+                Some(json!({"security": {
+                    "require_https": false,
+                    "block_private_ips": false,
+                    "url_allowlist": ["127.0.0.1"]
+                }})),
+            )
+            .await
+            .expect("create mismatch test HTTP module");
+            module.initialize().await.expect("initialize HTTP module");
+        }
         let (a, _a_rx) = membership_worker(&engine).await;
         let (b, mut b_rx) = membership_worker(&engine).await;
         engine
@@ -5145,7 +5375,7 @@ mod tests {
                 "response" => *response_format = Some(json!({"type": "boolean"})),
                 "kind" => {
                     *invocation = Some(HttpInvocationRef {
-                        url: "http://example.com/shared".to_string(),
+                        url: "http://127.0.0.1:1/shared".to_string(),
                         method: crate::invocation::method::HttpMethod::Post,
                         timeout_ms: None,
                         headers: HashMap::new(),
@@ -5164,6 +5394,15 @@ mod tests {
         );
         assert!(b.get_regular_function_ids().await.is_empty());
         assert!(b.get_external_function_ids().await.is_empty());
+        assert_eq!(
+            engine
+                .shared_functions
+                .get(&("orders".to_string(), "svc::shared".to_string()))
+                .expect("incumbent owner set")
+                .owner_ids(),
+            vec![a.id],
+            "rejected session must not enter shared ownership"
+        );
         engine.cleanup_worker(&b).await;
         membership_assert_descriptor(&engine);
         membership_assert_mismatch(&mut b_rx);
