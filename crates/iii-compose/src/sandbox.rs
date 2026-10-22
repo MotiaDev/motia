@@ -277,18 +277,34 @@ pub(crate) async fn apply_adapter_change(
 /// token, the two host directories a guest may mount from (the compose file's
 /// and the package cache), and `III_DISABLE_TRACE_PAYLOADS` so iii-sdk records
 /// no handler input (`auth`, the guest `env`, `channel.access_key`) as the
-/// `iii.invocation.input` span event. The caller lays this over `user_env`, so
-/// an operator value cannot undo it.
+/// `iii.invocation.input` span event.
 pub(crate) fn adapter_env(
     token: &str,
     compose_file: &Path,
     package_cache: &Path,
 ) -> BTreeMap<String, String> {
     let compose_dir = compose_file.parent().unwrap_or(Path::new(""));
-    // shortcut: a root with a path separator in it cannot be joined, so the
-    // adapter gets no roots and refuses every host_path (S501); rare enough to
-    // fix when someone hits it.
-    let roots = std::env::join_paths([compose_dir, package_cache]).unwrap_or_default();
+    // A root that cannot be joined (a path separator in it) is dropped alone and
+    // loudly, so the other root survives; the adapter then refuses host_path
+    // mounts under the dropped one (S501).
+    let roots: Vec<&Path> = [compose_dir, package_cache]
+        .into_iter()
+        .filter(|root| {
+            let joinable = std::env::join_paths([root]).is_ok();
+            if !joinable {
+                crate::report::daemon_line(
+                    &format!(
+                        "sandbox: {} contains a path separator, so it is not a host root for \
+                         the adapter; host_path mounts under it will be refused",
+                        root.display()
+                    ),
+                    true,
+                );
+            }
+            joinable
+        })
+        .collect();
+    let roots = std::env::join_paths(roots).unwrap_or_default();
     BTreeMap::from([
         ("III_SANDBOX_WORKER_TOKEN".to_string(), token.to_string()),
         (
@@ -297,6 +313,23 @@ pub(crate) fn adapter_env(
         ),
         ("III_DISABLE_TRACE_PAYLOADS".to_string(), "1".to_string()),
     ])
+}
+
+/// Lays [`adapter_env`] over `user_env` when `key` is this project's adapter
+/// container, and only then: the token never reaches a container that runs
+/// user code. It goes after the operator's own variables, so an operator
+/// `III_DISABLE_TRACE_PAYLOADS=0` cannot undo it.
+pub(crate) fn layer_adapter_env(
+    file: &ComposeFile,
+    key: &str,
+    token: &str,
+    package_cache: &Path,
+    user_env: &mut BTreeMap<String, String>,
+) -> Result<()> {
+    if adapter_key(file, adapter_name(file))?.as_deref() == Some(key) {
+        user_env.extend(adapter_env(token, &file.path, package_cache));
+    }
+    Ok(())
 }
 
 /// The VM's identity at the adapter: hex SHA-256 over the project's state
@@ -558,6 +591,48 @@ pub(crate) mod tests {
                 PathBuf::from("/home/u/.iii/compose/packages")
             ]
         );
+    }
+
+    // ':' separates PATH entries on Unix only.
+    #[cfg(unix)]
+    #[test]
+    fn a_root_that_cannot_be_joined_is_dropped_alone() {
+        let env = adapter_env(
+            "t0k",
+            Path::new("/srv/a:b/worker-compose.yaml"),
+            Path::new("/home/u/.iii/compose/packages"),
+        );
+        assert_eq!(
+            std::env::split_paths(&env["III_SANDBOX_HOST_ROOTS"]).collect::<Vec<_>>(),
+            vec![PathBuf::from("/home/u/.iii/compose/packages")]
+        );
+        assert_eq!(env["III_SANDBOX_WORKER_TOKEN"], "t0k");
+    }
+
+    #[test]
+    fn only_the_adapter_container_gets_the_token() {
+        let file = parse(
+            Path::new("/srv/app"),
+            "engine: {sandbox: {}}\ncontainers:\n  sb: {worker: package://sandbox-builtin, version: 1.0.0}\n  app: {worker: package://app, version: 1.0.0}\n",
+        );
+        let layer = |key: &str| {
+            let mut env = BTreeMap::from([
+                ("III_DISABLE_TRACE_PAYLOADS".to_string(), "0".to_string()),
+                ("KEEP".to_string(), "me".to_string()),
+            ]);
+            layer_adapter_env(&file, key, "t0k", Path::new("/pkg"), &mut env).unwrap();
+            env
+        };
+
+        let adapter = layer("sb");
+        assert_eq!(adapter["III_SANDBOX_WORKER_TOKEN"], "t0k");
+        assert_eq!(adapter["III_DISABLE_TRACE_PAYLOADS"], "1");
+        assert_eq!(adapter["KEEP"], "me");
+
+        let other = layer("app");
+        assert!(!other.contains_key("III_SANDBOX_WORKER_TOKEN"));
+        assert!(!other.contains_key("III_SANDBOX_HOST_ROOTS"));
+        assert_eq!(other["III_DISABLE_TRACE_PAYLOADS"], "0");
     }
 
     #[test]

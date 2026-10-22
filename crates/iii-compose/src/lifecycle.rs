@@ -1077,15 +1077,13 @@ async fn start_one_until_shutdown(
 
     let mut user_env =
         container.resolve_user_env_with_diagnostics(key, Some((key, ctx.empty_env_diagnostics)))?;
-    if crate::sandbox::adapter_key(ctx.file, crate::sandbox::adapter_name(ctx.file))?.as_deref()
-        == Some(key)
-    {
-        user_env.extend(crate::sandbox::adapter_env(
-            ctx.sandbox_token,
-            &ctx.file.path,
-            ctx.package_cache,
-        ));
-    }
+    crate::sandbox::layer_adapter_env(
+        ctx.file,
+        key,
+        ctx.sandbox_token,
+        ctx.package_cache,
+        &mut user_env,
+    )?;
     let config = wait_or_interrupt!(resolve_config(ctx, container, key, shipped_config))?;
     let worker_dir = container.worker_dir();
     let working_dir = resolve_working_dir(
