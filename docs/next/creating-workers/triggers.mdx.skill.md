@@ -164,9 +164,10 @@ A trigger type is two things bundled together:
 2. A per-binding routing table that **your worker** maintains in-process. The engine's registry
    records the binding canonically (this is what
    [`engine::triggers::list`](../using-iii/functions#engine-functions-engine) returns), but the
-   engine doesn't dispatch on it. The engine forwards every bind/unbind from any consumer worker on
-   the network to the publisher worker as a callback, and this worker decides what to do with each
-   one.
+   legacy publisher dispatches events from its local table. The engine forwards bind/unbind work
+   to the publisher. With the opt-in `shared_v1` contract, the engine instead tracks fenced provider
+   assignments and accepts event dispatch through `engine::triggers::fire` after installation is
+   positively acknowledged. The examples below describe the legacy SDK callback flow.
 
 You declare the trigger type once at startup with
 `worker.registerTriggerType({ id, description }, handler)`.
@@ -351,9 +352,9 @@ Each SDK accepts these in its own idiomatic way:
 ### Unregister a Trigger Type
 
 Tear down a trigger type at runtime when the work it routes is no longer needed. When the worker
-disconnects, all trigger types it advertised are removed automatically and the engine stops routing
-events that depended on them, so this step is only necessary if you want to drop a type while the
-worker stays connected.
+disconnects, its provider contribution is removed automatically. In shared mode, eligible peer
+providers remain, with reassignment subject to fencing and stop evidence. Explicit unregister is
+needed only to drop the contribution while the worker stays connected.
 
 Call it any time after `registerTriggerType` while the worker stays connected (e.g. the underlying
 resource went into maintenance mode, a feature flag turned the surface off, or you want to rotate
@@ -401,10 +402,11 @@ drops `mini-http` because its HTTP listener was disabled by config:
 
 ## Dispatch events to bound functions
 
-There is no special "fire" API. When the underlying event source delivers something (an incoming
-HTTP request, a cron tick, a webhook hit), your publisher worker looks up the relevant entry in the
-`bindings` table it built inside its `registerTrigger` callback and invokes each matching function
-via `worker.trigger(...)`.
+In the legacy flow, when the underlying event source delivers something (an incoming HTTP request,
+a cron tick, a webhook hit), the publisher looks up its local `bindings` entry and invokes the
+matching function via `worker.trigger(...)`. This direct invocation is not fenced by a trigger
+assignment. A `shared_v1` publisher must use `engine::triggers::fire` with its current assignment
+instead; do not infer new SDK helpers from the raw engine protocol.
 
 Continuing the `mini-http` example from above:
 
@@ -454,6 +456,70 @@ Continuing the `mini-http` example from above:
   </Tab>
 </Tabs>
 
-On each dispatched event, the engine evaluates the consumer's `config` and optional
-`condition_function_id`, then routes matching invocations to the bound function and returns the
-result to the caller.
+A legacy direct function invocation uses normal function routing; the publisher remains responsible
+for matching its event source to the binding. The `shared_v1` gateway loads the binding's target,
+namespace, config, and metadata from the registry and dispatches through the engine's trigger path,
+including any configured condition, then normal balanced function routing.
+
+## Replicated event providers
+
+Provider replication is explicit. With [shared namespace ownership](../using-iii/configuration#shared-namespace-ownership)
+enabled, compatible external providers declare `delivery_contract: "shared_v1"` and a
+`delivery_mode`. Omitted mode means `single_active`; `parallel` requires `shared_v1`. Provider
+compatibility compares mode, contract, and trigger/call/response formats, not description. The raw
+`RegisterTriggerType` frame has only the two request format fields, not `call_response_format`.
+Legacy and in-process providers remain exclusive. The flag alone is not an adapter upgrade.
+
+- **`parallel`** installs the same canonical binding on every eligible provider. A new provider
+  receives its own replay, not a reinstall on healthy peers. A failed copy does not remove healthy
+  copies; inspect `active_owner_count` and `degraded` rather than treating one ACK as full coverage.
+- **`single_active`** chooses one provider with deterministic cyclic initial selection and keeps
+  that assignment sticky. Handover revokes the old assignment before replacing it. A live provider
+  must positively acknowledge stop; a timeout does not prove it stopped. An observed disconnect
+  permits replacement for fenced `shared_v1` work. Already accepted work may finish and is never
+  replayed by the handover.
+
+### Installation, stop, and firing
+
+Follow the [exact wire contract](../reference/engine-protocol#shared-v1-assignments). Install only
+from the engine's `registertrigger` assignment, retaining its canonical `id` and opaque
+`assignment_id`. Send `triggerregistrationresult` without `error` only after the route or timer is
+actually installed. On `unregistertrigger`, stop future emissions for that assignment before sending
+`unregistertriggerresult` without `error`. Echo the token and identity fields in each ACK.
+Successful enqueue, replay, a closed channel, or expiration of the 10-second wait never proves
+installation or stop.
+
+For an event, invoke `engine::triggers::fire` in `default` with `{ id, assignment_id, data }` over the
+current provider connection. The engine derives caller identity from the connection and rejects an
+old token, wrong socket, uninstalled assignment, or removed binding with
+`stale_trigger_assignment`. Do not bypass fencing by directly calling the bound function. The
+response is the handler's optional JSON result or an error, not an event receipt ACK or an
+exactly-once guarantee. Transport observations do not instantly detect a frozen process or stop
+work it already accepted.
+
+### HTTP, cron, and queue migration
+
+HTTP and cron event sources are **external workers**, not native engine HTTP or cron providers.
+The engine's outbound `http_functions` support is a different surface, for invoking HTTP-backed
+functions, not serving inbound routes.
+
+- An external **HTTP** provider must declare `parallel` with `shared_v1`, install the same route
+  config on all eligible providers, acknowledge each real installation, and fire matching requests
+  through the gateway. Stop ACK follows stopping new emissions for that assignment. Load balancing
+  inbound HTTP requests between provider processes remains outside the engine.
+- An external **cron** provider must declare `single_active` with `shared_v1` and preserve
+  `config.expression` when installing its timer. Keep the adapter's supported expression syntax;
+  the engine does not translate it. Stop future ticks before the stop ACK and fire ticks through
+  the gateway with the current token.
+- A **queue** consumer still needs broker leases or equivalent broker coordination. Engine fencing
+  does not replace message visibility, lease renewal, redelivery, or broker acknowledgement rules.
+
+Upgrade and validate adapters separately before enabling the startup-only flag. Give replicas
+distinct names and equal canonical schemas, plan the engine restart, and inspect eligible provider
+counts, confirmed installations, and degradation before serving traffic. Do not transfer an
+ambiguous unfenced legacy generation just because a new `shared_v1` provider appears: it stays
+parked rather than assuming the old source stopped.
+
+The external adapters' source is not present in this checkout. Engine fixtures, including real
+WebSocket connections, validate the engine protocol only. They do **not** certify production HTTP,
+cron, or queue adapters, announce SDK support, or guarantee exactly-once execution.

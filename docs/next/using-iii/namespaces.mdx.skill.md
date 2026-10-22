@@ -188,7 +188,7 @@ worker.registerTrigger({
 worker.registerTrigger({
   type: "cron",
   function_id: "engine::workers::list",
-  config: { schedule: "0 * * * *" },
+  config: { expression: "0 0 9 * * * *" },
   namespace: "default",
 });
 ```
@@ -210,13 +210,15 @@ return an ambiguity when the name exists in multiple namespaces.
 
 ## Handle a rejected registration
 
-The engine sends `registrationrejected` when a live worker already owns the same identity in the
-same namespace.
+Worker names remain exclusive within a namespace, including when shared ownership is enabled.
+With `shared_namespace_ownership: false` (the default), the engine also rejects duplicate function
+identities with `registrationrejected`:
 
 | Code                          | Effect                                                                                      |
 | ----------------------------- | ------------------------------------------------------------------------------------------- |
 | `WORKER_NAMESPACE_CONFLICT`   | Fatal. The engine closes the new connection. The SDK does not reconnect.                    |
-| `FUNCTION_NAMESPACE_CONFLICT` | The engine rejects one function. The worker stays connected and serves its other functions. |
+| `FUNCTION_NAMESPACE_CONFLICT` | With sharing disabled, the engine rejects one function. The worker stays connected. |
+| `function_owner_mismatch` | With sharing enabled, incompatible function ownership is rejected. The incumbent and new connection remain. |
 
 For a worker-name conflict, change the worker name or namespace. For a function conflict, remove the
 duplicate function id or move one worker to another namespace.
@@ -230,10 +232,84 @@ duplicate function id or move one worker to another namespace.
 For the wire fields and the exact conflict sequence, see
 [`RegistrationRejected`](../reference/engine-protocol#registrationrejected).
 
+## Shared namespace ownership
+
+Opt in with the root [startup-only setting](./configuration#shared-namespace-ownership)
+`shared_namespace_ownership: true`. Replicas must use **distinct worker names**, such as
+`orders-a` and `orders-b`, but register the same `(namespace, function_id)`. This is a single-engine
+owner set, not coordination between multiple engines.
+
+### Canonical functions and routing
+
+Session-owned functions share one canonical descriptor. `description`, `request_format`,
+`response_format`, and `metadata` must match by JSON equality, and invocation kind must agree
+(`Regular` WebSocket handlers or `External` HTTP-backed handlers). Session-specific external HTTP
+URLs, authentication, headers, and timeouts may differ without changing that descriptor.
+Config-defined and in-process functions, including builtins, stay exclusive. An incompatible join
+returns `function_owner_mismatch` without replacing the incumbent or disconnecting the newcomer.
+
+The engine atomically selects and reserves the eligible owner with the fewest engine-tracked
+in-flight invocations. Ties cycle through insertion order. This is not remote CPU load, and a
+connected but frozen process can remain eligible until the engine observes a transport failure.
+Unregister or observed disconnect removes only that owner's membership, preserving peers and
+reservations for running work. Re-registering the same session while work runs retains its load.
+Terminal completion or cancellation releases engine bookkeeping; cancellation does not prove that
+remote execution stopped.
+
+A call tries another owner only after an internal failure proves it was **not enqueued**. Each owner
+is tried at most once for that call. After enqueue, the engine never replays it on another owner.
+A timeout, disconnect after enqueue, or ambiguous external HTTP failure is not safe retry evidence.
+Transport observation is neither instant freeze detection nor an execution receipt. There is no
+exactly-once guarantee.
+
+### Logical trigger identity
+
+Equal connection-owned subscriptions coalesce into one canonical UUID, with aliases keyed by
+`(session UUID, local trigger id)`. Equality includes home namespace, target namespace, optional
+`trigger_namespace` selection, trigger type, function id, config, and metadata. Omitted provider
+selection and explicit `default` remain different intentions even when they currently resolve to
+the same provider. Reusing an alias for a different intention conflicts. Unregister or disconnect
+removes only that subscriber; removing the last subscriber tears down the physical assignments.
+Ownerless or durable bindings are intentionally separate, not another replica subscription.
+
+Provider replication also requires an explicit compatible `shared_v1` declaration. Legacy and
+in-process providers do not acquire replicated owner sets merely because the flag is on. See the
+[assignment protocol](../reference/engine-protocol#shared-v1-assignments) for modes, fencing, ACKs,
+and the limits of legacy installation evidence.
+
+### Observe eligible owners
+
+Discovery returns one row per logical function or trigger, not one row per replica. With sharing
+enabled, function summaries and detail expose `owner_count` and sorted, deduplicated `worker_names`.
+The existing `worker_name` is the deterministic oldest surviving eligible owner. Builtins report
+one owner. A worker filter matches any contributing owner but keeps aggregate counts; a worker's
+own detail view shows its contributions.
+
+Registered trigger discovery exposes:
+
+| Field | Meaning |
+| ----- | ------- |
+| `owner_count` | Eligible subscriber owners, not event providers. |
+| `provider_owner_count` | Eligible providers of the resolved type. |
+| `active_owner_count` | Current positively confirmed installations, not queued install requests. |
+| `delivery_mode` | `single_active` or `parallel`. |
+| `namespace` | Target function namespace. |
+| `provider_namespace` | Actually resolved provider namespace. |
+| `degraded` | No provider, or active installations below provider count for `parallel`, or below one for `single_active`. |
+
+An in-process provider has a direct installation path; external legacy installation needs positive,
+authoritatively correlated evidence. Unknown installation is not an active owner. Counts are
+observational samples, not an atomic freeze snapshot or a promise of execution. Membership changes,
+including two owners becoming one, notify the coalesced `engine::functions-available` listener.
+With sharing disabled, the added ownership fields are absent, not zero-filled.
+
 ## Configure RBAC for a namespace
 
 An `iii-worker-manager` `expose_functions` rule without a namespace applies to `default` only. Add
-the exact namespace when the rule must expose a namespaced function. See
+the exact namespace when the rule must expose a namespaced function. Sharing does not relax
+namespace resolution, reserved ids, or RBAC permissions. Provider, subscriber, and target namespaces
+remain separate routing decisions; a matching function id in another namespace is not a fallback.
+See
 [Namespace-scoped function rules](../creating-workers/worker-manager#namespace-scoped-function-rules).
 
 ## Related

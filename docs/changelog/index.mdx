@@ -6,6 +6,22 @@ type: "reference"
 ---
 
 <Update label="0.24.6" description="October 2026">
+  ## Shared namespace ownership (development)
+
+  - Add the default-false, startup-only `shared_namespace_ownership` engine setting. Compatible
+    session-owned functions share a canonical descriptor and use least-in-flight routing with
+    cyclic ties. Worker names stay distinct; retries require proof of failure before enqueue.
+  - Add opt-in `shared_v1` trigger providers with `parallel` and `single_active` assignments,
+    positively correlated installation and stop ACKs, fenced firing, and aggregate owner counts.
+    Unknown or ambiguous legacy generations remain degraded rather than being counted as installed.
+  - Document external HTTP migration to `parallel` and cron migration to `single_active`, both
+    using `shared_v1`. Queue consumers still require broker leases. Engine protocol fixtures do
+    not certify production adapters, provide exactly-once execution, or detect freezes instantly.
+
+  See [Configuration](/using-iii/configuration#shared-namespace-ownership),
+  [Namespaces](/using-iii/namespaces#shared-namespace-ownership), and
+  [Engine protocol](/reference/engine-protocol#shared-v1-assignments).
+
   ## Compose worker cleanup and process management
 
   - On Linux and macOS, Compose starts a reaper process that stops its workers and their process

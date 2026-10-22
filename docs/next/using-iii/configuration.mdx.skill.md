@@ -155,6 +155,32 @@ The default is `5000 ms`. Set `III_NAMESPACE_GRACE_MS` in the engine process env
 worker environment. It applies to namespace resolution for all new worker connections and overrides
 `registration_namespace_grace_ms`.
 
+## Shared namespace ownership
+
+`shared_namespace_ownership` is a global engine setting, not a configuration worker entry or a
+per-worker option. Omission is equivalent to `false`:
+
+```yaml config.yaml
+shared_namespace_ownership: false
+```
+
+Set it to `true` to allow compatible worker sessions to contribute owners to one logical function
+or trigger provider in the same namespace. The engine applies this value before creating and
+initializing workers. It is **startup-only**: restart the engine to change it. A config reload that
+changes the value is rejected before applying worker changes, with
+`shared_namespace_ownership is startup-only; restart the engine to change it`.
+
+With the flag disabled, duplicate function identities remain exclusive, provider delivery options
+are ignored, and the new shared ownership and assignment fields are omitted from engine output,
+including `engine::functions-available` notifications. Existing namespace fields are unchanged.
+Enabling the flag does not turn legacy providers into fenced replicas or add SDK support.
+
+Before enabling it, give replicas distinct worker names, keep their canonical descriptors equal,
+and validate external adapters against the `shared_v1` protocol. HTTP and cron provider migration
+requires adapter changes as well as an engine restart. See
+[Shared namespace ownership](./namespaces#shared-namespace-ownership) and
+[Replicated event providers](../creating-workers/triggers#replicated-event-providers).
+
 ## How changes apply
 
 Most settings apply the moment they change such as `http`'s CORS, timeout, and port changes. A few

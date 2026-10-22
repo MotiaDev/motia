@@ -73,9 +73,10 @@ Every frame is a JSON object discriminated by `type` (the lowercased variant nam
 | --------------------------- | ---------------- | ------------------------------------------------------ |
 | `RegisterFunction`          | worker -> engine | Make a function callable by `function_id`.             |
 | `UnregisterFunction`        | worker -> engine | Drop a previously registered function.                 |
-| `RegisterTrigger`           | worker -> engine | Bind a function to a trigger instance.                 |
-| `UnregisterTrigger`         | worker -> engine | Drop a trigger binding.                                |
-| `TriggerRegistrationResult` | engine -> worker | Ack / error for a `RegisterTrigger`.                   |
+| `RegisterTrigger` | worker -> engine; engine -> provider | Subscribe to a binding; install a provider assignment. |
+| `UnregisterTrigger` | worker -> engine; engine -> provider | Remove a subscription; stop a provider assignment. |
+| `TriggerRegistrationResult` | engine -> subscriber; provider -> engine | Binding result; installation ACK or error. |
+| `UnregisterTriggerResult` | provider -> engine | Positive stop ACK or error for an assignment. |
 | `RegisterTriggerType`       | worker -> engine | Declare a new trigger type the worker advertises.      |
 | `RegisterService`           | worker -> engine | Group related functions under a service id.            |
 | `InvokeFunction`            | engine -> worker | Call a registered function with a payload.             |
@@ -115,8 +116,7 @@ functions (`HttpInvocationRef`); leave it `null` for in-process handlers.
   "function_id": "math::add",
   "config": { "api_path": "/math/add", "http_method": "POST" },
   "metadata": null,
-  "namespace": "orders",
-  "trigger_namespace": null
+  "namespace": "orders"
 }
 ```
 
@@ -143,8 +143,9 @@ If `trigger_namespace` is present, resolution is strict: that namespace or nothi
 names a namespace is never moved to another provider.
 
 When a provider registers in a namespace after a binding already resolved to `default`, the engine
-moves that binding to the new provider. Start order does not decide which provider serves a
-project.
+normally rehomes the binding to the new provider. In shared mode this is subject to revocation and
+positive stop evidence for a live fenced provider. Ambiguous unfenced legacy execution is parked,
+not assumed stopped. Explicit `trigger_namespace` selection is never rehomed this way.
 
 These fields target `math::add` in `default`:
 
@@ -165,9 +166,8 @@ These fields target `math::add` in `orders`:
   "type": "registertriggertype",
   "id": "webhook",
   "description": "HTTP webhook trigger",
-  "trigger_request_format": { "type": "object", ... },
-  "call_request_format": { "type": "object", ... },
-  "namespace": null
+  "trigger_request_format": { "type": "object" },
+  "call_request_format": { "type": "object" }
 }
 ```
 
@@ -180,7 +180,190 @@ provider under the registering connection's namespace. Providers are keyed by
 `(namespace, trigger_type_id)`, so two workers in different namespaces can advertise the same
 `trigger_type` id without replacing each other.
 
-The engine's own providers (`http`, `cron`, `state`, `stream`) register in `default`.
+`http` and `cron` event providers are external workers, not native engine providers. In-process
+providers such as `stream` register in `default`; external workers select their own provider
+namespace. Outbound `http_functions` invokes HTTP-backed functions and is not an inbound HTTP
+trigger provider.
+
+## Shared v1 assignments
+
+This additive protocol applies only when the root startup setting
+`shared_namespace_ownership: true` is enabled and an external provider explicitly declares
+`shared_v1`. Default-false configuration preserves exclusive ownership, ignores provider delivery
+options, and omits the new optional shared fields in engine output. A restart is required to change
+the setting. The examples here are raw protocol, not new SDK helpers.
+
+### Provider declaration
+
+Provider to engine:
+
+```json
+{
+  "type": "registertriggertype",
+  "id": "http",
+  "description": "Inbound HTTP routes",
+  "delivery_mode": "parallel",
+  "delivery_contract": "shared_v1",
+  "trigger_request_format": { "type": "object" },
+  "call_request_format": { "type": "object" },
+  "namespace": "orders"
+}
+```
+
+| Field | Requirement |
+| ----- | ----------- |
+| `id`, `description` | Required strings. |
+| `delivery_mode` | Optional `single_active` or `parallel`; absent means `single_active`. |
+| `delivery_contract` | Optional `shared_v1`; absence selects the legacy contract. |
+| `trigger_request_format`, `call_request_format` | Optional JSON Schema values. |
+| `namespace` | Optional provider namespace; absence uses the connection namespace. |
+
+`parallel` requires `shared_v1`. Providers in the same `(namespace, trigger_type)` owner set must
+agree on delivery mode, contract, and trigger/call/response formats. Description is not compared.
+There is **no** `call_response_format` field in the `RegisterTriggerType` wire frame. In-process
+and legacy providers do not become replicated owner sets. Invalid or incompatible declarations
+produce the internal diagnostic `trigger_owner_mismatch`; the WebSocket dispatcher logs the
+rejection, not a new declaration ACK frame.
+
+`parallel` installs a canonical binding on all eligible providers. Joining providers receive only
+their missing copy; a failed copy does not uninstall healthy peers. `single_active` uses cyclic
+initial selection and a sticky assignment. Handover fences the old assignment first and awaits a
+positive stop ACK from a still-live provider. Observed disconnect allows fenced replacement, not
+replay of work already accepted. Unfenced legacy ambiguity parks the binding even if a
+`shared_v1` provider later joins.
+
+### Install and acknowledge
+
+Engine to provider, using the canonical binding id and an opaque assignment token:
+
+```json
+{
+  "type": "registertrigger",
+  "id": "d9c42855-53ab-4a01-93af-88ddc0054f8f",
+  "assignment_id": "bc8d6326-43e9-40af-b057-50e95dce39ac",
+  "trigger_type": "http",
+  "function_id": "math::add",
+  "config": { "api_path": "/math/add", "http_method": "POST" },
+  "metadata": { "team": "math" },
+  "namespace": "orders",
+  "trigger_namespace": "orders"
+}
+```
+
+`id`, `trigger_type`, `function_id`, and `config` are required. `assignment_id` is optional in the
+legacy enum but **required for shared_v1**. `metadata` is optional JSON. `namespace` is the target
+namespace and `trigger_namespace` is the resolved provider namespace; the engine omits either
+namespace field when its value is `default`.
+
+Provider to engine, only after the physical route or timer is installed:
+
+```json
+{
+  "type": "triggerregistrationresult",
+  "id": "d9c42855-53ab-4a01-93af-88ddc0054f8f",
+  "assignment_id": "bc8d6326-43e9-40af-b057-50e95dce39ac",
+  "trigger_type": "http",
+  "function_id": "math::add"
+}
+```
+
+Echo all four identity fields. Optional `error: ErrorBody` reports failure; no error means positive
+installation. The engine correlates the current socket/session, canonical id, trigger type,
+function id, token, and install operation. An ACK from the wrong socket or generation cannot
+activate another assignment. The consumer-facing `TriggerRegistrationResult` is a separate binding
+result, not evidence that every physical copy is installed.
+
+### Stop and acknowledge
+
+Engine to provider:
+
+```json
+{
+  "type": "unregistertrigger",
+  "id": "d9c42855-53ab-4a01-93af-88ddc0054f8f",
+  "assignment_id": "bc8d6326-43e9-40af-b057-50e95dce39ac",
+  "trigger_type": "http"
+}
+```
+
+Provider to engine, only after stopping new emissions for that assignment:
+
+```json
+{
+  "type": "unregistertriggerresult",
+  "id": "d9c42855-53ab-4a01-93af-88ddc0054f8f",
+  "assignment_id": "bc8d6326-43e9-40af-b057-50e95dce39ac",
+  "trigger_type": "http"
+}
+```
+
+For `shared_v1`, all three identity fields are required in both frames. The legacy
+`UnregisterTrigger` enum allows an absent `trigger_type`, but that is not sufficient here.
+`UnregisterTriggerResult` has optional `error: ErrorBody`; absence is a positive stop ACK. Stop
+correlation includes current socket/session, id, type, token, and stop operation. Already accepted
+invocations may finish after revocation; stop does not retract that work.
+
+The shared install/stop wait is 10 seconds. Successful enqueue, replay, timeout, or closed channel
+never proves installation or stop. Missing or negative ACKs leave installation unknown or degraded,
+not certified active. A live provider's uncertain stop must not be treated as permission to overlap
+a replacement.
+
+### Fire through the gateway
+
+The provider invokes `engine::triggers::fire` in `default` over its own current connection. Its input
+is exactly:
+
+```json
+{
+  "id": "d9c42855-53ab-4a01-93af-88ddc0054f8f",
+  "assignment_id": "bc8d6326-43e9-40af-b057-50e95dce39ac",
+  "data": { "a": 2, "b": 3 }
+}
+```
+
+`id` and `assignment_id` are strings; `data` is JSON. `_caller_worker_id` is injected or overwritten
+by the engine from the socket, not supplied as authority by the adapter. The gateway requires a
+current provider and positively acknowledged assignment. It reads the target, namespace, config,
+and metadata from the registry and uses normal trigger dispatch and balanced function routing.
+It returns the handler's optional JSON result or an `ErrorBody`, not an event receipt ACK.
+
+A stale token, wrong provider socket, uninstalled assignment, or removed binding returns:
+
+```json
+{
+  "code": "stale_trigger_assignment",
+  "message": "Trigger assignment is not active for this provider"
+}
+```
+
+`ErrorBody` requires string `code` and `message`, with optional string `stacktrace`. Assignment ACK
+errors use this same shape. Local alias reuse with a different descriptor has internal diagnostic
+`trigger_registration_conflict`; the shared WebSocket registration path wraps that failure in
+`TriggerRegistrationResult.error.code: "trigger_registration_failed"`. Do not confuse internal
+diagnostics with wire codes.
+
+### Legacy installation evidence
+
+A real positive legacy `TriggerRegistrationResult` can confirm the original/current installation
+only when the engine can authoritatively correlate the provider session, registrator, id, type,
+function, and exact immutable registry publication. Removal or replacement invalidates that
+observation. Enqueue, replay, timeout, and closed channel never establish installation, even when a
+legacy registration operation completes through its fail-open path.
+
+Legacy frames have no generation token. Reusing the **identical session/id/type/function** cannot
+distinguish a successor's ACK from a delayed or duplicate predecessor ACK. That successor remains
+unknown and degraded, with `active_owner_count: 0`, even if the legacy operation completes. A
+successor with a distinct function can have identifiable positive evidence without accepting an
+ACK for its predecessor. A failed unregister or rejected replacement preserves earlier confirmation
+only while the original publication and all original identities remain current.
+
+Fencing controls gateway admission, not remote process health or side effects. Observed transport
+failure is not instant freeze detection, cancellation is not proof of remote stop, and neither ACKs
+nor owner counts provide exactly-once execution. External HTTP should migrate to
+`parallel/shared_v1`; external cron to `single_active/shared_v1`, preserving `config.expression` and
+stopping future ticks before stop ACK. Queues still need broker leases. External adapter source is
+absent from this checkout: engine fixtures validate this protocol, **not production adapter
+certification**. See [Provider migration](../creating-workers/triggers#http-cron-and-queue-migration).
 
 ## `InvokeFunction`
 
@@ -275,7 +458,8 @@ and the severity. Each message contains only one identity field:
 | `code`                        | Identity field | Connection           | Severity                                                                                        |
 | ----------------------------- | -------------- | -------------------- | ----------------------------------------------------------------------------------------------- |
 | `WORKER_NAMESPACE_CONFLICT`   | `worker_name`  | closed by the engine | Fatal. The SDK stops the worker and does not reconnect.                                         |
-| `FUNCTION_NAMESPACE_CONFLICT` | `function_id`  | stays open           | Non-fatal. The engine refuses one function registration. The worker serves its other functions. |
+| `FUNCTION_NAMESPACE_CONFLICT` | `function_id` | stays open | Non-fatal duplicate function rejection when shared ownership is disabled. |
+| `function_owner_mismatch` | `function_id` | stays open | Non-fatal incompatible descriptor, invocation kind, or exclusive owner when sharing is enabled. |
 
 A function conflict has this format:
 
@@ -298,13 +482,17 @@ For a function ownership conflict, the engine:
 
 1. Keeps the current function owner.
 2. Does not register the new handler.
-3. Sends `FUNCTION_NAMESPACE_CONFLICT` to the new worker.
+3. Sends `FUNCTION_NAMESPACE_CONFLICT` when sharing is disabled, or `function_owner_mismatch` for an incompatible join when enabled.
 4. Keeps the new worker connection open.
 5. Continues to register and serve the new worker's other functions.
 
-`FUNCTION_NAMESPACE_CONFLICT` is a registration result. It is not an invocation result. A later
-invocation of the same function id in the same namespace goes to the current owner. It does not go
-to the worker whose registration was rejected.
+Both conflict codes are registration results, not invocation results. Later invocations use the
+current accepted owner set, never the rejected handler. With sharing enabled, matching session
+functions join one canonical owner set instead of conflicting: description, request/response
+formats, metadata, and invocation kind must agree. Builtins and config/in-process functions stay
+exclusive. See [Canonical functions and routing](../using-iii/namespaces#canonical-functions-and-routing)
+for least-in-flight selection, cyclic ties, cancellation bookkeeping, and proven-pre-enqueue-only
+retry. There is no replay after enqueue or automatic retry of ambiguous external HTTP failures.
 
 <Warning>
 A connected worker does not confirm that all its functions are registered. The SDK reports a
@@ -337,8 +525,9 @@ to the queue's retry policy.
 
 A namespace is a routing value carried with a function id. It is not part of the function name. For
 example, `state::get` has the same id in every namespace. Registries are keyed by
-`(namespace, function_id)` and `(namespace, worker_name)`, so the same id or worker name may appear
-once per namespace.
+`(namespace, function_id)` and `(namespace, worker_name)`. Worker names remain exclusive within a
+namespace. With shared ownership enabled, one logical function id can have multiple compatible
+session owners in that namespace; this does not relax namespace resolution or RBAC.
 
 A worker declares its namespace on the `engine::workers::register` call
 ([`RegisterWorkerInput.namespace`](#engine-discovery-functions)). A
@@ -401,17 +590,39 @@ and worker lifecycle. Defined in
 | `engine::workers::register`   | Publish the calling worker's metadata (runtime, version, OS, PID, isolation, optional `namespace`, optional `description`). |
 | `engine::register_trigger`    | Register a trigger that fires `function_id` directly, with optional `metadata` delivered to the handler as a distinct argument. The binding is registered in the calling worker's namespace: the target resolves there and the provider is looked up there first, then in `default`. Returns the trigger id. |
 | `engine::unregister_trigger`  | Unregister a trigger by id. Idempotent; reports whether it existed. |
+| `engine::triggers::fire` | Dispatch a positively acknowledged `shared_v1` assignment using `id`, `assignment_id`, and `data`; caller identity comes from the provider socket. |
 
 Every row returned by `engine::functions::list`, `engine::functions::info`, `engine::workers::list`,
 and `engine::workers::info` carries a `namespace` field naming the registry key under which the entry
 is registered. It distinguishes two rows that share a `function_id` or a worker `name`. Neither
 `list` function takes a `namespace` filter; both return every namespace.
 
+### Shared ownership discovery
+
+With sharing enabled, function discovery returns one logical row with `owner_count` (eligible
+session owners, or one for a builtin) and sorted, deduplicated `worker_names`. Existing `worker_name`
+is the deterministic oldest surviving eligible primary. A worker filter matches any contributor,
+without reducing aggregate counts; the worker detail view reports its own contribution.
+
+Registered trigger rows add `owner_count` (eligible subscribers), `provider_owner_count` (eligible
+providers), `active_owner_count` (current positively confirmed installations), `delivery_mode`,
+`provider_namespace`, target `namespace`, and `degraded`. Degradation means no provider or fewer
+confirmed active installations than provider count in `parallel`, or fewer than one in
+`single_active`. These are observational samples, not a freeze snapshot or execution guarantee.
+With sharing disabled, the added shared ownership fields are omitted, including in the manual JSON
+for `engine::functions-available`.
+
+Equal connection-owned trigger intentions coalesce to a canonical UUID with
+`(session UUID, local id)` aliases. Identity includes home namespace, target namespace, optional
+provider selection (absence differs from explicit `default`), type, function, config, and metadata.
+Removing one subscriber preserves peers; the last removal tears down physical assignments.
+Ownerless/durable bindings are intentionally distinct and do not coalesce as replicas.
+
 ## Engine discovery triggers
 
 | Trigger                       | Fires when                                |
 | ----------------------------- | ----------------------------------------- |
-| `engine::functions-available` | A function is registered or unregistered. |
+| `engine::functions-available` | A function or its owner membership changes, including two owners becoming one; notifications are coalesced. |
 | `engine::workers-available`   | A worker connects or disconnects.         |
 
 ## Engine-collected metrics
