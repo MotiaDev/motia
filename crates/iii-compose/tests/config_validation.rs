@@ -5,7 +5,7 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use iii_compose::{ComposeFile, RestartPolicy, config::SandboxSpec};
+use iii_compose::{ComposeError, ComposeFile, RestartPolicy, config::SandboxSpec};
 
 fn parse(text: &str) -> Result<ComposeFile, iii_compose::ComposeError> {
     ComposeFile::parse(text, PathBuf::from("/srv/app/worker-compose.yaml"))
@@ -1158,5 +1158,52 @@ fn engine_sandbox_rejects_unknown_keys() {
     assert_eq!(
         code("engine:\n  sandbox: {adaptor: x}\ncontainers: {}\n"),
         "INVALID_COMPOSE_FILE"
+    );
+}
+
+const MOVED: &str = "engine.workers.iii-sandbox was removed in iii 0.25: sandboxes now run in the sandbox-builtin worker, which Compose installs for you. Replace the block with `engine.sandbox.adapter: sandbox-builtin` (optional, the default) and move image_allowlist/custom_images/default_* to `containers.sandbox-builtin.config_override`. Guide: https://iii.dev/docs/upgrading/sandbox-worker";
+
+#[test]
+fn the_0_24_sandbox_block_fails_with_its_replacement() {
+    let error = parse(
+        "engine:\n  workers:\n    iii-sandbox:\n      image_allowlist: [python]\n      default_cpus: 2\ncontainers: {}\n",
+    )
+    .unwrap_err();
+    assert_eq!(error.code(), "SANDBOX_CONFIG_MOVED");
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "{MOVED}\n\ncontainers:\n  sandbox-builtin:\n    worker: package://sandbox-builtin\n    version: '^1'\n    config_override:\n      image_allowlist:\n      - python\n      default_cpus: 2\n"
+        )
+    );
+}
+
+#[test]
+fn replacement_yaml_parses_and_keeps_the_old_block() {
+    for block in [
+        "iii-sandbox:\n      image_allowlist: [python, node]\n      custom_images: {r: {image: 'docker.io/r:1'}}",
+        "iii-sandbox#second: {}",
+    ] {
+        let Err(ComposeError::SandboxConfigMoved { replacement }) = parse(&format!(
+            "engine:\n  workers:\n    {block}\ncontainers: {{}}\n"
+        )) else {
+            panic!("{block}")
+        };
+        let file = ComposeFile::parse(&replacement, "/tmp/worker-compose.yaml").unwrap();
+        let adapter = &file.containers["sandbox-builtin"];
+        assert_eq!(adapter.version.as_deref(), Some("^1"));
+        let old: serde_yaml::Mapping = serde_yaml::from_str(block).unwrap();
+        assert_eq!(adapter.config_override.as_ref(), old.values().next());
+    }
+}
+
+#[test]
+fn unsupported_engine_worker_points_to_engine_sandbox() {
+    let message = parse("engine:\n  workers:\n    queue: {}\ncontainers: {}\n")
+        .unwrap_err()
+        .to_string();
+    assert!(
+        !message.contains("iii-sandbox") && message.contains("engine.sandbox"),
+        "{message}"
     );
 }

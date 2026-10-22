@@ -495,6 +495,11 @@ fn validate_engine(raw: RawEngineSpec) -> Result<EngineSpec> {
     let mut workers = BTreeMap::new();
     for (name, config) in raw.workers {
         let worker_type = engine_worker_type(&name);
+        if worker_type == "iii-sandbox" {
+            return Err(ComposeError::SandboxConfigMoved {
+                replacement: sandbox_replacement(&config),
+            });
+        }
         if INJECTED_ENGINE_WORKERS.contains(&worker_type) {
             return Err(ComposeError::EngineWorkerIsInjected { worker: name });
         }
@@ -526,6 +531,21 @@ fn validate_engine(raw: RawEngineSpec) -> Result<EngineSpec> {
         workers,
         sandbox: raw.sandbox,
     })
+}
+
+/// The `containers:` entry that carries a 0.24 `engine.workers.iii-sandbox`
+/// block to `sandbox-builtin`. It has no `# added by compose::add` marker: the
+/// operator declares it, so Compose never removes it with its `config_override`.
+/// The version is a range because the migration check is offline.
+pub fn sandbox_replacement(old: &serde_yaml::Value) -> String {
+    let mut text = format!(
+        "containers:\n  sandbox-builtin:\n    worker: package://sandbox-builtin\n    version: '^{}'\n    config_override:\n",
+        iii_sandbox_contract::CONTRACT_MAJOR
+    );
+    for line in serde_yaml::to_string(old).unwrap_or_default().lines() {
+        text.push_str(&format!("      {line}\n"));
+    }
+    text
 }
 
 /// Reads `engine.url` from a Compose document, and nothing else.
