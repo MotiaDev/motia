@@ -14,6 +14,7 @@ check "clicks drained from the queue" '"clicks": 3' \
   "$(t database::query db=primary sql="SELECT COUNT(*) AS clicks FROM clicks WHERE code = 'analyticslink1'")"
 
 check_duplicate analyticslink2
+check_missing_url
 check "a duplicate publishes no link.created" '"count": 5' \
   "$(sleep 3; t database::query db=analytics sql="SELECT day, count FROM daily_link_counts")"
 

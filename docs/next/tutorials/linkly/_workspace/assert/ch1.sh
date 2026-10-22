@@ -13,6 +13,7 @@ check "GET /s/:code 302" '302' "$(curl -s -o /dev/null -w '%{http_code}' "$HTTP/
 check "GET unknown code" '404' "$(curl -s -o /dev/null -w '%{http_code}' "$HTTP/s/missing")"
 
 check_duplicate iii
+check_missing_url
 check "duplicate did not overwrite" 'https://iii.dev' "$(t link::resolve code=iii)"
 
 finish
