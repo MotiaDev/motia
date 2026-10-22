@@ -65,6 +65,10 @@ Restart the project with:
 iii trigger compose::restart
 ```
 
+The links you created in Chapters 1 and 2 lived only in the in-memory `state`: the restart clears
+them, and the new `links` table starts empty. Once this chapter's code is in, create again with
+`POST /links` any link you still need.
+
 The worker will be in charge of defining its own schema. We'll build up the necessary changes to
 `link/src/index.ts` in pieces.
 
@@ -288,6 +292,11 @@ iii trigger database::query db=primary sql="SELECT COUNT(*) AS clicks FROM click
 }
 ```
 
+<Info>
+  Did you know that `--help` works with function id's as well? Try running: `iii trigger
+  database::query --help` to see what arguments `database::query` accepts.
+</Info>
+
 Run the loop a second time and each `POST /links` answers `409`, because the codes are taken:
 
 ```json
@@ -297,11 +306,6 @@ Run the loop a second time and each `POST /links` answers `409`, because the cod
 The redirects still go through, so the click count above grows by three on every run.
 
 ## Conclusion
-
-<Info>
-  Did you know that `--help` works with function id's as well? Try running: `iii trigger
-  database::query --help` to see what arguments `database::query` accepts.
-</Info>
 
 Linkly's links are now durable: the database is the source of truth, `state` keeps lookups fast, and
 every redirect appends a timestamped row to the `clicks` table. But that row is written on the

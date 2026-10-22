@@ -1305,16 +1305,22 @@ impl Engine {
 
     /// Routes one frame read from a worker's socket. A report is taken by
     /// value: its payloads move into the activations instead of being copied.
-    async fn route_frame(&self, worker: &WorkerConnection, msg: Message) -> anyhow::Result<()> {
+    async fn route_frame(
+        &self,
+        worker: &WorkerConnection,
+        msg: Message,
+        hold: &mut crate::observer::ReportHold,
+    ) -> anyhow::Result<()> {
         match msg {
             Message::InvocationsObserved { items } => {
                 let full =
                     self.observers
                         .report(worker.id, &self.connection_namespace(worker), items);
                 // Backpressure: nothing more is read from this worker until
-                // the queues its report overflowed have room again.
+                // the queues its report overflowed have room again, and at
+                // most four fifths of the time (`hold`).
                 if !full.is_empty() {
-                    self.observers.wait_for_room(&full).await;
+                    self.observers.wait_for_room(hold, &full).await;
                 }
                 Ok(())
             }
@@ -2997,8 +3003,11 @@ impl Engine {
                     &self.connection_namespace(worker),
                     items.clone(),
                 );
+                // Not read from a socket: one hold at most.
                 if !full.is_empty() {
-                    self.observers.wait_for_room(&full).await;
+                    self.observers
+                        .wait_for_room(&mut crate::observer::ReportHold::default(), &full)
+                        .await;
                 }
                 Ok(())
             }
@@ -3277,6 +3286,7 @@ impl Engine {
             .await;
 
         let mut oversized_warnings = OversizedWarnings::default();
+        let mut report_hold = crate::observer::ReportHold::default();
         loop {
             tokio::select! {
                 // `biased` + eviction first: once a reattaching successor
@@ -3310,7 +3320,7 @@ impl Engine {
                                 continue;
                             }
                             match serde_json::from_str::<Message>(&text) {
-                                Ok(msg) => self.route_frame(&worker, msg).await?,
+                                Ok(msg) => self.route_frame(&worker, msg, &mut report_hold).await?,
                                 Err(err) => {
                                     tracing::warn!(peer = %peer, error = ?err, "json decode error");
                                     self.answer_undecodable(&worker, text.as_bytes(), &err).await;
@@ -3339,7 +3349,7 @@ impl Engine {
                             if !handled {
                                 // Not a telemetry frame, try to decode as regular protocol message
                                 match serde_json::from_slice::<Message>(&bytes) {
-                                    Ok(msg) => self.route_frame(&worker, msg).await?,
+                                    Ok(msg) => self.route_frame(&worker, msg, &mut report_hold).await?,
                                     Err(err) => {
                                         tracing::warn!(peer = %peer, error = ?err, "binary decode error");
                                         self.answer_undecodable(&worker, &bytes, &err).await;
@@ -3420,7 +3430,10 @@ impl Engine {
                     traceparent: None,
                     baggage: None,
                 };
-                if let Err(error) = self.route_frame(worker, result).await {
+                // A result never waits on report backpressure, so it takes a
+                // hold of its own.
+                let mut hold = crate::observer::ReportHold::default();
+                if let Err(error) = self.route_frame(worker, result, &mut hold).await {
                     tracing::warn!(worker_id = %worker.id, error = ?error, "Failed to complete an invocation whose result was too large");
                 }
                 "completed the invocation"

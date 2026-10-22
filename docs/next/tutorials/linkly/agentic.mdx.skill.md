@@ -162,6 +162,12 @@ agentic stack you'll use to develop it:
 iii compose --up
 ```
 
+<Note>
+  `iii compose --up` stays in the foreground. Press Ctrl+C in that terminal to stop the engine, the
+  agent stack and your workers. From another terminal, `iii kill --compose <project folder>` stops
+  the same project: its Compose daemon, its engine and its workers.
+</Note>
+
 Open the console and harness which are at [http://127.0.0.1:3113](http://127.0.0.1:3113).
 
 For the rest of this guide you can copy the example prompts below and paste them into a chat in the
@@ -212,10 +218,13 @@ Add two functions:
   <code>) and return { url } or { url: null }.
 
 Then expose them over HTTP through the http worker:
-- an http::create function and a POST /links trigger that calls link::create, returns 201 with
-  { code, url }, and 409 with { error } when the requested code is taken. The error is the message
-  link::create threw: the SDK rejects with an InvocationError (exported by iii-sdk) whose message
-  is `<err.code>: <message>`, so cut that prefix off with err.message.slice(err.code.length + 2).
+- an http::create function and a POST /links trigger. When the body has no url it answers 400
+  with { error } without calling link::create. Otherwise it calls link::create and returns 201
+  with { code, url }. When link::create throws, take its message: the SDK rejects with an
+  InvocationError (exported by iii-sdk) whose message is `<err.code>: <message>`, so cut that
+  prefix off with err.message.slice(err.code.length + 2). Answer 409 with { error: <that message> }
+  only when it ends with "is already taken"; log anything else and answer 500 with a generic
+  { error }.
 - an http::redirect function and a GET /s/:code trigger that reads the code from req.path_params.code,
   resolves it, and returns a 302 to the url, or 404 when it is unknown.
 
@@ -260,6 +269,10 @@ curl -i http://127.0.0.1:3111/s/docs
 ```bash
 iii trigger state::get scope="links" key="docs"
 ```
+
+Send the same `POST /links` again and it answers `409` with
+``{"error":"code `docs` is already taken"}``: only `link::create`'s stable `is already taken`
+message decides `409`, a body without `url` answers `400`, and any other failure answers `500`.
 
 The exploratory version of [Ch. 1: Foundations](/tutorials/linkly/foundations) explains
 `registerWorker`, `registerFunction`, and `registerTrigger` in depth.
@@ -334,6 +347,10 @@ When it works, tell me to continue to the next chapter of the Linkly tutorial.
 
 </CodeGroup>
 
+The links from Chapters 1 and 2 (`home`, `docs`) stay only in `state`: they still resolve from the
+cache, but they are not in the new `links` table and are gone the next time `state` restarts, so
+create again with `POST /links` any of them you want to keep.
+
 Try it from the console at [http://127.0.0.1:3113](http://127.0.0.1:3113).
 
 Select the **Triggers** page. Shorten a link with `POST /links` using
@@ -345,10 +362,11 @@ Open another tab with the **+**, then select the **Functions** page, and open `d
 Invoke it with `{"db":"primary","sql":"SELECT COUNT(*) AS clicks FROM clicks WHERE code = 'news'"}`,
 then read the count off the result view.
 
-You can even restart the entire system to confirm that data is persisting. Run:
-`iii trigger compose::restart --namespace default` from the CLI or run it from within the Console by
-navigating to the **Function** tab, selecting `compose::restart` and giving it the payload:
-`{ "namespace": "default" }`
+To confirm that the data persists, restart the database worker and run the same query again: the
+count is unchanged. Run `iii trigger compose::restart container=database` from the CLI, or invoke
+`compose::restart` on the **Functions** page with `{ "container": "database" }`. Restart only that
+container, never the whole project: the agent's harness runs in this project too, and a full
+restart cuts the agent off in the middle of its turn.
 
 The same flow from the CLI:
 
@@ -582,9 +600,9 @@ Turn a browser tab into a worker.
   tab's user::confirm_destructive_op in browser_namespace directly (the caller passes the full
   "browser-<uuid>" string; the handler uses it as-is with no prefix construction). before deleting.
 - Create a Vite React app in frontend/ with `npm create vite@latest frontend -- --template
-  react-ts`, install iii-browser-sdk, and write frontend/src/iii.ts and frontend/src/App.tsx that
-  connect in a per-tab `browser-<session>` namespace, call link::create in the default namespace,
-  and register user::confirm_destructive_op. For a live click counter, bind ui::on_click to the
+  react-ts --no-interactive`, install iii-browser-sdk, and write frontend/src/iii.ts and
+  frontend/src/App.tsx that connect in a per-tab `browser-<session>` namespace, call link::create
+  in the default namespace, and register user::confirm_destructive_op. For a live click counter, bind ui::on_click to the
   click-streamer::click trigger type first, then read the starting count with link::click_summary
   (default namespace); skip clicks whose id is at or below the last_id already counted, and read the
   count again after a reconnect.
@@ -592,8 +610,9 @@ Turn a browser tab into a worker.
   Never pass the raw UUID as a namespace argument; always pass the fully-constructed string so the
   server can use it without knowing the prefix convention.
 - Have redirect links point at the http worker serving the redirects, not the frontend.
-- Have the frontend show all existing generated links on load, and show the tab's own
-  `browser-<session>` namespace on the page so it can be copied.
+- Have the frontend show the link it just created, and show the tab's own `browser-<session>`
+  namespace on the page so it can be copied. Do not list the existing links: the allowlist above
+  exposes no function for that.
 
 This chapter has the most independent pieces. Add and configure the rbac-proxy yourself first, since
 the others depend on it, then run three subagents on separate directories at the same time:
