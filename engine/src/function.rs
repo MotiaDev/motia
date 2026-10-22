@@ -93,14 +93,26 @@ impl SessionFunction {
         owners.len() == 1 && owners[0].0 == owner
     }
 
-    pub fn join(&self, owner: Uuid, handler: Arc<HandlerFn>) {
+    pub fn join(&self, owner: Uuid, handler: Arc<HandlerFn>) -> bool {
         let mut owners = self
             .owners
             .write()
             .expect("session function owners poisoned");
         if !owners.iter().any(|(id, _)| *id == owner) {
             owners.push((owner, handler));
+            true
+        } else {
+            false
         }
+    }
+
+    pub fn owner_ids(&self) -> Vec<Uuid> {
+        self.owners
+            .read()
+            .expect("session function owners poisoned")
+            .iter()
+            .map(|(id, _)| *id)
+            .collect()
     }
 
     pub fn remove(&self, owner: Uuid) -> bool {
@@ -250,7 +262,7 @@ impl FunctionsRegistry {
         }
     }
 
-    fn notify_change(&self, change: FunctionChange, namespace: &str, function_id: &str) {
+    pub(crate) fn notify_change(&self, change: FunctionChange, namespace: &str, function_id: &str) {
         let listener = self
             .change_listener
             .read()

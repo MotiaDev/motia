@@ -651,6 +651,76 @@ impl TriggerRegistry {
         members.clone()
     }
 
+    /// Observational counts only: membership and ACK state are sampled separately.
+    pub(crate) fn ownership_snapshot(
+        &self,
+        trigger: &Trigger,
+        eligible: impl Fn(Uuid) -> bool,
+    ) -> (usize, usize, usize, TriggerDeliveryMode, bool) {
+        let owner_count = {
+            let subscriptions = self.subscriptions.lock().expect("subscriptions poisoned");
+            if subscriptions.intents.contains_key(&trigger.id) {
+                subscriptions
+                    .aliases
+                    .iter()
+                    .filter(|((owner, _), id)| *id == &trigger.id && eligible(*owner))
+                    .map(|((owner, _), _)| *owner)
+                    .collect::<std::collections::HashSet<_>>()
+                    .len()
+            } else {
+                usize::from(trigger.worker_id.is_none_or(&eligible))
+            }
+        };
+        let providers = self
+            .assignment_providers(&trigger.provider_key())
+            .into_iter()
+            .filter(|p| p.worker_id.is_none_or(&eligible))
+            .collect::<Vec<_>>();
+        let mode = providers
+            .first()
+            .map(|p| p.delivery_mode)
+            .unwrap_or_default();
+        let provider_count = providers.len();
+        let active_count = self.assignments.get(&trigger.id).map_or_else(
+            || {
+                usize::from(
+                    providers.iter().any(|p| p.worker_id.is_none())
+                        && self.triggers.contains_key(&trigger.id),
+                )
+            },
+            |state| {
+                if state.removed.load(std::sync::atomic::Ordering::SeqCst)
+                    || state.transferring.load(std::sync::atomic::Ordering::SeqCst)
+                    || self.legacy_execution_uncertain(&trigger.id)
+                {
+                    return 0;
+                }
+                state
+                    .copies
+                    .lock()
+                    .expect("copies poisoned")
+                    .values()
+                    .filter(|(p, _, ack)| {
+                        *ack && providers
+                            .iter()
+                            .any(|current| current.worker_id == p.worker_id)
+                    })
+                    .count()
+            },
+        );
+        let required = match mode {
+            TriggerDeliveryMode::Parallel => provider_count,
+            TriggerDeliveryMode::SingleActive => 1,
+        };
+        (
+            owner_count,
+            provider_count,
+            active_count,
+            mode,
+            provider_count == 0 || active_count < required,
+        )
+    }
+
     /// Linearization point for accepting provider work. No guard survives dispatch:
     /// already accepted work may finish, but is never replayed during handover.
     pub(crate) fn firing_assignment(

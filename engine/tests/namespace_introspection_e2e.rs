@@ -1153,3 +1153,540 @@ async fn a_blank_namespace_on_register_is_refused() {
         "a refused registration must leave nothing behind: {names:?}"
     );
 }
+
+// Shared ownership introspection uses the public startup flag and real worker
+// registrations. Pong barriers prove progress without guessing when metadata
+// and the buffered function registrations have reached the engine.
+type IntrospectionClient =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+
+async fn introspection_engine(
+    enabled: bool,
+) -> (u16, Arc<Engine>, iii::EngineBuilder, tempfile::TempDir) {
+    use iii::workers::config::{EngineConfig, WorkerEntry};
+    let directory = tempfile::tempdir_in(".").expect("worktree-local configuration");
+    let probe = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = probe.local_addr().unwrap().port();
+    drop(probe);
+    let builder = iii::EngineBuilder::new()
+        .with_config(EngineConfig {
+            shared_namespace_ownership: enabled,
+            workers: vec![
+                WorkerEntry {
+                    name: "configuration".into(),
+                    image: None,
+                    config: Some(
+                        json!({"adapter":{"name":"fs","config":{"directory":directory.path()}}}),
+                    ),
+                },
+                WorkerEntry {
+                    name: "iii-worker-manager".into(),
+                    image: None,
+                    config: Some(json!({"host":"127.0.0.1", "port":port})),
+                },
+            ],
+            ..EngineConfig::default()
+        })
+        .build()
+        .await
+        .expect("configured engine");
+    let engine = builder.engine_handle();
+    assert_eq!(engine.shared_namespace_ownership(), enabled);
+    if engine
+        .functions
+        .get(DEFAULT_NAMESPACE, "engine::functions::list")
+        .is_none()
+    {
+        let worker = EngineFunctionsWorker::create(engine.clone(), None)
+            .await
+            .unwrap();
+        worker.initialize().await.unwrap();
+        worker.register_functions(engine.clone());
+    }
+    let manager = builder
+        .running()
+        .iter()
+        .find(|w| w.entry.name == "iii-worker-manager")
+        .unwrap();
+    let (tx, rx) = tokio::sync::watch::channel(false);
+    manager.worker.start_background_tasks(rx, tx).await.unwrap();
+    (port, engine, builder, directory)
+}
+
+async fn introspection_send(ws: &mut IntrospectionClient, message: Value) {
+    ws.send(WsMessage::Text(message.to_string().into()))
+        .await
+        .unwrap();
+}
+
+async fn introspection_frame(ws: &mut IntrospectionClient, kind: &str) -> Value {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while let Some(Ok(WsMessage::Text(text))) = ws.next().await {
+            let message: Value = serde_json::from_str(&text).unwrap();
+            assert_ne!(message["type"], "registrationrejected", "{message}");
+            if message["type"] == kind {
+                return message;
+            }
+        }
+        panic!("worker closed before {kind}");
+    })
+    .await
+    .expect("worker protocol progress")
+}
+
+async fn introspection_barrier(ws: &mut IntrospectionClient) {
+    introspection_send(ws, json!({"type":"ping"})).await;
+    introspection_frame(ws, "pong").await;
+}
+
+async fn introspection_replica(port: u16, name: &str, namespace: &str) -> IntrospectionClient {
+    let mut ws = connect_worker_with_metadata(
+        port,
+        name,
+        Some(namespace),
+        "svc::shared",
+        4800,
+        Some(json!({"scope":"public", "team":namespace})),
+    )
+    .await;
+    introspection_barrier(&mut ws).await;
+    ws
+}
+
+fn introspection_row<'a>(value: &'a Value, field: &str, namespace: &str) -> &'a Value {
+    let rows: Vec<_> = value[field]
+        .as_array()
+        .expect("rows")
+        .iter()
+        .filter(|row| row["function_id"] == "svc::shared" && row["namespace"] == namespace)
+        .collect();
+    assert_eq!(
+        rows.len(),
+        1,
+        "one logical function per exact namespace: {value}"
+    );
+    rows[0]
+}
+
+async fn introspection_listener(
+    engine: &Arc<Engine>,
+) -> tokio::sync::mpsc::UnboundedReceiver<Value> {
+    use iii::engine::{EngineTrait, Handler, RegisterFunctionRequest};
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    engine.register_function_handler(
+        RegisterFunctionRequest {
+            function_id: "test::introspection_events".into(),
+            description: None,
+            request_format: None,
+            response_format: None,
+            metadata: None,
+        },
+        Handler::new(move |value| {
+            let tx = tx.clone();
+            async move {
+                tx.send(value).unwrap();
+                FunctionResult::Success(None)
+            }
+        }),
+    );
+    engine
+        .trigger_registry
+        .register_trigger(iii::trigger::Trigger {
+            id: "introspection-listener".into(),
+            trigger_type: "engine::functions-available".into(),
+            function_id: "test::introspection_events".into(),
+            config: json!({}),
+            worker_id: None,
+            metadata: None,
+            namespace: DEFAULT_NAMESPACE.into(),
+            trigger_namespace: None,
+            home_namespace: DEFAULT_NAMESPACE.into(),
+            provider_namespace: DEFAULT_NAMESPACE.into(),
+        })
+        .await
+        .expect("existing coalesced functions listener");
+    rx
+}
+
+async fn introspection_event(
+    rx: &mut tokio::sync::mpsc::UnboundedReceiver<Value>,
+    matches: impl Fn(&Value) -> bool,
+) -> Value {
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let event = rx.recv().await.expect("event channel");
+            if matches(&event) {
+                return event;
+            }
+        }
+    })
+    .await
+    .expect("membership change must notify the existing listener")
+}
+
+#[tokio::test]
+async fn shared_namespace_introspection_canonical_rows_any_owner_filter_and_rbac() {
+    let (port, engine, _builder, _directory) = introspection_engine(true).await;
+    // Deliberately reverse lexical order: primary means earliest, names sorted.
+    let _first = introspection_replica(port, "z-first", "orders").await;
+    let _second = introspection_replica(port, "a-second", "orders").await;
+    let _other = introspection_replica(port, "billing-only", "billing").await;
+    let listing = call_engine_fn(
+        &engine,
+        "engine::functions::list",
+        json!({"prefix":"svc::"}),
+    )
+    .await;
+    assert_eq!(listing["functions"].as_array().unwrap().len(), 2);
+    let row = introspection_row(&listing, "functions", "orders");
+    assert_eq!(row["metadata"], json!({"scope":"public", "team":"orders"}));
+    assert_eq!(
+        row["owner_count"], 2,
+        "count eligible registered owners, not logical rows"
+    );
+    assert_eq!(row["worker_name"], "z-first");
+    assert_eq!(row["worker_names"], json!(["a-second", "z-first"]));
+    for input in [
+        json!({"worker":"a-second"}),
+        json!({"workers":["a-second"]}),
+    ] {
+        let filtered = call_engine_fn(&engine, "engine::functions::list", input).await;
+        let row = introspection_row(&filtered, "functions", "orders");
+        assert_eq!(filtered["functions"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            row["owner_count"], 2,
+            "filter must not reduce total membership"
+        );
+    }
+    for name in ["z-first", "a-second"] {
+        let worker = call_engine_fn(
+            &engine,
+            "engine::workers::info",
+            json!({"name":name,"namespace":"orders"}),
+        )
+        .await;
+        assert_eq!(
+            introspection_row(&worker, "functions", "orders")["worker_name"],
+            name,
+            "worker view describes its own contribution"
+        );
+    }
+    let session = session_exposing_metadata(engine.clone(), "orders", "team", "orders");
+    let allowed = call_engine_fn_raw(
+        &engine,
+        "engine::functions::list",
+        json!({"prefix":"svc::"}),
+        Some(session.clone()),
+    )
+    .await;
+    let FunctionResult::Success(Some(allowed)) = allowed else {
+        panic!("canonical RBAC listing");
+    };
+    assert_eq!(allowed["functions"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        introspection_row(&allowed, "functions", "orders")["owner_count"],
+        2
+    );
+    let detail = call_engine_fn_raw(
+        &engine,
+        "engine::functions::info",
+        json!({"function_id":"svc::shared","namespace":"orders"}),
+        Some(session.clone()),
+    )
+    .await;
+    let FunctionResult::Success(Some(detail)) = detail else {
+        panic!("canonical metadata authorizes detail");
+    };
+    assert_eq!(detail["owner_count"], 2);
+    assert_eq!(detail["worker_names"], json!(["a-second", "z-first"]));
+    assert_eq!(detail["metadata"], row["metadata"]);
+    match call_engine_fn_raw(
+        &engine,
+        "engine::functions::info",
+        json!({"function_id":"svc::shared","namespace":"billing"}),
+        Some(session),
+    )
+    .await
+    {
+        FunctionResult::Failure(error) => assert_eq!(error.code, "FORBIDDEN"),
+        _ => panic!("shared ownership must not broaden namespace/RBAC access"),
+    }
+    let builtin = call_engine_fn(
+        &engine,
+        "engine::functions::info",
+        json!({"function_id":"engine::functions::list"}),
+    )
+    .await;
+    assert_eq!(builtin["owner_count"], 1);
+}
+
+#[tokio::test]
+async fn shared_namespace_introspection_membership_two_to_one_keeps_canonical_descriptor() {
+    let (port, engine, _builder, _directory) = introspection_engine(true).await;
+    let mut first = introspection_replica(port, "z-first", "orders").await;
+    let _second = introspection_replica(port, "a-second", "orders").await;
+    first.close(None).await.unwrap();
+    assert!(
+        eventually(|| engine
+            .worker_registry
+            .list_workers()
+            .iter()
+            .all(|w| w.name.as_deref() != Some("z-first")))
+        .await
+    );
+    let detail = call_engine_fn(
+        &engine,
+        "engine::functions::info",
+        json!({"function_id":"svc::shared","namespace":"orders"}),
+    )
+    .await;
+    assert_eq!(
+        detail["metadata"],
+        json!({"scope":"public", "team":"orders"})
+    );
+    assert_eq!(
+        detail["owner_count"], 1,
+        "surviving eligible session remains discoverable"
+    );
+    assert_eq!(detail["worker_name"], "a-second");
+    assert_eq!(detail["worker_names"], json!(["a-second"]));
+}
+
+#[tokio::test]
+async fn shared_namespace_introspection_functions_available_contains_aggregate_fields() {
+    let (port, engine, _builder, _directory) = introspection_engine(true).await;
+    let mut events = introspection_listener(&engine).await;
+    let _first = introspection_replica(port, "z-first", "orders").await;
+    let _second = introspection_replica(port, "a-second", "orders").await;
+    let event = introspection_event(&mut events, |e| {
+        e["functions"].as_array().is_some_and(|rows| {
+            rows.iter().any(|r| {
+                r["function_id"] == "svc::shared"
+                    && (r.get("owner_count").is_none() || r["owner_count"] == 2)
+            })
+        })
+    })
+    .await;
+    assert_eq!(event["event"], "functions_changed");
+    let row = introspection_row(&event, "functions", "orders");
+    assert_eq!(
+        row["owner_count"], 2,
+        "manual notification JSON must include aggregate membership"
+    );
+    assert_eq!(row["worker_names"], json!(["a-second", "z-first"]));
+    assert_eq!(row["worker_name"], "z-first");
+    assert_eq!(row["metadata"]["team"], "orders");
+}
+
+#[tokio::test]
+async fn shared_namespace_introspection_functions_available_notifies_two_to_one() {
+    let (port, engine, _builder, _directory) = introspection_engine(true).await;
+    let mut events = introspection_listener(&engine).await;
+    let mut first = introspection_replica(port, "z-first", "orders").await;
+    let _second = introspection_replica(port, "a-second", "orders").await;
+    introspection_event(&mut events, |e| {
+        e["functions"]
+            .as_array()
+            .is_some_and(|rows| rows.iter().any(|r| r["function_id"] == "svc::shared"))
+    })
+    .await;
+    // Consume any coalesced join event before disconnect; the required event
+    // must be scheduled by membership shrink, not a later registration.
+    while tokio::time::timeout(Duration::from_millis(300), events.recv())
+        .await
+        .is_ok()
+    {}
+    first.close(None).await.unwrap();
+    assert!(
+        eventually(|| engine
+            .worker_registry
+            .list_workers()
+            .iter()
+            .all(|w| w.name.as_deref() != Some("z-first")))
+        .await
+    );
+    let event = introspection_event(&mut events, |e| {
+        e["functions"].as_array().is_some_and(|rows| {
+            rows.iter()
+                .any(|r| r["function_id"] == "svc::shared" && r["worker_name"] == "a-second")
+        })
+    })
+    .await;
+    let row = introspection_row(&event, "functions", "orders");
+    assert_eq!(row["owner_count"], 1);
+    assert_eq!(row["worker_names"], json!(["a-second"]));
+}
+
+async fn introspection_ack(ws: &mut IntrospectionClient, frame: &Value) {
+    assert!(
+        frame["assignment_id"]
+            .as_str()
+            .is_some_and(|s| !s.is_empty()),
+        "positive shared_v1 assignment: {frame}"
+    );
+    introspection_send(
+        ws,
+        json!({"type":"triggerregistrationresult", "id":frame["id"],
+        "trigger_type":frame["trigger_type"], "function_id":frame["function_id"],
+        "assignment_id":frame["assignment_id"]}),
+    )
+    .await;
+    introspection_barrier(ws).await;
+}
+
+async fn introspection_trigger_list(engine: &Arc<Engine>, include_pending: bool) -> Value {
+    call_engine_fn(
+        engine,
+        "engine::registered-triggers::list",
+        json!({"trigger_type":"fixture:introspection", "include_pending":include_pending}),
+    )
+    .await
+}
+
+#[tokio::test]
+async fn shared_namespace_introspection_subscriber_provider_and_acknowledged_active_counts() {
+    let (port, engine, _builder, _directory) = introspection_engine(true).await;
+    let mut a = introspection_replica(port, "provider-a", "orders").await;
+    let mut b = introspection_replica(port, "provider-b", "orders").await;
+    for ws in [&mut a, &mut b] {
+        introspection_send(ws, json!({"type":"registertriggertype", "id":"fixture:introspection", "description":"introspection fixture",
+            "delivery_mode":"parallel", "delivery_contract":"shared_v1"})).await;
+        introspection_barrier(ws).await;
+    }
+    introspection_send(&mut a, json!({"type":"registertrigger", "id":"subscriber-a", "trigger_type":"fixture:introspection",
+        "function_id":"svc::shared", "namespace":"orders", "config":{"topic":"orders"}})).await;
+    let (install_a, install_b) = tokio::join!(
+        introspection_frame(&mut a, "registertrigger"),
+        introspection_frame(&mut b, "registertrigger")
+    );
+    assert_eq!(
+        install_a["id"], install_b["id"],
+        "one canonical logical binding"
+    );
+    introspection_ack(&mut a, &install_a).await;
+    // Before B acknowledges, this is not two active copies. include_pending
+    // must expose the intent even when installation is incomplete.
+    let pending = introspection_trigger_list(&engine, true).await;
+    let rows = pending["registered_triggers"].as_array().unwrap();
+    assert_eq!(
+        rows.len(),
+        1,
+        "pending intent remains one logical row: {pending}"
+    );
+    assert_eq!(rows[0]["owner_count"], 1);
+    assert_eq!(rows[0]["provider_owner_count"], 2);
+    assert_eq!(
+        rows[0]["active_owner_count"], 1,
+        "enqueue is not positive installation acknowledgement"
+    );
+    assert_eq!(rows[0]["delivery_mode"], "parallel");
+    assert_eq!(rows[0]["provider_namespace"], "orders");
+    assert_eq!(
+        rows[0]["namespace"], "orders",
+        "target namespace must remain explicit"
+    );
+    assert_eq!(rows[0]["degraded"], true);
+    introspection_ack(&mut b, &install_b).await;
+    let canonical = install_a["id"].as_str().unwrap();
+    assert!(eventually(|| engine.trigger_registry.triggers.contains_key(canonical)).await);
+    introspection_send(&mut b, json!({"type":"registertrigger", "id":"subscriber-b", "trigger_type":"fixture:introspection",
+        "function_id":"svc::shared", "namespace":"orders", "config":{"topic":"orders"}})).await;
+    introspection_barrier(&mut b).await;
+    let active = introspection_trigger_list(&engine, false).await;
+    let rows = active["registered_triggers"].as_array().unwrap();
+    assert_eq!(rows.len(), 1, "replica subscriber declarations coalesce");
+    assert_eq!(rows[0]["owner_count"], 2);
+    assert_eq!(rows[0]["provider_owner_count"], 2);
+    assert_eq!(rows[0]["active_owner_count"], 2);
+    assert_eq!(rows[0]["degraded"], false);
+    introspection_send(&mut b, json!({"type":"unregistertrigger", "id":"subscriber-b", "trigger_type":"fixture:introspection"})).await;
+    introspection_barrier(&mut b).await;
+    let shrunk = introspection_trigger_list(&engine, false).await;
+    let rows = shrunk["registered_triggers"].as_array().unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(
+        rows[0]["owner_count"], 1,
+        "subscription ownership is not provider ownership"
+    );
+    assert_eq!(rows[0]["provider_owner_count"], 2);
+    assert_eq!(rows[0]["active_owner_count"], 2);
+}
+
+#[tokio::test]
+async fn shared_namespace_introspection_disabled_omits_fields_in_serializers_and_notifications() {
+    let (port, engine, _builder, _directory) = introspection_engine(false).await;
+    let mut events = introspection_listener(&engine).await;
+    let mut worker = introspection_replica(port, "legacy-owner", "orders").await;
+    let event = introspection_event(&mut events, |e| {
+        e["functions"]
+            .as_array()
+            .is_some_and(|rows| rows.iter().any(|r| r["function_id"] == "svc::shared"))
+    })
+    .await;
+    let list = call_engine_fn(
+        &engine,
+        "engine::functions::list",
+        json!({"prefix":"svc::"}),
+    )
+    .await;
+    let detail = call_engine_fn(
+        &engine,
+        "engine::functions::info",
+        json!({"function_id":"svc::shared", "namespace":"orders"}),
+    )
+    .await;
+    let worker_info = call_engine_fn(
+        &engine,
+        "engine::workers::info",
+        json!({"name":"legacy-owner", "namespace":"orders"}),
+    )
+    .await;
+    for row in [
+        introspection_row(&list, "functions", "orders"),
+        &detail,
+        introspection_row(&event, "functions", "orders"),
+        introspection_row(&worker_info, "functions", "orders"),
+    ] {
+        for key in ["owner_count", "worker_names"] {
+            assert!(
+                row.get(key).is_none(),
+                "disabled field must be absent, not null: {key}: {row}"
+            );
+        }
+    }
+    let trigger_id = register_trigger_over_ws(
+        &mut worker,
+        "orders",
+        "fixture:introspection",
+        "svc::shared",
+        json!({"topic":"legacy"}),
+    )
+    .await;
+    introspection_barrier(&mut worker).await;
+    assert!(eventually(|| engine.trigger_registry.triggers.contains_key(&trigger_id)).await);
+    let triggers = introspection_trigger_list(&engine, true).await;
+    let rows = triggers["registered_triggers"].as_array().unwrap();
+    assert_eq!(rows.len(), 1);
+    let detail = call_engine_fn(
+        &engine,
+        "engine::registered-triggers::info",
+        json!({"id":trigger_id}),
+    )
+    .await;
+    for row in [&rows[0], &detail] {
+        for key in [
+            "owner_count",
+            "provider_owner_count",
+            "active_owner_count",
+            "delivery_mode",
+            "provider_namespace",
+            "namespace",
+            "degraded",
+        ] {
+            assert!(
+                row.get(key).is_none(),
+                "disabled aggregate field must be absent: {key}: {row}"
+            );
+        }
+    }
+}

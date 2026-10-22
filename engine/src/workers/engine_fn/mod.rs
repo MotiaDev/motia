@@ -248,7 +248,26 @@ pub struct WorkerInfoInput {
 // ── Outputs ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct FunctionOwnership {
+    pub owner_count: usize,
+    pub worker_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct TriggerOwnership {
+    pub owner_count: usize,
+    pub provider_owner_count: usize,
+    pub active_owner_count: usize,
+    pub delivery_mode: String,
+    pub provider_namespace: String,
+    pub namespace: String,
+    pub degraded: bool,
+}
+
+#[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct FunctionSummary {
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub ownership: Option<FunctionOwnership>,
     pub function_id: String,
     /// Namespace the function is registered in — the `(namespace, function_id)`
     /// key it lives under in the registry. The same `function_id` may appear
@@ -271,6 +290,19 @@ impl FunctionSummary {
         fields.insert("function_id".to_string(), Value::String(self.function_id));
         fields.insert("namespace".to_string(), Value::String(self.namespace));
         fields.insert("worker_name".to_string(), Value::String(self.worker_name));
+        if let Some(ownership) = self.ownership {
+            fields.insert("owner_count".to_string(), ownership.owner_count.into());
+            fields.insert(
+                "worker_names".to_string(),
+                Value::Array(
+                    ownership
+                        .worker_names
+                        .into_iter()
+                        .map(Value::String)
+                        .collect(),
+                ),
+            );
+        }
         if let Some(description) = self.description {
             fields.insert("description".to_string(), Value::String(description));
         }
@@ -290,6 +322,8 @@ pub struct RegisteredTriggerRef {
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct FunctionDetail {
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub ownership: Option<FunctionOwnership>,
     pub function_id: String,
     /// Namespace of the registry entry this detail describes. A bare
     /// `function_id` can name a function in more than one namespace, so the
@@ -377,6 +411,8 @@ pub enum RegisteredTriggerStatus {
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct RegisteredTriggerSummary {
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub ownership: Option<TriggerOwnership>,
     pub id: String,
     pub trigger_type: String,
     pub function_id: String,
@@ -393,6 +429,8 @@ pub struct RegisteredTriggerSummary {
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 pub struct RegisteredTriggerDetail {
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub ownership: Option<TriggerOwnership>,
     pub id: String,
     pub trigger_type: String,
     pub function_id: String,
@@ -713,7 +751,85 @@ impl EngineFunctionsWorker {
             }
         }
 
+        if self.engine.shared_namespace_ownership() {
+            let keys = self
+                .engine
+                .functions
+                .iter()
+                .map(|entry| entry.key().clone())
+                .collect::<Vec<_>>();
+            for (namespace, id) in keys {
+                if let Some(owners) = self.engine.eligible_function_owners(&namespace, &id) {
+                    if let Some(first) = owners.first() {
+                        let name = self
+                            .engine
+                            .worker_registry
+                            .get_worker_name(first)
+                            .unwrap_or_else(|| first.to_string());
+                        map.insert((namespace, id), name);
+                    }
+                }
+            }
+        }
         map
+    }
+
+    fn function_ownership(
+        &self,
+        namespace: &str,
+        id: &str,
+        primary: &str,
+    ) -> Option<FunctionOwnership> {
+        if !self.engine.shared_namespace_ownership() {
+            return None;
+        }
+        let (owner_count, mut worker_names) =
+            match self.engine.eligible_function_owners(namespace, id) {
+                Some(owners) => (
+                    owners.len(),
+                    owners
+                        .into_iter()
+                        .map(|id| {
+                            self.engine
+                                .worker_registry
+                                .get_worker_name(&id)
+                                .unwrap_or_else(|| id.to_string())
+                        })
+                        .collect::<Vec<_>>(),
+                ),
+                None => (1, vec![primary.to_string()]),
+            };
+        worker_names.sort();
+        worker_names.dedup();
+        Some(FunctionOwnership {
+            owner_count,
+            worker_names,
+        })
+    }
+
+    fn trigger_ownership(&self, trigger: &Trigger) -> Option<TriggerOwnership> {
+        if !self.engine.shared_namespace_ownership() {
+            return None;
+        }
+        let (owner_count, provider_owner_count, active_owner_count, mode, degraded) = self
+            .engine
+            .trigger_registry
+            .ownership_snapshot(trigger, |id| {
+                self.engine.worker_registry.workers.contains_key(&id)
+            });
+        Some(TriggerOwnership {
+            owner_count,
+            provider_owner_count,
+            active_owner_count,
+            delivery_mode: match mode {
+                crate::protocol::TriggerDeliveryMode::Parallel => "parallel",
+                crate::protocol::TriggerDeliveryMode::SingleActive => "single_active",
+            }
+            .to_string(),
+            provider_namespace: trigger.provider_namespace.clone(),
+            namespace: trigger.namespace.clone(),
+            degraded,
+        })
     }
 
     fn worker_name_for_function_id(
@@ -952,15 +1068,17 @@ impl EngineFunctionsWorker {
         self.engine
             .functions
             .iter()
-            .map(|entry| {
+            .map(|entry| (entry.key().0.clone(), entry.value().clone()))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|(namespace, f)| {
                 // The registry key IS the namespace: `functions` is keyed by
                 // `(namespace, function_id)`. No worker field can stand in for
                 // it — a function is in the namespace it was registered under.
-                let namespace = entry.key().0.clone();
-                let f = entry.value();
                 let worker_name =
                     Self::worker_name_for_function_id(&index, &namespace, &f._function_id);
                 FunctionSummary {
+                    ownership: self.function_ownership(&namespace, &f._function_id, &worker_name),
                     function_id: f._function_id.clone(),
                     namespace,
                     worker_name,
@@ -1020,11 +1138,13 @@ impl EngineFunctionsWorker {
     }
 
     fn registered_trigger_summary(
+        &self,
         index: &HashMap<(String, String), String>,
         t: &Trigger,
         status: RegisteredTriggerStatus,
     ) -> RegisteredTriggerSummary {
         RegisteredTriggerSummary {
+            ownership: self.trigger_ownership(t),
             id: t.id.clone(),
             trigger_type: t.trigger_type.clone(),
             function_id: t.function_id.clone(),
@@ -1044,27 +1164,29 @@ impl EngineFunctionsWorker {
     ) -> Vec<RegisteredTriggerSummary> {
         let index = self.function_owner_index().await;
         let registry = &self.engine.trigger_registry;
-        let mut rows: Vec<RegisteredTriggerSummary> = registry
+        // Drop store guards before consulting ownership/assignment locks.
+        let mut snapshot = registry
             .triggers
             .iter()
-            .map(|entry| {
-                Self::registered_trigger_summary(
-                    &index,
-                    entry.value(),
-                    RegisteredTriggerStatus::Active,
-                )
-            })
-            .collect();
+            .map(|entry| (entry.value().clone(), RegisteredTriggerStatus::Active))
+            .collect::<Vec<_>>();
         if include_pending {
-            rows.extend(registry.pending_triggers.iter().map(|entry| {
-                Self::registered_trigger_summary(
-                    &index,
-                    entry.value(),
-                    RegisteredTriggerStatus::Pending,
-                )
-            }));
+            let active_ids = snapshot
+                .iter()
+                .map(|(t, _)| t.id.clone())
+                .collect::<std::collections::HashSet<_>>();
+            snapshot.extend(
+                registry
+                    .pending_triggers
+                    .iter()
+                    .filter(|entry| !active_ids.contains(entry.key()))
+                    .map(|entry| (entry.value().clone(), RegisteredTriggerStatus::Pending)),
+            );
         }
-        rows
+        snapshot
+            .into_iter()
+            .map(|(t, status)| self.registered_trigger_summary(&index, &t, status))
+            .collect()
     }
 
     async fn list_worker_summaries(&self, filter_worker_id: Option<&str>) -> Vec<WorkerSummary> {
@@ -1199,6 +1321,7 @@ impl EngineFunctionsWorker {
         let worker_name = Self::worker_name_for_function_id(index, namespace, function_id);
 
         Some(FunctionDetail {
+            ownership: self.function_ownership(namespace, function_id, &worker_name),
             function_id: function_id.to_string(),
             namespace: namespace.to_string(),
             worker_name,
@@ -1248,6 +1371,7 @@ impl EngineFunctionsWorker {
             .await;
 
         Some(RegisteredTriggerDetail {
+            ownership: self.trigger_ownership(&trigger),
             id: trigger.id.clone(),
             trigger_type: trigger.trigger_type.clone(),
             function_id: trigger.function_id.clone(),
@@ -1390,9 +1514,15 @@ impl EngineFunctionsWorker {
                                 (function._description.clone(), function.metadata.clone())
                             })
                         })?;
-                let worker_name =
-                    Self::worker_name_for_function_id(&index, &worker_namespace, &fn_id);
+                let primary = Self::worker_name_for_function_id(&index, &worker_namespace, &fn_id);
+                let ownership = self.function_ownership(&worker_namespace, &fn_id, &primary);
+                let worker_name = if self.engine.shared_namespace_ownership() {
+                    name.to_string()
+                } else {
+                    primary
+                };
                 Some(FunctionSummary {
+                    ownership,
                     function_id: fn_id,
                     // Mirrors the lookup directly above: this row *is* the
                     // entry keyed under the worker's own namespace.
@@ -1479,10 +1609,10 @@ impl EngineFunctionsWorker {
                 let t = entry.value();
                 t.namespace == worker_namespace && function_id_set.contains(&t.function_id)
             })
-            .map(|entry| {
-                let t = entry.value();
-                Self::registered_trigger_summary(&index, t, RegisteredTriggerStatus::Active)
-            })
+            .map(|entry| entry.value().clone())
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|t| self.registered_trigger_summary(&index, &t, RegisteredTriggerStatus::Active))
             .collect();
         registered_triggers.sort_by(|a, b| a.id.cmp(&b.id));
 
@@ -1722,11 +1852,17 @@ impl EngineFunctionsWorker {
 
         if input.worker.is_some() || input.workers.as_ref().is_some_and(|w| !w.is_empty()) {
             functions.retain(|f| {
-                input.worker.as_deref() == Some(f.worker_name.as_str())
-                    || input
-                        .workers
-                        .as_ref()
-                        .is_some_and(|workers| workers.iter().any(|w| w == &f.worker_name))
+                let matches = |name: &str| {
+                    input.worker.as_deref() == Some(name)
+                        || input
+                            .workers
+                            .as_ref()
+                            .is_some_and(|workers| workers.iter().any(|w| w == name))
+                };
+                f.ownership.as_ref().map_or_else(
+                    || matches(&f.worker_name),
+                    |owners| owners.worker_names.iter().any(|name| matches(name)),
+                )
             });
         }
 
@@ -3166,6 +3302,7 @@ mod tests {
     #[test]
     fn function_summary_serializes() {
         let summary = FunctionSummary {
+            ownership: None,
             function_id: "my::func".to_string(),
             namespace: crate::protocol::DEFAULT_NAMESPACE.to_string(),
             worker_name: "my".to_string(),
@@ -3181,6 +3318,7 @@ mod tests {
     #[test]
     fn function_summary_omits_null_description() {
         let summary = FunctionSummary {
+            ownership: None,
             function_id: "my::func".to_string(),
             namespace: crate::protocol::DEFAULT_NAMESPACE.to_string(),
             worker_name: "my".to_string(),
@@ -3195,6 +3333,7 @@ mod tests {
     fn function_summary_metadata_skips_when_none_surfaces_when_some() {
         // None metadata is omitted from the wire (skip_serializing_if).
         let without = FunctionSummary {
+            ownership: None,
             function_id: "my::func".to_string(),
             namespace: crate::protocol::DEFAULT_NAMESPACE.to_string(),
             worker_name: "my".to_string(),
@@ -3209,6 +3348,7 @@ mod tests {
 
         // Some metadata is surfaced so callers can distinguish internal handlers.
         let with = FunctionSummary {
+            ownership: None,
             function_id: "my::on-config-change".to_string(),
             namespace: crate::protocol::DEFAULT_NAMESPACE.to_string(),
             worker_name: "my".to_string(),
@@ -3222,6 +3362,7 @@ mod tests {
     #[test]
     fn registered_trigger_summary_serializes() {
         let summary = RegisteredTriggerSummary {
+            ownership: None,
             id: "t-1".to_string(),
             trigger_type: "cron".to_string(),
             function_id: "fn::handler".to_string(),

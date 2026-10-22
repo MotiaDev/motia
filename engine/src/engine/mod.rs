@@ -3524,10 +3524,28 @@ impl Engine {
         )
     }
 
-    /// True when `worker_id`'s connection has entered teardown — its namespace
-    /// resolution has been `Aborted` (the first step of `cleanup_worker`). Such
-    /// a connection is on its way out even if `worker_registry` has not swept it
-    /// yet, so it must not block a fresh claim on the name it held.
+    /// Observational membership snapshot in join order, not a global transaction.
+    /// None denotes an in-process/exclusive entry rather than a shared session set.
+    pub(crate) fn eligible_function_owners(
+        &self,
+        namespace: &str,
+        function_id: &str,
+    ) -> Option<Vec<Uuid>> {
+        let key = (namespace.to_string(), function_id.to_string());
+        let _ownership = self.function_owners.get(&key)?;
+        let ids = self.shared_functions.get(&key)?.owner_ids();
+        Some(
+            ids.into_iter()
+                .filter(|id| {
+                    self.worker_registry.workers.contains_key(id)
+                        && !self.is_connection_tearing_down(id)
+                })
+                .collect(),
+        )
+    }
+
+    /// True once cleanup has aborted the connection's namespace resolution,
+    /// even before the worker registry has swept the connection.
     fn is_connection_tearing_down(&self, worker_id: &Uuid) -> bool {
         matches!(
             self.namespace_states.get(worker_id).as_deref(),
@@ -3825,13 +3843,20 @@ impl Engine {
                     shared.function.clone(),
                 );
             } else {
-                shared.join(worker.id, function.handler);
+                let joined = shared.join(worker.id, function.handler);
                 self.shared_routing
                     .get(&key)
                     .expect("shared routing exists")
                     .lock()
                     .expect("shared routing poisoned")
                     .join_endpoint(worker, endpoint);
+                if joined {
+                    self.functions.notify_change(
+                        crate::function::FunctionChange::Registered,
+                        namespace,
+                        &function_id,
+                    );
+                }
             }
             return Ok(());
         }
@@ -4017,6 +4042,11 @@ impl Engine {
                     if let Some(first) = shared.first_owner() {
                         let kind = entry.get().1;
                         entry.insert((first, kind));
+                        self.functions.notify_change(
+                            crate::function::FunctionChange::Unregistered,
+                            namespace,
+                            function_id,
+                        );
                     } else {
                         drop(shared);
                         self.shared_functions.remove(&key);
