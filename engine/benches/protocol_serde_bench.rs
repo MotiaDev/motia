@@ -32,6 +32,7 @@ fn build_messages() -> Vec<(&'static str, Message)> {
                 metadata: None,
                 namespace: None,
                 trigger_namespace: None,
+                assignment_id: None,
             },
         ),
         (
