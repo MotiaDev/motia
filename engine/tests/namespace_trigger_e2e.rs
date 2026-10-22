@@ -1419,3 +1419,119 @@ async fn single_active_legacy_replay_ws(disconnected: bool) {
     let _ = legacy_socket.close(None).await;
     let _ = home_socket.close(None).await;
 }
+
+#[tokio::test]
+async fn shared_trigger_single_active_two_ws_inflight_ownerless_legacy_cleanup_cannot_install_replacement()
+ {
+    use iii::trigger::{RegisterTriggerOutcome, Trigger, TriggerType, type_key};
+    let kind = "fixture:inflight-ownerless";
+    let (engine, mut legacy_socket, mut replacement_socket, _directory) =
+        assignment_providers().await;
+    let legacy = engine
+        .worker_registry
+        .list_workers()
+        .into_iter()
+        .find(|worker| worker.name.as_deref() == Some("parallel-provider-a"))
+        .unwrap();
+    let key = type_key("orders", kind);
+    engine
+        .trigger_registry
+        .register_trigger_type(TriggerType::new_ns(
+            "orders",
+            kind,
+            "legacy inflight fixture",
+            Box::new(legacy.clone()),
+            Some(legacy.id),
+        ))
+        .await
+        .unwrap();
+    let binding = Trigger {
+        id: "ownerless-late-install".into(),
+        trigger_type: kind.into(),
+        function_id: "orders::route".into(),
+        config: json!({"tick":1}),
+        worker_id: None,
+        metadata: None,
+        namespace: "orders".into(),
+        trigger_namespace: Some("orders".into()),
+        home_namespace: "orders".into(),
+        provider_namespace: "orders".into(),
+    };
+    let registration = engine.trigger_registry.register_trigger(binding.clone());
+    tokio::pin!(registration);
+    assert!(
+        futures::poll!(&mut registration).is_pending(),
+        "ownerless registration awaits actual provider ACK"
+    );
+    let installed = assignment_frame(&mut legacy_socket, "registertrigger").await;
+    assert_eq!(installed["id"], binding.id);
+    assert!(
+        installed["assignment_id"].is_null(),
+        "legacy has no fencing token"
+    );
+    // Installed locally, ACK withheld. Do not poll registration again until
+    // actual socket cleanup removed both the worker and provider declaration.
+    let local_legacy_routes = std::collections::HashSet::from([binding.id.clone()]);
+    legacy_socket.close(None).await.unwrap();
+    assert!(
+        eventually(|| engine.worker_registry.get_worker(&legacy.id).is_none()
+            && !engine.trigger_registry.trigger_types.contains_key(&key))
+        .await,
+        "cleanup must pass the legacy uncertainty scan before registration resumes"
+    );
+    let completion = registration.await;
+    let late_publication = engine.trigger_registry.triggers.contains_key(&binding.id);
+
+    // Strict-home sentinel proves that the replacement replay ran without
+    // relying on a quiet interval to claim absence of the unsafe installation.
+    let sentinel = Trigger {
+        id: "inflight-replay-sentinel".into(),
+        ..binding.clone()
+    };
+    assert_eq!(
+        engine
+            .trigger_registry
+            .register_trigger(sentinel.clone())
+            .await
+            .unwrap(),
+        RegisterTriggerOutcome::Deferred
+    );
+    assignment_send(&mut replacement_socket, single_active_declaration(kind)).await;
+    let mut installations = Vec::new();
+    loop {
+        let frame = assignment_frame(&mut replacement_socket, "registertrigger").await;
+        let sentinel_seen = frame["id"] == sentinel.id;
+        installations.push(frame);
+        if sentinel_seen {
+            break;
+        }
+    }
+    installations.extend(
+        assignment_barrier(&mut replacement_socket)
+            .await
+            .into_iter()
+            .filter(|frame| frame["type"] == "registertrigger"),
+    );
+    assert!(
+        local_legacy_routes.contains(&binding.id),
+        "socket loss does not prove adapter stop"
+    );
+    assert!(
+        !late_publication && !installations.iter().any(|frame| frame["id"] == binding.id),
+        "ownerless legacy I/O completed after cleanup without uncertainty: late_publication={late_publication}, completion={completion:?}, installations={installations:?}; no stop ACK was supplied"
+    );
+    assert!(!engine.trigger_registry.triggers.contains_key(&binding.id));
+    assert!(
+        engine
+            .trigger_registry
+            .pending_triggers
+            .contains_key(&binding.id)
+    );
+    let sentinel_frame = installations
+        .iter()
+        .find(|frame| frame["id"] == sentinel.id)
+        .unwrap();
+    single_active_ack(&mut replacement_socket, sentinel_frame).await;
+    assignment_barrier(&mut replacement_socket).await;
+    let _ = replacement_socket.close(None).await;
+}

@@ -5686,6 +5686,100 @@ mod tests {
             .expect("a tearing-down owner must not block a restart's function");
     }
 
+    #[tokio::test]
+    async fn shared_trigger_single_active_ownerless_legacy_ack_cleanup_cannot_publish_or_reassign()
+    {
+        use crate::trigger::{Trigger, TriggerDeliveryContract, TriggerType, type_key};
+        ensure_default_meter();
+        let engine = Engine::new();
+        engine.set_shared_namespace_ownership(true);
+        let (legacy_tx, mut legacy_rx) = mpsc::channel(16);
+        let legacy = WorkerConnection::new(legacy_tx);
+        engine.worker_registry.register_worker(legacy.clone());
+        let key = type_key("orders", "fixture:inflight-legacy");
+        engine
+            .trigger_registry
+            .register_trigger_type(TriggerType::new_ns(
+                "orders",
+                &key.1,
+                "inflight legacy fixture",
+                Box::new(legacy.clone()),
+                Some(legacy.id),
+            ))
+            .await
+            .unwrap();
+        let binding = Trigger {
+            id: "ownerless-inflight".into(),
+            trigger_type: key.1.clone(),
+            function_id: "orders::route".into(),
+            config: json!({"tick":1}),
+            worker_id: None,
+            metadata: None,
+            namespace: "orders".into(),
+            trigger_namespace: Some("orders".into()),
+            home_namespace: "orders".into(),
+            provider_namespace: "orders".into(),
+        };
+        let registration = engine.trigger_registry.register_trigger(binding.clone());
+        tokio::pin!(registration);
+        assert!(
+            futures::poll!(&mut registration).is_pending(),
+            "ownerless registration must await the provider ACK"
+        );
+        let Outbound::Protocol(Message::RegisterTrigger { assignment_id, .. }) =
+            legacy_rx.try_recv().unwrap()
+        else {
+            panic!("legacy provider must receive installation before cleanup");
+        };
+        assert!(assignment_id.is_none());
+        assert!(legacy.pending_trigger_acks.contains_key(&binding.id));
+        // The provider installed locally but has not acknowledged. Hold the
+        // registration future unpolled until production cleanup fully finishes.
+        let legacy_may_execute = true;
+        engine.cleanup_worker(&legacy).await;
+        assert!(*legacy.cleanup_done.borrow());
+        assert!(engine.worker_registry.get_worker(&legacy.id).is_none());
+        assert!(legacy.pending_trigger_acks.is_empty());
+        let completion = registration.await;
+        let late_publication = engine.trigger_registry.triggers.contains_key(&binding.id);
+
+        let (replacement_tx, mut replacement_rx) = mpsc::channel(16);
+        let replacement = WorkerConnection::new(replacement_tx);
+        engine.worker_registry.register_worker(replacement.clone());
+        engine
+            .trigger_registry
+            .register_trigger_type(
+                TriggerType::new_ns(
+                    "orders",
+                    &key.1,
+                    "inflight legacy fixture",
+                    Box::new(replacement.clone()),
+                    Some(replacement.id),
+                )
+                .with_delivery_contract(TriggerDeliveryContract::SharedV1),
+            )
+            .await
+            .unwrap();
+        let replay = engine.trigger_registry.replay_shared_assignments(key);
+        tokio::pin!(replay);
+        let replay_pending = futures::poll!(&mut replay).is_pending();
+        let replacement_install = replacement_rx.try_recv().ok();
+        // No ACK or clock advance authorizes this replacement. Capture both
+        // effects before asserting so the failure proves the full unsafe path.
+        assert!(legacy_may_execute);
+        assert!(
+            replacement_install.is_none() && !late_publication,
+            "in-flight legacy cleanup lost uncertainty: late_publication={late_publication}, completion={completion:?}, replacement_install={replacement_install:?}, replay_pending={replay_pending}; no positive legacy stop ACK"
+        );
+        assert!(
+            engine
+                .trigger_registry
+                .pending_triggers
+                .contains_key(&binding.id)
+        );
+        assert!(!engine.trigger_registry.triggers.contains_key(&binding.id));
+    }
+
     /// `cleanup_worker` releases the worker-name lease, reading the name back
     /// from the registry (the connection snapshot never carries it).
     #[tokio::test]

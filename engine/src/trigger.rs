@@ -556,6 +556,11 @@ struct AssignmentSet {
     copies: std::sync::Mutex<HashMap<Option<Uuid>, (Arc<TriggerType>, String, bool)>>,
 }
 
+struct LegacyInstall {
+    trigger: Trigger,
+    provider: Option<Uuid>,
+}
+
 #[derive(Default)]
 pub struct TriggerRegistry {
     /// Providers, by `(namespace, type id)`.
@@ -566,6 +571,10 @@ pub struct TriggerRegistry {
     assignments: DashMap<String, Arc<AssignmentSet>>,
     selection: std::sync::Mutex<HashMap<TypeKey, usize>>,
     legacy_uncertain: std::sync::Mutex<std::collections::HashSet<String>>,
+    // Reserved before provider I/O, including ownerless registrations. A
+    // cancelled future leaves its descriptor/debt visible until explicit teardown.
+    legacy_installs: DashMap<String, Arc<LegacyInstall>>,
+    retired_providers: std::sync::Mutex<std::collections::HashSet<Uuid>>,
     #[cfg(test)]
     removal_pause: std::sync::Mutex<
         Option<(
@@ -611,6 +620,8 @@ impl TriggerRegistry {
             assignments: DashMap::new(),
             selection: Default::default(),
             legacy_uncertain: Default::default(),
+            legacy_installs: Default::default(),
+            retired_providers: Default::default(),
             #[cfg(test)]
             removal_pause: Default::default(),
             #[cfg(test)]
@@ -701,6 +712,103 @@ impl TriggerRegistry {
             .contains(id)
     }
 
+    async fn install_legacy(
+        &self,
+        trigger: Trigger,
+        provider: &TriggerType,
+        replay: bool,
+    ) -> Result<RegisterTriggerOutcome, anyhow::Error> {
+        let install = Arc::new(LegacyInstall {
+            trigger: trigger.clone(),
+            provider: provider.worker_id,
+        });
+        let was_live;
+        {
+            let _park = self
+                .park_transition
+                .lock()
+                .expect("park transition poisoned");
+            if self.legacy_execution_uncertain(&trigger.id)
+                || self.legacy_installs.contains_key(&trigger.id)
+            {
+                return Ok(RegisterTriggerOutcome::Deferred);
+            }
+            // Cleanup may have retired the provider after the caller's lookup.
+            if provider.worker_id.is_some_and(|id| {
+                self.retired_providers
+                    .lock()
+                    .expect("retired providers poisoned")
+                    .contains(&id)
+            }) || !self
+                .trigger_types
+                .get(&provider.key())
+                .is_some_and(|current| current.worker_id == provider.worker_id)
+            {
+                self.pending_triggers.insert(trigger.id.clone(), trigger);
+                return Ok(RegisterTriggerOutcome::Deferred);
+            }
+            was_live = self.triggers.contains_key(&trigger.id);
+            if !was_live {
+                self.pending_triggers
+                    .insert(trigger.id.clone(), trigger.clone());
+            }
+            self.legacy_installs
+                .insert(trigger.id.clone(), install.clone());
+        }
+        let result = if replay {
+            provider.registrator.replay_trigger(trigger.clone()).await
+        } else {
+            provider.registrator.register_trigger(trigger.clone()).await
+        };
+        let _park = self
+            .park_transition
+            .lock()
+            .expect("park transition poisoned");
+        // Teardown can invalidate this generation while I/O is suspended. A
+        // missing/changed reservation is never permission to republish its intent.
+        let current = self
+            .legacy_installs
+            .get(&trigger.id)
+            .is_some_and(|entry| Arc::ptr_eq(entry.value(), &install));
+        if !current {
+            return Ok(RegisterTriggerOutcome::Deferred);
+        }
+        self.legacy_installs.remove(&trigger.id);
+        let provider_live = self
+            .trigger_types
+            .get(&provider.key())
+            .is_some_and(|current| current.worker_id == provider.worker_id);
+        if !provider_live {
+            self.legacy_uncertain
+                .lock()
+                .expect("legacy uncertainty poisoned")
+                .insert(trigger.id.clone());
+        }
+        if self.legacy_execution_uncertain(&trigger.id) {
+            self.triggers.remove(&trigger.id);
+            self.pending_triggers.insert(trigger.id.clone(), trigger);
+            return Ok(RegisterTriggerOutcome::Deferred);
+        }
+        match result {
+            Ok(()) => {
+                self.pending_triggers.remove(&trigger.id);
+                self.triggers.insert(trigger.id.clone(), trigger);
+                Ok(RegisterTriggerOutcome::Registered)
+            }
+            Err(error) if error.downcast_ref::<RegistratorUnavailable>().is_some() => {
+                self.triggers.remove(&trigger.id);
+                self.pending_triggers.insert(trigger.id.clone(), trigger);
+                Ok(RegisterTriggerOutcome::Deferred)
+            }
+            Err(error) => {
+                if !was_live {
+                    self.pending_triggers.remove(&trigger.id);
+                }
+                Err(error)
+            }
+        }
+    }
+
     fn current_assignment(&self, id: &str, state: &AssignmentSet) -> bool {
         self.assignments
             .get(id)
@@ -770,7 +878,10 @@ impl TriggerRegistry {
             );
             bindings
                 .into_iter()
-                .filter(|trigger| !self.legacy_execution_uncertain(&trigger.id))
+                .filter(|trigger| {
+                    !self.legacy_execution_uncertain(&trigger.id)
+                        && !self.legacy_installs.contains_key(&trigger.id)
+                })
                 .map(|trigger| {
                     // A previously unprovided pending intent gets its first assignment
                     // lifecycle here, while final removal cannot race the claim.
@@ -817,6 +928,7 @@ impl TriggerRegistry {
             anyhow::bail!("trigger teardown pending");
         }
         if self.legacy_execution_uncertain(&trigger.id)
+            || self.legacy_installs.contains_key(&trigger.id)
             || state.transferring.load(std::sync::atomic::Ordering::SeqCst)
         {
             return Ok(RegisterTriggerOutcome::Deferred);
@@ -1310,10 +1422,25 @@ impl TriggerRegistry {
     pub async fn unregister_worker(&self, worker_id: &Uuid) {
         if self.shared() {
             {
+                let _park = self
+                    .park_transition
+                    .lock()
+                    .expect("park transition poisoned");
+                self.retired_providers
+                    .lock()
+                    .expect("retired providers poisoned")
+                    .insert(*worker_id);
                 let mut uncertain = self
                     .legacy_uncertain
                     .lock()
                     .expect("legacy uncertainty poisoned");
+                for install in self.legacy_installs.iter() {
+                    if install.provider == Some(*worker_id) {
+                        uncertain.insert(install.trigger.id.clone());
+                        self.pending_triggers
+                            .insert(install.trigger.id.clone(), install.trigger.clone());
+                    }
+                }
                 for trigger in self.triggers.iter() {
                     if self
                         .trigger_types
@@ -1647,6 +1774,10 @@ impl TriggerRegistry {
         // that one.
         if let Some(trigger_type) = self.trigger_types.get(&key) {
             for trigger in matching_triggers {
+                if self.shared() {
+                    let _ = self.install_legacy(trigger, &trigger_type, true).await;
+                    continue;
+                }
                 let result = trigger_type
                     .registrator
                     .replay_trigger(trigger.clone())
@@ -1734,6 +1865,12 @@ impl TriggerRegistry {
             };
             return matches!(
                 self.install_assignment_lifecycle(trigger, state).await,
+                Ok(RegisterTriggerOutcome::Registered)
+            );
+        }
+        if self.shared() {
+            return matches!(
+                self.install_legacy(trigger, trigger_type, true).await,
                 Ok(RegisterTriggerOutcome::Registered)
             );
         }
@@ -2001,6 +2138,9 @@ impl TriggerRegistry {
             };
             return self.install_assignment_lifecycle(trigger, state).await;
         }
+        if self.shared() {
+            return self.install_legacy(trigger, &trigger_type, false).await;
+        }
         if let Err(err) = trigger_type
             .registrator
             .register_trigger(trigger.clone())
@@ -2107,6 +2247,14 @@ impl TriggerRegistry {
                 .park_transition
                 .lock()
                 .expect("park_transition lock poisoned");
+            if self.legacy_installs.remove(&id).is_some() {
+                // An in-flight unfenced install may already execute. Invalidate
+                // its completion and keep uncertainty even after removing intent.
+                self.legacy_uncertain
+                    .lock()
+                    .expect("legacy uncertainty poisoned")
+                    .insert(id.clone());
+            }
             // Replay can reserve the FIRST lifecycle after the fast lookup
             // above. The authoritative lookup and the no-lifecycle deletion
             // must share replay's reservation lock, or removal loses that Arc.
