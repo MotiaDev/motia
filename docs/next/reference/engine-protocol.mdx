@@ -144,8 +144,8 @@ names a namespace is never moved to another provider.
 
 When a provider registers in a namespace after a binding already resolved to `default`, the engine
 normally rehomes the binding to the new provider. In shared mode this is subject to revocation and
-positive stop evidence for a live fenced provider. Ambiguous unfenced legacy execution is parked,
-not assumed stopped. Explicit `trigger_namespace` selection is never rehomed this way.
+positive stop evidence for a live fenced provider. Reassignment remains suspended when unfenced
+legacy execution is ambiguous; the engine does not assume that it stopped. Explicit `trigger_namespace` selection is never rehomed this way.
 
 These fields target `math::add` in `default`:
 
@@ -229,8 +229,8 @@ rejection, not a new declaration ACK frame.
 their missing copy; a failed copy does not uninstall healthy peers. `single_active` uses cyclic
 initial selection and a sticky assignment. Handover fences the old assignment first and awaits a
 positive stop ACK from a still-live provider. Observed disconnect allows fenced replacement, not
-replay of work already accepted. Unfenced legacy ambiguity parks the binding even if a
-`shared_v1` provider later joins.
+replay of work already accepted. Unfenced legacy ambiguity suspends reassignment of the binding even
+if a `shared_v1` provider later joins.
 
 ### Install and acknowledge
 

@@ -519,8 +519,8 @@ functions, not serving inbound routes.
 Upgrade and validate adapters separately before enabling the startup-only flag. Give replicas
 distinct names and equal canonical schemas, plan the engine restart, and inspect eligible provider
 counts, confirmed installations, and degradation before serving traffic. Do not transfer an
-ambiguous unfenced legacy generation just because a new `shared_v1` provider appears: it stays
-parked rather than assuming the old source stopped.
+ambiguous unfenced legacy generation just because a new `shared_v1` provider appears: reassignment remains suspended because the engine cannot confirm that
+the old source stopped.
 
 The external adapters' source is not present in this checkout. Engine fixtures, including real
 WebSocket connections, validate the engine protocol only. They do **not** certify production HTTP,
