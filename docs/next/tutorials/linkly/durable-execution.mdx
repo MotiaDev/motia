@@ -90,7 +90,7 @@ worker enqueues it instead of running it inline:
 
 ```typescript src/index.ts {6}
 worker.registerFunction("http::redirect", async (req) => {
-  // ...previous code...
+  // ...unchanged from the Chapter 3 http::redirect: the code, link::resolve and the 404...
   await worker.trigger({
     function_id: "link::record_click",
     payload: { code, clicked_at: new Date().toISOString() },
@@ -132,7 +132,7 @@ publishes nothing:
 
 ```typescript {3-6} src/index.ts
 worker.registerFunction("link::create", async (payload: { url: string; code?: string }) => {
-  // ...previous code...
+  // ...unchanged from the Chapter 3 link::create: code, url, the INSERT and state::set...
   await worker.trigger({
     function_id: "iii::durable::publish",
     payload: { topic: "link.created", data: { code, url } },
@@ -270,7 +270,7 @@ The scaffold ships `analytics/src/main.py` with this code commented out: uncomme
 
 <Accordion title="analytics/src/main.py">
 
-```python analytics/src/main.py
+```python
 import os
 import time
 from datetime import datetime, timezone

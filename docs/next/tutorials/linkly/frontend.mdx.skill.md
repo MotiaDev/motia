@@ -184,12 +184,13 @@ From the project root (the folder with `worker-compose.yaml`), create a Vite + R
 app. `create-vite` creates the `frontend/` folder for you:
 
 ```bash
-npm create vite@latest frontend -- --template react-ts
+npm create vite@latest frontend -- --template react-ts --no-interactive
 ```
 
 <Note>
-  `create-vite` asks a few questions: answer yes to "Ok to proceed?", pick a linter or none, and
-  answer no to "Install with npm and start now?", since `iii-browser-sdk` has to be installed first.
+  `--no-interactive` makes `create-vite` skip its questions: it scaffolds `frontend/` with its
+  default linter and neither installs nor starts anything, since `iii-browser-sdk` has to be
+  installed first. npm may first ask "Ok to proceed?" to download `create-vite`; answer yes.
 </Note>
 
 Now install the dependencies:
@@ -199,6 +200,9 @@ cd frontend
 npm install
 npm install iii-browser-sdk
 ```
+
+`iii-browser-sdk` installs at 0.24.x while the backend workers pin `iii-sdk` 0.23.0. The two work
+together: each one talks to the engine, never to the other.
 
 Then tell the app where the proxy is and which token to send. Create `frontend/.env.local`; Vite
 reads it at startup. `VITE_LINKLY_TOKEN` must equal `LINKLY_BROWSER_TOKEN` in the project's `.env`,
