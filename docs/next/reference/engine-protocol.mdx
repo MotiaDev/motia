@@ -323,8 +323,10 @@ is exactly:
 
 `id` and `assignment_id` are strings; `data` is JSON. `_caller_worker_id` is injected or overwritten
 by the engine from the socket, not supplied as authority by the adapter. The gateway requires a
-current provider and positively acknowledged assignment. It reads the target, namespace, config,
-and metadata from the registry and uses normal trigger dispatch and balanced function routing.
+current provider and positively acknowledged assignment. It resolves the registry binding's target
+function and namespace, then forwards event data and binding metadata through normal balanced
+function routing. This path does not read binding `config` or evaluate `condition_function_id`;
+even a condition that returns `false` does not prevent gateway dispatch.
 It returns the handler's optional JSON result or an `ErrorBody`, not an event receipt ACK.
 
 A stale token, wrong provider socket, uninstalled assignment, or removed binding returns:

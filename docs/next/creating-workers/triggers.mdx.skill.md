@@ -457,9 +457,11 @@ Continuing the `mini-http` example from above:
 </Tabs>
 
 A legacy direct function invocation uses normal function routing; the publisher remains responsible
-for matching its event source to the binding. The `shared_v1` gateway loads the binding's target,
-namespace, config, and metadata from the registry and dispatches through the engine's trigger path,
-including any configured condition, then normal balanced function routing.
+for matching its event source to the binding. The `shared_v1` gateway resolves the binding's target
+function and namespace from the registry, then forwards event data and binding metadata through
+normal balanced function routing. This path does not read binding `config` or evaluate
+`condition_function_id`. A condition that returns `false` does not prevent gateway dispatch; do not
+rely on configured conditions to gate this path.
 
 ## Replicated event providers
 
