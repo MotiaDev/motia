@@ -35,4 +35,37 @@ echo "  watcher output:"
 sed 's/^/    /' "$watch_log"
 rm -f "$watch_log"
 
+# The code filter: a binding with code "" hears only clicks whose code is "",
+# and a binding without a code hears every click.
+cat >"$PROJECT/click-streamer/filter-check.ts" <<'EOF'
+import { registerWorker } from "iii-sdk";
+
+const worker = registerWorker(process.env.III_URL!, {
+  workerName: "filter-check",
+  namespace: process.env.III_NAMESPACE || "default",
+});
+const received: Record<string, string[]> = { empty: [], none: [] };
+for (const name of ["empty", "none"]) {
+  worker.registerFunction(`filter-check::${name}`, async (click: { code: string }) => {
+    received[name].push(click.code);
+    return null;
+  });
+}
+worker.registerTrigger({ type: "click-streamer::click", function_id: "filter-check::empty", config: { code: "" } });
+worker.registerTrigger({ type: "click-streamer::click", function_id: "filter-check::none", config: {} });
+await new Promise((r) => setTimeout(r, 3000));
+const broadcast = await worker.trigger({
+  function_id: "click-streamer::broadcast",
+  payload: { id: 2000000, code: "other", clicked_at: "2026-01-02T00:00:00Z" },
+});
+await new Promise((r) => setTimeout(r, 2000));
+console.log(JSON.stringify({ broadcast, received }));
+process.exit(0);
+EOF
+filter_out="$(cd "$PROJECT/click-streamer" && timeout 60 node --import tsx filter-check.ts 2>&1)"
+echo "       filter check: $filter_out"
+check "code \"\" filters, no code hears every click" \
+  '{"broadcast":{"delivered":1},"received":{"empty":[],"none":["other"]}}' "$filter_out"
+rm -f "$PROJECT/click-streamer/filter-check.ts"
+
 finish

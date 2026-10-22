@@ -464,7 +464,8 @@ Push every click to listeners in real time.
 - Create a click-streamer worker that declares its own trigger type, click-streamer::click. It keeps
   a capped table of the bindings (add in registerTrigger, remove in unregisterTrigger, reject a
   `code` filter that is not a string). Give it a click-streamer::broadcast function that delivers
-  { id, code, clicked_at } to every matching binding with TriggerAction.Void(), passing each
+  { id, code, clicked_at } to every matching binding with TriggerAction.Void(): a binding with a
+  `code`, even "", matches only that code, and one without a `code` matches every click. Pass each
   binding's namespace and metadata. Build the payload from those fields instead of forwarding the
   delivered payload as-is: the engine stamps bookkeeping fields such as _caller_worker_id on every
   delivery. Add it with compose.
