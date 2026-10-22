@@ -1394,6 +1394,15 @@ impl Engine {
                 if self.trigger_registry.has_assignment(id) {
                     return Ok(());
                 }
+                // Record provenance before the synchronous waiter consumes the
+                // result. This observation does not change completion/unwind.
+                worker.observe_legacy_trigger_ack(
+                    &self.trigger_registry,
+                    id,
+                    trigger_type,
+                    function_id,
+                    error.is_none(),
+                );
                 // Synchronous-ack path: a function-path registration is
                 // awaiting this result inside the registrator proxy (see
                 // `TriggerRegistrator for WorkerConnection`), and the trigger

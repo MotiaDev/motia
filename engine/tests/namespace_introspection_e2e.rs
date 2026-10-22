@@ -1690,3 +1690,209 @@ async fn shared_namespace_introspection_disabled_omits_fields_in_serializers_and
         }
     }
 }
+
+#[tokio::test]
+async fn shared_namespace_introspection_enabled_legacy_positive_ack_counts_active_owner() {
+    let (port, engine, _builder, _directory) = introspection_engine(true).await;
+    let mut provider = introspection_replica(port, "legacy-provider", "orders").await;
+    // Omitting shared_v1 selects the real legacy WS registrator, not a builtin
+    // or a synthetic shared assignment.
+    introspection_send(
+        &mut provider,
+        json!({"type":"registertriggertype", "id":"fixture:introspection",
+            "description":"legacy introspection fixture"}),
+    )
+    .await;
+    introspection_barrier(&mut provider).await;
+    let worker = engine
+        .worker_registry
+        .list_workers()
+        .into_iter()
+        .find(|worker| worker.name.as_deref() == Some("legacy-provider"))
+        .expect("actual namespaced WS provider");
+
+    // The function path is ownerless and awaits the legacy installation ACK.
+    // Using it avoids the connection-owned fire-and-forget path: enqueue alone
+    // must not be evidence of an active legacy provider.
+    let registration_engine = engine.clone();
+    let registration = tokio::spawn(async move {
+        call_engine_fn(
+            &registration_engine,
+            "engine::register_trigger",
+            json!({"trigger_type":"fixture:introspection", "function_id":"svc::shared",
+                "config":{"topic":"legacy-ack"}, "trigger_namespace":"orders",
+                "_caller_worker_id":worker.id.to_string()}),
+        )
+        .await
+    });
+    let install = introspection_frame(&mut provider, "registertrigger").await;
+    assert!(
+        install.get("assignment_id").is_none(),
+        "legacy install must not acquire a shared_v1 assignment: {install}"
+    );
+    assert_eq!(install["namespace"], "orders");
+    assert_eq!(install["trigger_namespace"], "orders");
+    let pending = introspection_trigger_list(&engine, true).await;
+    let rows = pending["registered_triggers"].as_array().unwrap();
+    assert_eq!(rows.len(), 1, "legacy pending intent: {pending}");
+    assert_eq!(rows[0]["provider_owner_count"], 1);
+    assert_eq!(rows[0]["active_owner_count"], 0, "no ACK yet");
+    assert_eq!(rows[0]["degraded"], true);
+
+    // Model the adapter installing its local route before reporting success.
+    let installed_routes = std::collections::HashSet::from([install["id"]
+        .as_str()
+        .expect("legacy route id")
+        .to_owned()]);
+    assert!(installed_routes.contains(install["id"].as_str().unwrap()));
+    introspection_send(
+        &mut provider,
+        json!({"type":"triggerregistrationresult", "id":install["id"],
+            "trigger_type":install["trigger_type"], "function_id":install["function_id"]}),
+    )
+    .await;
+    let registered = tokio::time::timeout(Duration::from_secs(2), registration)
+        .await
+        .expect("positive legacy ACK completes registration without timing out")
+        .expect("registration task");
+    assert_eq!(registered["id"], install["id"]);
+    assert!(
+        engine
+            .trigger_registry
+            .triggers
+            .contains_key(install["id"].as_str().unwrap()),
+        "successfully installed legacy route is published"
+    );
+    for include_pending in [false, true] {
+        let listed = introspection_trigger_list(&engine, include_pending).await;
+        let rows = listed["registered_triggers"].as_array().unwrap();
+        assert_eq!(rows.len(), 1, "one logical legacy row: {listed}");
+        let row = &rows[0];
+        assert_eq!(row["owner_count"], 1);
+        assert_eq!(row["provider_owner_count"], 1);
+        assert_eq!(row["delivery_mode"], "single_active");
+        assert_eq!(row["provider_namespace"], "orders");
+        assert_eq!(row["namespace"], "orders");
+        assert_eq!(
+            (row["active_owner_count"].clone(), row["degraded"].clone()),
+            (json!(1), json!(false)),
+            "a positively acknowledged successful legacy WS install is active and healthy: {row}"
+        );
+    }
+}
+
+// These negative controls deliberately preserve legacy completion semantics:
+// success returned by the registrator is not proof that the adapter installed.
+async fn introspection_legacy_unconfirmed(case: &str) {
+    let (port, engine, _builder, _directory) = introspection_engine(true).await;
+    let mut provider = introspection_replica(port, "unconfirmed-provider", "orders").await;
+    let worker = engine
+        .worker_registry
+        .list_workers()
+        .into_iter()
+        .find(|worker| worker.name.as_deref() == Some("unconfirmed-provider"))
+        .expect("actual legacy WS provider");
+    let declaration = json!({"type":"registertriggertype", "id":"fixture:introspection",
+        "description":"unconfirmed legacy introspection fixture"});
+    if case != "replay" {
+        introspection_send(&mut provider, declaration.clone()).await;
+        introspection_barrier(&mut provider).await;
+    }
+    let registration_engine = engine.clone();
+    let caller_id = worker.id.to_string();
+    let registration = tokio::spawn(async move {
+        call_engine_fn(
+            &registration_engine,
+            "engine::register_trigger",
+            json!({"trigger_type":"fixture:introspection", "function_id":"svc::shared",
+                "config":{"topic":"unconfirmed"}, "trigger_namespace":"orders",
+                "_caller_worker_id":caller_id}),
+        )
+        .await
+    });
+    let replay_id = if case == "replay" {
+        let registered = tokio::time::timeout(Duration::from_secs(2), registration)
+            .await
+            .expect("unknown type parks intent without waiting for an ACK")
+            .expect("registration task");
+        let id = registered["id"]
+            .as_str()
+            .expect("parked route id")
+            .to_owned();
+        assert!(engine.trigger_registry.pending_triggers.contains_key(&id));
+        introspection_send(&mut provider, declaration).await;
+        Some(id)
+    } else {
+        // Keep ownership of the task until the selected completion below.
+        let install = introspection_frame(&mut provider, "registertrigger").await;
+        assert!(install.get("assignment_id").is_none(), "{install}");
+        let id = install["id"].as_str().expect("legacy route id").to_owned();
+        assert!(worker.pending_trigger_acks.contains_key(&id));
+        let pending = introspection_trigger_list(&engine, true).await;
+        let rows = pending["registered_triggers"].as_array().unwrap();
+        assert_eq!(rows.len(), 1, "{case}: {pending}");
+        assert_eq!(rows[0]["active_owner_count"], 0, "no ACK before {case}");
+        assert_eq!(rows[0]["degraded"], true);
+        if case == "closed" {
+            // Drop the actual waiting oneshot sender, not the WS transport:
+            // isolate the legacy Ok(Err(_)) branch from disconnect cleanup.
+            worker.pending_trigger_acks.clear();
+        }
+        let registered = tokio::time::timeout(
+            Duration::from_secs(if case == "timeout" { 12 } else { 2 }),
+            registration,
+        )
+        .await
+        .expect("legacy timeout/closed channel still completes fail-open")
+        .expect("registration task");
+        assert_eq!(registered["id"], id, "legacy completion remains unchanged");
+        assert!(worker.pending_trigger_acks.is_empty());
+        Some(id)
+    };
+    let id = replay_id.unwrap();
+    if case == "replay" {
+        let install = introspection_frame(&mut provider, "registertrigger").await;
+        assert_eq!(install["id"], id);
+        assert!(install.get("assignment_id").is_none(), "{install}");
+        introspection_barrier(&mut provider).await;
+        assert!(
+            worker.pending_trigger_acks.is_empty(),
+            "replay is fire-and-forget"
+        );
+    }
+    assert!(
+        engine.trigger_registry.triggers.contains_key(&id),
+        "{case}: legacy completion/replay publishes the route without a positive ACK"
+    );
+    for include_pending in [false, true] {
+        let listed = introspection_trigger_list(&engine, include_pending).await;
+        let rows = listed["registered_triggers"].as_array().unwrap();
+        assert_eq!(rows.len(), 1, "{case}: {listed}");
+        let row = &rows[0];
+        assert_eq!(row["owner_count"], 1);
+        assert_eq!(row["provider_owner_count"], 1);
+        assert_eq!(row["delivery_mode"], "single_active");
+        assert_eq!(row["provider_namespace"], "orders");
+        assert_eq!(row["namespace"], "orders");
+        assert_eq!(
+            (row["active_owner_count"].clone(), row["degraded"].clone()),
+            (json!(0), json!(true)),
+            "{case} must never manufacture positive installation confirmation: {row}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn shared_namespace_introspection_legacy_unconfirmed_timeout_is_not_active() {
+    introspection_legacy_unconfirmed("timeout").await;
+}
+
+#[tokio::test]
+async fn shared_namespace_introspection_legacy_unconfirmed_closed_ack_channel_is_not_active() {
+    introspection_legacy_unconfirmed("closed").await;
+}
+
+#[tokio::test]
+async fn shared_namespace_introspection_legacy_unconfirmed_replay_is_not_active() {
+    introspection_legacy_unconfirmed("replay").await;
+}

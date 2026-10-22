@@ -559,6 +559,9 @@ struct AssignmentSet {
 struct LegacyInstall {
     trigger: Trigger,
     provider: Option<Uuid>,
+    registrator: Arc<dyn TriggerRegistrator>,
+    acknowledged: std::sync::atomic::AtomicBool,
+    published: std::sync::Mutex<Option<std::sync::Weak<Trigger>>>,
 }
 
 #[derive(Default)]
@@ -574,6 +577,10 @@ pub struct TriggerRegistry {
     // Reserved before provider I/O, including ownerless registrations. A
     // cancelled future leaves its descriptor/debt visible until explicit teardown.
     legacy_installs: DashMap<String, Arc<LegacyInstall>>,
+    // Observation only, never lifecycle authority. Legacy replies have no wire
+    // generation: once a session/id is reused, even a positive reply is ambiguous.
+    // Retain that tombstone so an old ACK cannot confirm a successor installation.
+    legacy_observations: std::sync::Mutex<HashMap<(Uuid, String), Option<Arc<LegacyInstall>>>>,
     retired_providers: std::sync::Mutex<std::collections::HashSet<Uuid>>,
     #[cfg(test)]
     removal_pause: std::sync::Mutex<
@@ -621,6 +628,7 @@ impl TriggerRegistry {
             selection: Default::default(),
             legacy_uncertain: Default::default(),
             legacy_installs: Default::default(),
+            legacy_observations: Default::default(),
             retired_providers: Default::default(),
             #[cfg(test)]
             removal_pause: Default::default(),
@@ -684,8 +692,9 @@ impl TriggerRegistry {
         let active_count = self.assignments.get(&trigger.id).map_or_else(
             || {
                 usize::from(
-                    providers.iter().any(|p| p.worker_id.is_none())
-                        && self.triggers.contains_key(&trigger.id),
+                    providers.iter().any(|p| {
+                        p.worker_id.is_none() || self.legacy_installation_confirmed(trigger, p)
+                    }) && self.triggers.contains_key(&trigger.id),
                 )
             },
             |state| {
@@ -782,6 +791,74 @@ impl TriggerRegistry {
             .contains(id)
     }
 
+    /// Only the actual receiver of a positive legacy result calls this. Neither
+    /// successful enqueue nor fail-open completion is installation evidence.
+    pub(crate) fn observe_legacy_ack(
+        &self,
+        provider: Uuid,
+        id: &str,
+        kind: &str,
+        function: &str,
+        positive: bool,
+    ) {
+        let observations = self
+            .legacy_observations
+            .lock()
+            .expect("legacy observations poisoned");
+        let Some(Some(install)) = observations.get(&(provider, id.to_owned())) else {
+            return;
+        };
+        if install.trigger.trigger_type != kind || install.trigger.function_id != function {
+            return;
+        }
+        // Preserve the observation even between reservation removal and live
+        // publication. Counting still requires this exact immutable publication;
+        // removal/reuse tombstones prevent attaching it to any successor.
+        install
+            .acknowledged
+            .store(positive, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    fn legacy_publication_current(&self, install: &LegacyInstall) -> bool {
+        let published = install
+            .published
+            .lock()
+            .expect("legacy publication poisoned");
+        published
+            .as_ref()
+            .and_then(std::sync::Weak::upgrade)
+            .is_some_and(|published| {
+                self.triggers
+                    .by_id
+                    .get(&install.trigger.id)
+                    .is_some_and(|current| Arc::ptr_eq(current.value(), &published))
+            })
+    }
+
+    fn legacy_installation_confirmed(&self, trigger: &Trigger, provider: &TriggerType) -> bool {
+        let Some(owner) = provider.worker_id else {
+            return false;
+        };
+        if self.legacy_execution_uncertain(&trigger.id) {
+            return false;
+        }
+        let observations = self
+            .legacy_observations
+            .lock()
+            .expect("legacy observations poisoned");
+        observations
+            .get(&(owner, trigger.id.clone()))
+            .is_some_and(|observation| {
+                observation.as_ref().is_some_and(|install| {
+                    Arc::ptr_eq(&install.registrator, &provider.registrator)
+                        && install
+                            .acknowledged
+                            .load(std::sync::atomic::Ordering::SeqCst)
+                        && self.legacy_publication_current(install)
+                })
+            })
+    }
+
     async fn install_legacy(
         &self,
         trigger: Trigger,
@@ -791,6 +868,9 @@ impl TriggerRegistry {
         let install = Arc::new(LegacyInstall {
             trigger: trigger.clone(),
             provider: provider.worker_id,
+            registrator: provider.registrator.clone(),
+            acknowledged: std::sync::atomic::AtomicBool::new(false),
+            published: Default::default(),
         });
         let was_live;
         {
@@ -824,6 +904,24 @@ impl TriggerRegistry {
             }
             self.legacy_installs
                 .insert(trigger.id.clone(), install.clone());
+            if self.shared() {
+                if let Some(owner) = provider.worker_id {
+                    use std::collections::hash_map::Entry;
+                    match self
+                        .legacy_observations
+                        .lock()
+                        .expect("legacy observations poisoned")
+                        .entry((owner, trigger.id.clone()))
+                    {
+                        Entry::Vacant(entry) => {
+                            entry.insert(Some(install.clone()));
+                        }
+                        Entry::Occupied(mut entry) => {
+                            entry.insert(None);
+                        }
+                    }
+                }
+            }
         }
         let result = if replay {
             provider.registrator.replay_trigger(trigger.clone()).await
@@ -870,7 +968,15 @@ impl TriggerRegistry {
         match result {
             Ok(()) => {
                 self.pending_triggers.remove(&trigger.id);
-                self.triggers.insert(trigger.id.clone(), trigger);
+                self.triggers.insert(trigger.id.clone(), trigger.clone());
+                *install
+                    .published
+                    .lock()
+                    .expect("legacy publication poisoned") = self
+                    .triggers
+                    .by_id
+                    .get(&trigger.id)
+                    .map(|current| Arc::downgrade(current.value()));
                 Ok(RegisterTriggerOutcome::Registered)
             }
             Err(error) if error.downcast_ref::<RegistratorUnavailable>().is_some() => {
@@ -1508,6 +1614,12 @@ impl TriggerRegistry {
                     .lock()
                     .expect("retired providers poisoned")
                     .insert(*worker_id);
+                // Session UUIDs are never reused. Serialize this release with
+                // install reservation so a retiring session cannot add it back.
+                self.legacy_observations
+                    .lock()
+                    .expect("legacy observations poisoned")
+                    .retain(|(owner, _), _| owner != worker_id);
                 let mut uncertain = self
                     .legacy_uncertain
                     .lock()
@@ -2325,6 +2437,18 @@ impl TriggerRegistry {
                 .park_transition
                 .lock()
                 .expect("park_transition lock poisoned");
+            // Keep only id/session tombstones: a later untagged result cannot
+            // distinguish the removed registration from a same-session retry.
+            for ((_, observed_id), observation) in self
+                .legacy_observations
+                .lock()
+                .expect("legacy observations poisoned")
+                .iter_mut()
+            {
+                if observed_id == &id {
+                    *observation = None;
+                }
+            }
             if self.legacy_installs.remove(&id).is_some() {
                 // An in-flight unfenced install may already execute. Invalidate
                 // its completion and keep uncertainty even after removing intent.
@@ -3495,6 +3619,124 @@ mod tests {
         assert!(
             unsafe_handovers.is_empty(),
             "lost legacy install ACK cannot authorize shared_v1 replay without positive stop; (disconnected, installs, lifecycle, live, pending)={unsafe_handovers:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn shared_namespace_legacy_observation_correlates_session_descriptor_and_generation() {
+        use crate::{
+            engine::{Engine, Outbound},
+            protocol::Message,
+            worker_connections::WorkerConnection,
+        };
+        crate::workers::observability::metrics::ensure_default_meter();
+        let engine = Arc::new(Engine::new());
+        engine.set_shared_namespace_ownership(true);
+        let (tx, mut rx) = tokio::sync::mpsc::channel(16);
+        let worker = WorkerConnection::new(tx);
+        engine.worker_registry.register_worker(worker.clone());
+        engine
+            .trigger_registry
+            .register_trigger_type(TriggerType::new(
+                "legacy-observed",
+                "observation fixture",
+                Box::new(worker.clone()),
+                Some(worker.id),
+            ))
+            .await
+            .unwrap();
+        let binding = make_trigger("observation-generation", "legacy-observed");
+        let registry = &engine.trigger_registry;
+        let registration = registry.register_trigger(binding.clone());
+        tokio::pin!(registration);
+        assert!(futures::poll!(&mut registration).is_pending());
+        assert!(matches!(
+            rx.try_recv().unwrap(),
+            Outbound::Protocol(Message::RegisterTrigger {
+                assignment_id: None,
+                ..
+            })
+        ));
+        let active = || registry.ownership_snapshot(&binding, |_| true).2;
+        assert_eq!(active(), 0);
+        registry.observe_legacy_ack(
+            Uuid::new_v4(),
+            &binding.id,
+            &binding.trigger_type,
+            &binding.function_id,
+            true,
+        );
+        registry.observe_legacy_ack(
+            worker.id,
+            &binding.id,
+            "wrong-kind",
+            &binding.function_id,
+            true,
+        );
+        registry.observe_legacy_ack(
+            worker.id,
+            &binding.id,
+            &binding.trigger_type,
+            "wrong-function",
+            true,
+        );
+        let observation = registry.legacy_observations.lock().unwrap();
+        assert!(
+            !observation[&(worker.id, binding.id.clone())]
+                .as_ref()
+                .unwrap()
+                .acknowledged
+                .load(Ordering::SeqCst)
+        );
+        drop(observation);
+        let ack = Message::TriggerRegistrationResult {
+            assignment_id: None,
+            id: binding.id.clone(),
+            trigger_type: binding.trigger_type.clone(),
+            function_id: binding.function_id.clone(),
+            error: None,
+        };
+        engine.router_msg(&worker, &ack).await.unwrap();
+        registration.await.unwrap();
+        assert_eq!(active(), 1);
+
+        // Replacing the published immutable registration, even with identical
+        // fields, invalidates the observation rather than carrying its ACK over.
+        registry
+            .triggers
+            .insert(binding.id.clone(), binding.clone());
+        assert_eq!(active(), 0);
+        engine.router_msg(&worker, &ack).await.unwrap();
+        assert_eq!(active(), 0, "old ACK cannot attach to a replacement Arc");
+        registry
+            .unregister_trigger(binding.id.clone(), None)
+            .await
+            .unwrap();
+        assert!(matches!(
+            rx.try_recv().unwrap(),
+            Outbound::Protocol(Message::UnregisterTrigger { .. })
+        ));
+        assert_eq!(active(), 0);
+
+        let successor = registry.register_trigger(binding.clone());
+        tokio::pin!(successor);
+        assert!(futures::poll!(&mut successor).is_pending());
+        rx.try_recv().unwrap();
+        engine.router_msg(&worker, &ack).await.unwrap();
+        successor.await.unwrap();
+        assert_eq!(
+            active(),
+            0,
+            "legacy wire has no generation: reused session/id ACK is ambiguous"
+        );
+        registry.unregister_worker(&worker.id).await;
+        assert!(
+            !registry
+                .legacy_observations
+                .lock()
+                .unwrap()
+                .keys()
+                .any(|(owner, _)| *owner == worker.id)
         );
     }
 

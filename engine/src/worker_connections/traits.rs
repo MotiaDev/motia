@@ -28,6 +28,22 @@ use crate::{
 const REGISTRATION_ACK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 impl WorkerConnection {
+    pub(crate) fn observe_legacy_trigger_ack(
+        &self,
+        registry: &crate::trigger::TriggerRegistry,
+        id: &str,
+        kind: &str,
+        function: &str,
+        positive: bool,
+    ) {
+        if !self
+            .cleanup_claimed
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            registry.observe_legacy_ack(self.id, id, kind, function, positive);
+        }
+    }
+
     pub(crate) fn spawn_assignment(&self, work: impl Future<Output = ()> + Send + 'static) {
         self.spawn_assignment_inner(work, || {});
     }
