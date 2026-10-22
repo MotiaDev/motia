@@ -69,6 +69,7 @@ test("the KVS route map covers exactly the extensionless marketing pages", () =>
     .map((d) => d.name)
   assert.deepEqual(desiredRoutes(topLevel), [
     { Key: "/a", Value: "/a.html" },
+    { Key: "/benchmarks", Value: "/benchmarks.html" },
     { Key: "/manifesto", Value: "/manifesto.html" },
     { Key: "/privacy-policy", Value: "/privacy-policy.html" },
   ])

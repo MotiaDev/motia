@@ -252,7 +252,7 @@ def branch_repo(release_repo, tmp_path):
         "sdk/packages/python/iii/pyproject.toml",
         "sdk/packages/python/observability/pyproject.toml",
         "sdk/packages/python/helpers/pyproject.toml",
-        "console/packages/console-rust/Cargo.toml",
+        "crates/iii-filter/Cargo.toml",
         "crates/scaffolder-core/Cargo.toml", "crates/motia-tools/Cargo.toml",
     ]
     for path in manifests:
@@ -448,7 +448,7 @@ def test_release_pipeline_keeps_rc_and_stable_channels_separate(tmp_path, versio
     assert dict(line.split("=", 1) for line in output.read_text().splitlines()) == {
         **expected, "version": version,
     }
-    for name in ["docker-engine", "homebrew-engine", "homebrew-console"]:
+    for name in ["docker-engine", "homebrew-engine"]:
         assert "needs.setup.outputs.is_prerelease != 'true'" in release["jobs"][name]["if"]
     for name in ["sdk-npm", "sdk-npm-browser", "helpers-npm", "observability-npm"]:
         assert release["jobs"][name]["with"]["npm_tag"] == "${{ needs.setup.outputs.npm_tag }}"
