@@ -137,14 +137,14 @@ await worker.shutdown();
 node import-links.js
 ```
 
-```json
-{ "imported": 2, "skipped": 0 }
+```text
+{ imported: 2, skipped: 0 }
 ```
 
 The SDK prints a few `[iii]` / `[OTel]` connection lines around that object; the
 `{ imported, skipped }` line is the importer's answer.
 
-Run it again and it reports `{ "imported": 0, "skipped": 2 }`: the codes are already taken, so
+Run it again and it reports `{ imported: 0, skipped: 2 }`: the codes are already taken, so
 `link::create` throws its `is already taken` error for each row and the importer skips those rows
 instead of aborting the batch. The check reads `link::create`'s own message, which the chapter
 controls, not the database's wording.

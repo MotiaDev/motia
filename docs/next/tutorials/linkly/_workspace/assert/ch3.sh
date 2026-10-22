@@ -12,6 +12,7 @@ check "link row persisted" 'https://iii.dev' \
   "$(t database::query db=primary sql="SELECT url FROM links WHERE code = 'iii'")"
 
 check_duplicate iii
+check_missing_url
 check "duplicate did not overwrite" 'https://iii.dev' \
   "$(t database::query db=primary sql="SELECT url FROM links WHERE code = 'iii'")"
 
