@@ -121,16 +121,40 @@ functionality yet, so we'll add that and an HTTP endpoint for it too.
 
 ### Publish on link.created
 
-Publish an event whenever a link is created. Inside `link::create`, after the database write and
-`state::set`, publish on the `link.created` topic. A taken code throws before it gets there, so it
+Publish an event whenever a link is created. Replace `link::create` with this version: it keeps the
+creation time in a `created_at` variable, writes it with the row, and after `state::set` publishes
+it on the `link.created` topic along with the code and URL. A subscriber then knows when the link
+was created, even when its copy arrives later. A taken code throws before the publish, so it
 publishes nothing:
 
-```typescript {3-6} src/index.ts
+```typescript {4-6,17,25-28} src/index.ts
 worker.registerFunction("link::create", async (payload: { url: string; code?: string }) => {
-  // ...unchanged from the Chapter 3 link::create: code, url, the INSERT and state::set...
+  const code = payload.code ?? makeCode();
+  const url = /^https?:\/\//i.test(payload.url) ? payload.url : `https://${payload.url}`;
+  // One timestamp for the row and the event, so subscribers see when the link
+  // was created, not when their copy arrived.
+  const created_at = new Date().toISOString();
+  // ON CONFLICT DO NOTHING turns a taken code into zero inserted rows instead
+  // of a database error, so link::create can say so in its own words.
+  const { affected_rows } = await worker.trigger<
+    { db: string; sql: string; params: string[] },
+    { affected_rows: number }
+  >({
+    function_id: "database::execute",
+    payload: {
+      db: DB,
+      sql: "INSERT INTO links (code, url, created_at) VALUES (?, ?, ?) ON CONFLICT(code) DO NOTHING",
+      params: [code, url, created_at],
+    },
+  });
+  if (affected_rows === 0) throw new Error(`code \`${code}\` is already taken`);
+  await worker.trigger({
+    function_id: "state::set",
+    payload: { scope: "links", key: code, value: { url } },
+  });
   await worker.trigger({
     function_id: "iii::durable::publish",
-    payload: { topic: "link.created", data: { code, url } },
+    payload: { topic: "link.created", data: { code, url, created_at } },
   });
   logger.info("link created", { code, url });
   return { code, url };
@@ -261,7 +285,13 @@ scripts:
 
 The scaffold ships `analytics/src/main.py` with this code commented out: uncomment its Ch. 4 block
 (or replace the file with the code below). It binds a `durable:subscriber` trigger to the
-`link.created` topic and keeps count of every time that a new short link is created:
+`link.created` topic and records every new short link under the UTC day of the event's
+`created_at`.
+
+Delivery is at least once, so the same event can arrive twice. Instead of adding 1 to a counter,
+the worker keeps one row per link in `link_events`, keyed by `code`, and writes it with a single
+`INSERT ... ON CONFLICT(code) DO NOTHING`: a redelivered event finds its row and changes nothing.
+The per-day counts come from `daily_link_counts`, a view that counts those rows by day:
 
 <Accordion title="analytics/src/main.py">
 
@@ -281,6 +311,15 @@ logger = Logger()
 
 DB = "analytics"
 
+SCHEMA = [
+    # One row per link. Delivery is at least once, so a redelivered event
+    # finds its row already there and changes nothing.
+    "CREATE TABLE IF NOT EXISTS link_events (code TEXT PRIMARY KEY, day TEXT NOT NULL)",
+    # The per-day counts are computed from those rows, never stored.
+    "CREATE VIEW IF NOT EXISTS daily_link_counts AS "
+    "SELECT day, COUNT(*) AS count FROM link_events GROUP BY day",
+]
+
 def ensure_schema() -> None:
     """The analytics worker owns its own table, in its own database.
 
@@ -289,15 +328,10 @@ def ensure_schema() -> None:
     """
     for attempt in range(1, 31):
         try:
-            worker.trigger(
-                {
-                    "function_id": "database::execute",
-                    "payload": {
-                        "db": DB,
-                        "sql": "CREATE TABLE IF NOT EXISTS daily_link_counts (day TEXT PRIMARY KEY, count INTEGER NOT NULL)",
-                    },
-                }
-            )
+            for sql in SCHEMA:
+                worker.trigger(
+                    {"function_id": "database::execute", "payload": {"db": DB, "sql": sql}}
+                )
             return
         except Exception:
             if attempt >= 30:
@@ -305,20 +339,22 @@ def ensure_schema() -> None:
             time.sleep(1)
 
 def on_link_created(data: dict) -> dict:
-    """Runs whenever link publishes `link.created`. Counts links per day."""
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    """Runs whenever link publishes `link.created`. Records the link's day."""
+    # The day the link was created (UTC), not the day this copy arrived.
+    created_at = datetime.fromisoformat(data["created_at"].replace("Z", "+00:00"))
+    day = created_at.astimezone(timezone.utc).strftime("%Y-%m-%d")
     worker.trigger(
         {
             "function_id": "database::execute",
             "payload": {
                 "db": DB,
-                "sql": "INSERT INTO daily_link_counts (day, count) VALUES (?, 1) "
-                "ON CONFLICT(day) DO UPDATE SET count = count + 1",
-                "params": [day],
+                "sql": "INSERT INTO link_events (code, day) VALUES (?, ?) "
+                "ON CONFLICT(code) DO NOTHING",
+                "params": [data["code"], day],
             },
         }
     )
-    logger.info(f"counted new link {data.get('code')} for {day}")
+    logger.info(f"recorded new link {data['code']} for {day}")
     return {"ok": True}
 
 ensure_schema()
@@ -337,7 +373,7 @@ print("Analytics worker started")
 
 </Accordion>
 
-Analytics keeps its counts in its own database, so the `link` worker never has to know it exists.
+Analytics keeps its rows in its own database, so the `link` worker never has to know it exists.
 That is the `analytics` entry you uncommented at the start of the chapter, alongside the `primary`
 one from Chapter 3.
 
@@ -359,7 +395,7 @@ for n in $(seq 1 5); do
 done
 ```
 
-The Python worker keeps count of new link creations as expected:
+The view counts each new link once, under the day it was created:
 
 ```bash
 iii trigger database::query db=analytics sql="SELECT day, count FROM daily_link_counts"

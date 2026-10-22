@@ -84,7 +84,9 @@ worker.registerFunction("click-streamer::broadcast", async (click: Click) => {
   const event: Click = { id: click.id, code: click.code, clicked_at: click.clicked_at };
   let delivered = 0;
   for (const binding of listeners.values()) {
-    if (binding.config?.code && binding.config.code !== event.code) continue;
+    // A binding with a code, even "", gets only that code's clicks; one
+    // without a code gets every click.
+    if (binding.config?.code !== undefined && binding.config.code !== event.code) continue;
     try {
       await worker.trigger({
         function_id: binding.function_id,
@@ -107,8 +109,9 @@ logger.info("click-streamer ready");
 
 A few things in there are the provider's job, because nobody else can do them:
 
-- **Validate the filter.** A listener can pass `{ code }` to hear about one link only. Anything else
-  is rejected at bind time instead of failing later.
+- **Validate the filter.** A listener can pass `{ code }` to hear about one link only, and leave it
+  out to hear every click. A `code` that is present always filters, even `""`. Anything that is
+  not a string is rejected at bind time instead of failing later.
 - **Bound the fan-out.** The table has a cap, and each delivery uses `TriggerAction.Void()`, so a
   slow listener never holds up the others.
 - **Deliver to the listener's namespace.** Passing `binding.namespace` matters in Chapter 7, when a

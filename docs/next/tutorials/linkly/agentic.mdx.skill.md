@@ -398,21 +398,27 @@ iii's **composability** once again makes it easy to take applications from demo 
 Make redirects fast and add analytics.
 
 - Define a standard "clicks" queue with queue::define and enqueue click records instead of writing them inline on the redirect path.
-- link::create publishes a link.created event on a durable topic with iii::durable::publish.
+- link::create publishes a link.created event on a durable topic with iii::durable::publish, with
+  { code, url, created_at }, where created_at is the same timestamp it writes to the links row.
 - Add a second SQLite database named "analytics" for the analytics worker.
-- Create a Python analytics worker that binds a durable:subscriber trigger to link.created and counts
-  links per day in a daily_link_counts table (day TEXT PRIMARY KEY, count INTEGER NOT NULL) in the
-  analytics database, and add it with compose.
+- Create a Python analytics worker that binds a durable:subscriber trigger to link.created and keeps
+  one row per link in a link_events table (code TEXT PRIMARY KEY, day TEXT NOT NULL) in the
+  analytics database. day is the UTC date (YYYY-MM-DD) of the event's created_at, not the delivery
+  time. Write the row with a single INSERT ... ON CONFLICT(code) DO NOTHING: delivery is at least
+  once, and a redelivered event must not count twice. Expose the per-day counts as a
+  daily_link_counts view (SELECT day, COUNT(*) AS count FROM link_events GROUP BY day). Add the
+  worker with compose.
 - Add link::update and a PUT /links/:code route, publish link.updated durably, and refresh the cache
   from a durable subscriber.
 
 Add the second database yourself first, then split the rest across two subagents that work on
 separate files at the same time:
-- Subagent A: the Python analytics worker (subscribe to link.created with durable:subscriber, count
-  links per day, write the daily_link_counts rows to the analytics database) and add it with compose.
+- Subagent A: the Python analytics worker (subscribe to link.created with durable:subscriber, record
+  one link_events row per link with the day from created_at, create the daily_link_counts view in
+  the analytics database) and add it with compose.
 - Subagent B: the link worker changes in link/src/index.ts (define and enqueue the clicks queue,
-  publish link.created and link.updated with iii::durable::publish, add link::update with the
-  PUT /links/:code route, and refresh the cache from a durable subscriber).
+  publish link.created with created_at and link.updated with iii::durable::publish, add
+  link::update with the PUT /links/:code route, and refresh the cache from a durable subscriber).
 
 When it works, tell me to continue to the next chapter of the Linkly tutorial.
 ```
@@ -462,7 +468,8 @@ Push every click to listeners in real time.
 - Create a click-streamer worker that declares its own trigger type, click-streamer::click. It keeps
   a capped table of the bindings (add in registerTrigger, remove in unregisterTrigger, reject a
   `code` filter that is not a string). Give it a click-streamer::broadcast function that delivers
-  { id, code, clicked_at } to every matching binding with TriggerAction.Void(), passing each
+  { id, code, clicked_at } to every matching binding with TriggerAction.Void(): a binding with a
+  `code`, even "", matches only that code, and one without a `code` matches every click. Pass each
   binding's namespace and metadata. Build the payload from those fields instead of forwarding the
   delivered payload as-is: the engine stamps bookkeeping fields such as _caller_worker_id on every
   delivery. Add it with compose.
