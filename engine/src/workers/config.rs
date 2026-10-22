@@ -22,7 +22,7 @@ use notify::Watcher;
 pub use iii_compose::config::CONFIGURABLE_ENGINE_WORKERS;
 use iii_compose::config::{engine_worker_type, valid_engine_worker_name};
 
-use super::{registry::WorkerRegistration, traits::Worker};
+use super::{registry::WorkerRegistration, sandbox::config::SandboxRouterConfig, traits::Worker};
 use crate::engine::Engine;
 
 const WORKER_COMPOSE_MIGRATION_GUIDE: &str = "https://iii.dev/docs/upgrading/workers-to-compose";
@@ -68,6 +68,10 @@ pub struct EngineConfig {
     pub modules: Vec<WorkerEntry>,
     #[serde(default)]
     pub workers: Vec<WorkerEntry>,
+    /// Binds the `sandbox::*` router to an adapter worker; absent means the
+    /// router is not mounted.
+    #[serde(default)]
+    pub sandbox: Option<SandboxRouterConfig>,
 }
 
 fn default_registration_namespace_grace_ms() -> u64 {
@@ -81,6 +85,7 @@ impl Default for EngineConfig {
             observers: Default::default(),
             modules: Vec::new(),
             workers: Vec::new(),
+            sandbox: None,
         }
     }
 }
@@ -151,6 +156,9 @@ impl EngineConfig {
         let cfg: Self = serde_yaml::from_str(&yaml_content)
             .map_err(|e| anyhow::anyhow!("Failed to parse config file '{}': {}", path, e))?;
         cfg.validate_declared_workers()?;
+        if let Some(sandbox) = &cfg.sandbox {
+            sandbox.validate()?;
+        }
         Ok(cfg)
     }
 
@@ -1321,6 +1329,36 @@ mod tests {
             );
         }
         assert!(declared.contains("iii-worker-manager#rbac"));
+    }
+
+    #[test]
+    fn config_file_reads_and_validates_sandbox_binding() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.yaml");
+        let path = path.to_str().unwrap();
+
+        std::fs::write(
+            path,
+            "sandbox:\n  adapter: fake\n  namespace: fake-ns\nworkers: []\n",
+        )
+        .unwrap();
+        assert_eq!(
+            EngineConfig::config_file(path).unwrap().sandbox,
+            Some(SandboxRouterConfig {
+                adapter: "fake".into(),
+                namespace: "fake-ns".into(),
+            })
+        );
+
+        std::fs::write(path, "workers: []\n").unwrap();
+        assert_eq!(EngineConfig::config_file(path).unwrap().sandbox, None);
+
+        std::fs::write(path, "sandbox:\n  adapter: sandbox\n").unwrap();
+        let message = EngineConfig::config_file(path).unwrap_err().to_string();
+        assert!(
+            message.contains("[INVALID_SANDBOX_CONFIG] sandbox.adapter 'sandbox'"),
+            "{message}"
+        );
     }
 
     #[test]
@@ -2656,6 +2694,7 @@ workers:
                     })),
                 }],
                 observers: Default::default(),
+                sandbox: None,
             })
             .build()
             .await
@@ -2683,6 +2722,7 @@ workers:
                 modules: Vec::new(),
                 workers: Vec::new(),
                 observers: Default::default(),
+                sandbox: None,
             })
             .add_worker("configuration", Some(config_entry))
             .build()
@@ -2727,6 +2767,7 @@ workers:
                 modules: Vec::new(),
                 workers: Vec::new(),
                 observers: Default::default(),
+                sandbox: None,
             })
             .add_worker("configuration", Some(config_entry))
             .with_config_path("config.yaml")

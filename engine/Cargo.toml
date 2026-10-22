@@ -136,6 +136,8 @@ iii-clap-docs = { path = "../crates/iii-clap-docs" }
 # `iii compose`: declarative multi-worker lifecycle. Owns its own CLI surface;
 # the engine only mounts the subcommand and delegates.
 iii-compose = { path = "../crates/iii-compose" }
+# Operation table and adapter-name rules shared with the sandbox adapters.
+iii-sandbox-contract = { path = "../crates/iii-sandbox-contract" }
 regex = "1"
 hex = "0.4"
 notify = "8.2.0"

@@ -192,6 +192,7 @@ fn minimal_config_for_builder_tests() -> (iii::workers::config::EngineConfig, te
     let (config_entry, config_dir) = isolated_config_entry();
     let config = iii::workers::config::EngineConfig {
         registration_namespace_grace_ms: 5000,
+        sandbox: None,
         modules: Vec::new(),
         workers: vec![
             iii::workers::config::WorkerEntry {
@@ -269,6 +270,7 @@ async fn serve_returns_on_sigterm() {
     let (config_entry, _config_dir) = isolated_config_entry();
     let config = EngineConfig {
         registration_namespace_grace_ms: 5000,
+        sandbox: None,
         modules: Vec::new(),
         workers: vec![
             iii::workers::config::WorkerEntry {

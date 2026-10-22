@@ -39,6 +39,7 @@ pub mod workers {
     pub mod redis;
     pub mod registry;
     pub mod reload;
+    pub mod sandbox;
     pub mod secure_temp;
     pub mod stream;
     pub mod telemetry;

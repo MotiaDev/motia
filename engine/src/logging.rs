@@ -1309,6 +1309,7 @@ mod tests {
     ) -> EngineConfig {
         EngineConfig {
             registration_namespace_grace_ms: 5000,
+            sandbox: None,
             modules: vec![],
             workers: vec![
                 WorkerEntry {
