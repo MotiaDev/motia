@@ -2419,11 +2419,14 @@ impl Engine {
                     "InvocationResult"
                 );
 
-                if let Some(invocation) = self
+                let invocation = self
                     .invocations
-                    .remove_from_executor(invocation_id, worker.id)
-                {
-                    worker.remove_invocation(invocation_id).await;
+                    .remove_from_executor(invocation_id, worker.id);
+                // A late result still retires the reporting worker's own local ID.
+                // Only remove_from_executor may complete pending or release its
+                // reservation; a foreign reply must not touch the real executor.
+                worker.remove_invocation(invocation_id).await;
+                if let Some(invocation) = invocation {
                     let Message::InvocationResult { result, error, .. } = msg.into_owned() else {
                         unreachable!("matched InvocationResult above");
                     };
@@ -6614,6 +6617,135 @@ mod tests {
             )),
             "http module must drop the prefixed registration on unregister (iii-hq/iii#1508)"
         );
+    }
+
+    async fn disabled_mode_late_result_after_caller_removal(
+        error: Option<crate::protocol::ErrorBody>,
+    ) {
+        ensure_default_meter();
+        let engine = Engine::new();
+        engine.set_shared_namespace_ownership(false);
+        assert!(!engine.shared_namespace_ownership());
+        let (tx, _caller_rx) = mpsc::channel::<Outbound>(8);
+        let caller = WorkerConnection::new(tx);
+        let (tx, mut executor_rx) = mpsc::channel::<Outbound>(8);
+        let executor = WorkerConnection::new(tx);
+        engine.worker_registry.register_worker(caller.clone());
+        engine.worker_registry.register_worker(executor.clone());
+
+        engine
+            .router_msg(
+                &executor,
+                &Message::RegisterFunction {
+                    id: "legacy::late_result".to_string(),
+                    description: None,
+                    request_format: None,
+                    response_format: None,
+                    metadata: None,
+                    invocation: None,
+                },
+            )
+            .await
+            .expect("register legacy executor");
+        let caller_invocation_id = uuid::Uuid::new_v4();
+        engine
+            .router_msg_owned(
+                &caller,
+                Message::InvokeFunction {
+                    invocation_id: Some(caller_invocation_id),
+                    function_id: "legacy::late_result".to_string(),
+                    data: json!({"late": true}),
+                    traceparent: None,
+                    baggage: None,
+                    action: None,
+                    metadata: None,
+                    namespace: None,
+                },
+            )
+            .await
+            .expect("start real legacy call");
+
+        // Receiving the real dispatch is the barrier: the caller and executor
+        // IDs must be tracked before caller teardown, without synthetic IDs.
+        let dispatch = tokio::time::timeout(Duration::from_secs(1), executor_rx.recv())
+            .await
+            .expect("executor receives the call before caller teardown")
+            .expect("executor channel remains open");
+        let Outbound::Protocol(Message::InvokeFunction {
+            invocation_id: Some(executor_invocation_id),
+            function_id,
+            ..
+        }) = dispatch
+        else {
+            panic!("expected real executor dispatch, got {dispatch:?}");
+        };
+        assert_eq!(function_id, "legacy::late_result");
+        assert!(
+            engine
+                .invocations
+                .pending(&executor_invocation_id)
+                .is_some()
+        );
+        assert_eq!(caller.invocation_count().await, 1);
+        assert_eq!(executor.invocation_count().await, 1);
+
+        engine.cleanup_worker(&caller).await;
+        assert!(!engine.worker_registry.workers.contains_key(&caller.id));
+        assert!(
+            engine
+                .invocations
+                .pending(&executor_invocation_id)
+                .is_none()
+        );
+        assert_eq!(caller.invocation_count().await, 0);
+        assert_eq!(executor.invocation_count().await, 1);
+
+        engine
+            .router_msg(
+                &executor,
+                &Message::InvocationResult {
+                    invocation_id: executor_invocation_id,
+                    function_id,
+                    result: error.is_none().then(|| json!({"ok": true})),
+                    error,
+                    traceparent: None,
+                    baggage: None,
+                },
+            )
+            .await
+            .expect("late result is safely ignored for the removed caller");
+
+        assert!(
+            !engine.worker_registry.workers.contains_key(&caller.id),
+            "a late result must not recreate the removed caller"
+        );
+        assert!(
+            engine
+                .invocations
+                .pending(&executor_invocation_id)
+                .is_none()
+        );
+        assert_eq!(caller.invocation_count().await, 0);
+        assert_eq!(
+            executor.invocation_count().await,
+            0,
+            "late success/error must release the reporting executor's local ID"
+        );
+    }
+
+    #[tokio::test]
+    async fn disabled_mode_late_result_success_after_caller_removal_cleans_executor() {
+        disabled_mode_late_result_after_caller_removal(None).await;
+    }
+
+    #[tokio::test]
+    async fn disabled_mode_late_result_error_after_caller_removal_cleans_executor() {
+        disabled_mode_late_result_after_caller_removal(Some(crate::protocol::ErrorBody {
+            code: "late_error".to_string(),
+            message: "Executor finished after caller removal".to_string(),
+            stacktrace: None,
+        }))
+        .await;
     }
 
     #[tokio::test]
