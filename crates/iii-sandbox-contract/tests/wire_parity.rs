@@ -1,7 +1,11 @@
-use iii_sandbox_contract::{DOCS_BASE, SandboxErrorCode, code_of, error_payload};
-use serde::Deserialize;
-use serde_json::{Value, json};
-use std::collections::BTreeSet;
+use iii_sandbox_contract::{
+    CatalogListRequest, ChannelDirection, DOCS_BASE, EnvShape, ExecRequest, ExecResponse,
+    GrepRequest, ListRequest, MkdirRequest, ReadResponse, RunResponse, SandboxErrorCode,
+    SedRequest, StopRequest, StreamChannelRef, WriteContent, WriteRequest, code_of, error_payload,
+};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde_json::{Value, from_value, json, to_value};
+use std::collections::{BTreeMap, BTreeSet};
 
 use SandboxErrorCode::*;
 
@@ -120,4 +124,175 @@ fn every_code_has_a_docs_anchor() {
         let anchor = format!("<a id=\"{}\"></a>", c.as_str());
         assert!(page.contains(&anchor), "sandboxes.mdx lacks {anchor}");
     }
+}
+
+fn stream_ref() -> StreamChannelRef {
+    StreamChannelRef {
+        channel_id: "c".into(),
+        access_key: "k".into(),
+        direction: ChannelDirection::Read,
+    }
+}
+
+#[test]
+fn exec_accepts_todays_three_shapes() {
+    let exec = |v: Value| from_value::<ExecRequest>(v).expect("exec request parses");
+
+    let line = exec(json!({"sandbox_id": "s", "cmd": "node -v"}));
+    assert_eq!(line.cmd, "node -v");
+    assert!(line.args.is_empty());
+
+    let classic = exec(json!({"sandbox_id": "s", "cmd": "node", "args": ["-v"]}));
+    assert_eq!(classic.cmd, "node");
+    assert_eq!(classic.args, ["-v"]);
+
+    let argv = exec(json!({"sandbox_id": "s", "argv": ["node", "-v"], "stdin": "aGk="}));
+    assert_eq!(argv.argv, ["node", "-v"]);
+    assert_eq!(argv.cmd, "");
+    assert_eq!(argv.stdin.as_deref(), Some("aGk="));
+}
+
+#[test]
+fn env_accepts_list_and_map() {
+    let env = |v: Value| from_value::<EnvShape>(v).expect("env parses").into_kv_vec();
+    assert_eq!(env(json!(["A=1"])), Ok(vec!["A=1".to_string()]));
+    assert_eq!(
+        env(json!({"B": "2", "A": "1"})),
+        Ok(vec!["A=1".to_string(), "B=2".to_string()])
+    );
+}
+
+#[test]
+fn env_map_rejects_bad_names_with_todays_text() {
+    assert_eq!(
+        EnvShape::Map(BTreeMap::from([("9bad".into(), "x".into())]))
+            .into_kv_vec()
+            .unwrap_err(),
+        "env contains invalid variable name(s): [\"9bad\"]. Names must match `[A-Za-z_][A-Za-z0-9_]*`."
+    );
+}
+
+#[test]
+fn requests_ignore_unknown_fields() {
+    from_value::<ListRequest>(json!({"show_all": true})).expect("ListRequest");
+    from_value::<CatalogListRequest>(json!({"x": 1})).expect("CatalogListRequest");
+    from_value::<StopRequest>(json!({"sandbox_id": "s", "extra": 1})).expect("StopRequest");
+}
+
+#[test]
+fn request_defaults_match_daemon() {
+    let grep: GrepRequest =
+        from_value(json!({"sandbox_id": "s", "path": "/", "pattern": "p"})).unwrap();
+    assert_eq!(
+        (grep.recursive, grep.max_matches, grep.max_line_bytes),
+        (true, 10_000, 4096)
+    );
+
+    let sed: SedRequest =
+        from_value(json!({"sandbox_id": "s", "pattern": "a", "replacement": "b"})).unwrap();
+    assert!(sed.recursive && sed.regex && sed.files.is_empty());
+
+    let mkdir: MkdirRequest = from_value(json!({"sandbox_id": "s", "path": "/d"})).unwrap();
+    assert_eq!(mkdir.mode, "0755");
+
+    let write: WriteRequest = from_value(json!({"sandbox_id": "s", "path": "/f"})).unwrap();
+    assert_eq!(write.mode, "0644");
+    assert!(write.content.is_none());
+
+    let stop: StopRequest = from_value(json!({"sandbox_id": "s"})).unwrap();
+    assert!(!stop.wait);
+}
+
+#[test]
+fn write_content_is_untagged() {
+    assert!(matches!(from_value(json!("hi")), Ok(WriteContent::Utf8(s)) if s == "hi"));
+    assert!(matches!(
+        from_value(json!({"channel_id": "c", "access_key": "k", "direction": "read"})),
+        Ok(WriteContent::Stream(_))
+    ));
+}
+
+#[test]
+fn exec_response_keeps_null_exit_code() {
+    let v = to_value(ExecResponse {
+        stdout: String::new(),
+        stderr: String::new(),
+        exit_code: None,
+        timed_out: true,
+        duration_ms: 1,
+        success: false,
+    })
+    .unwrap();
+    assert_eq!(v.get("exit_code"), Some(&Value::Null));
+}
+
+#[test]
+fn optional_reply_fields_stay_omitted() {
+    let read = to_value(ReadResponse {
+        content: stream_ref(),
+        body: None,
+        size: 0,
+        mode: "0644".into(),
+        mtime: 0,
+    })
+    .unwrap();
+    assert!(read.get("body").is_none());
+
+    let run = to_value(RunResponse {
+        stdout: String::new(),
+        stderr: String::new(),
+        exit_code: Some(0),
+        timed_out: false,
+        duration_ms: 1,
+        success: true,
+        sandbox_id: None,
+    })
+    .unwrap();
+    assert!(run.get("sandbox_id").is_none());
+}
+
+/// Serialise `t`, parse it back as `T`, and require the second serialisation to match the first.
+fn assert_parses_back<T: Serialize + DeserializeOwned>(t: &T) -> Value {
+    let first = to_value(t).unwrap();
+    let again: T = from_value(first.clone()).expect("serialised request parses back");
+    assert_eq!(to_value(&again).unwrap(), first);
+    first
+}
+
+#[test]
+fn serialized_requests_parse_back() {
+    let exec = assert_parses_back(&ExecRequest {
+        sandbox_id: "s".into(),
+        cmd: String::new(),
+        args: vec![],
+        argv: vec!["node".into(), "-v".into()],
+        stdin: None,
+        env: EnvShape::Map(BTreeMap::from([("A".into(), "1".into())])),
+        timeout_ms: None,
+        workdir: None,
+    });
+    assert_eq!(exec["env"], json!({"A": "1"}));
+
+    assert_parses_back(&WriteRequest {
+        sandbox_id: "s".into(),
+        path: "/f".into(),
+        mode: "0644".into(),
+        parents: false,
+        content: Some(WriteContent::Stream(stream_ref())),
+        content_b64: None,
+    });
+
+    assert_parses_back(&SedRequest {
+        sandbox_id: "s".into(),
+        files: vec![],
+        path: Some("/w".into()),
+        recursive: true,
+        include_glob: vec![],
+        exclude_glob: vec![],
+        pattern: "a".into(),
+        replacement: "b".into(),
+        regex: true,
+        first_only: false,
+        ignore_case: false,
+    });
 }
