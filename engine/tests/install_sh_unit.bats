@@ -262,6 +262,15 @@ EOF
   [ -z "$output" ]
 }
 
+@test "install.sh skips VM companions a release does not ship, silently" {
+  run resolve_companion_url iii-worker x86_64-unknown-linux-gnu \
+    '{"assets":[{"name":"iii-x86_64-unknown-linux-gnu.tar.gz","browser_download_url":"https://example.invalid/iii.tar.gz"}]}'
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  run grep -nE 'not found in release|not available on macOS Intel' "$INSTALL_SH"
+  [ "$status" -eq 1 ]
+}
+
 # ─────────────────────────────────────────────────────────────
 # iii_already_installed: an upgrade gets no setup offer
 # ─────────────────────────────────────────────────────────────

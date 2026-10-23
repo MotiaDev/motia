@@ -658,9 +658,6 @@ if [ -n "$init_target" ]; then
   init_url=$(resolve_companion_url "iii-init" "$init_target" "$json")
   if [ -n "$init_url" ]; then
     init_tarball="$tmpdir/iii-init-${init_target}.tar.gz"
-  else
-    warn "iii-init: asset 'iii-init-${init_target}.tar.gz' not found in release (this release may not include iii-init for your platform)"
-    init_install_failed="1"
   fi
 fi
 
@@ -670,9 +667,6 @@ if [ -n "$worker_target" ]; then
   worker_url=$(resolve_companion_url "iii-worker" "$worker_target" "$json")
   if [ -n "$worker_url" ]; then
     worker_tarball="$tmpdir/iii-worker-${worker_target}.tar.gz"
-  else
-    warn "iii-worker: asset 'iii-worker-${worker_target}.tar.gz' not found in release (this release may not include iii-worker for your platform)"
-    worker_install_failed="1"
   fi
 fi
 
@@ -842,12 +836,6 @@ fi
 # ---------------------------------------------------------------------------
 # Post-install notes (platform-specific gotchas)
 # ---------------------------------------------------------------------------
-
-if [ "$uname_s" = "Darwin" ] && [ "$arch" = "x86_64" ] && [ -z "$worker_target" ]; then
-  echo ""
-  echo "note: iii-worker is not available on macOS Intel yet."
-  echo "      VM isolation features (sandboxed workers) will not work on this machine."
-fi
 
 if [ -n "$init_install_failed" ]; then
   echo ""
