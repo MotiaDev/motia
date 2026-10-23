@@ -306,7 +306,7 @@ Recursive regex search.
 |---|---|---|---|
 | `sandbox_id` | string | required | Sandbox to operate in. |
 | `path` | string | required | Root path. |
-| `pattern` | string | required | Regex (RE2 syntax). |
+| `pattern` | string | required | Regex (Rust `regex` crate syntax). |
 | `recursive` | boolean | `true` | Walk subdirectories. |
 | `ignore_case` | boolean | `false` | Case-insensitive match. |
 | `include_glob` | string[] | `[]` | Gitignore-style include filter. |
@@ -314,7 +314,7 @@ Recursive regex search.
 | `max_matches` | number | `10000` | Stop after N matches. |
 | `max_line_bytes` | number | `4096` | Truncate any single line longer than this. |
 
-Returns: `{ matches: FsMatch[], truncated }` where each match has `{ path, line_no, byte_offset, line }`.
+Returns: `{ matches: FsMatch[], truncated }` where each match has `{ path, line, content }` and `line` is 1-based.
 
 #### `sandbox::fs::sed`
 

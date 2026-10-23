@@ -67,7 +67,7 @@ SB=$(iii trigger sandbox::create image=python | jq -r .sandbox_id)
 iii trigger sandbox::exec sandbox_id=$SB cmd='python --version' | jq -r .stdout
 
 # list the active sandbox ids
-iii trigger sandbox::list | jq -r '.[].sandbox_id'
+iii trigger sandbox::list | jq -r '.sandboxes[].sandbox_id'
 
 # stop when done
 iii trigger sandbox::stop sandbox_id=$SB
