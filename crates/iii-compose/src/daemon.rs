@@ -743,7 +743,7 @@ impl Daemon {
         let mut edited = text.clone();
         let prepared = if frozen {
             let prepared = crate::lockfile::prepare_frozen(&mut compose, &package_cache).await?;
-            crate::sandbox::require_declared_adapter(&compose)?;
+            crate::sandbox::require_declared_adapter(&compose, &namespace)?;
             prepared
         } else {
             let mut prepared =
@@ -754,6 +754,7 @@ impl Daemon {
                     &path,
                     &mut edited,
                     &mut compose,
+                    &namespace,
                     &mut prepared,
                     &mut BTreeSet::new(),
                     &mut BTreeMap::new(),
@@ -763,7 +764,7 @@ impl Daemon {
                 .await?
             {
                 prepared.install(&package_cache).await?;
-                let needs = crate::sandbox::needs(&compose);
+                let needs = crate::sandbox::needs(&compose, &namespace);
                 crate::report::daemon_line(
                     &format!(
                         "{}: sandbox adapter for: {}",
@@ -1131,6 +1132,7 @@ impl Daemon {
                 ),
             )
             .await??;
+        let namespace = self.project_namespace(&current);
         let adapter = self
             .prepare(
                 &operation_id,
@@ -1138,6 +1140,7 @@ impl Daemon {
                     path,
                     &mut edited,
                     &mut current,
+                    &namespace,
                     &mut prepared,
                     &mut force,
                     &mut selected_versions,
@@ -1404,8 +1407,9 @@ impl Daemon {
         }
         let mut declared = compose.clone();
         crate::lockfile::attach(&mut declared)?;
+        let namespace = self.project_namespace(&declared);
         // The generated adapter goes once this edit leaves no VM needing it.
-        let allow_remove = !crate::sandbox::needs(&declared).is_empty();
+        let allow_remove = !crate::sandbox::needs(&declared, &namespace).is_empty();
         let plan = self
             .prepare(
                 &operation_id,
@@ -1479,6 +1483,7 @@ impl Daemon {
                     path,
                     &mut edited,
                     &mut current,
+                    &namespace,
                     &mut prepared,
                     &mut force,
                     &mut selected_versions,
@@ -1639,7 +1644,8 @@ impl Daemon {
         let mut before = crate::ComposeFile::parse(&text, path)?;
         crate::lockfile::attach(&mut before)?;
         // The generated adapter goes once this edit leaves no VM needing it.
-        let allow_remove = !crate::sandbox::needs(&before).is_empty();
+        let allow_remove =
+            !crate::sandbox::needs(&before, &self.project_namespace(&before)).is_empty();
         let mut removal_order = before
             .start_order()?
             .into_iter()
@@ -1673,6 +1679,7 @@ impl Daemon {
                     path,
                     &mut edited,
                     &mut current,
+                    &namespace,
                     &mut prepared,
                     &mut BTreeSet::new(),
                     &mut BTreeMap::new(),

@@ -51,12 +51,33 @@ pub enum Need {
     Explicit,
 }
 
-/// The VM containers in declaration order, then `engine.sandbox`. Only a
-/// lock-attached package is known to be a bundle, so call it after
-/// `lockfile::attach` or `prepare`.
-pub fn needs(file: &ComposeFile) -> Vec<Need> {
-    let mut needs: Vec<Need> = file
-        .containers
+/// The VM containers in declaration order, then `engine.sandbox` when it is
+/// bound to `project_namespace`, the one the project runs in (`--namespace`
+/// wins over the file's). Only a lock-attached package is known to be a
+/// bundle, so call it after `lockfile::attach` or `prepare`.
+pub fn needs(file: &ComposeFile, project_namespace: &str) -> Vec<Need> {
+    let mut needs = vm_needs(file);
+    // A binding to another namespace is served there: an adapter installed
+    // here would never be reached.
+    if file
+        .engine
+        .as_ref()
+        .and_then(|engine| engine.sandbox.as_ref())
+        .is_some_and(|sandbox| {
+            sandbox
+                .namespace
+                .as_deref()
+                .is_none_or(|namespace| namespace == project_namespace)
+        })
+    {
+        needs.push(Need::Explicit);
+    }
+    needs
+}
+
+/// The VM containers in declaration order.
+fn vm_needs(file: &ComposeFile) -> Vec<Need> {
+    file.containers
         .iter()
         .filter_map(|(key, container)| match &container.worker {
             WorkerSource::Package { .. } => container
@@ -71,24 +92,7 @@ pub fn needs(file: &ComposeFile) -> Vec<Need> {
                 .is_some_and(|manifest| manifest.base_image.is_some())
                 .then(|| Need::VmLocal(key.clone())),
         })
-        .collect();
-    // A binding to another namespace is served there: an adapter installed
-    // here would never be reached. shortcut: compares with the file's own
-    // namespace, not a `--namespace` override; pass the project namespace in
-    // if that case matters.
-    if file
-        .engine
-        .as_ref()
-        .and_then(|engine| engine.sandbox.as_ref())
-        .is_some_and(|sandbox| {
-            sandbox.namespace.as_deref().is_none_or(|namespace| {
-                namespace == crate::namespace::project_namespace(None, file.namespace.as_deref())
-            })
-        })
-    {
-        needs.push(Need::Explicit);
-    }
-    needs
+        .collect()
 }
 
 /// The VM container keys in `needs`, or `engine.sandbox` when the section is
@@ -110,9 +114,9 @@ pub(crate) fn needed_by(needs: &[Need]) -> Vec<&str> {
 
 /// `--frozen` never edits the file, so a need with no declared adapter fails.
 /// `file` must be lock-attached, as for [`needs`].
-pub(crate) fn require_declared_adapter(file: &ComposeFile) -> Result<()> {
+pub(crate) fn require_declared_adapter(file: &ComposeFile, project_namespace: &str) -> Result<()> {
     let adapter = adapter_name(file);
-    let needs = needs(file);
+    let needs = needs(file, project_namespace);
     if !needs.is_empty() && adapter_key(file, adapter)?.is_none() {
         return Err(ComposeError::SandboxAdapterNotDeclared {
             adapter: adapter.to_string(),
@@ -158,7 +162,7 @@ pub fn adapter_key(file: &ComposeFile, adapter: &str) -> Result<Option<String>> 
 /// only, so an operator's container is never rewritten. An adapter that is
 /// itself a VM container is a `DEPENDENCY_CYCLE`.
 pub fn wire(file: &mut ComposeFile, adapter_key: &str) -> Result<()> {
-    for need in needs(file) {
+    for need in vm_needs(file) {
         let (Need::VmBundle(key) | Need::VmLocal(key)) = need else {
             continue;
         };
@@ -227,11 +231,12 @@ pub(crate) enum AdapterChange {
 pub(crate) async fn adapter_change(
     text: &str,
     file: &ComposeFile,
+    project_namespace: &str,
     refresh: bool,
     allow_remove: bool,
 ) -> Result<Option<AdapterChange>> {
     let adapter = adapter_name(file);
-    let needed = !needs(file).is_empty();
+    let needed = !needs(file, project_namespace).is_empty();
     let Some(key) = adapter_key(file, adapter)? else {
         if !needed {
             return Ok(None);
@@ -311,13 +316,16 @@ pub(crate) async fn apply_adapter_change(
     path: &Path,
     edited: &mut String,
     current: &mut ComposeFile,
+    project_namespace: &str,
     prepared: &mut PreparedLock,
     force: &mut BTreeSet<String>,
     selected: &mut BTreeMap<String, String>,
     refresh: bool,
     allow_remove: bool,
 ) -> Result<Option<AdapterChange>> {
-    let Some(change) = adapter_change(edited, current, refresh, allow_remove).await? else {
+    let Some(change) =
+        adapter_change(edited, current, project_namespace, refresh, allow_remove).await?
+    else {
         return Ok(None);
     };
     let next = match &change {
@@ -1088,7 +1096,7 @@ pub(crate) mod tests {
         let dir = tempfile::tempdir().unwrap();
         let file = vm_project(dir.path());
         assert_eq!(
-            needs(&file),
+            needs(&file, "default"),
             vec![
                 Need::VmBundle("app".into()),
                 Need::VmLocal("local".into()),
@@ -1100,18 +1108,26 @@ pub(crate) mod tests {
     #[test]
     fn a_binding_to_another_namespace_needs_no_adapter_here() {
         let dir = tempfile::tempdir().unwrap();
-        let explicit = |sandbox: &str| {
+        let explicit = |declared: &str, sandbox: &str, project_namespace: &str| {
             let file = parse(
                 dir.path(),
                 &format!(
-                    "namespace: shop\nengine: {{sandbox: {sandbox}}}\ncontainers:\n  app: {{worker: package://app, version: 1.0.0}}\n"
+                    "{declared}engine: {{sandbox: {sandbox}}}\ncontainers:\n  app: {{worker: package://app, version: 1.0.0}}\n"
                 ),
             );
-            needs(&file).contains(&Need::Explicit)
+            needs(&file, project_namespace).contains(&Need::Explicit)
         };
-        assert!(explicit("{}"));
-        assert!(explicit("{namespace: shop}"));
-        assert!(!explicit("{namespace: other}"));
+        assert!(explicit("namespace: shop\n", "{}", "shop"));
+        assert!(explicit("namespace: shop\n", "{namespace: shop}", "shop"));
+        assert!(!explicit("namespace: shop\n", "{namespace: other}", "shop"));
+        // `--namespace orders` runs the project, and the router, in `orders`.
+        assert!(explicit("", "{namespace: orders}", "orders"));
+        assert!(!explicit("", "{namespace: orders}", "default"));
+        assert!(!explicit(
+            "namespace: orders\n",
+            "{namespace: orders}",
+            "shop"
+        ));
 
         // A VM still needs the adapter, in the project namespace.
         let mut file = vm_project(dir.path());
@@ -1123,7 +1139,7 @@ pub(crate) mod tests {
             .unwrap()
             .namespace = Some("other".into());
         assert_eq!(
-            needs(&file),
+            needs(&file, "default"),
             vec![Need::VmBundle("app".into()), Need::VmLocal("local".into())]
         );
     }
@@ -1269,12 +1285,16 @@ pub(crate) mod tests {
         let text = with_generated_adapter("containers: {}\n");
         let file = parse(dir.path(), &text);
         assert_eq!(
-            adapter_change(&text, &file, false, true).await.unwrap(),
+            adapter_change(&text, &file, "default", false, true)
+                .await
+                .unwrap(),
             Some(AdapterChange::Remove("sandbox-builtin".into()))
         );
         // up, build and add never remove it, so up leaves the file as it is.
         assert_eq!(
-            adapter_change(&text, &file, false, false).await.unwrap(),
+            adapter_change(&text, &file, "default", false, false)
+                .await
+                .unwrap(),
             None
         );
     }
@@ -1291,7 +1311,7 @@ pub(crate) mod tests {
                 file.containers["app"].resolved_package = Some(package("name: app, type: bundle"));
             }
             crate::registry::TEST_REGISTRY.scope(registry.uri(), async move {
-                adapter_change(&text, &file, true, true).await
+                adapter_change(&text, &file, "default", true, true).await
             })
         };
         let pinned = "containers:\n  sb: {worker: package://sandbox-builtin, version: 1.0.0}\n";

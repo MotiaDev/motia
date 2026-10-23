@@ -71,10 +71,12 @@ async fn build_with_mode(file: &Path, frozen: bool) -> Result<BuildReport> {
     // Not frozen, it writes the adapter a VM needs, so `build` then
     // `up --frozen` works.
     let mut edited = text.clone();
+    // `build` takes no `--namespace`: the file's own.
+    let namespace = crate::namespace::project_namespace(None, file.namespace.as_deref());
     let prepared = async {
         if frozen {
             let prepared = crate::lockfile::prepare_frozen(&mut file, &cache).await?;
-            crate::sandbox::require_declared_adapter(&file)?;
+            crate::sandbox::require_declared_adapter(&file, &namespace)?;
             return Ok::<_, ComposeError>(prepared);
         }
         let mut prepared = crate::lockfile::prepare(&mut file, &cache, &BTreeSet::new()).await?;
@@ -83,6 +85,7 @@ async fn build_with_mode(file: &Path, frozen: bool) -> Result<BuildReport> {
             &path,
             &mut edited,
             &mut file,
+            &namespace,
             &mut prepared,
             &mut BTreeSet::new(),
             &mut BTreeMap::new(),

@@ -679,9 +679,8 @@ async fn serve_daemon(
             break;
         }
         if let Some(engine) = managed_engine
-            && let process::Outcome::Exited(status) = engine.poll()
+            && let Some(status) = engine.poll_exit(daemon.engine())
         {
-            daemon.engine().mark_exited();
             daemon.shutdown().await;
             return Err(engine_exited(engine, status).await);
         }
@@ -782,17 +781,27 @@ async fn serve_daemon(
         if connected {
             project.progress.engine_ready();
         }
+        // An engine that dies during the startup is recorded as soon as it is
+        // seen, so neither a failed start nor the teardown below waits out
+        // `worker::stop` over its bus.
+        let note_engine_exit = || {
+            if let Some(engine) = managed_engine {
+                engine.poll_exit(daemon.engine());
+            }
+        };
         let result = loop {
             tokio::select! {
                 result = &mut up => break result,
-                _ = tokio::time::sleep(std::time::Duration::from_millis(100)), if !connected => {
-                    connected = daemon.engine().is_connected();
-                    if connected {
+                _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
+                    if !connected && daemon.engine().is_connected() {
+                        connected = true;
                         project.progress.engine_ready();
                     }
+                    note_engine_exit();
                 }
             }
         };
+        note_engine_exit();
         if daemon.engine().is_connected() {
             project.progress.engine_ready();
         }
@@ -911,13 +920,12 @@ async fn serve_daemon(
         }
 
         if let Some(engine) = managed_engine
-            && let process::Outcome::Exited(status) = engine.poll()
+            && let Some(status) = engine.poll_exit(daemon.engine())
         {
             println!(
                 "{}",
                 "managed engine exited; stopping every project...".dimmed()
             );
-            daemon.engine().mark_exited();
             daemon.shutdown().await;
             return Err(engine_exited(engine, status).await);
         }
