@@ -782,8 +782,45 @@ impl Project {
             .collect();
 
         for (key, record) in recorded {
-            match (reconcile(&record), record.pid, &record.birth) {
-                (Reconciliation::Adopt, Some(pid), Some(birth)) => {
+            // Only its adapter can answer for a VM.
+            let vm = record
+                .vm
+                .clone()
+                .filter(|_| record.status != ChildStatus::Stopped);
+            let verdict = match &vm {
+                Some(vm) => crate::sandbox::vm_reconciliation(
+                    owner_alive,
+                    crate::sandbox::worker_status(self.engine.client(), vm, &self.sandbox_token)
+                        .await,
+                ),
+                None => reconcile(&record),
+            };
+            match (verdict, record.pid, &record.birth, vm) {
+                // No log stream, like an adopted process.
+                (Reconciliation::Adopt, .., Some(vm)) => {
+                    daemon_line(
+                        &self.project_namespace,
+                        &format!(
+                            "{key} survived (VM {} instance {}), adopted",
+                            vm.vm_id, vm.instance
+                        ),
+                        Tone::Plain,
+                    );
+                    let vm = crate::sandbox::RemoteVm::spawn(
+                        self.engine.client().clone(),
+                        vm,
+                        self.sandbox_token.clone(),
+                        None,
+                    );
+                    inner.children.insert(key.clone(), Child::Vm(vm));
+                }
+                // The adapter's lifeline took it with the compose that is gone.
+                (Reconciliation::Stopped, .., Some(_)) => {
+                    if let Some(entry) = inner.state.containers.get_mut(&key) {
+                        entry.status = ChildStatus::Stopped;
+                    }
+                }
+                (Reconciliation::Adopt, Some(pid), Some(birth), None) => {
                     match Supervised::adopt(pid, birth) {
                         Some(child) if !owner_alive => left_behind.push((key.clone(), child)),
                         Some(child) => {
@@ -814,7 +851,7 @@ impl Project {
                 // Stopped by this daemon and recorded as such: the expected
                 // state after `down`, not an anomaly worth a line.
                 (Reconciliation::Stopped, ..) => {}
-                (Reconciliation::Unverifiable, Some(pid), _) => {
+                (Reconciliation::Unverifiable, Some(pid), ..) => {
                     // Never signalled: the pid is alive but unproven.
                     daemon_line(
                         &self.project_namespace,
@@ -829,8 +866,8 @@ impl Project {
                         entry.last_error = Some(format!("pid {pid} could not be verified"));
                     }
                 }
-                // `reconcile` adopts or doubts only a recorded process, so the
-                // rest is gone: a process that is not running, or a VM.
+                // The rest is gone: a process that is not running, or a VM its
+                // adapter says has exited or no longer knows.
                 (
                     Reconciliation::Gone | Reconciliation::Adopt | Reconciliation::Unverifiable,
                     ..,
@@ -883,13 +920,6 @@ impl Project {
         self.store.dir()
     }
 
-    /// Per-container VM state: rootfs, boot script, pid file. Keyed by project
-    /// rather than by worker name, so two projects using the same container key
-    /// stay apart.
-    fn vm_dir(&self) -> PathBuf {
-        self.store.dir().join("vm")
-    }
-
     /// Installed packages live at the root, not inside a daemon or a project:
     /// the same `state 0.21.4` serves every project on this machine, and
     /// deriving this by walking up from the state directory would silently
@@ -912,7 +942,6 @@ impl Project {
     ) -> Option<OpResult> {
         let shutdown = shutdown.or(self.shutdown.signal());
         let package_cache = self.package_cache();
-        let vm_dir = self.vm_dir();
         let empty_env_diagnostics = crate::config::EmptyEnvDiagnostics::default();
         let mut inner = match shutdown.run(self.inner.lock()).await {
             Some(inner) => inner,
@@ -944,7 +973,7 @@ impl Project {
             engine_url: &self.engine_url,
             logs: &self.logs,
             package_cache: &package_cache,
-            vm_dir: &vm_dir,
+            state_dir: self.store.dir(),
             sandbox_token: &self.sandbox_token,
             empty_env_diagnostics: &empty_env_diagnostics,
         };
@@ -977,7 +1006,6 @@ impl Project {
         operation_id: String,
     ) -> (Vec<OpResult>, OpResult, bool) {
         let package_cache = self.package_cache();
-        let vm_dir = self.vm_dir();
         let empty_env_diagnostics = crate::config::EmptyEnvDiagnostics::default();
         let mut inner = self.inner.lock().await;
         inner.restarts.operator_took_control(None);
@@ -1000,7 +1028,7 @@ impl Project {
             engine_url: &self.engine_url,
             logs: &self.logs,
             package_cache: &package_cache,
-            vm_dir: &vm_dir,
+            state_dir: self.store.dir(),
             sandbox_token: &self.sandbox_token,
             empty_env_diagnostics: &empty_env_diagnostics,
         };
@@ -1069,7 +1097,6 @@ impl Project {
         operation_id: String,
     ) -> (Vec<OpResult>, OpResult) {
         let package_cache = self.package_cache();
-        let vm_dir = self.vm_dir();
         let empty_env_diagnostics = crate::config::EmptyEnvDiagnostics::default();
         let mut inner = self.inner.lock().await;
         inner.restarts.operator_took_control(None);
@@ -1091,7 +1118,7 @@ impl Project {
                 engine_url: &self.engine_url,
                 logs: &self.logs,
                 package_cache: &package_cache,
-                vm_dir: &vm_dir,
+                state_dir: self.store.dir(),
                 sandbox_token: &self.sandbox_token,
                 empty_env_diagnostics: &empty_env_diagnostics,
             };
@@ -1127,7 +1154,7 @@ impl Project {
             engine_url: &self.engine_url,
             logs: &self.logs,
             package_cache: &package_cache,
-            vm_dir: &vm_dir,
+            state_dir: self.store.dir(),
             sandbox_token: &self.sandbox_token,
             empty_env_diagnostics: &empty_env_diagnostics,
         };
@@ -1171,7 +1198,6 @@ impl Project {
         supervised_attempt: Option<(u32, u32)>,
     ) -> OpResult {
         let package_cache = self.package_cache();
-        let vm_dir = self.vm_dir();
         let empty_env_diagnostics = crate::config::EmptyEnvDiagnostics::default();
         let Inner {
             children, state, ..
@@ -1187,7 +1213,7 @@ impl Project {
             engine_url: &self.engine_url,
             logs: &self.logs,
             package_cache: &package_cache,
-            vm_dir: &vm_dir,
+            state_dir: self.store.dir(),
             sandbox_token: &self.sandbox_token,
             empty_env_diagnostics: &empty_env_diagnostics,
         };
@@ -1212,7 +1238,6 @@ impl Project {
 
     pub async fn down(&self, target: Option<&str>, operation_id: String) -> OpResult {
         let package_cache = self.package_cache();
-        let vm_dir = self.vm_dir();
         let empty_env_diagnostics = crate::config::EmptyEnvDiagnostics::default();
         let mut inner = self.inner.lock().await;
         inner.restarts.operator_took_control(target);
@@ -1231,7 +1256,7 @@ impl Project {
             engine_url: &self.engine_url,
             logs: &self.logs,
             package_cache: &package_cache,
-            vm_dir: &vm_dir,
+            state_dir: self.store.dir(),
             sandbox_token: &self.sandbox_token,
             empty_env_diagnostics: &empty_env_diagnostics,
         };

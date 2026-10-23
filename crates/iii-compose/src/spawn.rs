@@ -595,6 +595,7 @@ mod tests {
         for start in [
             StartSpec::Shell("cargo run".to_string()),
             StartSpec::Vm(VmSpec::Bundle {
+                package: "bundle".to_string(),
                 install_dir: PathBuf::from("/srv/app/bundle"),
             }),
         ] {

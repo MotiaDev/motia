@@ -303,6 +303,16 @@ pub enum ComposeError {
     )]
     SandboxAdapterNotDeclared { adapter: String, needed_by: String },
 
+    #[error(
+        "container '{container}' is the sandbox adapter '{expected}', but adapter::info names \
+         '{found}'. Set engine.sandbox.adapter to '{found}' or install '{expected}'"
+    )]
+    SandboxAdapterMismatch {
+        container: String,
+        expected: String,
+        found: String,
+    },
+
     #[error("container '{container}': its package has not been installed yet")]
     PackageNotInstalled { container: String },
 
@@ -628,6 +638,7 @@ impl ComposeError {
             Self::NotAPackageContainer { .. } => "NOT_A_PACKAGE_CONTAINER",
             Self::UnsupportedPlatform { .. } => "UNSUPPORTED_PLATFORM",
             Self::SandboxAdapterNotDeclared { .. } => "SANDBOX_ADAPTER_NOT_DECLARED",
+            Self::SandboxAdapterMismatch { .. } => "SANDBOX_ADAPTER_MISMATCH",
             Self::PackageNotInstalled { .. } => "PACKAGE_NOT_INSTALLED",
             Self::PackageDownloadFailed { .. } => "PACKAGE_DOWNLOAD_FAILED",
             Self::PackageDigestMismatch { .. } => "PACKAGE_DIGEST_MISMATCH",

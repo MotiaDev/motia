@@ -5,7 +5,8 @@
 // See LICENSE and PATENTS files for details.
 
 //! Which containers need the sandbox adapter, the generated container that
-//! installs it, and the start order that puts the adapter ahead of them.
+//! installs it, the start order that puts the adapter ahead of them, and the
+//! VM containers it boots, supervises and destroys through `worker::*`.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -15,23 +16,28 @@ use std::{
 };
 
 use iii_sandbox_contract::{
-    CONTRACT_MAJOR, DEFAULT_ADAPTER, SandboxErrorCode, State, WORKER_STATUS, WORKER_STOP,
-    WorkerStartResponse, WorkerStatus, WorkerStatusRequest, WorkerStopRequest, adapter_function_id,
-    code_of,
+    self as contract, ADAPTER_INFO_SUFFIX, AdapterInfo, AdapterInfoRequest, CONTRACT_MAJOR,
+    ContractVersion, DEFAULT_ADAPTER, SandboxErrorCode, State, WORKER_DESTROY, WORKER_LOGS,
+    WORKER_PREPARE, WORKER_START, WORKER_STATUS, WORKER_STOP, WorkerDestroyRequest,
+    WorkerDestroyResponse, WorkerLogsRequest, WorkerLogsResponse, WorkerPrepareRequest,
+    WorkerPrepareResponse, WorkerStartRequest, WorkerStartResponse, WorkerStatus,
+    WorkerStatusRequest, WorkerStopRequest, adapter_function_id, code_of,
 };
 use iii_sdk::{IIIClient, protocol::TriggerRequest};
 use sha2::{Digest, Sha256};
-use tokio::sync::watch;
+use tokio::{sync::watch, task::JoinHandle};
 
 use crate::{
     config::{ComposeFile, WorkerSource},
     edit::{self, NewContainer, Source},
-    error::Result,
+    engine::EngineClient,
+    error::{ComposeError, Result},
+    lifecycle::LifecycleCtx,
     lockfile::PreparedLock,
     logs::LogSink,
-    manifest::read_manifest,
+    manifest::{StartSpec, VmSpec, read_manifest},
     process::{DEFAULT_STOP_GRACE, Outcome},
-    state::VmRecord,
+    state::{Reconciliation, VmRecord},
 };
 
 /// Why a project needs the sandbox adapter.
@@ -355,6 +361,12 @@ pub fn state_key(state_dir: &Path, key: &str) -> String {
 
 /// How long [`RemoteVm::stop`] keeps asking an adapter that does not answer.
 const STOP_RETRY: Duration = Duration::from_secs(60);
+/// `worker::prepare`'s budget: an image pull, as `iii-worker` had (spec 5.4).
+const PREPARE_TIMEOUT: Duration = Duration::from_secs(20 * 60);
+/// How long a registered adapter may take to register `adapter::info` (spec 7.4).
+const INFO_RETRY: Duration = Duration::from_secs(10);
+/// `worker::destroy` removes a VM's whole state, rootfs included.
+const DESTROY_TIMEOUT: Duration = Duration::from_secs(60);
 /// `worker::status` cadence, and the pause between unanswered stops.
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
 /// A status call's budget, and what a stop call gets beyond its grace.
@@ -373,7 +385,8 @@ pub struct RemoteVm {
 }
 
 impl RemoteVm {
-    #[expect(dead_code, reason = "the VM start path and VM adoption call it")]
+    /// With `logs`, the poller also keeps the VM's `worker::logs` stream open
+    /// into it.
     pub(crate) fn spawn(
         client: IIIClient,
         record: VmRecord,
@@ -381,8 +394,10 @@ impl RemoteVm {
         logs: Option<LogSink>,
     ) -> Self {
         let (sender, outcome) = watch::channel(Outcome::Running);
-        let (poller, vm, auth) = (client.clone(), record.clone(), token.clone());
+        let (poller, vm, auth, sink) =
+            (client.clone(), record.clone(), token.clone(), logs.clone());
         tokio::spawn(async move {
+            let (mut capture, mut cursor) = (None, None);
             loop {
                 let tick = async {
                     tokio::time::sleep(POLL_INTERVAL).await;
@@ -401,6 +416,10 @@ impl RemoteVm {
                         sender.send_replace(outcome);
                         if exited {
                             return;
+                        }
+                        if let Some(sink) = &sink {
+                            follow_logs(&poller, &vm, &auth, sink, &mut capture, &mut cursor)
+                                .await;
                         }
                     }
                 }
@@ -486,6 +505,310 @@ impl RemoteVm {
     }
 }
 
+/// Keeps one `worker::logs` stream open into `sink`. A stream that closed
+/// while the VM runs (an engine restart, a dropped bus) is asked for again
+/// from the cursor it reached, kept in memory only; a failed call is retried
+/// on the next poll.
+async fn follow_logs(
+    client: &IIIClient,
+    vm: &VmRecord,
+    token: &str,
+    sink: &LogSink,
+    capture: &mut Option<JoinHandle<Option<u64>>>,
+    cursor: &mut Option<u64>,
+) {
+    match capture.take() {
+        Some(live) if !live.is_finished() => {
+            *capture = Some(live);
+            return;
+        }
+        Some(done) => {
+            if let Ok(Some(last)) = done.await {
+                *cursor = Some(last);
+            }
+        }
+        None => {}
+    }
+    let Ok(channel) = iii_sdk::helpers::create_channel(client, None).await else {
+        return;
+    };
+    let request = WorkerLogsRequest {
+        auth: token.to_string(),
+        vm_id: vm.vm_id.clone(),
+        cursor: *cursor,
+        follow: true,
+        channel: contract::StreamChannelRef {
+            channel_id: channel.writer_ref.channel_id,
+            access_key: channel.writer_ref.access_key,
+            direction: contract::ChannelDirection::Write,
+        },
+    };
+    let reply: std::result::Result<WorkerLogsResponse, _> = call(
+        client,
+        &vm.adapter,
+        &vm.namespace,
+        WORKER_LOGS,
+        &request,
+        CALL_SLACK,
+    )
+    .await;
+    if reply.is_ok() {
+        *capture = Some(sink.capture_records(channel.reader));
+    }
+}
+
+/// Fails the start of `container` unless the adapter speaks this engine's
+/// contract major and calls itself `adapter`, the name `adapter_key` was
+/// declared as (spec 5.7).
+pub(crate) fn check_info(
+    info: &AdapterInfo,
+    adapter: &str,
+    adapter_key: &str,
+    container: &str,
+) -> Result<()> {
+    let ContractVersion { major, minor } = &info.contract;
+    if *major != CONTRACT_MAJOR {
+        return Err(ComposeError::SpawnFailed {
+            container: container.to_string(),
+            message: format!(
+                "adapter {adapter} implements sandbox contract {major}.{minor}, but this engine \
+                 needs major {CONTRACT_MAJOR}; install a {adapter} release whose major version \
+                 is {CONTRACT_MAJOR}"
+            ),
+        });
+    }
+    if info.adapter != adapter {
+        return Err(ComposeError::SandboxAdapterMismatch {
+            container: adapter_key.to_string(),
+            expected: adapter.to_string(),
+            found: info.adapter.clone(),
+        });
+    }
+    Ok(())
+}
+
+/// `worker::start` for VM container `key` (spec 5.4, 7.4).
+pub(crate) fn start_request(
+    token: &str,
+    state_dir: &Path,
+    engine_url: &str,
+    key: &str,
+    start: &StartSpec,
+    env: BTreeMap<String, String>,
+) -> Result<WorkerStartRequest> {
+    let failed = |message: String| ComposeError::SpawnFailed {
+        container: key.to_string(),
+        message,
+    };
+    let host_path = |path: &Path| {
+        path.to_str().map(str::to_string).ok_or_else(|| {
+            failed(format!(
+                "{} is not UTF-8, so the sandbox adapter cannot be handed it",
+                path.display()
+            ))
+        })
+    };
+    let source = match start {
+        StartSpec::Vm(VmSpec::Bundle {
+            package,
+            install_dir,
+        }) => contract::WorkerSource::Bundle {
+            package: package.clone(),
+            host_path: host_path(install_dir)?,
+        },
+        StartSpec::Vm(VmSpec::Local {
+            worker_dir,
+            run_override,
+        }) => contract::WorkerSource::Local {
+            host_path: host_path(worker_dir)?,
+            run_override: run_override.clone(),
+        },
+        StartSpec::Shell(_) | StartSpec::Exec { .. } => {
+            return Err(failed("not a VM container".to_string()));
+        }
+    };
+    Ok(WorkerStartRequest {
+        auth: token.to_string(),
+        state_key: state_key(state_dir, key),
+        worker_name: key.to_string(),
+        source,
+        env,
+        engine_url: engine_url.to_string(),
+    })
+}
+
+/// Boots VM container `key` through this project's adapter, in the project
+/// namespace: `adapter::info` and its checks, `worker::prepare`, then
+/// `worker::start`. An S502 from the start names a live boot of the same
+/// state, which is stopped before the one retry.
+pub(crate) async fn start_vm(
+    ctx: &LifecycleCtx<'_>,
+    key: &str,
+    start: &StartSpec,
+    env: BTreeMap<String, String>,
+) -> Result<RemoteVm> {
+    let container = ctx
+        .file
+        .containers
+        .get(key)
+        .ok_or_else(|| ComposeError::UnknownContainer {
+            container: key.to_string(),
+        })?;
+    let adapter = adapter_name(ctx.file);
+    let declared = adapter_key(ctx.file, adapter)?.unwrap_or_else(|| adapter.to_string());
+    let (client, namespace) = (ctx.engine.client(), ctx.project_namespace);
+    let failed = |error: iii_sdk::Error| ComposeError::SpawnFailed {
+        container: key.to_string(),
+        message: spawn_failed_message(&error),
+    };
+
+    let info = adapter_info(client, adapter, namespace)
+        .await
+        .map_err(failed)?;
+    check_info(&info, adapter, &declared, key)?;
+
+    let request = start_request(
+        ctx.sandbox_token,
+        ctx.state_dir,
+        ctx.engine_url,
+        key,
+        start,
+        env,
+    )?;
+    let prepare = WorkerPrepareRequest {
+        auth: request.auth.clone(),
+        source: request.source.clone(),
+    };
+    call::<WorkerPrepareResponse>(
+        client,
+        adapter,
+        namespace,
+        WORKER_PREPARE,
+        &prepare,
+        PREPARE_TIMEOUT,
+    )
+    .await
+    .map_err(failed)?;
+
+    let timeout = container.startup_timeout;
+    let mut started: std::result::Result<WorkerStartResponse, _> =
+        call(client, adapter, namespace, WORKER_START, &request, timeout).await;
+    if let Err(error) = &started
+        && sandbox_code(error) == Some(SandboxErrorCode::S502)
+    {
+        // A stop that fails (S502 on a boot still preparing) still gets the retry.
+        if let Some(live) = live_instance(error) {
+            let live = VmRecord {
+                adapter: adapter.to_string(),
+                namespace: namespace.to_string(),
+                vm_id: live.vm_id,
+                instance: live.instance,
+            };
+            let _ = worker_stop(client, &live, ctx.sandbox_token, ctx.file.stop_timeout).await;
+        }
+        started = call(client, adapter, namespace, WORKER_START, &request, timeout).await;
+    }
+    let started = started.map_err(failed)?;
+
+    Ok(RemoteVm::spawn(
+        client.clone(),
+        VmRecord {
+            adapter: adapter.to_string(),
+            namespace: namespace.to_string(),
+            vm_id: started.vm_id,
+            instance: started.instance,
+        },
+        ctx.sandbox_token.to_string(),
+        Some(ctx.logs.sink(key)),
+    ))
+}
+
+/// `<adapter>::adapter::info`. The adapter's worker name can register before
+/// its functions do, so `function_not_found` is asked again for [`INFO_RETRY`].
+async fn adapter_info(
+    client: &IIIClient,
+    adapter: &str,
+    namespace: &str,
+) -> std::result::Result<AdapterInfo, iii_sdk::Error> {
+    let deadline = tokio::time::Instant::now() + INFO_RETRY;
+    loop {
+        let reply = call(
+            client,
+            adapter,
+            namespace,
+            ADAPTER_INFO_SUFFIX,
+            &AdapterInfoRequest {},
+            CALL_SLACK,
+        )
+        .await;
+        match &reply {
+            Err(iii_sdk::Error::Remote { code, .. })
+                if code == "function_not_found" && tokio::time::Instant::now() < deadline =>
+            {
+                tokio::time::sleep(Duration::from_millis(200)).await;
+            }
+            _ => return reply,
+        }
+    }
+}
+
+/// `worker::destroy` for VM container `key`'s state. The adapter refuses it
+/// while the VM runs, so it goes after the stop.
+pub(crate) async fn destroy_vm(
+    engine: &EngineClient,
+    token: &str,
+    state_dir: &Path,
+    key: &str,
+    vm: &VmRecord,
+) -> Result<()> {
+    let request = WorkerDestroyRequest {
+        auth: token.to_string(),
+        state_key: state_key(state_dir, key),
+    };
+    call::<WorkerDestroyResponse>(
+        engine.client(),
+        &vm.adapter,
+        &vm.namespace,
+        WORKER_DESTROY,
+        &request,
+        DESTROY_TIMEOUT,
+    )
+    .await
+    .map(drop)
+    .map_err(|error| ComposeError::EngineCallFailed {
+        function: adapter_function_id(&vm.adapter, WORKER_DESTROY),
+        message: spawn_failed_message(&error),
+    })
+}
+
+/// What a reopened project does with a recorded VM. With its owner gone, the
+/// adapter's lifeline took it; otherwise `worker::status` decides, and a reply
+/// that says nothing adopts it for the poller to settle.
+pub(crate) fn vm_reconciliation(
+    owner_alive: bool,
+    status: std::result::Result<WorkerStatus, iii_sdk::Error>,
+) -> Reconciliation {
+    if !owner_alive {
+        return Reconciliation::Stopped;
+    }
+    match outcome_of(status) {
+        Outcome::Running | Outcome::Unknown => Reconciliation::Adopt,
+        Outcome::Exited(_) => Reconciliation::Gone,
+    }
+}
+
+/// The adapter's own words for an S-code error, else the bus error as is.
+pub(crate) fn spawn_failed_message(error: &iii_sdk::Error) -> String {
+    if let iii_sdk::Error::Remote { message, .. } = error
+        && code_of(message).is_some()
+        && let Ok(payload) = serde_json::from_str::<serde_json::Value>(message)
+        && let Some(text) = payload["message"].as_str()
+    {
+        return text.to_string();
+    }
+    error.to_string()
+}
+
 /// What one `worker::status` (or `worker::stop`) reply says about the VM. A
 /// bus error says nothing (`Unknown`); a VM superseded by another boot (S503
 /// after its retry) or gone from the adapter (S504) has exited with no code.
@@ -568,7 +891,7 @@ fn vm_exit(code: Option<i32>, signal: Option<i32>) -> ExitStatus {
     }
 }
 
-async fn worker_status(
+pub(crate) async fn worker_status(
     client: &IIIClient,
     vm: &VmRecord,
     token: &str,
@@ -578,7 +901,15 @@ async fn worker_status(
         vm_id: vm.vm_id.clone(),
         instance: vm.instance,
     };
-    call(client, vm, WORKER_STATUS, &request, CALL_SLACK).await
+    call(
+        client,
+        &vm.adapter,
+        &vm.namespace,
+        WORKER_STATUS,
+        &request,
+        CALL_SLACK,
+    )
+    .await
 }
 
 async fn worker_stop(
@@ -593,27 +924,36 @@ async fn worker_stop(
         instance: vm.instance,
         grace_ms: grace.as_millis() as u64,
     };
-    call(client, vm, WORKER_STOP, &request, grace + CALL_SLACK).await
+    call(
+        client,
+        &vm.adapter,
+        &vm.namespace,
+        WORKER_STOP,
+        &request,
+        grace + CALL_SLACK,
+    )
+    .await
 }
 
-/// `<adapter>::<suffix>` in the adapter's namespace. A reply that is not a
-/// `WorkerStatus` is a `Serde` error, which `outcome_of` reads as `Unknown`.
-async fn call(
+/// `<adapter>::<suffix>` in the adapter's namespace. A reply that is not a `T`
+/// is a `Serde` error, which `outcome_of` reads as `Unknown`.
+async fn call<T: serde::de::DeserializeOwned>(
     client: &IIIClient,
-    vm: &VmRecord,
+    adapter: &str,
+    namespace: &str,
     suffix: &str,
     request: &impl serde::Serialize,
     timeout: Duration,
-) -> std::result::Result<WorkerStatus, iii_sdk::Error> {
+) -> std::result::Result<T, iii_sdk::Error> {
     let reply = client
         .trigger(
             TriggerRequest {
-                function_id: adapter_function_id(&vm.adapter, suffix),
+                function_id: adapter_function_id(adapter, suffix),
                 payload: serde_json::to_value(request)?,
                 action: None,
                 timeout_ms: Some(timeout.as_millis() as u64),
             }
-            .namespace(vm.namespace.as_str()),
+            .namespace(namespace),
         )
         .await?;
     Ok(serde_json::from_value(reply)?)
@@ -912,17 +1252,16 @@ pub(crate) mod tests {
         assert_eq!(other["III_DISABLE_TRACE_PAYLOADS"], "0");
     }
 
-    #[cfg(unix)]
-    #[test]
-    fn bus_errors_are_unknown_and_s504_is_an_exit_without_code() {
-        use iii_sandbox_contract::error_payload;
-
-        let remote = |code: &str, message: &str| iii_sdk::Error::Remote {
+    fn remote(code: &str, message: &str) -> iii_sdk::Error {
+        iii_sdk::Error::Remote {
             code: code.into(),
             message: message.into(),
             stacktrace: None,
-        };
-        let status = |state, exit_code, signal| WorkerStatus {
+        }
+    }
+
+    fn status(state: State, exit_code: Option<i32>, signal: Option<i32>) -> WorkerStatus {
+        WorkerStatus {
             vm_id: "v".into(),
             instance: 1,
             state,
@@ -930,7 +1269,155 @@ pub(crate) mod tests {
             signal,
             started_at_ms: 0,
             ended_at_ms: None,
+        }
+    }
+
+    #[test]
+    fn adapter_info_checks_the_major_then_the_name() {
+        let info = |adapter: &str, major| AdapterInfo {
+            adapter: adapter.into(),
+            adapter_version: "1.0.0".into(),
+            contract: ContractVersion { major, minor: 0 },
         };
+        assert!(
+            check_info(
+                &info("sandbox-builtin", 1),
+                "sandbox-builtin",
+                "sandbox-builtin",
+                "app"
+            )
+            .is_ok()
+        );
+        let e = check_info(
+            &info("sandbox-builtin", 2),
+            "sandbox-builtin",
+            "sandbox-builtin",
+            "app",
+        )
+        .unwrap_err();
+        assert_eq!(e.code(), "SPAWN_FAILED");
+        assert_eq!(
+            e.to_string(),
+            "container 'app' could not start: adapter sandbox-builtin implements sandbox contract \
+             2.0, but this engine needs major 1; install a sandbox-builtin release whose major \
+             version is 1"
+        );
+        let e = check_info(&info("other", 1), "sandbox-builtin", "sb", "app").unwrap_err();
+        assert_eq!(e.code(), "SANDBOX_ADAPTER_MISMATCH");
+        assert_eq!(
+            e.to_string(),
+            "container 'sb' is the sandbox adapter 'sandbox-builtin', but adapter::info names \
+             'other'. Set engine.sandbox.adapter to 'other' or install 'sandbox-builtin'"
+        );
+    }
+
+    #[test]
+    fn start_request_follows_spec_7_4() {
+        let (dir, env) = (
+            Path::new("/srv/app/.iii/compose/shop"),
+            BTreeMap::from([("A".to_string(), "1".to_string())]),
+        );
+        let bundle = StartSpec::Vm(VmSpec::Bundle {
+            package: "onboarding".into(),
+            install_dir: "/c/onboarding/1.0.0".into(),
+        });
+        let r = start_request(
+            "t",
+            dir,
+            "ws://127.0.0.1:49134",
+            "web",
+            &bundle,
+            env.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            (r.auth.as_str(), r.state_key.clone(), r.worker_name.as_str()),
+            ("t", state_key(dir, "web"), "web")
+        );
+        // The contract types have no PartialEq: compare their wire form.
+        assert_eq!(
+            serde_json::to_value(&r.source).unwrap(),
+            serde_json::json!({"kind": "bundle", "package": "onboarding", "host_path": "/c/onboarding/1.0.0"})
+        );
+        assert_eq!(r.env, env);
+        assert_eq!(r.engine_url, "ws://127.0.0.1:49134");
+
+        let local = StartSpec::Vm(VmSpec::Local {
+            worker_dir: "/srv/app/w".into(),
+            run_override: Some("npm start".into()),
+        });
+        let r = start_request("t", dir, "ws://e", "web", &local, BTreeMap::new()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&r.source).unwrap(),
+            serde_json::json!({"kind": "local", "host_path": "/srv/app/w", "run_override": "npm start"})
+        );
+        let shell = StartSpec::Shell("npm start".into());
+        assert!(start_request("t", dir, "ws://e", "web", &shell, BTreeMap::new()).is_err());
+    }
+
+    #[test]
+    fn vm_recovery_follows_the_owner_and_the_status() {
+        use iii_sandbox_contract::error_payload;
+
+        assert_eq!(
+            vm_reconciliation(true, Ok(status(State::Running, None, None))),
+            Reconciliation::Adopt
+        );
+        // Unknown: the poller settles it.
+        assert_eq!(
+            vm_reconciliation(true, Err(iii_sdk::Error::Timeout)),
+            Reconciliation::Adopt
+        );
+        assert_eq!(
+            vm_reconciliation(true, Ok(status(State::Exited, Some(0), None))),
+            Reconciliation::Gone
+        );
+        assert_eq!(
+            vm_reconciliation(
+                true,
+                Err(remote(
+                    "invocation_failed",
+                    &error_payload(SandboxErrorCode::S504, "no vm", None, None).to_string()
+                ))
+            ),
+            Reconciliation::Gone
+        );
+        // The adapter's lifeline took it.
+        assert_eq!(
+            vm_reconciliation(false, Ok(status(State::Running, None, None))),
+            Reconciliation::Stopped
+        );
+    }
+
+    #[test]
+    fn spawn_failed_message_prefers_the_s_code_message() {
+        use iii_sandbox_contract::error_payload;
+
+        let e = remote(
+            "invocation_failed",
+            &error_payload(
+                SandboxErrorCode::S501,
+                "host_path /etc is outside the host roots",
+                None,
+                None,
+            )
+            .to_string(),
+        );
+        assert_eq!(
+            spawn_failed_message(&e),
+            "host_path /etc is outside the host roots"
+        );
+        assert_eq!(
+            spawn_failed_message(&remote("function_not_found", "gone")),
+            remote("function_not_found", "gone").to_string()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn bus_errors_are_unknown_and_s504_is_an_exit_without_code() {
+        use iii_sandbox_contract::error_payload;
+
         assert_eq!(outcome_of(Err(iii_sdk::Error::Timeout)), Outcome::Unknown);
         assert_eq!(
             outcome_of(Err(remote("function_not_found", "gone"))),

@@ -30,7 +30,7 @@ pub enum StartSpec {
     /// nothing produces this variant today.
     Exec { program: PathBuf, args: Vec<String> },
     /// A worker started in a VM. The source decides which validation and
-    /// workspace rules `iii-worker` applies before it builds the boot command.
+    /// workspace rules the sandbox adapter applies before it boots the VM.
     Vm(VmSpec),
 }
 
@@ -38,7 +38,12 @@ pub enum StartSpec {
 pub enum VmSpec {
     /// An installed registry bundle. Its manifest command is publisher-owned
     /// and is always read and run inside the guest.
-    Bundle { install_dir: PathBuf },
+    Bundle {
+        /// The bundle manifest's name, which for an alias is the package it
+        /// stands for, not the container key.
+        package: String,
+        install_dir: PathBuf,
+    },
     /// A local project whose manifest selected an OCI rootfs. The compose
     /// command may replace the manifest's `scripts.start`, but still runs in
     /// the guest.

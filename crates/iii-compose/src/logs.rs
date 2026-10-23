@@ -23,6 +23,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt};
 
+use iii_sandbox_contract as contract;
+
 use crate::managed_engine::TerminalSanitizer;
 
 pub const WORKER_LOG_MAX_BYTES: u64 = 10 * 1024 * 1024;
@@ -108,10 +110,67 @@ struct LogMessage {
 /// One container's way into the project's log writer, owned by whoever feeds
 /// it, so a detached task can write without borrowing the store.
 #[derive(Clone)]
-#[expect(dead_code, reason = "the VM start path feeds VM logs through it")]
 pub(crate) struct LogSink {
     container: String,
     sender: tokio::sync::mpsc::Sender<LogMessage>,
+}
+
+impl LogSink {
+    /// One VM log record, cleaned and split as [`pump_stream`] cleans and
+    /// splits a pipe. A `\n` inside it starts a new entry, so the guest cannot
+    /// forge a record in the log file.
+    pub(crate) async fn write_record(&self, record: &contract::LogRecord) {
+        let stream = match record.stream {
+            contract::LogStream::Stdout => LogStream::Stdout,
+            contract::LogStream::Stderr => LogStream::Stderr,
+        };
+        let clean = TerminalSanitizer::default().sanitize(record.line.as_bytes());
+        for line in clean.split(|byte| *byte == b'\n') {
+            let mut rest = line;
+            loop {
+                let (chunk, tail) = rest.split_at(rest.len().min(MAX_LINE_BYTES));
+                if send_line(&self.sender, &self.container, stream, chunk.to_vec())
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
+                if tail.is_empty() {
+                    break;
+                }
+                rest = tail;
+            }
+        }
+    }
+
+    /// Writes every `LogRecord` text frame on `reader` until the channel
+    /// closes, then resolves to the cursor of the last record it wrote.
+    pub(crate) fn capture_records(
+        &self,
+        reader: iii_sdk::channel::ChannelReader,
+    ) -> tokio::task::JoinHandle<Option<u64>> {
+        let sink = self.clone();
+        tokio::spawn(async move {
+            // shortcut: the frame callback is sync, so records queue unbounded
+            // while the disk is slower than the guest; bound it if that bites.
+            let (sender, mut records) = tokio::sync::mpsc::unbounded_channel();
+            reader
+                .on_message(move |frame| {
+                    if let Ok(record) = serde_json::from_str::<contract::LogRecord>(&frame) {
+                        let _ = sender.send(record);
+                    }
+                })
+                .await;
+            // The reader owns the callback, so its sender drops when it does.
+            tokio::spawn(async move { while let Ok(Some(_)) = reader.next_binary().await {} });
+            let mut last = None;
+            while let Some(record) = records.recv().await {
+                sink.write_record(&record).await;
+                last = Some(record.cursor);
+            }
+            last
+        })
+    }
 }
 
 /// One project-wide log writer and query surface.
@@ -208,7 +267,6 @@ impl LogStore {
         &self.dir
     }
 
-    #[expect(dead_code, reason = "the VM start path feeds VM logs through it")]
     pub(crate) fn sink(&self, container: &str) -> LogSink {
         LogSink {
             container: container.to_string(),
@@ -850,5 +908,124 @@ mod tests {
             .unwrap();
 
         assert_eq!(after.containers[0].entries[0].message, "output after ready");
+    }
+
+    /// The container's entries once there are `count`: the writer may file a
+    /// burst in more than one batch.
+    async fn entries(store: &LogStore, container: &str, count: usize) -> Vec<LogEntry> {
+        let mut entries = Vec::new();
+        for _ in 0..100 {
+            let logs = store
+                .query(
+                    vec![container.into()],
+                    BTreeMap::new(),
+                    10,
+                    None,
+                    Duration::from_secs(2),
+                )
+                .await
+                .unwrap();
+            entries = logs.containers[0].entries.clone();
+            if entries.len() >= count {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        entries
+    }
+
+    #[tokio::test]
+    async fn vm_log_records_reach_compose_logs() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = LogStore::open(dir.path().to_path_buf()).unwrap();
+        store
+            .sink("web")
+            .write_record(&contract::LogRecord {
+                stream: contract::LogStream::Stderr,
+                line: "\u{1b}[31mboom\u{1b}[0m".into(),
+                ts_ms: 1,
+                cursor: 9,
+            })
+            .await;
+        assert_eq!(
+            entries(&store, "web", 1).await,
+            vec![LogEntry {
+                stream: LogStream::Stderr,
+                message: "boom".into()
+            }]
+        );
+    }
+
+    #[tokio::test]
+    async fn captured_records_resolve_to_the_last_cursor_when_the_channel_closes() {
+        use futures::SinkExt;
+        use tokio_tungstenite::tungstenite::Message;
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut socket = tokio_tungstenite::accept_async(stream).await.unwrap();
+            for frame in [
+                r#"{"stream":"stdout","line":"first","ts_ms":1,"cursor":4}"#,
+                "not a record",
+                r#"{"stream":"stderr","line":"second","ts_ms":2,"cursor":7}"#,
+            ] {
+                socket.send(Message::Text(frame.into())).await.unwrap();
+            }
+            socket.close(None).await.unwrap();
+        });
+
+        let dir = tempfile::tempdir().unwrap();
+        let store = LogStore::open(dir.path().to_path_buf()).unwrap();
+        let reader = iii_sdk::channel::ChannelReader::new(
+            &format!("ws://{address}"),
+            &iii_sdk::channel::StreamChannelRef::default(),
+        );
+        assert_eq!(
+            store.sink("web").capture_records(reader).await.unwrap(),
+            Some(7)
+        );
+        assert_eq!(
+            entries(&store, "web", 2).await,
+            vec![
+                LogEntry {
+                    stream: LogStream::Stdout,
+                    message: "first".into()
+                },
+                LogEntry {
+                    stream: LogStream::Stderr,
+                    message: "second".into()
+                }
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_vm_log_line_cannot_forge_a_record() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = LogStore::open(dir.path().to_path_buf()).unwrap();
+        store
+            .sink("web")
+            .write_record(&contract::LogRecord {
+                stream: contract::LogStream::Stdout,
+                line: "one\nstderr\tforged".into(),
+                ts_ms: 1,
+                cursor: 1,
+            })
+            .await;
+        assert_eq!(
+            entries(&store, "web", 2).await,
+            vec![
+                LogEntry {
+                    stream: LogStream::Stdout,
+                    message: "one".into()
+                },
+                LogEntry {
+                    stream: LogStream::Stdout,
+                    message: "stderr\tforged".into()
+                }
+            ]
+        );
     }
 }
