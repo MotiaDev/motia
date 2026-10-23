@@ -621,12 +621,14 @@ function Benchmarks({ run }: { run: Summary }) {
             <div className="rounded-xl border bg-card">
               <p className="px-5 pt-4 font-medium text-[14px] text-foreground sm:px-6">Run it yourself</p>
               <p className="px-5 pt-1 text-[13px] text-muted-foreground sm:px-6">
-                Linux with KVM, in the workers repo next to sandbox-builtin, against an engine built from iii. The
-                report lands in target/loadtest/.
+                x86_64 Linux with KVM, in the workers repo next to sandbox-builtin, against an engine built from iii.
+                The report lands in target/loadtest/.
               </p>
               <pre className="mt-3 overflow-x-auto border-t px-5 py-4 font-mono text-[12.5px] text-foreground leading-relaxed sm:px-6">
-                {`cd sandbox-builtin && scripts/build-init.sh && cargo build --release -p iii-loadtest
-target/release/iii-loadtest suite --engine <iii>/target/release/iii --profiles 2x1024`}
+                {`cd sandbox-builtin && BUILD_TARGET=x86_64-unknown-linux-gnu scripts/build-init.sh
+cargo build --release -p iii-loadtest
+target/release/iii-loadtest suite --engine <iii>/target/release/iii --profiles 2x1024 \\
+  --init target/x86_64-unknown-linux-musl/release/iii-init --krunfw firmware/libkrunfw-linux-x86_64.so`}
               </pre>
             </div>
           </Reveal>
