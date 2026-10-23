@@ -5144,6 +5144,7 @@ mod tests {
             response_format: None,
             metadata: None,
             invocation: None,
+            observe: None,
         };
 
         // A WS worker resolved to `default` cannot shadow the router.
