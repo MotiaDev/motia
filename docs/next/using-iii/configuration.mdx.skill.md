@@ -122,8 +122,10 @@ the schema when available, and ordinary reads validate again after registration.
 how to apply update notifications. `ensure` does not persist or discard this memory-only value.
 Unsaved values remain until replaced, deleted, or the configuration service restarts.
 
-The [configuration worker docs](https://workers.iii.dev/workers/configuration) cover reading entries
-back, its full function reference and its error codes.
+`configuration::get` reads the current active entry, `configuration::list` enumerates every entry (schemas only;
+values are never included in the list), and `configuration::schema` returns the schema for one id.
+See the [configuration worker docs](https://workers.iii.dev/workers/configuration) for the full
+function reference and error codes.
 
 ## Environment variables in values
 
