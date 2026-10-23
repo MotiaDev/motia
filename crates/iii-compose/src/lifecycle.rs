@@ -1269,7 +1269,13 @@ async fn stop_one(
     let Some(child) = children.remove(key) else {
         return false;
     };
-    child.stop(ctx.file.stop_timeout).await;
+    // Asking an adapter that is gone would wait out STOP_RETRY for a VM that
+    // already went with it.
+    if !matches!(&child, Child::Vm(vm)
+        if crate::sandbox::adapter_gone(ctx.file, &vm.record.adapter, children))
+    {
+        child.stop(ctx.file.stop_timeout).await;
+    }
 
     // post_run fires after the exit is confirmed, on every path out. Any step
     // that cannot be rebuilt (a container that vanished from the file, an

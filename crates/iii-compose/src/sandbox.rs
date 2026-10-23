@@ -150,6 +150,26 @@ pub fn wire(file: &mut ComposeFile, adapter_key: &str) -> Result<()> {
     crate::dag::validate_dependencies(file)
 }
 
+/// Whether a VM of `adapter` went with its adapter container: this file
+/// declares one, and it is not running here (absent, or exited). The adapter
+/// is the VM's lifeline (spec 7.3), so no `worker::stop` can be answered, as
+/// [`vm_reconciliation`] assumes for a dead owner. An adapter the file does not
+/// declare is never presumed gone.
+pub(crate) fn adapter_gone(
+    file: &ComposeFile,
+    adapter: &str,
+    children: &crate::lifecycle::Children,
+) -> bool {
+    adapter_key(file, adapter)
+        .ok()
+        .flatten()
+        .is_some_and(|key| {
+            children
+                .get(&key)
+                .is_none_or(|child| matches!(child.poll(), Outcome::Exited(_)))
+        })
+}
+
 /// [`wire`] to this project's adapter container; no adapter, no change.
 pub(crate) fn wire_adapter(file: &mut ComposeFile) -> Result<()> {
     match adapter_key(file, adapter_name(file))? {
@@ -1392,6 +1412,32 @@ pub(crate) mod tests {
             vm_reconciliation(false, Ok(status(State::Running, None, None))),
             Reconciliation::Stopped
         );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_vm_goes_with_an_adapter_container_that_is_not_running() {
+        use crate::lifecycle::{Child, Children};
+
+        let file = parse(
+            Path::new("/srv/app"),
+            "containers:\n  sb: {worker: package://sandbox-builtin, version: 1.0.0}\n",
+        );
+        let mut children = Children::new();
+        assert!(adapter_gone(&file, "sandbox-builtin", &children));
+
+        let mut adapter = tokio::process::Command::new("sleep");
+        adapter.arg("30");
+        children.insert(
+            "sb".into(),
+            Child::Process(crate::process::spawn_supervised(adapter).unwrap()),
+        );
+        assert!(!adapter_gone(&file, "sandbox-builtin", &children));
+        children["sb"].stop(Duration::from_secs(1)).await;
+        assert!(adapter_gone(&file, "sandbox-builtin", &children));
+
+        // Not declared here: its VMs are asked, never presumed gone.
+        assert!(!adapter_gone(&file, "sandbox-docker", &Children::new()));
     }
 
     #[test]
