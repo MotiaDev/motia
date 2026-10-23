@@ -431,7 +431,7 @@ mod reconcile_tests {
     }
 
     #[test]
-    fn a_0_24_state_file_still_loads() {
+    fn a_pre_0_26_state_file_still_loads() {
         let state: super::DaemonState = serde_json::from_str(
             r#"{"compose_path": "/srv/app/worker-compose.yaml", "namespace": "app", "containers": {"api": {"pid": 42, "birth": {"start_time": 7}, "status": "ready", "started_at": 1}}}"#,
         )

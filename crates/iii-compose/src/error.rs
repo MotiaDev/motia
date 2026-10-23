@@ -50,7 +50,7 @@ pub enum ComposeError {
     )]
     UnsupportedEngineWorker { worker: String },
 
-    /// The 0.24 `engine.workers.iii-sandbox` block. `replacement` is the
+    /// The pre-0.26 `engine.workers.iii-sandbox` block. `replacement` is the
     /// `containers:` entry that carries its settings to `sandbox-builtin`.
     #[error(
         "engine.workers.iii-sandbox was removed in iii 0.26: sandboxes now run in the \

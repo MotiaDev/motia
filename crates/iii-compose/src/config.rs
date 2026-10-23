@@ -533,7 +533,7 @@ fn validate_engine(raw: RawEngineSpec) -> Result<EngineSpec> {
     })
 }
 
-/// The `containers:` entry that carries a 0.24 `engine.workers.iii-sandbox`
+/// The `containers:` entry that carries a pre-0.26 `engine.workers.iii-sandbox`
 /// block to `sandbox-builtin`. It has no `# added by compose::add` marker: the
 /// operator declares it, so Compose never removes it with its `config_override`.
 /// The version is a range because the migration check is offline.

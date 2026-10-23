@@ -1164,7 +1164,7 @@ fn engine_sandbox_rejects_unknown_keys() {
 const MOVED: &str = "engine.workers.iii-sandbox was removed in iii 0.26: sandboxes now run in the sandbox-builtin worker, which Compose installs for you. Replace the block with `engine.sandbox.adapter: sandbox-builtin` (optional, the default) and move image_allowlist/custom_images/default_* to `containers.sandbox-builtin.config_override`. Guide: https://iii.dev/docs/upgrading/sandbox-worker";
 
 #[test]
-fn the_0_24_sandbox_block_fails_with_its_replacement() {
+fn the_pre_0_26_sandbox_block_fails_with_its_replacement() {
     let error = parse(
         "engine:\n  workers:\n    iii-sandbox:\n      image_allowlist: [python]\n      default_cpus: 2\ncontainers: {}\n",
     )
