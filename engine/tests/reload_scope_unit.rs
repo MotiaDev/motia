@@ -192,6 +192,7 @@ fn minimal_config_for_builder_tests() -> (iii::workers::config::EngineConfig, te
     let (config_entry, config_dir) = isolated_config_entry();
     let config = iii::workers::config::EngineConfig {
         registration_namespace_grace_ms: 5000,
+        sandbox: None,
         modules: Vec::new(),
         workers: vec![
             iii::workers::config::WorkerEntry {
@@ -207,6 +208,36 @@ fn minimal_config_for_builder_tests() -> (iii::workers::config::EngineConfig, te
         observers: Default::default(),
     };
     (config, config_dir)
+}
+
+#[tokio::test]
+async fn engine_config_binds_the_mandatory_router_on_build() {
+    use iii::EngineBuilder;
+    use iii::engine::EngineTrait;
+    use iii::workers::sandbox::config::SandboxRouterConfig;
+    use serde_json::json;
+
+    let (mut config, _dir) = minimal_config_for_builder_tests();
+    config.sandbox = Some(SandboxRouterConfig {
+        adapter: "fake".into(),
+        namespace: "fake-ns".into(),
+    });
+    let builder = EngineBuilder::new()
+        .with_config(config)
+        .build()
+        .await
+        .unwrap();
+    assert_eq!(
+        builder
+            .engine()
+            .call("sandbox::adapter::info", json!({}))
+            .await
+            .unwrap(),
+        Some(
+            json!({"adapter": "fake", "namespace": "fake-ns", "contract": {"major": 1, "minor": 0}, "info": null})
+        )
+    );
+    builder.destroy().await.unwrap();
 }
 
 #[tokio::test]
@@ -269,6 +300,7 @@ async fn serve_returns_on_sigterm() {
     let (config_entry, _config_dir) = isolated_config_entry();
     let config = EngineConfig {
         registration_namespace_grace_ms: 5000,
+        sandbox: None,
         modules: Vec::new(),
         workers: vec![
             iii::workers::config::WorkerEntry {

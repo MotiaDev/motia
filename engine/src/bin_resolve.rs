@@ -8,10 +8,8 @@
 //!
 //! Every place that spawns a sibling binary (`iii-worker`, `iii-cloud`, ...)
 //! routes through [`find_existing_binary`] so they can never disagree on which
-//! copy runs:
-//!
-//! - the CLI dispatcher (`cli::platform::find_existing_binary`, bin crate),
-//! - the engine's known-external spawner (`workers::external`).
+//! copy runs (the CLI dispatcher reaches it through
+//! `cli::platform::find_existing_binary`, in the bin crate).
 //!
 //! Resolution is **PATH-first**: a dev / override build earlier on `$PATH`
 //! wins over the managed install. The managed `~/.local/bin` copy is only the
