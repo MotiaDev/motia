@@ -102,7 +102,8 @@ Entry point for stable and RC releases. Provides a form with:
    - **release candidates** (`rc`) leave docs untouched.
    - In-content links are version-relative, so files move verbatim; only `docs.json` nav paths carry the version prefix.
 8. Commits the version bump (including any docs changes) and creates an annotated tag with the source branch and SHA. On `main`, pushes the branch and tag; on any other branch, pushes **only the tag**, leaving both the source branch and `main` unchanged
-9. Posts a Slack notification
+9. Dispatches an `iii-release` event with the version to `iii-hq/workers`, whose `loadtest.yml` benchmarks the new tag (prereleases included), and on stable releases to `iii-hq/templates` to bump its pins. Both need the `III_CI_APP` GitHub App installed with `contents: write`; a failed workers dispatch only skips the benchmark run
+10. Posts a Slack notification
 
 > **Docs layout:** `Latest` lives at the docs root (unprefixed paths); `Next` lives in the fixed `docs/next/` folder; archived versions live in `docs/MAJOR-MINOR-0/` folders. `docs/changelog/` is shared by all versions — it stays at the root, is never copied into a version folder, and every version's Changelog tab points at it. Rotation assumes this shape already exists (a `Latest` root block + a `Next` block pointing at `docs/next/`).
 
