@@ -151,7 +151,6 @@ jobs:
           # test runners like nextest aren't used here: several engine tests rely
           # on shared in-process global state — tracing/metrics singletons,
           # ports — and aren't isolation-safe.)
-          cargo test --locked -p iii-loadtest
           cargo test --locked -p iii -p iii-sandbox-contract --all-features
           # Reports re-read the merged profdata (no recompile), so emitting the
           # terminal summary, an lcov file, and a browsable HTML tree is cheap.

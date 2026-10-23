@@ -12,7 +12,6 @@ members = [
   "crates/iii-filter",
   "crates/iii-init",
   "crates/iii-filesystem",
-  "crates/iii-loadtest",
   "crates/iii-network",
   "crates/iii-sandbox-contract",
   "crates/iii-shell-client",
