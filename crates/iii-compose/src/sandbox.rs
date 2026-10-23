@@ -99,6 +99,20 @@ pub(crate) fn needed_by(needs: &[Need]) -> Vec<&str> {
     }
 }
 
+/// `--frozen` never edits the file, so a need with no declared adapter fails.
+/// `file` must be lock-attached, as for [`needs`].
+pub(crate) fn require_declared_adapter(file: &ComposeFile) -> Result<()> {
+    let adapter = adapter_name(file);
+    let needs = needs(file);
+    if !needs.is_empty() && adapter_key(file, adapter)?.is_none() {
+        return Err(ComposeError::SandboxAdapterNotDeclared {
+            adapter: adapter.to_string(),
+            needed_by: needed_by(&needs)[0].to_string(),
+        });
+    }
+    Ok(())
+}
+
 /// `engine.sandbox.adapter`, else [`DEFAULT_ADAPTER`]. An attached project has
 /// no `engine:`, so its VMs go through the default adapter.
 pub fn adapter_name(file: &ComposeFile) -> &str {

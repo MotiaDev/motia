@@ -73,7 +73,9 @@ async fn build_with_mode(file: &Path, frozen: bool) -> Result<BuildReport> {
     let mut edited = text.clone();
     let prepared = async {
         if frozen {
-            return crate::lockfile::prepare_frozen(&mut file, &cache).await;
+            let prepared = crate::lockfile::prepare_frozen(&mut file, &cache).await?;
+            crate::sandbox::require_declared_adapter(&file)?;
+            return Ok::<_, ComposeError>(prepared);
         }
         let mut prepared = crate::lockfile::prepare(&mut file, &cache, &BTreeSet::new()).await?;
         let path = file.path.clone();

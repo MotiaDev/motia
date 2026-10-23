@@ -743,14 +743,7 @@ impl Daemon {
         let mut edited = text.clone();
         let prepared = if frozen {
             let prepared = crate::lockfile::prepare_frozen(&mut compose, &package_cache).await?;
-            let adapter = crate::sandbox::adapter_name(&compose);
-            let needs = crate::sandbox::needs(&compose);
-            if !needs.is_empty() && crate::sandbox::adapter_key(&compose, adapter)?.is_none() {
-                return Err(ComposeError::SandboxAdapterNotDeclared {
-                    adapter: adapter.to_string(),
-                    needed_by: crate::sandbox::needed_by(&needs)[0].to_string(),
-                });
-            }
+            crate::sandbox::require_declared_adapter(&compose)?;
             prepared
         } else {
             let mut prepared =
