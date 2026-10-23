@@ -23,7 +23,7 @@ use iii_sandbox_contract::{
     WorkerPrepareResponse, WorkerStartRequest, WorkerStartResponse, WorkerStatus,
     WorkerStatusRequest, WorkerStopRequest, adapter_function_id, code_of,
 };
-use iii_sdk::{IIIClient, protocol::TriggerRequest};
+use iii_sdk::{IIIClient, protocol::TriggerRequest, runtime::IIIConnectionState};
 use sha2::{Digest, Sha256};
 use tokio::{sync::watch, task::JoinHandle};
 
@@ -1034,7 +1034,8 @@ async fn worker_stop(
 }
 
 /// `<adapter>::<suffix>` in the adapter's namespace. A reply that is not a `T`
-/// is a `Serde` error, which `outcome_of` reads as `Unknown`.
+/// is a `Serde` error, and a call whose connection drops ends at once as
+/// `NotConnected`; `outcome_of` reads both as `Unknown`.
 async fn call<T: serde::de::DeserializeOwned>(
     client: &IIIClient,
     adapter: &str,
@@ -1043,18 +1044,35 @@ async fn call<T: serde::de::DeserializeOwned>(
     request: &impl serde::Serialize,
     timeout: Duration,
 ) -> std::result::Result<T, iii_sdk::Error> {
-    let reply = client
-        .trigger(
-            TriggerRequest {
-                function_id: adapter_function_id(adapter, suffix),
-                payload: serde_json::to_value(request)?,
-                action: None,
-                timeout_ms: Some(timeout.as_millis() as u64),
-            }
-            .namespace(namespace),
-        )
-        .await?;
+    let request = TriggerRequest {
+        function_id: adapter_function_id(adapter, suffix),
+        payload: serde_json::to_value(request)?,
+        action: None,
+        timeout_ms: Some(timeout.as_millis() as u64),
+    }
+    .namespace(namespace);
+    // The SDK keeps a call pending across a reconnect until its timeout, and
+    // an engine that died or restarted never answers it. So the call goes out
+    // once connected, and that connection dropping ends it.
+    let sent = async {
+        connection(client, true).await;
+        tokio::select! {
+            reply = client.trigger(request) => reply,
+            () = connection(client, false) => Err(iii_sdk::Error::NotConnected),
+        }
+    };
+    let reply = tokio::time::timeout(timeout, sent)
+        .await
+        .unwrap_or(Err(iii_sdk::Error::Timeout))?;
     Ok(serde_json::from_value(reply)?)
+}
+
+/// Resolves once `client`'s connection is up, or down. A dropped connection
+/// stays down for the SDK's 2 s retry delay, so the poll cannot miss one.
+async fn connection(client: &IIIClient, up: bool) {
+    while (client.get_connection_state() == IIIConnectionState::Connected) != up {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 }
 
 #[cfg(test)]
@@ -1662,8 +1680,9 @@ pub(crate) mod tests {
 
     /// An engine stand-in on a local port. It answers `engine::channels::create`
     /// itself, and every other call with `answer`'s reply fields (`result` or
-    /// `error`); each call but the SDK's own registration goes to the receiver
-    /// as (function id, payload). A channel socket sends one line, then closes.
+    /// `error`); a `null` reply drops the connection instead. Each answered
+    /// call but the SDK's own registration goes to the receiver as (function
+    /// id, payload). A channel socket sends one line, then closes.
     async fn fake_engine(
         answer: impl Fn(&str, &serde_json::Value) -> serde_json::Value + Send + Sync + 'static,
     ) -> (
@@ -1721,6 +1740,9 @@ pub(crate) mod tests {
                             }
                             _ => answer(function, &message["data"]),
                         };
+                        if reply.is_null() {
+                            return;
+                        }
                         reply["type"] = json!("invocationresult");
                         reply["invocation_id"] = message["invocation_id"].clone();
                         reply["function_id"] = json!(function);
@@ -1912,6 +1934,46 @@ pub(crate) mod tests {
                 ("worker::start".to_string(), None)
             ]
         );
+    }
+
+    /// An engine that dies or restarts with a call in flight never answers it:
+    /// the call ends with its connection, as a bus error that status and stop
+    /// read as `Unknown` and a start retries, not after PREPARE_TIMEOUT. The
+    /// retry goes out once the engine is back.
+    #[tokio::test]
+    async fn a_call_ends_when_its_connection_drops() {
+        let calls = std::sync::atomic::AtomicUsize::new(0);
+        let (client, _called) = fake_engine(move |_, _| {
+            match calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst) {
+                0 => serde_json::Value::Null,
+                _ => answered(serde_json::json!({})),
+            }
+        })
+        .await;
+        let request = serde_json::json!({});
+        let prepare = || {
+            tokio::time::timeout(
+                Duration::from_secs(5),
+                call::<WorkerPrepareResponse>(
+                    &client,
+                    "sandbox-builtin",
+                    "shop",
+                    WORKER_PREPARE,
+                    &request,
+                    PREPARE_TIMEOUT,
+                ),
+            )
+        };
+        let reply = prepare()
+            .await
+            .expect("the call must end when its connection drops");
+        let Err(error) = reply else {
+            panic!("nobody answered the call");
+        };
+        assert!(matches!(error, iii_sdk::Error::NotConnected), "{error:?}");
+        assert_eq!(outcome_of(Err(error)), Outcome::Unknown);
+
+        assert!(prepare().await.expect("the engine is back").is_ok());
     }
 
     /// An adapter that is not there never answers: the stop gives up once
