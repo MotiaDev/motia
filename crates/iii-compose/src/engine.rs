@@ -48,6 +48,8 @@ pub struct EngineClient {
     /// Namespace this daemon registered in — the same one `compose::*` lands
     /// in. Children live in the *project* namespace, which is separate.
     namespace: String,
+    /// The managed engine has exited: no call over this bus can be answered.
+    exited: std::sync::atomic::AtomicBool,
 }
 
 /// The last few lines a container printed, for an error that would otherwise
@@ -134,11 +136,21 @@ impl EngineClient {
         Self {
             client,
             namespace: namespace.to_string(),
+            exited: Default::default(),
         }
     }
 
     pub fn client(&self) -> &IIIClient {
         &self.client
+    }
+
+    /// Records that the managed engine exited, so teardown stops asking it.
+    pub fn mark_exited(&self) {
+        self.exited.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn has_exited(&self) -> bool {
+        self.exited.load(std::sync::atomic::Ordering::SeqCst)
     }
 
     pub fn namespace(&self) -> &str {
