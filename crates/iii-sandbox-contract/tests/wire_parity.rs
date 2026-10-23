@@ -112,7 +112,15 @@ fn code_of_reads_wire_messages() {
         code_of(&error_payload(S504, "x", None, None).to_string()),
         Some(S504)
     );
-    for m in ["not json", r#"{"code":"S999"}"#, r#"{"message":"x"}"#] {
+    // The adapter's errors reach callers through the SDK in this exact form.
+    let real = r#"handler error: {"code":"S504","docs_url":"https://iii.dev/docs/creating-workers/sandboxes#S504","fix":null,"fix_note":"the adapter restarted; start the VM again","message":"no VM 4e0be037530c82614343dd49cbd58e61 on this adapter","retryable":false,"type":"validation"}"#;
+    assert_eq!(code_of(real), Some(S504));
+    for m in [
+        "not json",
+        "handler error: boom",
+        r#"{"code":"S999"}"#,
+        r#"{"message":"x"}"#,
+    ] {
         assert_eq!(code_of(m), None);
     }
 }

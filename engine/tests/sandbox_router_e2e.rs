@@ -1,5 +1,5 @@
 //! End-to-end proof that the engine's `sandbox::*` router forwards to the bound
-//! adapter worker in its own namespace, answers S301/S302/S303 itself, and
+//! adapter worker in its own namespace, answers S301/S302/S303/S304 itself, and
 //! re-runs the `adapter::info` handshake after the adapter drops.
 //!
 //! The adapter is a raw `tokio_tungstenite` worker named `fake` in namespace
@@ -7,6 +7,7 @@
 //! `namespace_conflict_e2e.rs`.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
@@ -70,6 +71,8 @@ fn bound() -> Option<Value> {
 struct FakeAdapter {
     /// Ids of invocations the fake received and will never answer.
     in_flight: mpsc::UnboundedReceiver<String>,
+    /// How many times `fake::adapter::info` was called.
+    info_calls: Arc<AtomicUsize>,
     /// Aborting it drops the socket.
     task: JoinHandle<()>,
 }
@@ -119,6 +122,8 @@ async fn fake_adapter(port: u16, major: u32, engine: &Engine) -> FakeAdapter {
     .expect("send engine::workers::register");
 
     let (tx, in_flight) = mpsc::unbounded_channel();
+    let info_calls = Arc::new(AtomicUsize::new(0));
+    let calls = info_calls.clone();
     let task = tokio::spawn(async move {
         while let Some(Ok(frame)) = ws.next().await {
             let Ok(txt) = frame.to_text() else { continue };
@@ -136,6 +141,7 @@ async fn fake_adapter(port: u16, major: u32, engine: &Engine) -> FakeAdapter {
             });
             match function_id.as_str() {
                 "fake::adapter::info" => {
+                    calls.fetch_add(1, Ordering::Relaxed);
                     reply["result"] = json!({
                         "adapter": "fake",
                         "adapter_version": "0.0.0",
@@ -170,7 +176,11 @@ async fn fake_adapter(port: u16, major: u32, engine: &Engine) -> FakeAdapter {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
 
-    FakeAdapter { in_flight, task }
+    FakeAdapter {
+        in_flight,
+        info_calls,
+        task,
+    }
 }
 
 async fn call(
@@ -394,4 +404,33 @@ async fn idle_adapter_disconnect_answers_s301_and_clears_handshake() {
         .await
         .unwrap_err();
     assert_eq!(code_of(&err.message), Some(SandboxErrorCode::S302));
+}
+
+#[tokio::test]
+async fn op_missing_on_connected_adapter_answers_s304_and_keeps_handshake() {
+    let (port, engine) = spawn_engine(bound()).await;
+    let fake = fake_adapter(port, 1, &engine).await;
+
+    call(&engine, "sandbox::exec", json!({}), None)
+        .await
+        .expect("exec succeeds and caches the handshake");
+
+    // The fake registers adapter::info but not fake::list.
+    for _ in 0..2 {
+        let err = call(&engine, "sandbox::list", json!({}), None)
+            .await
+            .unwrap_err();
+        assert_eq!(code_of(&err.message), Some(SandboxErrorCode::S304));
+        let p = payload(&err);
+        assert_eq!(p["retryable"], false);
+        assert_eq!(
+            p["message"],
+            "adapter fake does not implement sandbox::list"
+        );
+    }
+    assert_eq!(
+        fake.info_calls.load(Ordering::Relaxed),
+        1,
+        "S304 must not reset the handshake"
+    );
 }
