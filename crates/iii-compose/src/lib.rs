@@ -9,7 +9,7 @@
 //! A compose project declares several workers, their dependencies and how each
 //! one starts; the daemon validates the declaration, resolves configuration,
 //! starts the graph in order and supervises the children it created. It is a
-//! greenfield crate: it shares no runtime code with `crates/iii-worker`, whose
+//! greenfield crate: it shares no runtime code with the legacy worker CLI, whose
 //! lifecycle system it is meant to replace rather than extend.
 //!
 //! One daemon serves an engine and holds any number of projects, each named by

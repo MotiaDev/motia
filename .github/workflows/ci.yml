@@ -74,14 +74,6 @@ jobs:
         with:
           shared-key: engine
 
-      - name: Install system dependencies
-        run: |
-          # Fast path: GitHub runner images ship with fresh apt lists, so
-          # install directly (the slow `apt-get update` refreshes every index).
-          # Fall back to a full update only if the cached index misses.
-          sudo apt-get install -y libcap-ng-dev \
-            || { sudo apt-get update && sudo apt-get install -y libcap-ng-dev; }
-
       - name: Build iii (debug, all-features)
         run: cargo build --locked -p iii --all-features
 
@@ -134,8 +126,8 @@ jobs:
           # Fast path: GitHub runner images ship with fresh apt lists, so
           # install directly (the slow `apt-get update` refreshes every index).
           # Fall back to a full update only if the cached index misses.
-          sudo apt-get install -y libcap-ng-dev lld \
-            || { sudo apt-get update && sudo apt-get install -y libcap-ng-dev lld; }
+          sudo apt-get install -y lld \
+            || { sudo apt-get update && sudo apt-get install -y lld; }
 
       - name: Run tests with coverage
         run: |
@@ -191,14 +183,6 @@ jobs:
         with:
           shared-key: engine-benches
 
-      - name: Install system dependencies
-        run: |
-          # Fast path: GitHub runner images ship with fresh apt lists, so
-          # install directly (the slow `apt-get update` refreshes every index).
-          # Fall back to a full update only if the cached index misses.
-          sudo apt-get install -y libcap-ng-dev \
-            || { sudo apt-get update && sudo apt-get install -y libcap-ng-dev; }
-
       - name: Check benches compile
         run: cargo bench --locked --benches --no-run
 
@@ -240,14 +224,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: engine
-
-      - name: Install system dependencies
-        run: |
-          # Fast path: GitHub runner images ship with fresh apt lists, so
-          # install directly (the slow `apt-get update` refreshes every index).
-          # Fall back to a full update only if the cached index misses.
-          sudo apt-get install -y libcap-ng-dev \
-            || { sudo apt-get update && sudo apt-get install -y libcap-ng-dev; }
 
       - name: Regenerate CLI reference pages
         run: ./scripts/generate-cli-docs.sh
