@@ -213,6 +213,7 @@ pub(crate) async fn adapter_change(
         if !needed {
             return Ok(None);
         }
+        refuse_key_taken(file, adapter)?;
         return Ok(Some(AdapterChange::Upsert(adapter_request(adapter).await?)));
     };
     let container = &file.containers[&key];
@@ -235,6 +236,24 @@ pub(crate) async fn adapter_change(
     Ok((!unchanged).then_some(AdapterChange::Upsert(request)))
 }
 
+/// The adapter's container would go under the key `adapter`. A container
+/// already there that is not the adapter is the operator's, and their
+/// declaration wins (spec 7.2): refused, never rewritten.
+fn refuse_key_taken(file: &ComposeFile, adapter: &str) -> Result<()> {
+    if !file.containers.contains_key(adapter) {
+        return Ok(());
+    }
+    Err(ComposeError::InvalidWorkerSpec {
+        spec: adapter.to_string(),
+        reason: format!(
+            "container '{adapter}' does not run the sandbox adapter '{adapter}' (its package or \
+             manifest name differs), so Compose will not install the adapter over it. Give that \
+             worker the name '{adapter}', rename the container, or set engine.sandbox.adapter to \
+             the adapter it runs"
+        ),
+    })
+}
+
 /// `compose::add iii-sandbox`: the engine's router is built in, so the request
 /// means its adapter.
 pub(crate) fn is_iii_sandbox(worker: &NewContainer) -> bool {
@@ -246,6 +265,7 @@ pub(crate) fn is_iii_sandbox(worker: &NewContainer) -> bool {
 pub(crate) async fn iii_sandbox_request(file: &ComposeFile) -> Result<NewContainer> {
     let adapter = adapter_name(file);
     let Some(key) = adapter_key(file, adapter)? else {
+        refuse_key_taken(file, adapter)?;
         return adapter_request(adapter).await;
     };
     let container = &file.containers[&key];
@@ -1195,17 +1215,38 @@ pub(crate) mod tests {
                 file.containers["app"].resolved_package = Some(package("name: app, type: bundle"));
             }
             crate::registry::TEST_REGISTRY.scope(registry.uri(), async move {
-                adapter_change(&text, &file, true, true).await.unwrap()
+                adapter_change(&text, &file, true, true).await
             })
         };
         let pinned = "containers:\n  sb: {worker: package://sandbox-builtin, version: 1.0.0}\n";
         let app = "  app: {worker: package://app, version: 1.0.0}\n";
-        assert_eq!(change(format!("{pinned}{app}"), true).await, None);
-        assert_eq!(change(pinned.to_string(), false).await, None);
+        assert_eq!(change(format!("{pinned}{app}"), true).await.unwrap(), None);
+        assert_eq!(change(pinned.to_string(), false).await.unwrap(), None);
 
         manifest(dir, "dev", "name: sandbox-builtin\n");
         let checkout = "containers:\n  sandbox-builtin: {worker: path://./dev}\n";
-        assert_eq!(change(format!("{checkout}{app}"), true).await, None);
+        assert_eq!(
+            change(format!("{checkout}{app}"), true).await.unwrap(),
+            None
+        );
+
+        // Keyed like the adapter but another worker: refused, never rewritten.
+        manifest(dir, "other", "name: other\n");
+        for taken in [
+            "containers:\n  sandbox-builtin: {worker: package://acme/sandbox-fork, version: 1.0.0}\n",
+            "containers:\n  sandbox-builtin: {worker: path://./other}\n",
+        ] {
+            let error = change(format!("{taken}{app}"), true).await.unwrap_err();
+            assert_eq!(error.code(), "INVALID_WORKER_SPEC");
+            assert!(
+                error
+                    .to_string()
+                    .contains("container 'sandbox-builtin' does not run the sandbox adapter"),
+                "{error}"
+            );
+            // Without a VM the key is the operator's business.
+            assert_eq!(change(taken.to_string(), false).await.unwrap(), None);
+        }
     }
 
     #[test]
