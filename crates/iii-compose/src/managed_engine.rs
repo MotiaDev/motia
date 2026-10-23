@@ -1504,4 +1504,66 @@ port: 60123
         );
         assert!(client.has_exited());
     }
+
+    /// An engine that dies while the initial `--up` waits on its bus ends the
+    /// command at once, rather than after the call in flight times out.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn an_engine_exit_during_the_initial_up_ends_it() {
+        use futures::StreamExt;
+
+        // Accepts the daemon and never answers it, so `up` stays in a call.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("ws://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            while let Ok((stream, _)) = listener.accept().await {
+                tokio::spawn(async move {
+                    let mut socket = tokio_tungstenite::accept_async(stream).await.unwrap();
+                    while socket.next().await.is_some() {}
+                });
+            }
+        });
+        let dir = tempfile::tempdir().unwrap();
+        let script = dir.path().join("fake-iii");
+        write_executable(&script, "#!/bin/sh\nsleep 1\nexit 3\n");
+        let engine = ManagedEngine::spawn_with_paths(
+            &script,
+            &dir.path().join("config.yaml"),
+            &dir.path().join("engine.log"),
+            "test",
+        )
+        .await
+        .unwrap();
+        let file = dir.path().join("worker-compose.yaml");
+        std::fs::write(
+            &file,
+            "containers:\n  worker:\n    worker: path://.\n    scripts: { run: echo ready }\n",
+        )
+        .unwrap();
+        let project = crate::InitialProject {
+            progress: crate::report::StartupProgress::start(true, &file),
+            file,
+            frozen: false,
+            shape: Default::default(),
+        };
+
+        let (_never, receiver) = tokio::sync::watch::channel(false);
+        let error = tokio::time::timeout(
+            Duration::from_secs(8),
+            crate::serve_daemon(
+                url,
+                format!("engine-exit-{}", uuid::Uuid::new_v4()),
+                None,
+                Some(project),
+                Some(&engine),
+                crate::daemon::EnginePolicy::External,
+                crate::shutdown::ShutdownSignal::from_receiver(receiver),
+            ),
+        )
+        .await
+        .expect("the startup must not wait out its call to a dead engine")
+        .unwrap_err();
+
+        assert_eq!(error.code(), "ENGINE_EXITED");
+    }
 }
