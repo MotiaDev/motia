@@ -5,58 +5,6 @@ owner: "devrel"
 type: "reference"
 ---
 
-<Update label="TBD" description="TBD">
-  ## iii-stream and pubsub are deprecated
-
-  The `iii-stream` engine worker and the `pubsub` worker are deprecated. Behavior is unchanged in
-  this release: existing configurations, calls and bindings keep working, and response contracts do
-  not change. This release only adds warnings and documentation.
-
-  Deprecated:
-
-  - The `iii-stream` worker, its functions `stream::set`, `stream::get`, `stream::delete`,
-    `stream::list`, `stream::list_groups`, `stream::list_all`, `stream::send` and `stream::update`,
-    and its trigger types `stream`, `stream:join` and `stream:leave`.
-  - The dedicated Streams WebSocket listener (default port `3112`) and the `iii-stream`
-    `auth_function` setting.
-  - SDK helpers: Node and Browser `createStream` and `IStream`, Python `create_stream` and `IStream`,
-    and the Rust legacy stream helpers.
-  - The `pubsub` worker: function `publish`, trigger type `subscribe`, its `pubsub` configuration
-    entry, and the Rust SDK `SubscribeTriggerConfig` and `IIITrigger::Subscribe`.
-
-  Not deprecated: channels, channel readers and writers, `StreamChannelRef`, `StreamRequest` and
-  `StreamResponse`, the generic function and trigger registration APIs, the shared state types
-  (`UpdateOp`, `MergePath`, `StreamSetResult` and related), the `queue` worker, and the
-  `auth_function_id` of `iii-worker-manager` and `rbac-proxy`.
-
-  ## Deprecation warnings
-
-  - The engine logs a `warn` with target `iii::deprecation` when a caller uses a deprecated
-    function, binds a deprecated trigger type, connects to the Streams WebSocket, or starts
-    `iii-stream`. Function calls and bindings warn at most once every 10 minutes per entry point and
-    calling worker; WebSocket connections are keyed by client IP; startup warns once per process.
-    Logs name the entry point, the calling worker when known and the migration guide. They never
-    include payloads, ids or headers. Direct calls from any SDK version are covered.
-  - TypeScript declarations carry `@deprecated`. Python emits a `FutureWarning` at the call site of
-    `create_stream` and `IStream` subclasses (nothing is raised). Rust items carry `#[deprecated]`,
-    including `IIITrigger::Stream`, `IIITrigger::StreamJoin`, `IIITrigger::StreamLeave` and
-    `IIITrigger::Subscribe`.
-  - The `pubsub` worker warns once at startup, on `publish` at most once every 10 minutes per caller,
-    and on `subscribe` registration at most once every 10 minutes for the whole worker. Topic
-    `stream.events` (the engine's `iii-stream` bridge) never warns.
-  - Calling `stream::*` when `iii-stream` is not running still returns `function_not_found` (code
-    unchanged); the message now explains how to enable `iii-stream` and links the migration guide.
-
-  <Callout type="warning">
-    `iii-stream` and `pubsub` will be removed in an upcoming release, a separately announced
-    breaking release listed in this changelog. Start moving producers and consumers to worker-owned
-    trigger types, explicit storage with queries, channels, or durable queue topics now.
-  </Callout>
-
-  See [Migrate from iii-stream and pubsub](/upgrading/migrate-from-streams) for the replacement
-  recipes, authorization changes and the pubsub mapping.
-</Update>
-
 <Update label="0.25.0" description="October 2026">
   ## Observe: every function is observable
 
@@ -123,7 +71,7 @@ type: "reference"
     `middleware_function_id`.
 
   <Callout type="warning">
-    Local calls skip the 16 MiB message limit and the engine's call span and metrics; their counts
+    Local calls skip the message size limit and the engine's call span and metrics; their counts
     reach `iii.invocations.total` with `dispatch="local"` every 10 seconds. In Rust, a sync handler
     called locally runs inline on the caller's task. See
     [Upgrading from 0.24.x](/upgrading/from-0-24-x#local-dispatch).
@@ -142,6 +90,16 @@ type: "reference"
   - New metrics: `iii.observer.activations.total`, `iii.observer.dropped.total`, `iii.observers`,
     `iii.observer.reports.total`, and `iii.observer.activation.failures.total`. Dropped events are
     counted per function and reason.
+  - Observer queues share each event among the observers it matched, and all queues together
+    hold at most 64 MiB of events. Past that budget, or past an observer's own queue
+    (`observers.max_queue_per_observer`), an activation is dropped as `OVERFLOW`.
+  - Filters run on one evaluator per runtime thread, up to 16. A function's completions always go
+    to the same evaluator, so each observer's activations keep the order their invocations
+    completed in.
+  - When an owner's reports overflow a queue, the engine stops reading from that connection until
+    the queue is back to half, the observer leaves `active`, or 250 ms pass. The owner's SDK drops
+    the excess from its bounded report buffer (`BUFFER_FULL`). A connection that hosts the
+    observer's target is never held.
   - Creating an observer requires that the session may invoke both the observed function and the
     target. The RBAC hook `on_observer_registration_function_id` can rewrite or deny observers, with
     the same contract as `on_trigger_registration_function_id`.
@@ -189,6 +147,39 @@ type: "reference"
     time out, and an absent `invocation_id` is omitted instead of sent as `null`.
   </Callout>
 
+  ## JSON messages up to 64 MiB
+
+  - The Rust, Node, Python, and Go SDKs send JSON messages up to 64 MiB, up from 16 MiB. Messages
+    up to 16 MiB still go out as one WebSocket text frame; larger ones are sent as one fragmented
+    text message. Above 64 MiB, the SDK rejects the message locally with `payload_too_large`.
+  - The engine reads up to 64 MiB per message from a worker, as one frame or as fragments, and
+    sends every message larger than 1 MiB as a fragmented message of 1 MiB frames. A message that
+    is too large is dropped without closing the connection: the call, or the caller of a function
+    whose result is too large, gets `payload_too_large`.
+  - The engine checks each message against the target worker's receive limit and returns
+    `payload_too_large` to the caller when the target cannot accept it. Workers that declare the
+    new `large-messages.v1` protocol feature (the Rust, Node, Python, and Go SDKs from 0.25.0), or
+    that report SDK version 0.24.5 or later, receive up to 64 MiB. Browser workers and older SDKs
+    receive up to 16 MiB.
+  - The browser SDK checks its 16 MiB limit before sending and does not fragment messages.
+
+  <Callout type="warning">
+    Messages larger than 16 MiB need a 0.25.0 engine and a target worker on SDK 0.24.5 or later.
+    Older engines forward large messages without checking the target's limit, and an older worker
+    may disconnect. A Rust worker on SDK 0.24.5 through 0.25.0-rc.5 that sets
+    `WorkerMetadata.version` to its own version stays at 16 MiB until it moves to SDK 0.25.0. See
+    [Payload size](/creating-workers/channels#payload-size).
+  </Callout>
+
+  ## Faster invocation and trigger dispatch
+
+  - Function payloads move through handlers and WebSocket dispatch without extra copies, live
+    triggers are indexed by type, and metric attributes are reused within each invocation.
+  - In local benchmarks, dispatching to 8 matching triggers among 1,000 bindings took 8.6 µs
+    instead of 20.5 µs (58% less time). In isolated benchmarks, direct 100 KiB calls took 28%
+    less time and 100 KiB WebSocket round trips 11% less. These are measured examples, not a
+    guarantee for every workload.
+
   ## Deprecations
 
   - `registerTrigger` and `registerTriggerType` (and their spellings in every SDK, including the
@@ -204,6 +195,38 @@ type: "reference"
     [Upgrading from 0.24.x](/upgrading/from-0-24-x).
   </Callout>
 
+  ## iii-stream and pubsub are deprecated
+
+  The `iii-stream` engine worker and the `pubsub` worker are deprecated. Behavior is unchanged in
+  this release: existing configurations, calls and bindings keep working, and response contracts do
+  not change. This release only adds warnings and documentation.
+
+  Deprecated:
+
+  - The `iii-stream` worker, its functions `stream::set`, `stream::get`, `stream::delete`,
+    `stream::list`, `stream::list_groups`, `stream::list_all`, `stream::send` and `stream::update`,
+    and its trigger types `stream`, `stream:join` and `stream:leave`.
+  - The dedicated Streams WebSocket listener (default port `3112`) and the `iii-stream`
+    `auth_function` setting.
+  - SDK helpers: Node and Browser `createStream` and `IStream`, Python `create_stream` and `IStream`,
+    and the Rust legacy stream helpers.
+  - The `pubsub` worker: function `publish`, trigger type `subscribe`, its `pubsub` configuration
+    entry, and the Rust SDK `SubscribeTriggerConfig` and `IIITrigger::Subscribe`.
+
+  Not deprecated: channels, channel readers and writers, `StreamChannelRef`, `StreamRequest` and
+  `StreamResponse`, the generic function and trigger registration APIs, the shared state types
+  (`UpdateOp`, `MergePath`, `StreamSetResult` and related), the `queue` worker, and the
+  `auth_function_id` of `iii-worker-manager` and `rbac-proxy`.
+
+  <Callout type="warning">
+    `iii-stream` and `pubsub` will be removed in an upcoming release, a separately announced
+    breaking release listed in this changelog. Start moving producers and consumers to worker-owned
+    trigger types, explicit storage with queries, channels, or durable queue topics now.
+  </Callout>
+
+  See [Migrate from iii-stream and pubsub](/upgrading/migrate-from-streams) for the replacement
+  recipes, authorization changes and the pubsub mapping.
+
   ## Removed
 
   - The legacy console package (the `iii-console` binary and its frontend) is no longer built or
@@ -215,6 +238,20 @@ type: "reference"
   - `iii update` no longer installs or updates `iii-console`, and `iii update console` and
     `iii update --list-targets` no longer accept or list it. An `iii-console` binary that is
     already installed is left in place.
+
+  ## Other updates
+
+  - The engine reports log broadcast lag at most once every 10 seconds, with the number of
+    messages skipped since the last report. Previously each lag warning was itself a log that
+    refilled the channel, so after a burst of logs, such as 1,000 workers disconnecting, the engine
+    kept CPU cores busy and its log grew until it was stopped. In that test, idle CPU use fell from
+    2 cores to none and the log from 264 MB to 755 KB.
+  - Compose extracts ZIP worker packages, such as Windows worker artifacts, as well as gzip tar
+    archives. The format is detected from the archive signature, so artifact URLs need no file
+    extension. ZIP entries that escape the install directory or are symlinks are rejected, and Unix
+    executable permissions are kept without setuid, setgid, or sticky bits.
+
+  [Compare 0.24.6 to 0.25.0](https://github.com/iii-hq/iii/compare/iii%2Fv0.24.6...iii%2Fv0.25.0).
 </Update>
 
 <Update label="0.24.6" description="October 2026">
