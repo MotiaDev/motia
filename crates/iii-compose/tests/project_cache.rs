@@ -583,7 +583,7 @@ async fn remove_validates_every_worker_before_writing_the_batch() {
 }
 
 #[tokio::test]
-async fn frozen_up_refuses_an_undeclared_adapter_and_writes_nothing() {
+async fn frozen_up_and_build_refuse_an_undeclared_adapter_and_write_nothing() {
     let tmp = tempfile::tempdir().unwrap();
     std::fs::create_dir(tmp.path().join("vm")).unwrap();
     std::fs::write(
@@ -608,6 +608,11 @@ async fn frozen_up_refuses_an_undeclared_adapter_and_writes_nothing() {
         err.to_string(),
         "vm needs the sandbox adapter 'sandbox-builtin', and --frozen does not edit the file. Run up once without --frozen, or: iii trigger compose::add worker=iii-sandbox"
     );
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), text);
+    assert_eq!(std::fs::read_to_string(&lock).unwrap(), locked);
+
+    let err = iii_compose::build::build_frozen(&file).await.unwrap_err();
+    assert_eq!(err.code(), "SANDBOX_ADAPTER_NOT_DECLARED");
     assert_eq!(std::fs::read_to_string(&file).unwrap(), text);
     assert_eq!(std::fs::read_to_string(&lock).unwrap(), locked);
 }

@@ -114,6 +114,18 @@ impl SandboxRouter {
         {
             Ok(v) => FunctionResult::Success(v),
             Err(e) if e.code == "function_not_found" => {
+                // A connected adapter still has `adapter::info`; then only the op is missing.
+                let info_id = adapter_function_id(&b.adapter, ADAPTER_INFO_SUFFIX);
+                if self
+                    .engine
+                    .functions
+                    .with_function(&b.namespace, &info_id, |f| f.is_some())
+                {
+                    return FunctionResult::Failure(sandbox_error(
+                        SandboxErrorCode::S304,
+                        &format!("adapter {} does not implement {function_id}", b.adapter),
+                    ));
+                }
                 self.handshake_ok.store(false, Ordering::Relaxed);
                 FunctionResult::Failure(not_connected(b))
             }

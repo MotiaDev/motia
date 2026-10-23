@@ -681,6 +681,7 @@ async fn serve_daemon(
         if let Some(engine) = managed_engine
             && let process::Outcome::Exited(status) = engine.poll()
         {
+            daemon.engine().mark_exited();
             daemon.shutdown().await;
             return Err(engine_exited(engine, status).await);
         }
@@ -916,6 +917,7 @@ async fn serve_daemon(
                 "{}",
                 "managed engine exited; stopping every project...".dimmed()
             );
+            daemon.engine().mark_exited();
             daemon.shutdown().await;
             return Err(engine_exited(engine, status).await);
         }

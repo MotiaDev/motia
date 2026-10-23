@@ -47,7 +47,7 @@ pub enum Need {
     VmBundle(String),
     /// A `path://` container whose manifest sets `runtime.base_image`, by key.
     VmLocal(String),
-    /// The file sets `engine.sandbox`.
+    /// The file sets `engine.sandbox`, bound to its own namespace.
     Explicit,
 }
 
@@ -72,10 +72,19 @@ pub fn needs(file: &ComposeFile) -> Vec<Need> {
                 .then(|| Need::VmLocal(key.clone())),
         })
         .collect();
+    // A binding to another namespace is served there: an adapter installed
+    // here would never be reached. shortcut: compares with the file's own
+    // namespace, not a `--namespace` override; pass the project namespace in
+    // if that case matters.
     if file
         .engine
         .as_ref()
-        .is_some_and(|engine| engine.sandbox.is_some())
+        .and_then(|engine| engine.sandbox.as_ref())
+        .is_some_and(|sandbox| {
+            sandbox.namespace.as_deref().is_none_or(|namespace| {
+                namespace == crate::namespace::project_namespace(None, file.namespace.as_deref())
+            })
+        })
     {
         needs.push(Need::Explicit);
     }
@@ -97,6 +106,20 @@ pub(crate) fn needed_by(needs: &[Need]) -> Vec<&str> {
     } else {
         keys
     }
+}
+
+/// `--frozen` never edits the file, so a need with no declared adapter fails.
+/// `file` must be lock-attached, as for [`needs`].
+pub(crate) fn require_declared_adapter(file: &ComposeFile) -> Result<()> {
+    let adapter = adapter_name(file);
+    let needs = needs(file);
+    if !needs.is_empty() && adapter_key(file, adapter)?.is_none() {
+        return Err(ComposeError::SandboxAdapterNotDeclared {
+            adapter: adapter.to_string(),
+            needed_by: needed_by(&needs)[0].to_string(),
+        });
+    }
+    Ok(())
 }
 
 /// `engine.sandbox.adapter`, else [`DEFAULT_ADAPTER`]. An attached project has
@@ -836,14 +859,9 @@ pub(crate) fn vm_reconciliation(
 
 /// The adapter's own words for an S-code error, else the bus error as is.
 pub(crate) fn spawn_failed_message(error: &iii_sdk::Error) -> String {
-    if let iii_sdk::Error::Remote { message, .. } = error
-        && code_of(message).is_some()
-        && let Ok(payload) = serde_json::from_str::<serde_json::Value>(message)
-        && let Some(text) = payload["message"].as_str()
-    {
-        return text.to_string();
-    }
-    error.to_string()
+    sandbox_payload(error)
+        .and_then(|payload| payload["message"].as_str().map(str::to_string))
+        .unwrap_or_else(|| error.to_string())
 }
 
 /// What one `worker::status` (or `worker::stop`) reply says about the VM. A
@@ -869,17 +887,13 @@ pub(crate) fn outcome_of(status: std::result::Result<WorkerStatus, iii_sdk::Erro
 
 /// The live VM an S502 or S503 names in its `fix`.
 pub(crate) fn live_instance(error: &iii_sdk::Error) -> Option<WorkerStartResponse> {
-    let iii_sdk::Error::Remote { message, .. } = error else {
-        return None;
-    };
     if !matches!(
-        code_of(message)?,
+        sandbox_code(error)?,
         SandboxErrorCode::S502 | SandboxErrorCode::S503
     ) {
         return None;
     }
-    let payload: serde_json::Value = serde_json::from_str(message).ok()?;
-    serde_json::from_value(payload.get("fix")?.clone()).ok()
+    serde_json::from_value(sandbox_payload(error)?.get("fix")?.clone()).ok()
 }
 
 /// The S-code an adapter answered with; `None` for anything else on the bus.
@@ -888,6 +902,16 @@ fn sandbox_code(error: &iii_sdk::Error) -> Option<SandboxErrorCode> {
         iii_sdk::Error::Remote { message, .. } => code_of(message),
         _ => None,
     }
+}
+
+/// An S-code error's whole payload, read from the first `{` as [`code_of`]
+/// does: the SDK sends it as `handler error: {json}`.
+fn sandbox_payload(error: &iii_sdk::Error) -> Option<serde_json::Value> {
+    let iii_sdk::Error::Remote { message, .. } = error else {
+        return None;
+    };
+    code_of(message)?;
+    serde_json::from_str(&message[message.find('{')?..]).ok()
 }
 
 /// On S503 another boot of `vm` is live: the one to stop before asking again,
@@ -1070,6 +1094,37 @@ pub(crate) mod tests {
                 Need::VmLocal("local".into()),
                 Need::Explicit
             ]
+        );
+    }
+
+    #[test]
+    fn a_binding_to_another_namespace_needs_no_adapter_here() {
+        let dir = tempfile::tempdir().unwrap();
+        let explicit = |sandbox: &str| {
+            let file = parse(
+                dir.path(),
+                &format!(
+                    "namespace: shop\nengine: {{sandbox: {sandbox}}}\ncontainers:\n  app: {{worker: package://app, version: 1.0.0}}\n"
+                ),
+            );
+            needs(&file).contains(&Need::Explicit)
+        };
+        assert!(explicit("{}"));
+        assert!(explicit("{namespace: shop}"));
+        assert!(!explicit("{namespace: other}"));
+
+        // A VM still needs the adapter, in the project namespace.
+        let mut file = vm_project(dir.path());
+        file.engine
+            .as_mut()
+            .unwrap()
+            .sandbox
+            .as_mut()
+            .unwrap()
+            .namespace = Some("other".into());
+        assert_eq!(
+            needs(&file),
+            vec![Need::VmBundle("app".into()), Need::VmLocal("local".into())]
         );
     }
 
@@ -1347,6 +1402,16 @@ pub(crate) mod tests {
         }
     }
 
+    /// An adapter's S-code error as the SDK sends it: `handler error: {json}`.
+    fn wire_message(
+        code: SandboxErrorCode,
+        message: &str,
+        fix: Option<serde_json::Value>,
+    ) -> String {
+        iii_sdk::Error::Handler(contract::error_payload(code, message, fix, None).to_string())
+            .to_string()
+    }
+
     fn status(state: State, exit_code: Option<i32>, signal: Option<i32>) -> WorkerStatus {
         WorkerStatus {
             vm_id: "v".into(),
@@ -1444,8 +1509,6 @@ pub(crate) mod tests {
 
     #[test]
     fn vm_recovery_follows_the_owner_and_the_status() {
-        use iii_sandbox_contract::error_payload;
-
         assert_eq!(
             vm_reconciliation(true, Ok(status(State::Running, None, None))),
             Reconciliation::Adopt
@@ -1464,7 +1527,7 @@ pub(crate) mod tests {
                 true,
                 Err(remote(
                     "invocation_failed",
-                    &error_payload(SandboxErrorCode::S504, "no vm", None, None).to_string()
+                    &wire_message(SandboxErrorCode::S504, "no vm", None)
                 ))
             ),
             Reconciliation::Gone
@@ -1504,17 +1567,13 @@ pub(crate) mod tests {
 
     #[test]
     fn spawn_failed_message_prefers_the_s_code_message() {
-        use iii_sandbox_contract::error_payload;
-
         let e = remote(
             "invocation_failed",
-            &error_payload(
+            &wire_message(
                 SandboxErrorCode::S501,
                 "host_path /etc is outside the host roots",
                 None,
-                None,
-            )
-            .to_string(),
+            ),
         );
         assert_eq!(
             spawn_failed_message(&e),
@@ -1529,8 +1588,6 @@ pub(crate) mod tests {
     #[cfg(unix)]
     #[test]
     fn bus_errors_are_unknown_and_s504_is_an_exit_without_code() {
-        use iii_sandbox_contract::error_payload;
-
         assert_eq!(outcome_of(Err(iii_sdk::Error::Timeout)), Outcome::Unknown);
         assert_eq!(
             outcome_of(Err(remote("function_not_found", "gone"))),
@@ -1538,20 +1595,18 @@ pub(crate) mod tests {
         );
         let Outcome::Exited(s) = outcome_of(Err(remote(
             "invocation_failed",
-            &error_payload(SandboxErrorCode::S504, "no vm", None, None).to_string(),
+            &wire_message(SandboxErrorCode::S504, "no vm", None),
         ))) else {
             panic!()
         };
         assert_eq!(s.code(), None);
         let stale = remote(
             "invocation_failed",
-            &error_payload(
+            &wire_message(
                 SandboxErrorCode::S503,
                 "stale",
                 Some(serde_json::json!({"vm_id": "v", "instance": 3})),
-                None,
-            )
-            .to_string(),
+            ),
         );
         assert_eq!(
             live_instance(&stale).map(|l| (l.vm_id, l.instance)),
@@ -1667,7 +1722,7 @@ pub(crate) mod tests {
     /// An S-code refusal whose `fix` names `instance` of VM `v`.
     fn refused(code: SandboxErrorCode, instance: u64) -> serde_json::Value {
         let fix = serde_json::json!({ "vm_id": "v", "instance": instance });
-        let message = contract::error_payload(code, "refused", Some(fix), None).to_string();
+        let message = wire_message(code, "refused", Some(fix));
         serde_json::json!({ "error": { "code": "invocation_failed", "message": message } })
     }
 
@@ -1853,6 +1908,26 @@ pub(crate) mod tests {
             took >= STOP_RETRY && took < STOP_RETRY + POLL_INTERVAL * 2,
             "{took:?}"
         );
+    }
+
+    /// A restarted adapter answers S504 for the VM it lost: the poller reads
+    /// an exit (so the restart policy runs), and a stop is answered at once.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn an_adapter_that_lost_the_vm_ends_it_at_once() {
+        let (client, _called) = fake_engine(|_, _| refused(SandboxErrorCode::S504, 1)).await;
+        let vm = RemoteVm::spawn(client, vm_record(), "t".into(), None);
+        assert_eq!(vm.wait().await.code(), None);
+
+        let (client, _called) = fake_engine(|function, _| match function {
+            "sandbox-builtin::worker::stop" => refused(SandboxErrorCode::S504, 1),
+            _ => not_found(),
+        })
+        .await;
+        let vm = RemoteVm::spawn(client, vm_record(), "t".into(), None);
+        let began = tokio::time::Instant::now();
+        assert_eq!(vm.stop(Duration::from_secs(1)).await.code(), None);
+        assert!(began.elapsed() < STOP_RETRY, "{:?}", began.elapsed());
     }
 
     #[test]

@@ -1269,10 +1269,11 @@ async fn stop_one(
     let Some(child) = children.remove(key) else {
         return false;
     };
-    // Asking an adapter that is gone would wait out STOP_RETRY for a VM that
-    // already went with it.
-    if !matches!(&child, Child::Vm(vm)
-        if crate::sandbox::adapter_gone(ctx.file, &vm.record.adapter, children))
+    // Asking an adapter that is gone, or over the bus of an engine that exited,
+    // would wait out STOP_RETRY. The VM is in its adapter's process group, so
+    // stopping a declared adapter takes it.
+    if !matches!(&child, Child::Vm(vm) if ctx.engine.has_exited()
+        || crate::sandbox::adapter_gone(ctx.file, &vm.record.adapter, children))
     {
         child.stop(ctx.file.stop_timeout).await;
     }
@@ -1691,6 +1692,55 @@ containers:
             json.get("primary_error").is_none(),
             "the internal primary error must not be serialized"
         )
+    }
+
+    /// With the managed engine gone, no `worker::stop` can be answered, so a
+    /// VM's stop must not wait out STOP_RETRY on the dead bus.
+    #[tokio::test]
+    async fn a_vm_stop_after_the_engine_exited_does_not_ask_the_adapter() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = ComposeFile::parse(
+            "containers:\n  vm: {worker: path://./vm}\n",
+            dir.path().join("worker-compose.yaml"),
+        )
+        .unwrap();
+        let engine = EngineClient::connect("ws://127.0.0.1:1", "t", "t");
+        engine.mark_exited();
+        let (shutdown, post_runs, diagnostics) = Default::default();
+        let logs = LogStore::open(dir.path().join("logs")).unwrap();
+        let ctx = LifecycleCtx {
+            shutdown: &shutdown,
+            file: &file,
+            engine: &engine,
+            post_runs: &post_runs,
+            compose_namespace: "t",
+            project_namespace: "t",
+            engine_url: "ws://127.0.0.1:1",
+            package_cache: dir.path(),
+            logs: &logs,
+            state_dir: dir.path(),
+            sandbox_token: "t",
+            empty_env_diagnostics: &diagnostics,
+        };
+        let vm = crate::sandbox::RemoteVm::spawn(
+            engine.client().clone(),
+            crate::state::VmRecord {
+                adapter: "sandbox-builtin".into(),
+                namespace: "t".into(),
+                vm_id: "v".into(),
+                instance: 1,
+            },
+            "t".into(),
+            None,
+        );
+        let mut children = Children::from([("vm".to_string(), Child::Vm(vm))]);
+        let began = Instant::now();
+        assert!(stop_one(&ctx, &mut children, &mut BTreeMap::new(), "vm").await);
+        assert!(
+            began.elapsed() < Duration::from_secs(1),
+            "{:?}",
+            began.elapsed()
+        );
     }
 }
 

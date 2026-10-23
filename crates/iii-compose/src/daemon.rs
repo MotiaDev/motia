@@ -380,7 +380,8 @@ fn reached_from(
 /// Every package moves to its latest release, except a generated dependency
 /// another declared package reaches: it follows that package's graph, so the
 /// update cannot pull it past a release its dependents accept. A generated
-/// container nothing reaches is selected like any other package.
+/// container nothing reaches is selected like any other package. An operator's
+/// sandbox adapter moves only within this engine's contract major.
 fn workers_to_update(
     compose: &crate::ComposeFile,
     workers: &[String],
@@ -407,11 +408,11 @@ fn workers_to_update(
         .filter(|key| generated.contains(key))
         .collect::<BTreeSet<_>>();
     // The sandbox step re-resolves a generated adapter within its contract major.
-    if let Some(adapter) =
-        crate::sandbox::adapter_key(compose, crate::sandbox::adapter_name(compose))?
-        && generated.contains(&adapter)
+    let adapter = crate::sandbox::adapter_key(compose, crate::sandbox::adapter_name(compose))?;
+    if let Some(adapter) = &adapter
+        && generated.contains(adapter)
     {
-        followers.insert(adapter);
+        followers.insert(adapter.clone());
     }
 
     Ok(compose
@@ -423,7 +424,11 @@ fn workers_to_update(
                 key: key.clone(),
                 source: crate::edit::Source::Package {
                     reference: reference.clone(),
-                    version: Some("latest".to_string()),
+                    version: Some(if adapter.as_ref() == Some(key) {
+                        format!("^{}", iii_sandbox_contract::CONTRACT_MAJOR)
+                    } else {
+                        "latest".to_string()
+                    }),
                 },
                 start_after: container.start_after.clone(),
                 fields: serde_yaml::Mapping::new(),
@@ -738,14 +743,7 @@ impl Daemon {
         let mut edited = text.clone();
         let prepared = if frozen {
             let prepared = crate::lockfile::prepare_frozen(&mut compose, &package_cache).await?;
-            let adapter = crate::sandbox::adapter_name(&compose);
-            let needs = crate::sandbox::needs(&compose);
-            if !needs.is_empty() && crate::sandbox::adapter_key(&compose, adapter)?.is_none() {
-                return Err(ComposeError::SandboxAdapterNotDeclared {
-                    adapter: adapter.to_string(),
-                    needed_by: crate::sandbox::needed_by(&needs)[0].to_string(),
-                });
-            }
+            crate::sandbox::require_declared_adapter(&compose)?;
             prepared
         } else {
             let mut prepared =
@@ -3801,6 +3799,31 @@ containers:
         assert!(
             asked.iter().all(|worker| worker.key != "sandbox-builtin"),
             "{asked:?}"
+        );
+    }
+
+    /// The SANDBOX_CONFIG_MOVED replacement is an operator's adapter: update-all
+    /// keeps it within the contract major, never past it to `latest`.
+    #[test]
+    fn update_all_keeps_an_operator_adapter_within_the_contract_major() {
+        let compose = ComposeFile::parse(
+            "containers:\n  sb: {worker: package://sandbox-builtin, version: '^1'}\n  app: {worker: package://app, version: 1.0.0}\n",
+            Path::new("worker-compose.yaml"),
+        )
+        .unwrap();
+        let asked = workers_to_update(&compose, &[], &BTreeSet::new(), &BTreeMap::new()).unwrap();
+        let versions: BTreeMap<&str, Option<&str>> = asked
+            .iter()
+            .map(|worker| match &worker.source {
+                crate::edit::Source::Package { version, .. } => {
+                    (worker.key.as_str(), version.as_deref())
+                }
+                crate::edit::Source::Path { .. } => panic!("{worker:?}"),
+            })
+            .collect();
+        assert_eq!(
+            versions,
+            BTreeMap::from([("app", Some("latest")), ("sb", Some("^1"))])
         );
     }
 
