@@ -2,12 +2,12 @@
 title: "Upgrading to the sandbox worker"
 description:
   "Move sandboxes and VM workers from the engine to the sandbox-builtin worker, and clean up what
-  0.24 left behind."
+  0.25 left behind."
 owner: "devrel"
 type: "how-to"
 ---
 
-iii 0.25 moves the VM code out of the engine. `iii-worker` and `iii-init` are gone, and so is the
+iii 0.26 moves the VM code out of the engine. `iii-worker` and `iii-init` are gone, and so is the
 `iii-sandbox` worker you configured under `engine.workers`. The engine keeps `iii-sandbox` as a small
 router: it serves the `sandbox::*` triggers and forwards every call to a sandbox adapter. The
 `sandbox-builtin` worker is that adapter. It runs the VMs, it comes from the worker registry, and
@@ -19,7 +19,7 @@ sections that apply to your setup.
 
 ## What moved
 
-| 0.24 | 0.25 |
+| 0.25 | 0.26 |
 | --- | --- |
 | `engine.workers.iii-sandbox` | `engine.sandbox`, and `containers.sandbox-builtin.config_override` for the settings |
 | `iii-worker` boots bundle and `runtime.base_image` VMs | `sandbox-builtin` boots them through Compose |
@@ -107,30 +107,30 @@ roots. Move the worker under the compose directory.
 
 On Linux, the user who runs Compose needs read and write access to `/dev/kvm`, and `libcap-ng0` must
 be installed. A project that needs the adapter on a musl Linux or Intel Mac host fails with
-`UNSUPPORTED_PLATFORM`. 0.24 shipped `iii-worker` for musl Linux, so Alpine hosts lose bundle and
-sandbox support in 0.25. Windows has no VM: a bundle worker there still fails with
+`UNSUPPORTED_PLATFORM`. 0.25 shipped `iii-worker` for musl Linux, so Alpine hosts lose bundle and
+sandbox support in 0.26. Windows has no VM: a bundle worker there still fails with
 `BUNDLE_NEEDS_A_VM`.
 
 ## Upgrade the binary
 
-The first `iii update` from 0.24 still runs 0.24 code. It updates `iii`, then prints
+The first `iii update` from 0.25 still runs 0.25 code. It updates `iii`, then prints
 `Release asset not found for platform <target>: iii-init` (and the same for `iii-worker`) and exits
-1. That is expected: the 0.25 release has neither asset. Run `iii update` again. It now runs 0.25,
+1. That is expected: the 0.26 release has neither asset. Run `iii update` again. It now runs 0.26,
 finishes cleanly, and lists the leftover binaries. It deletes nothing, so remove them yourself:
 
 ```bash
 rm ~/.local/bin/iii-worker ~/.local/bin/iii-init
 ```
 
-Errors from a 0.24.x engine carry a `docs_url` that points to
+Errors from a 0.25.x engine carry a `docs_url` that points to
 `crates/iii-worker/src/sandbox_daemon/README.md` on GitHub. That file is gone. The S-codes now live
 on [Sandboxes](../creating-workers/sandboxes).
 
 ## Clean up VM state
 
-0.24 kept each VM worker's state in `<state dir>/vm/<key>/`, where `<state dir>` is
+0.25 kept each VM worker's state in `<state dir>/vm/<key>/`, where `<state dir>` is
 `<compose-dir>/.iii/compose/<namespace>/`, or the directory under `$III_COMPOSE_STATE_DIR` when you
-set it. Nothing reads these directories now, so delete them. The first boot of each VM in 0.25
+set it. Nothing reads these directories now, so delete them. The first boot of each VM in 0.26
 starts from fresh state and reinstalls its dependencies.
 
 The state now lives in `~/.iii/sandbox/workers/<vm_id>/`, owned by the adapter. Compose deletes it

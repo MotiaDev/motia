@@ -25,7 +25,7 @@ containers:
 `image_allowlist` and `custom_images` set the images a sandbox can boot. An engine that no Compose
 file manages has no adapter bound, so its `sandbox::*` calls fail with [S303](#S303) until you set a
 top-level `sandbox:` section in its engine config. [Upgrading to the sandbox
-worker](../upgrading/sandbox-worker) covers that case and the move from the 0.24 setup.
+worker](../upgrading/sandbox-worker) covers that case and the move from the 0.25 setup.
 
 <Note>
   This page is a quick tour of the sandbox triggers. For the adapter's own documentation, see the
