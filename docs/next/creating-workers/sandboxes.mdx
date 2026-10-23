@@ -138,8 +138,10 @@ larger payloads when called through an SDK.
 
 ## Error codes
 
-Sandbox errors carry a stable `code` (S-code), a `type`, and a `retryable` flag. The `docs_url` in
-the error payload links to the matching entry below.
+A failed `sandbox::*` call returns the same error shape whichever sandbox adapter serves it: a stable
+`code` (S-code), a `type`, and a `retryable` flag. The codes belong to the engine's sandbox contract:
+the router returns S301-S303 and every adapter returns the rest. The `docs_url` in the error payload
+links to the matching entry below.
 
 - <a id="S001"></a>**S001** (validation): request payload failed validation (e.g. missing/malformed sandbox_id)
 - <a id="S002"></a>**S002** (validation): sandbox uuid not found in registry
@@ -158,10 +160,10 @@ the error payload links to the matching entry below.
 - <a id="S216"></a>**S216** (filesystem): generic fs I/O failure
 - <a id="S217"></a>**S217** (filesystem): invalid regex/pattern in grep or sed
 - <a id="S218"></a>**S218** (transient): fs streaming channel aborted mid-flight; retry
-- <a id="S219"></a>**S219** (filesystem): fs op unsupported by this supervisor; upgrade iii-worker
+- <a id="S219"></a>**S219** (filesystem): fs op unsupported by this supervisor; upgrade the sandbox adapter
 - <a id="S300"></a>**S300** (platform): VM boot or supervisor session failure
 - <a id="S301"></a>**S301** (transient): AdapterUnavailable: the sandbox adapter is not connected; retry once it is up
-- <a id="S302"></a>**S302** (config): ContractMismatch: the adapter speaks a different contract major version than the engine
+- <a id="S302"></a>**S302** (config): ContractMismatch: the adapter implements a different contract major version than the engine
 - <a id="S303"></a>**S303** (config): NoAdapterConfigured: this engine has no sandbox adapter; set sandbox.adapter in its engine config
 - <a id="S304"></a>**S304** (platform): OperationUnsupported: the adapter does not implement this operation
 - <a id="S400"></a>**S400** (config): resource limit exceeded (cpu/memory/concurrency cap)
