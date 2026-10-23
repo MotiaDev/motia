@@ -3719,6 +3719,66 @@ containers:
         (dir, path)
     }
 
+    /// A `sandbox-builtin` release whose binary exits at once.
+    fn adapter_archive() -> Vec<u8> {
+        let mut archive = tar::Builder::new(flate2::write::GzEncoder::new(
+            Vec::new(),
+            flate2::Compression::default(),
+        ));
+        let script = b"#!/bin/sh\nexit 0\n";
+        let mut header = tar::Header::new_gnu();
+        header.set_size(script.len() as u64);
+        header.set_mode(0o755);
+        header.set_cksum();
+        archive
+            .append_data(&mut header, "sandbox-builtin", &script[..])
+            .unwrap();
+        archive.into_inner().unwrap().finish().unwrap()
+    }
+
+    /// Spec 11: `up` writes the adapter a VM needs, locks and installs it, and
+    /// the project loaded before that edit holds it with the VM wired after it.
+    #[tokio::test]
+    async fn up_writes_installs_and_wires_the_adapter_a_vm_needs() {
+        let server = crate::sandbox::tests::adapter_registry(&adapter_archive()).await;
+        let (_dir, path) = vm_project("containers:\n  vm:\n    worker: path://./vm\n");
+        let daemon = Daemon::start(
+            "ws://127.0.0.1:1/ws".to_string(),
+            format!("up-adapter-{}", uuid::Uuid::new_v4()),
+            None,
+            EnginePolicy::External,
+        );
+        // Whatever the start's outcome: no engine is listening.
+        let _ = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            crate::registry::TEST_REGISTRY
+                .scope(server.uri(), daemon.up(Some(&path), None, "up".into())),
+        )
+        .await;
+
+        let text = std::fs::read_to_string(&path).unwrap();
+        let compose = ComposeFile::parse(&text, &path).unwrap();
+        assert_eq!(
+            compose.containers["sandbox-builtin"].version.as_deref(),
+            Some("1.2.3"),
+            "{text}"
+        );
+        assert!(crate::edit::is_generated_container(&text, "sandbox-builtin").unwrap());
+        let lock: serde_yaml::Value = serde_yaml::from_str(
+            &std::fs::read_to_string(crate::lockfile::lock_path(&path)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            lock["containers"]["sandbox-builtin"]["resolved"]["version"].as_str(),
+            Some("1.2.3"),
+            "{lock:?}"
+        );
+        let held = daemon.project(&path).await.unwrap().held_file().await;
+        assert!(held.containers.contains_key("sandbox-builtin"));
+        assert_eq!(held.containers["vm"].start_after, ["sandbox-builtin"]);
+        daemon.shutdown().await;
+    }
+
     #[test]
     fn update_all_leaves_the_generated_adapter_to_the_sandbox_step() {
         let adapter = crate::edit::parse_worker("sandbox-builtin@1.2.3").unwrap();
@@ -3742,20 +3802,7 @@ containers:
 
     #[tokio::test]
     async fn update_all_refreshes_a_generated_adapter_that_is_the_only_package() {
-        let mut archive = tar::Builder::new(flate2::write::GzEncoder::new(
-            Vec::new(),
-            flate2::Compression::default(),
-        ));
-        let script = b"#!/bin/sh\nexit 0\n";
-        let mut header = tar::Header::new_gnu();
-        header.set_size(script.len() as u64);
-        header.set_mode(0o755);
-        header.set_cksum();
-        archive
-            .append_data(&mut header, "sandbox-builtin", &script[..])
-            .unwrap();
-        let archive = archive.into_inner().unwrap().finish().unwrap();
-        let server = crate::sandbox::tests::adapter_registry(&archive).await;
+        let server = crate::sandbox::tests::adapter_registry(&adapter_archive()).await;
 
         let adapter = crate::edit::parse_worker("sandbox-builtin@1.0.0").unwrap();
         let crate::edit::Outcome::Added(text) = crate::edit::upsert_container(
@@ -3830,20 +3877,7 @@ containers:
 
     #[tokio::test]
     async fn compose_add_iii_sandbox_keeps_the_adapter_without_a_vm() {
-        let mut archive = tar::Builder::new(flate2::write::GzEncoder::new(
-            Vec::new(),
-            flate2::Compression::default(),
-        ));
-        let script = b"#!/bin/sh\nexit 0\n";
-        let mut header = tar::Header::new_gnu();
-        header.set_size(script.len() as u64);
-        header.set_mode(0o755);
-        header.set_cksum();
-        archive
-            .append_data(&mut header, "sandbox-builtin", &script[..])
-            .unwrap();
-        let archive = archive.into_inner().unwrap().finish().unwrap();
-        let server = crate::sandbox::tests::adapter_registry(&archive).await;
+        let server = crate::sandbox::tests::adapter_registry(&adapter_archive()).await;
 
         // An empty `containers:` is not a project, so one container that is no VM.
         let dir = tempfile::tempdir().unwrap();

@@ -399,8 +399,9 @@ pub fn state_key(state_dir: &Path, key: &str) -> String {
     hex::encode(digest.finalize())
 }
 
-/// How long [`RemoteVm::stop`] keeps asking an adapter that does not answer.
-const STOP_RETRY: Duration = Duration::from_secs(60);
+/// How long [`RemoteVm::stop`] keeps asking an adapter that does not answer;
+/// short under test, so a test can wait the bound out.
+const STOP_RETRY: Duration = Duration::from_secs(if cfg!(test) { 2 } else { 60 });
 /// `worker::prepare`'s budget: an image pull, as `iii-worker` had (spec 5.4).
 const PREPARE_TIMEOUT: Duration = Duration::from_secs(20 * 60);
 /// How long a registered adapter may take to register `adapter::info` (spec 7.4).
@@ -735,25 +736,16 @@ pub(crate) async fn start_vm(
     .await
     .map_err(failed)?;
 
-    let timeout = container.startup_timeout;
-    let mut started: std::result::Result<WorkerStartResponse, _> =
-        call(client, adapter, namespace, WORKER_START, &request, timeout).await;
-    if let Err(error) = &started
-        && sandbox_code(error) == Some(SandboxErrorCode::S502)
-    {
-        // A stop that fails (S502 on a boot still preparing) still gets the retry.
-        if let Some(live) = live_instance(error) {
-            let live = VmRecord {
-                adapter: adapter.to_string(),
-                namespace: namespace.to_string(),
-                vm_id: live.vm_id,
-                instance: live.instance,
-            };
-            let _ = worker_stop(client, &live, ctx.sandbox_token, ctx.file.stop_timeout).await;
-        }
-        started = call(client, adapter, namespace, WORKER_START, &request, timeout).await;
-    }
-    let started = started.map_err(failed)?;
+    let started = worker_start(
+        client,
+        adapter,
+        namespace,
+        &request,
+        container.startup_timeout,
+        ctx.file.stop_timeout,
+    )
+    .await
+    .map_err(failed)?;
 
     Ok(RemoteVm::spawn(
         client.clone(),
@@ -955,6 +947,35 @@ pub(crate) async fn worker_status(
         CALL_SLACK,
     )
     .await
+}
+
+/// `worker::start`. An S502 names a live boot of the same state, which is
+/// stopped with `grace` before the one retry.
+async fn worker_start(
+    client: &IIIClient,
+    adapter: &str,
+    namespace: &str,
+    request: &WorkerStartRequest,
+    timeout: Duration,
+    grace: Duration,
+) -> std::result::Result<WorkerStartResponse, iii_sdk::Error> {
+    let mut started = call(client, adapter, namespace, WORKER_START, request, timeout).await;
+    if let Err(error) = &started
+        && sandbox_code(error) == Some(SandboxErrorCode::S502)
+    {
+        // A stop that fails (S502 on a boot still preparing) still gets the retry.
+        if let Some(live) = live_instance(error) {
+            let live = VmRecord {
+                adapter: adapter.to_string(),
+                namespace: namespace.to_string(),
+                vm_id: live.vm_id,
+                instance: live.instance,
+            };
+            let _ = worker_stop(client, &live, &request.auth, grace).await;
+        }
+        started = call(client, adapter, namespace, WORKER_START, request, timeout).await;
+    }
+    started
 }
 
 async fn worker_stop(
@@ -1564,10 +1585,16 @@ pub(crate) mod tests {
         assert_eq!(s.code(), None);
     }
 
-    /// An engine stand-in answers the channel create, `worker::logs`, and an
-    /// `Exited` at the first `worker::status`; the channel sends one line.
-    #[tokio::test]
-    async fn a_vm_that_exits_by_the_first_tick_keeps_its_output() {
+    /// An engine stand-in on a local port. It answers `engine::channels::create`
+    /// itself, and every other call with `answer`'s reply fields (`result` or
+    /// `error`); each call but the SDK's own registration goes to the receiver
+    /// as (function id, payload). A channel socket sends one line, then closes.
+    async fn fake_engine(
+        answer: impl Fn(&str, &serde_json::Value) -> serde_json::Value + Send + Sync + 'static,
+    ) -> (
+        IIIClient,
+        tokio::sync::mpsc::UnboundedReceiver<(String, serde_json::Value)>,
+    ) {
         use futures::{SinkExt, StreamExt};
         use serde_json::json;
         use tokio_tungstenite::tungstenite::{
@@ -1577,10 +1604,11 @@ pub(crate) mod tests {
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
-        let (calls, mut called) = tokio::sync::mpsc::unbounded_channel();
+        let answer = std::sync::Arc::new(answer);
+        let (calls, called) = tokio::sync::mpsc::unbounded_channel();
         tokio::spawn(async move {
             while let Ok((stream, _)) = listener.accept().await {
-                let calls = calls.clone();
+                let (calls, answer) = (calls.clone(), answer.clone());
                 tokio::spawn(async move {
                     let mut path = String::new();
                     // tungstenite fixes the callback's error type.
@@ -1605,57 +1633,86 @@ pub(crate) mod tests {
                         else {
                             continue;
                         };
-                        if message["type"] != "invokefunction" {
+                        let function = message["function_id"].as_str().unwrap_or_default();
+                        if message["type"] != "invokefunction"
+                            || function.starts_with("engine::workers::")
+                        {
                             continue;
                         }
-                        let function = message["function_id"].as_str().unwrap().to_string();
                         let end = |direction| json!({"channel_id": "c", "access_key": "k", "direction": direction});
-                        let result = match function.as_str() {
+                        let mut reply = match function {
                             "engine::channels::create" => {
-                                json!({"writer": end("write"), "reader": end("read")})
+                                json!({"result": {"writer": end("write"), "reader": end("read")}})
                             }
-                            "sandbox-builtin::worker::logs" => json!({}),
-                            _ => {
-                                serde_json::to_value(status(State::Exited, Some(1), None)).unwrap()
-                            }
+                            _ => answer(function, &message["data"]),
                         };
-                        let reply = json!({"type": "invocationresult", "invocation_id": message["invocation_id"], "function_id": function, "result": result});
-                        if !function.starts_with("engine::workers::") {
-                            let _ = calls.send(function);
-                        }
-                        socket
-                            .send(Message::Text(reply.to_string().into()))
-                            .await
-                            .unwrap();
+                        reply["type"] = json!("invocationresult");
+                        reply["invocation_id"] = message["invocation_id"].clone();
+                        reply["function_id"] = json!(function);
+                        let _ = calls.send((function.to_string(), message["data"].clone()));
+                        let _ = socket.send(Message::Text(reply.to_string().into())).await;
                     }
                 });
             }
         });
-
-        let dir = tempfile::tempdir().unwrap();
-        let store = crate::logs::LogStore::open(dir.path().to_path_buf()).unwrap();
         let client =
             iii_sdk::register_worker(&format!("ws://{address}"), iii_sdk::InitOptions::default());
-        let record = VmRecord {
+        (client, called)
+    }
+
+    fn answered(result: impl serde::Serialize) -> serde_json::Value {
+        serde_json::json!({ "result": result })
+    }
+
+    /// An S-code refusal whose `fix` names `instance` of VM `v`.
+    fn refused(code: SandboxErrorCode, instance: u64) -> serde_json::Value {
+        let fix = serde_json::json!({ "vm_id": "v", "instance": instance });
+        let message = contract::error_payload(code, "refused", Some(fix), None).to_string();
+        serde_json::json!({ "error": { "code": "invocation_failed", "message": message } })
+    }
+
+    fn not_found() -> serde_json::Value {
+        serde_json::json!({ "error": { "code": "function_not_found", "message": "gone" } })
+    }
+
+    /// Each call so far as (function suffix, the `instance` it names).
+    fn drain(
+        called: &mut tokio::sync::mpsc::UnboundedReceiver<(String, serde_json::Value)>,
+    ) -> Vec<(String, Option<u64>)> {
+        let mut calls = Vec::new();
+        while let Ok((function, payload)) = called.try_recv() {
+            let suffix = function.trim_start_matches("sandbox-builtin::").to_string();
+            calls.push((suffix, payload["instance"].as_u64()));
+        }
+        calls
+    }
+
+    fn vm_record() -> VmRecord {
+        VmRecord {
             adapter: "sandbox-builtin".into(),
             namespace: "shop".into(),
             vm_id: "v".into(),
             instance: 1,
-        };
-        let vm = RemoteVm::spawn(client, record, "t".into(), Some(store.sink("web")));
+        }
+    }
+
+    /// The stream opens before the first tick, which already reads `Exited`.
+    #[tokio::test]
+    async fn a_vm_that_exits_by_the_first_tick_keeps_its_output() {
+        let (client, mut called) = fake_engine(|function, _| match function {
+            "sandbox-builtin::worker::logs" => answered(serde_json::json!({})),
+            _ => answered(status(State::Exited, Some(1), None)),
+        })
+        .await;
+        let dir = tempfile::tempdir().unwrap();
+        let store = crate::logs::LogStore::open(dir.path().to_path_buf()).unwrap();
+        let vm = RemoteVm::spawn(client, vm_record(), "t".into(), Some(store.sink("web")));
         assert_eq!(vm.wait().await.code(), Some(1));
 
-        let mut order = Vec::new();
-        while let Ok(function) = called.try_recv() {
-            order.push(function);
-        }
+        let order: Vec<String> = drain(&mut called).into_iter().map(|(f, _)| f).collect();
         assert_eq!(
             order,
-            [
-                "engine::channels::create",
-                "sandbox-builtin::worker::logs",
-                "sandbox-builtin::worker::status"
-            ]
+            ["engine::channels::create", "worker::logs", "worker::status"]
         );
         assert_eq!(
             crate::logs::tests::entries(&store, "web", 1).await,
@@ -1663,6 +1720,136 @@ pub(crate) mod tests {
                 stream: crate::logs::LogStream::Stderr,
                 message: "no /dev/kvm".into()
             }]
+        );
+    }
+
+    /// S503 on a status: the live boot it names is stopped, the status asked
+    /// again, and a second S503 reads as superseded.
+    #[tokio::test]
+    async fn a_superseded_vm_stops_the_live_boot_then_reads_an_exit_without_code() {
+        let (client, mut called) =
+            fake_engine(
+                |function, payload| match (function, payload["instance"].as_u64()) {
+                    ("sandbox-builtin::worker::status", Some(1)) => {
+                        refused(SandboxErrorCode::S503, 2)
+                    }
+                    ("sandbox-builtin::worker::stop", Some(2)) => {
+                        answered(status(State::Stopped, None, Some(15)))
+                    }
+                    _ => not_found(),
+                },
+            )
+            .await;
+        let vm = RemoteVm::spawn(client, vm_record(), "t".into(), None);
+        assert_eq!(vm.wait().await.code(), None);
+        let calls = |c: &[(&str, u64)]| -> Vec<(String, Option<u64>)> {
+            c.iter().map(|(f, i)| (f.to_string(), Some(*i))).collect()
+        };
+        assert_eq!(
+            drain(&mut called),
+            calls(&[
+                ("worker::status", 1),
+                ("worker::stop", 2),
+                ("worker::status", 1)
+            ])
+        );
+
+        // The same on a stop: the live boot first, then this one again.
+        let (client, mut called) =
+            fake_engine(
+                |function, payload| match (function, payload["instance"].as_u64()) {
+                    ("sandbox-builtin::worker::status", _) => {
+                        answered(status(State::Running, None, None))
+                    }
+                    ("sandbox-builtin::worker::stop", Some(1)) => {
+                        refused(SandboxErrorCode::S503, 2)
+                    }
+                    ("sandbox-builtin::worker::stop", Some(2)) => {
+                        answered(status(State::Stopped, None, Some(15)))
+                    }
+                    _ => not_found(),
+                },
+            )
+            .await;
+        let vm = RemoteVm::spawn(client, vm_record(), "t".into(), None);
+        assert_eq!(vm.stop(Duration::from_secs(1)).await.code(), None);
+        let stops: Vec<_> = drain(&mut called)
+            .into_iter()
+            .filter(|(function, _)| function == "worker::stop")
+            .collect();
+        assert_eq!(
+            stops,
+            calls(&[
+                ("worker::stop", 1),
+                ("worker::stop", 2),
+                ("worker::stop", 1)
+            ])
+        );
+    }
+
+    /// S502 on a start: the live boot it names is stopped before the one retry.
+    #[tokio::test]
+    async fn a_start_that_finds_a_live_boot_stops_it_and_starts_again() {
+        let starts = std::sync::atomic::AtomicUsize::new(0);
+        let (client, mut called) = fake_engine(move |function, _| match function {
+            "sandbox-builtin::worker::start"
+                if starts.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 =>
+            {
+                refused(SandboxErrorCode::S502, 1)
+            }
+            "sandbox-builtin::worker::start" => {
+                answered(serde_json::json!({ "vm_id": "v", "instance": 2 }))
+            }
+            "sandbox-builtin::worker::stop" => answered(status(State::Stopped, None, Some(15))),
+            _ => not_found(),
+        })
+        .await;
+        let local = StartSpec::Vm(VmSpec::Local {
+            worker_dir: "/srv/app/w".into(),
+            run_override: None,
+        });
+        let request = start_request(
+            "t",
+            Path::new("/srv/app/.iii/compose/shop"),
+            "ws://e",
+            "web",
+            &local,
+            BTreeMap::new(),
+        )
+        .unwrap();
+        let started = worker_start(
+            &client,
+            "sandbox-builtin",
+            "shop",
+            &request,
+            Duration::from_secs(5),
+            Duration::from_secs(1),
+        )
+        .await
+        .unwrap();
+        assert_eq!((started.vm_id.as_str(), started.instance), ("v", 2));
+        assert_eq!(
+            drain(&mut called),
+            [
+                ("worker::start".to_string(), None),
+                ("worker::stop".to_string(), Some(1)),
+                ("worker::start".to_string(), None)
+            ]
+        );
+    }
+
+    /// An adapter that is not there never answers: the stop gives up once
+    /// STOP_RETRY has passed, with no code.
+    #[tokio::test]
+    async fn a_stop_nobody_answers_ends_after_stop_retry() {
+        let (client, _called) = fake_engine(|_, _| not_found()).await;
+        let vm = RemoteVm::spawn(client, vm_record(), "t".into(), None);
+        let began = tokio::time::Instant::now();
+        assert_eq!(vm.stop(Duration::from_secs(1)).await.code(), None);
+        let took = began.elapsed();
+        assert!(
+            took >= STOP_RETRY && took < STOP_RETRY + POLL_INTERVAL * 2,
+            "{took:?}"
         );
     }
 

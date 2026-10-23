@@ -254,6 +254,12 @@ impl Project {
         &self.file_path
     }
 
+    /// The file as held in memory, wiring included.
+    #[cfg(test)]
+    pub(crate) async fn held_file(&self) -> ComposeFile {
+        self.file.read().await.clone()
+    }
+
     /// Commits the package lock and refreshes the metadata used by future starts.
     /// Existing declarations and running child supervision stay unchanged.
     /// Cancellation while waiting for the metadata lock leaves disk untouched;
