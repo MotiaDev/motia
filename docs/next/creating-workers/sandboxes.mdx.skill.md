@@ -29,7 +29,7 @@ worker](../upgrading/sandbox-worker) covers that case and the move from the 0.25
 
 <Note>
   This page is a quick tour of the sandbox triggers. For the adapter's own documentation, see the
-  [sandbox-builtin worker docs](https://workers.iii.dev/workers/sandbox-builtin).
+  [sandbox-builtin docs](https://workers.iii.dev/workers/sandbox-builtin).
 </Note>
 
 You drive sandboxes by invoking the `sandbox::*` triggers, the same way you call any

@@ -14,7 +14,7 @@ router: it serves the `sandbox::*` triggers and forwards every call to a sandbox
 Compose installs it when a project needs it.
 
 Consumers keep calling `sandbox::*` in the `default` namespace, and no existing request, response,
-or S-code changed. What changes is where you configure sandboxes and where their state lives. Work through the
+or S-code changed. What changes is where you configure sandboxes and where their state is kept. Work through the
 sections that apply to your setup.
 
 ## What moved
@@ -94,7 +94,7 @@ writes the container and the lock, then commit both.
 
 The adapter only mounts host directories under two roots: the compose file's directory and
 Compose's package cache (`~/.iii/compose/packages`, or `$III_COMPOSE_STATE_DIR/packages`). A
-`path://` worker with `runtime.base_image` that lives anywhere else fails with S501, which names the
+`path://` worker with `runtime.base_image` anywhere else fails with S501, which names the
 roots. Move the worker under the compose directory.
 
 ## Supported hosts
@@ -133,7 +133,7 @@ on [Sandboxes](../creating-workers/sandboxes).
 set it. Nothing reads these directories now, so delete them. The first boot of each VM in 0.26
 starts from fresh state and reinstalls its dependencies.
 
-The state now lives in `~/.iii/sandbox/workers/<vm_id>/`, owned by the adapter. Compose deletes it
+The state is now in `~/.iii/sandbox/workers/<vm_id>/`, owned by the adapter. Compose deletes it
 when you remove the VM container. Two cases leave it behind for you to delete by hand:
 
 - You removed a VM container while the adapter was down, for example after `iii compose down`. The
