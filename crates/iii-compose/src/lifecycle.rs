@@ -21,6 +21,7 @@
 
 use std::{
     collections::BTreeMap,
+    process::ExitStatus,
     time::{Duration, Instant},
 };
 
@@ -111,8 +112,12 @@ pub struct LifecycleCtx<'a> {
     pub package_cache: &'a std::path::Path,
     /// Persistent, bounded stdout and stderr for every project worker.
     pub logs: &'a LogStore,
-    /// Root of the per-container VM state.
-    pub vm_dir: &'a std::path::Path,
+    /// This project's state directory: with the container key, it names a
+    /// VM's state at its adapter (`sandbox::state_key`).
+    pub state_dir: &'a std::path::Path,
+    /// This project's `DaemonState::sandbox_token`: what the adapter container
+    /// is started with and what a call to its `worker::*` functions carries.
+    pub sandbox_token: &'a str,
     pub(crate) empty_env_diagnostics: &'a crate::config::EmptyEnvDiagnostics,
 }
 
@@ -121,7 +126,7 @@ pub struct LifecycleCtx<'a> {
 enum StartAttempt {
     Ready {
         record: ChildRecord,
-        child: Supervised,
+        child: Box<Child>,
         recovery: Option<RetryRecovery>,
     },
     Failed(ComposeError),
@@ -145,8 +150,45 @@ impl From<ComposeError> for StartFailure {
     }
 }
 
+/// One supervised container: a local process group, or a VM its adapter runs.
+pub enum Child {
+    Process(Supervised),
+    Vm(crate::sandbox::RemoteVm),
+}
+
+impl Child {
+    pub fn poll(&self) -> Outcome {
+        match self {
+            Self::Process(process) => process.poll(),
+            Self::Vm(vm) => vm.poll(),
+        }
+    }
+
+    pub async fn wait(&self) -> ExitStatus {
+        match self {
+            Self::Process(process) => process.wait().await,
+            Self::Vm(vm) => vm.wait().await,
+        }
+    }
+
+    pub async fn stop(&self, grace: Duration) -> ExitStatus {
+        match self {
+            Self::Process(process) => process.stop(grace).await,
+            Self::Vm(vm) => vm.stop(grace).await,
+        }
+    }
+
+    /// Inherited from an earlier daemon rather than started here.
+    pub fn is_adopted(&self) -> bool {
+        match self {
+            Self::Process(process) => process.is_adopted(),
+            Self::Vm(vm) => vm.is_adopted(),
+        }
+    }
+}
+
 /// Containers currently supervised by this daemon, keyed by container id.
-pub type Children = BTreeMap<String, Supervised>;
+pub type Children = BTreeMap<String, Child>;
 
 /// Starts `target` (or the whole graph) in dependency order.
 ///
@@ -322,7 +364,7 @@ async fn up_scoped(
                         report::ready(key, took);
                     }
                     records.insert(key.clone(), record);
-                    children.insert(key.clone(), child);
+                    children.insert(key.clone(), *child);
                     started.push(key.clone());
                     if let Some(operation) = crate::operation::active(&operation_id) {
                         operation
@@ -593,7 +635,7 @@ async fn restart_one_scoped(
                 report::ready(key, took);
             }
             records.insert(key.to_string(), record);
-            children.insert(key.to_string(), child);
+            children.insert(key.to_string(), *child);
             ContainerResult {
                 container: key.to_string(),
                 state: ChildStatus::Ready,
@@ -697,7 +739,21 @@ async fn remove_one_scoped(
     } else {
         report::unchanged(key, "not running");
     }
-    records.remove(key);
+    // A removed VM container takes its state with it; a failure only leaves
+    // the state behind, so the removal still succeeds.
+    if let Some(vm) = records.remove(key).and_then(|record| record.vm)
+        && let Err(error) =
+            crate::sandbox::destroy_vm(ctx.engine, ctx.sandbox_token, ctx.state_dir, key, &vm).await
+    {
+        let crate::state::VmRecord { adapter, vm_id, .. } = &vm;
+        report::daemon_line(
+            &format!(
+                "{key}: could not destroy VM {vm_id} through {adapter}: {error}; its state \
+                 stays in ~/.iii/sandbox/workers/{vm_id}"
+            ),
+            true,
+        );
+    }
     report::plan_done();
     report::summary_ok("remove", usize::from(changed), 1, began.elapsed());
 
@@ -952,7 +1008,7 @@ async fn start_one_attempt(
     match start_one_until_shutdown(ctx, key, shutdown, operation_id).await {
         Ok((record, child)) => StartAttempt::Ready {
             record,
-            child,
+            child: Box::new(child),
             recovery: None,
         },
         Err(StartFailure::Failed(error)) => StartAttempt::Failed(error),
@@ -965,7 +1021,7 @@ async fn start_one_until_shutdown(
     key: &str,
     mut shutdown: Option<crate::shutdown::ShutdownSignal>,
     operation_id: Option<&str>,
-) -> std::result::Result<(ChildRecord, Supervised), StartFailure> {
+) -> std::result::Result<(ChildRecord, Child), StartFailure> {
     macro_rules! wait_or_interrupt {
         ($future:expr) => {{
             if let Some(signal) = shutdown.as_mut() {
@@ -1055,9 +1111,13 @@ async fn start_one_until_shutdown(
                     installed.default_config,
                 ),
                 // The start command is the bundle's own, read from its manifest
-                // inside the VM. Nothing on the host runs it.
+                // inside the VM. Nothing on the host runs it. The manifest is
+                // named after the package an alias stands for.
                 crate::registry::Payload::Bundle(install_dir) => (
-                    StartSpec::Vm(VmSpec::Bundle { install_dir }),
+                    StartSpec::Vm(VmSpec::Bundle {
+                        package: installed.alias_of.unwrap_or(installed.name),
+                        install_dir,
+                    }),
                     installed.default_config,
                 ),
             }
@@ -1072,8 +1132,15 @@ async fn start_one_until_shutdown(
             .await;
     }
 
-    let user_env =
+    let mut user_env =
         container.resolve_user_env_with_diagnostics(key, Some((key, ctx.empty_env_diagnostics)))?;
+    crate::sandbox::layer_adapter_env(
+        ctx.file,
+        key,
+        ctx.sandbox_token,
+        ctx.package_cache,
+        &mut user_env,
+    )?;
     let config = wait_or_interrupt!(resolve_config(ctx, container, key, shipped_config))?;
     let worker_dir = container.worker_dir();
     let working_dir = resolve_working_dir(
@@ -1114,11 +1181,24 @@ async fn start_one_until_shutdown(
     }
 
     let plan = spawn_plan(&spawn_ctx);
-    let command = match plan.command() {
-        Some(command) => command,
-        // A VM worker is booted instead of run here. The handle that comes
-        // back is an ordinary child, so readiness, stop, crash cascade and log
-        // capture below are unchanged.
+    let child = match plan.command() {
+        Some(command) => {
+            if shutdown.as_ref().is_some_and(|signal| signal.requested()) {
+                return Err(StartFailure::Interrupted);
+            }
+            let (child, output) =
+                spawn_supervised_piped(command).map_err(|err| ComposeError::SpawnFailed {
+                    container: key.to_string(),
+                    message: err.to_string(),
+                })?;
+            // Capture before waiting on readiness: whatever the child prints
+            // while starting is exactly what an operator needs when it does not.
+            ctx.logs.capture(key, output.stdout, output.stderr);
+            Child::Process(child)
+        }
+        // A VM worker is booted by its adapter instead of run here. The handle
+        // that comes back is an ordinary child, so readiness, stop and crash
+        // cascade below are unchanged; its poller streams the VM's logs.
         None => {
             report::starting(key, "preparing VM runtime");
             if let Some(operation) = operation_id.and_then(crate::operation::active) {
@@ -1126,39 +1206,23 @@ async fn start_one_until_shutdown(
                     .emit(Some(key), "preparing", "preparing VM runtime")
                     .await;
             }
-            wait_or_interrupt!(vm_command(ctx, key, &start, &plan)).map_err(|message| {
-                ComposeError::SpawnFailed {
-                    container: key.to_string(),
-                    message,
-                }
-            })?
+            Child::Vm(wait_or_interrupt!(crate::sandbox::start_vm(
+                ctx, key, &start, plan.env
+            ))?)
         }
     };
-
-    if shutdown.as_ref().is_some_and(|signal| signal.requested()) {
-        return Err(StartFailure::Interrupted);
-    }
-
-    let (child, output) =
-        spawn_supervised_piped(command).map_err(|err| ComposeError::SpawnFailed {
-            container: key.to_string(),
-            message: err.to_string(),
-        })?;
     report::starting(key, "waiting for engine registration");
     if let Some(operation) = operation_id.and_then(crate::operation::active) {
         operation
             .emit(Some(key), "registering", "waiting for engine registration")
             .await;
     }
-    // Capture before waiting on readiness: whatever the child prints while
-    // starting is exactly what an operator needs when it does not.
-    ctx.logs.capture(key, output.stdout, output.stderr);
 
     let readiness = if let Some(signal) = shutdown.as_mut() {
         tokio::select! {
             biased;
             _ = signal.wait() => {
-                child.stop(ctx.file.stop_timeout).await;
+                stop_attempt(ctx, &child).await;
                 fire_post_run(ctx, &spawn_ctx, container).await;
                 return Err(StartFailure::Interrupted);
             }
@@ -1187,171 +1251,23 @@ async fn start_one_until_shutdown(
     if let Err(error) = readiness {
         // The child is ours whether or not it registered; it must not outlive
         // the failed attempt.
-        child.stop(ctx.file.stop_timeout).await;
+        stop_attempt(ctx, &child).await;
         fire_post_run(ctx, &spawn_ctx, container).await;
         return Err(StartFailure::Failed(error));
     }
 
-    let record = ChildRecord::from_supervised(&child, ChildStatus::Ready);
+    let record = ChildRecord::from_child(&child, ChildStatus::Ready);
     Ok((record, child))
 }
 
-/// Builds the boot command for a VM container, by asking `iii-worker` for it.
-///
-/// A process boundary rather than a call: libkrun needs glibc, and the engine
-/// ships a musl build so it installs on any Linux. Linked, the two do not fit
-/// in one binary — the musl target does not compile. Split, the engine stays
-/// portable and the VM machinery stays where its platform rules already live,
-/// which is the same split the installer makes by shipping `iii-worker` as its
-/// own asset.
-///
-/// Uses the host container environment. Configuration is served by the engine,
-/// not mounted into the guest.
-async fn vm_command(
-    ctx: &LifecycleCtx<'_>,
-    key: &str,
-    start: &StartSpec,
-    plan: &crate::spawn::SpawnPlan,
-) -> std::result::Result<tokio::process::Command, String> {
-    let (worker_dir, run_override, prepare_command) = match start {
-        StartSpec::Vm(VmSpec::Bundle { install_dir }) => (install_dir, None, "__bundle-prepare"),
-        StartSpec::Vm(VmSpec::Local {
-            worker_dir,
-            run_override,
-        }) => (worker_dir, run_override.as_deref(), "__local-prepare"),
-        _ => return Err("not a VM container".to_string()),
-    };
-
-    let env: BTreeMap<String, String> = plan.env.clone();
-    let request = serde_json::json!({
-        "worker_name": key,
-        "worker_dir": worker_dir,
-        "state_dir": ctx.vm_dir.join(key),
-        "engine_url": ctx.engine_url,
-        "extra_env": env,
-        "run_override": run_override,
-    });
-
-    let plan = prepare_vm(prepare_command, &request).await?;
-    let mut command = tokio::process::Command::new(&plan.program);
-    command.args(&plan.args);
-    for (name, value) in &plan.env {
-        command.env(name, value);
+/// Stops a child whose start did not finish. A VM is not asked over the bus of
+/// an engine that exited, which would wait out STOP_RETRY: it is in its
+/// adapter's process group, so stopping the adapter takes it, as in
+/// [`stop_one`].
+async fn stop_attempt(ctx: &LifecycleCtx<'_>, child: &Child) {
+    if !matches!(child, Child::Vm(_) if ctx.engine.has_exited()) {
+        child.stop(ctx.file.stop_timeout).await;
     }
-    // Not inherited: a lifeline from whoever started compose would tie the VM
-    // to the wrong process.
-    for name in &plan.env_remove {
-        command.env_remove(name);
-    }
-    command.stdin(std::process::Stdio::null());
-    Ok(command)
-}
-
-/// What an `iii-worker` VM prepare command answers: a program, its arguments, and
-/// the environment to start it with.
-#[derive(serde::Deserialize)]
-struct VmPlan {
-    program: std::path::PathBuf,
-    args: Vec<String>,
-    #[serde(default)]
-    env: BTreeMap<String, String>,
-    #[serde(default)]
-    env_remove: Vec<String>,
-}
-
-/// Runs an `iii-worker` VM prepare command and reads the plan back.
-async fn prepare_vm(
-    prepare_command: &str,
-    request: &serde_json::Value,
-) -> std::result::Result<VmPlan, String> {
-    let program = worker_binary()?;
-    let mut command = tokio::process::Command::new(&program);
-    command
-        .arg(prepare_command)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-    // `vm_command` is cancellation-safe: dropping this future after a shutdown
-    // signal must not leave its short-lived helper running.
-    command.kill_on_drop(true);
-    let mut child = command
-        .spawn()
-        .map_err(|err| format!("cannot run {}: {err}", program.display()))?;
-
-    let output = tokio::time::timeout(std::time::Duration::from_secs(20 * 60), async {
-        let body = request.to_string();
-        if let Some(mut stdin) = child.stdin.take() {
-            use tokio::io::AsyncWriteExt;
-            stdin
-                .write_all(body.as_bytes())
-                .await
-                .map_err(|err| format!("cannot send the request to iii-worker: {err}"))?;
-            // Dropped here: the prepare command reads to end of file, so it would wait
-            // forever on a pipe compose still holds open.
-            drop(stdin);
-        }
-
-        child
-            .wait_with_output()
-            .await
-            .map_err(|err| format!("iii-worker did not answer: {err}"))
-    })
-    .await
-    .map_err(|_| "iii-worker VM preparation timed out after 20 minutes".to_string())??;
-
-    if !output.status.success() {
-        let reason = String::from_utf8_lossy(&output.stderr);
-        let reason = reason.trim();
-        // The one failure whose message says nothing useful. Two binaries with
-        // one contract between them can be installed apart, and clap answers a
-        // subcommand it does not know by printing usage — which reads as a bug
-        // in compose rather than as the version skew it is.
-        if reason.contains("unrecognized subcommand") {
-            return Err(format!(
-                "{} is too old: it does not know `{prepare_command}`, which compose uses to \
-                 build a worker VM. Install it from the same release as iii — they are \
-                 shipped together and are updated together",
-                program.display()
-            ));
-        }
-        // Otherwise its stderr is the diagnosis — the kill switch, a tampered
-        // manifest, a rootfs that could not be prepared — already written for a
-        // human, so it is passed through rather than summarised.
-        return Err(if reason.is_empty() {
-            format!("iii-worker could not prepare the VM ({})", output.status)
-        } else {
-            reason.to_string()
-        });
-    }
-
-    serde_json::from_slice(&output.stdout)
-        .map_err(|err| format!("iii-worker answered something unreadable: {err}"))
-}
-
-/// The `iii-worker` next to this binary, else one on `PATH`.
-///
-/// The sibling wins: the installer puts both in the same directory and keeps
-/// them at one version, while a copy earlier on `PATH` may belong to another
-/// install and boot a VM built for a different engine.
-fn worker_binary() -> std::result::Result<std::path::PathBuf, String> {
-    let name = format!("iii-worker{}", std::env::consts::EXE_SUFFIX);
-    if let Ok(current) = std::env::current_exe() {
-        let sibling = current.with_file_name(&name);
-        if sibling.is_file() {
-            return Ok(sibling);
-        }
-    }
-    std::env::var_os("PATH")
-        .iter()
-        .flat_map(std::env::split_paths)
-        .map(|dir| dir.join(&name))
-        .find(|candidate| candidate.is_file())
-        .ok_or_else(|| {
-            format!(
-                "{name} is not installed. VM containers need this binary to boot; install it \
-                 beside iii, or remove the worker's VM requirement"
-            )
-        })
 }
 
 async fn stop_one(
@@ -1363,7 +1279,14 @@ async fn stop_one(
     let Some(child) = children.remove(key) else {
         return false;
     };
-    child.stop(ctx.file.stop_timeout).await;
+    // Asking an adapter that is gone, or over the bus of an engine that exited,
+    // would wait out STOP_RETRY. The VM is in its adapter's process group, so
+    // stopping a declared adapter takes it.
+    if !matches!(&child, Child::Vm(vm) if ctx.engine.has_exited()
+        || crate::sandbox::adapter_gone(ctx.file, &vm.record.adapter, children))
+    {
+        child.stop(ctx.file.stop_timeout).await;
+    }
 
     // post_run fires after the exit is confirmed, on every path out. Any step
     // that cannot be rebuilt (a container that vanished from the file, an
@@ -1517,10 +1440,12 @@ async fn fire_post_run(ctx: &LifecycleCtx<'_>, spawn_ctx: &SpawnCtx<'_>, contain
     }
 }
 
+/// Anything not known to have exited: a VM its adapter cannot answer for right
+/// now is still held, never started a second time.
 fn is_running(children: &Children, key: &str) -> bool {
     children
         .get(key)
-        .is_some_and(|child| matches!(child.poll(), Outcome::Running))
+        .is_some_and(|child| !matches!(child.poll(), Outcome::Exited(_)))
 }
 
 /// Containers to act on, in dependency order: the whole graph, or the target
@@ -1777,6 +1702,66 @@ containers:
             json.get("primary_error").is_none(),
             "the internal primary error must not be serialized"
         )
+    }
+
+    /// With the managed engine gone, no `worker::stop` can be answered, so a
+    /// VM's stop must not wait out STOP_RETRY on the dead bus.
+    #[tokio::test]
+    async fn a_vm_stop_after_the_engine_exited_does_not_ask_the_adapter() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = ComposeFile::parse(
+            "containers:\n  vm: {worker: path://./vm}\n",
+            dir.path().join("worker-compose.yaml"),
+        )
+        .unwrap();
+        let engine = EngineClient::connect("ws://127.0.0.1:1", "t", "t");
+        engine.mark_exited();
+        let (shutdown, post_runs, diagnostics) = Default::default();
+        let logs = LogStore::open(dir.path().join("logs")).unwrap();
+        let ctx = LifecycleCtx {
+            shutdown: &shutdown,
+            file: &file,
+            engine: &engine,
+            post_runs: &post_runs,
+            compose_namespace: "t",
+            project_namespace: "t",
+            engine_url: "ws://127.0.0.1:1",
+            package_cache: dir.path(),
+            logs: &logs,
+            state_dir: dir.path(),
+            sandbox_token: "t",
+            empty_env_diagnostics: &diagnostics,
+        };
+        let vm = || {
+            Child::Vm(crate::sandbox::RemoteVm::spawn(
+                engine.client().clone(),
+                crate::state::VmRecord {
+                    adapter: "sandbox-builtin".into(),
+                    namespace: "t".into(),
+                    vm_id: "v".into(),
+                    instance: 1,
+                },
+                "t".into(),
+                None,
+            ))
+        };
+        let mut children = Children::from([("vm".to_string(), vm())]);
+        let began = Instant::now();
+        assert!(stop_one(&ctx, &mut children, &mut BTreeMap::new(), "vm").await);
+        assert!(
+            began.elapsed() < Duration::from_secs(1),
+            "{:?}",
+            began.elapsed()
+        );
+
+        // Nor when the engine died during the VM's own start.
+        let began = Instant::now();
+        stop_attempt(&ctx, &vm()).await;
+        assert!(
+            began.elapsed() < Duration::from_secs(1),
+            "{:?}",
+            began.elapsed()
+        );
     }
 }
 

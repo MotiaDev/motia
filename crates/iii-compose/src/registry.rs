@@ -912,6 +912,15 @@ async fn resolve_response(
             index = next;
             continue;
         }
+        if let Some(available) = refused_platform(&body) {
+            return Err(ComposeError::UnsupportedPlatform {
+                container: container.to_string(),
+                name: name.to_string(),
+                version: version_range.to_string(),
+                target: candidates[index].to_string(),
+                available: available.join(", "),
+            });
+        }
         return Err(ComposeError::PackageNotResolved {
             container: container.to_string(),
             name: name.to_string(),
@@ -933,17 +942,29 @@ async fn resolve_response(
 /// when the registry refused `tried` as a platform the worker has no build
 /// for (`unsupported_platform`), and only one it lists as available.
 fn fallback_index(body: &str, candidates: &[&str], tried: usize) -> Option<usize> {
+    let available = refused_platform(body)?;
+    (tried + 1..candidates.len())
+        .find(|&index| available.iter().any(|target| target == candidates[index]))
+}
+
+/// The targets an `unsupported_platform` refusal lists as available, or
+/// `None` when `body` is not that refusal.
+fn refused_platform(body: &str) -> Option<Vec<String>> {
     let parsed = serde_json::from_str::<serde_json::Value>(body).ok()?;
     let error = parsed.get("error")?;
     if error.get("code")?.as_str()? != "unsupported_platform" {
         return None;
     }
-    let available = error.get("available")?.as_array()?;
-    (tried + 1..candidates.len()).find(|&index| {
-        available
-            .iter()
-            .any(|value| value.as_str() == Some(candidates[index]))
-    })
+    Some(
+        error
+            .get("available")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(serde_json::Value::as_str)
+            .map(str::to_string)
+            .collect(),
+    )
 }
 
 async fn send_resolve_request(
@@ -2042,8 +2063,11 @@ mod tests {
         )
         .await
         .unwrap_err();
+        assert_eq!(error.code(), "UNSUPPORTED_PLATFORM");
         assert!(
-            error.to_string().contains("does not support platform"),
+            error
+                .to_string()
+                .contains("x86_64-apple-darwin, x86_64-unknown-linux-gnu"),
             "{error}"
         );
     }

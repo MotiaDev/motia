@@ -332,6 +332,25 @@ pub struct EngineSpec {
     /// engine validates it.
     pub observers: Option<serde_yaml::Value>,
     pub workers: BTreeMap<String, serde_yaml::Value>,
+    /// Which adapter the engine's `sandbox::*` router forwards to. `None` is no
+    /// section: the managed engine still binds the default adapter.
+    pub sandbox: Option<SandboxSpec>,
+}
+
+/// The `engine.sandbox` section. The adapter name is not checked here: the
+/// engine rejects a binding it cannot resolve (`INVALID_SANDBOX_CONFIG`).
+#[derive(Debug, Clone, PartialEq, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SandboxSpec {
+    #[serde(default = "default_sandbox_adapter")]
+    pub adapter: String,
+    /// The namespace the adapter runs in; the owning project's when absent.
+    #[serde(default)]
+    pub namespace: Option<String>,
+}
+
+fn default_sandbox_adapter() -> String {
+    iii_sandbox_contract::DEFAULT_ADAPTER.to_string()
 }
 
 #[derive(Debug, Clone)]
@@ -476,6 +495,11 @@ fn validate_engine(raw: RawEngineSpec) -> Result<EngineSpec> {
     let mut workers = BTreeMap::new();
     for (name, config) in raw.workers {
         let worker_type = engine_worker_type(&name);
+        if worker_type == "iii-sandbox" {
+            return Err(ComposeError::SandboxConfigMoved {
+                replacement: sandbox_replacement(&config),
+            });
+        }
         if INJECTED_ENGINE_WORKERS.contains(&worker_type) {
             return Err(ComposeError::EngineWorkerIsInjected { worker: name });
         }
@@ -505,7 +529,23 @@ fn validate_engine(raw: RawEngineSpec) -> Result<EngineSpec> {
         registration_namespace_grace_ms: raw.registration_namespace_grace_ms,
         observers,
         workers,
+        sandbox: raw.sandbox,
     })
+}
+
+/// The `containers:` entry that carries a pre-0.26 `engine.workers.iii-sandbox`
+/// block to `sandbox-builtin`. It has no `# added by compose::add` marker: the
+/// operator declares it, so Compose never removes it with its `config_override`.
+/// The version is a range because the migration check is offline.
+pub fn sandbox_replacement(old: &serde_yaml::Value) -> String {
+    let mut text = format!(
+        "containers:\n  sandbox-builtin:\n    worker: package://sandbox-builtin\n    version: '^{}'\n    config_override:\n",
+        iii_sandbox_contract::CONTRACT_MAJOR
+    );
+    for line in serde_yaml::to_string(old).unwrap_or_default().lines() {
+        text.push_str(&format!("      {line}\n"));
+    }
+    text
 }
 
 /// Reads `engine.url` from a Compose document, and nothing else.
@@ -1038,6 +1078,8 @@ struct RawEngineSpec {
     #[serde(default, deserialize_with = "deserialize_unique_map")]
     #[schemars(with = "BTreeMap<String, serde_json::Value>")]
     workers: IndexMap<String, serde_yaml::Value>,
+    #[serde(default)]
+    sandbox: Option<SandboxSpec>,
 }
 
 #[derive(Debug, Deserialize)]
