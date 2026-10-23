@@ -398,6 +398,11 @@ impl RemoteVm {
             (client.clone(), record.clone(), token.clone(), logs.clone());
         tokio::spawn(async move {
             let (mut capture, mut cursor) = (None, None);
+            // A boot that fails at once can be `Exited` by the first tick, so
+            // its stream opens now; the adapter drains it before closing.
+            if let Some(sink) = &sink {
+                follow_logs(&poller, &vm, &auth, sink, &mut capture, &mut cursor).await;
+            }
             loop {
                 let tick = async {
                     tokio::time::sleep(POLL_INTERVAL).await;
@@ -1470,6 +1475,108 @@ pub(crate) mod tests {
             panic!()
         };
         assert_eq!(s.code(), None);
+    }
+
+    /// An engine stand-in answers the channel create, `worker::logs`, and an
+    /// `Exited` at the first `worker::status`; the channel sends one line.
+    #[tokio::test]
+    async fn a_vm_that_exits_by_the_first_tick_keeps_its_output() {
+        use futures::{SinkExt, StreamExt};
+        use serde_json::json;
+        use tokio_tungstenite::tungstenite::{
+            Message,
+            handshake::server::{Request, Response},
+        };
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let (calls, mut called) = tokio::sync::mpsc::unbounded_channel();
+        tokio::spawn(async move {
+            while let Ok((stream, _)) = listener.accept().await {
+                let calls = calls.clone();
+                tokio::spawn(async move {
+                    let mut path = String::new();
+                    // tungstenite fixes the callback's error type.
+                    #[allow(clippy::result_large_err)]
+                    let accept = |request: &Request, response: Response| {
+                        path = request.uri().path().to_string();
+                        Ok(response)
+                    };
+                    let mut socket = tokio_tungstenite::accept_hdr_async(stream, accept)
+                        .await
+                        .unwrap();
+                    if path.starts_with("/ws/channels/") {
+                        let line =
+                            r#"{"stream":"stderr","line":"no /dev/kvm","ts_ms":1,"cursor":12}"#;
+                        socket.send(Message::Text(line.into())).await.unwrap();
+                        socket.close(None).await.unwrap();
+                        return;
+                    }
+                    while let Some(Ok(frame)) = socket.next().await {
+                        let Ok(message) =
+                            serde_json::from_slice::<serde_json::Value>(&frame.into_data())
+                        else {
+                            continue;
+                        };
+                        if message["type"] != "invokefunction" {
+                            continue;
+                        }
+                        let function = message["function_id"].as_str().unwrap().to_string();
+                        let end = |direction| json!({"channel_id": "c", "access_key": "k", "direction": direction});
+                        let result = match function.as_str() {
+                            "engine::channels::create" => {
+                                json!({"writer": end("write"), "reader": end("read")})
+                            }
+                            "sandbox-builtin::worker::logs" => json!({}),
+                            _ => {
+                                serde_json::to_value(status(State::Exited, Some(1), None)).unwrap()
+                            }
+                        };
+                        let reply = json!({"type": "invocationresult", "invocation_id": message["invocation_id"], "function_id": function, "result": result});
+                        if !function.starts_with("engine::workers::") {
+                            let _ = calls.send(function);
+                        }
+                        socket
+                            .send(Message::Text(reply.to_string().into()))
+                            .await
+                            .unwrap();
+                    }
+                });
+            }
+        });
+
+        let dir = tempfile::tempdir().unwrap();
+        let store = crate::logs::LogStore::open(dir.path().to_path_buf()).unwrap();
+        let client =
+            iii_sdk::register_worker(&format!("ws://{address}"), iii_sdk::InitOptions::default());
+        let record = VmRecord {
+            adapter: "sandbox-builtin".into(),
+            namespace: "shop".into(),
+            vm_id: "v".into(),
+            instance: 1,
+        };
+        let vm = RemoteVm::spawn(client, record, "t".into(), Some(store.sink("web")));
+        assert_eq!(vm.wait().await.code(), Some(1));
+
+        let mut order = Vec::new();
+        while let Ok(function) = called.try_recv() {
+            order.push(function);
+        }
+        assert_eq!(
+            order,
+            [
+                "engine::channels::create",
+                "sandbox-builtin::worker::logs",
+                "sandbox-builtin::worker::status"
+            ]
+        );
+        assert_eq!(
+            crate::logs::tests::entries(&store, "web", 1).await,
+            vec![crate::logs::LogEntry {
+                stream: crate::logs::LogStream::Stderr,
+                message: "no /dev/kvm".into()
+            }]
+        );
     }
 
     #[test]

@@ -791,7 +791,7 @@ fn owner_only(_path: &Path) -> std::io::Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use tokio::io::AsyncWriteExt;
 
@@ -912,7 +912,7 @@ mod tests {
 
     /// The container's entries once there are `count`: the writer may file a
     /// burst in more than one batch.
-    async fn entries(store: &LogStore, container: &str, count: usize) -> Vec<LogEntry> {
+    pub(crate) async fn entries(store: &LogStore, container: &str, count: usize) -> Vec<LogEntry> {
         let mut entries = Vec::new();
         for _ in 0..100 {
             let logs = store
