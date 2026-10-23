@@ -733,15 +733,23 @@ pub(crate) async fn start_vm(
         })?;
     let adapter = adapter_name(ctx.file);
     let declared = adapter_key(ctx.file, adapter)?.unwrap_or_else(|| adapter.to_string());
-    let (client, namespace) = (ctx.engine.client(), ctx.project_namespace);
+    let (engine, namespace) = (ctx.engine, ctx.project_namespace);
     let failed = |error: iii_sdk::Error| ComposeError::SpawnFailed {
         container: key.to_string(),
         message: spawn_failed_message(&error),
     };
 
-    let info = adapter_info(client, adapter, namespace)
-        .await
-        .map_err(failed)?;
+    let info = start_call::<AdapterInfo>(
+        engine,
+        adapter,
+        namespace,
+        ADAPTER_INFO_SUFFIX,
+        &AdapterInfoRequest {},
+        INFO_RETRY + CALL_SLACK,
+        true,
+    )
+    .await
+    .map_err(failed)?;
     check_info(&info, adapter, &declared, key)?;
 
     let request = start_request(
@@ -756,19 +764,20 @@ pub(crate) async fn start_vm(
         auth: request.auth.clone(),
         source: request.source.clone(),
     };
-    call::<WorkerPrepareResponse>(
-        client,
+    start_call::<WorkerPrepareResponse>(
+        engine,
         adapter,
         namespace,
         WORKER_PREPARE,
         &prepare,
         PREPARE_TIMEOUT,
+        false,
     )
     .await
     .map_err(failed)?;
 
     let started = worker_start(
-        client,
+        engine,
         adapter,
         namespace,
         &request,
@@ -779,7 +788,7 @@ pub(crate) async fn start_vm(
     .map_err(failed)?;
 
     Ok(RemoteVm::spawn(
-        client.clone(),
+        engine.client().clone(),
         VmRecord {
             adapter: adapter.to_string(),
             namespace: namespace.to_string(),
@@ -791,27 +800,38 @@ pub(crate) async fn start_vm(
     ))
 }
 
-/// `<adapter>::adapter::info`. The adapter's worker name can register before
-/// its functions do, so `function_not_found` is asked again for [`INFO_RETRY`].
-async fn adapter_info(
-    client: &IIIClient,
+/// [`call`] for a step of a VM's start, which an engine restart must not fail:
+/// 0.25 prepared without the bus. A call whose connection drops is sent again
+/// once the engine is back, unless the managed engine exited, all within
+/// `timeout`. The adapter registers its functions after its worker name, and
+/// again on its own reconnect, so `function_not_found` is asked again for
+/// [`INFO_RETRY`] after a drop, or from the first call with `registering`.
+/// Each step is idempotent; a re-sent `worker::start` that meets the boot of
+/// the dropped one gets S502, which [`worker_start`] stops.
+async fn start_call<T: serde::de::DeserializeOwned>(
+    engine: &EngineClient,
     adapter: &str,
     namespace: &str,
-) -> std::result::Result<AdapterInfo, iii_sdk::Error> {
-    let deadline = tokio::time::Instant::now() + INFO_RETRY;
+    suffix: &str,
+    request: &impl serde::Serialize,
+    timeout: Duration,
+    mut registering: bool,
+) -> std::result::Result<T, iii_sdk::Error> {
+    let deadline = tokio::time::Instant::now() + timeout;
+    let mut missing_since = None;
     loop {
-        let reply = call(
-            client,
-            adapter,
-            namespace,
-            ADAPTER_INFO_SUFFIX,
-            &AdapterInfoRequest {},
-            CALL_SLACK,
-        )
-        .await;
+        let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+        let reply = call(engine.client(), adapter, namespace, suffix, request, left).await;
+        let now = tokio::time::Instant::now();
         match &reply {
+            Err(iii_sdk::Error::NotConnected) if now < deadline && !engine.has_exited() => {
+                (registering, missing_since) = (true, None);
+            }
             Err(iii_sdk::Error::Remote { code, .. })
-                if code == "function_not_found" && tokio::time::Instant::now() < deadline =>
+                if registering
+                    && code == "function_not_found"
+                    && now < deadline
+                    && now < *missing_since.get_or_insert(now) + INFO_RETRY =>
             {
                 tokio::time::sleep(Duration::from_millis(200)).await;
             }
@@ -984,14 +1004,25 @@ pub(crate) async fn worker_status(
 /// `worker::start`. An S502 names a live boot of the same state, which is
 /// stopped with `grace` before the one retry.
 async fn worker_start(
-    client: &IIIClient,
+    engine: &EngineClient,
     adapter: &str,
     namespace: &str,
     request: &WorkerStartRequest,
     timeout: Duration,
     grace: Duration,
 ) -> std::result::Result<WorkerStartResponse, iii_sdk::Error> {
-    let mut started = call(client, adapter, namespace, WORKER_START, request, timeout).await;
+    let start = || {
+        start_call(
+            engine,
+            adapter,
+            namespace,
+            WORKER_START,
+            request,
+            timeout,
+            false,
+        )
+    };
+    let mut started = start().await;
     if let Err(error) = &started
         && sandbox_code(error) == Some(SandboxErrorCode::S502)
     {
@@ -1003,9 +1034,9 @@ async fn worker_start(
                 vm_id: live.vm_id,
                 instance: live.instance,
             };
-            let _ = worker_stop(client, &live, &request.auth, grace).await;
+            let _ = worker_stop(engine.client(), &live, &request.auth, grace).await;
         }
-        started = call(client, adapter, namespace, WORKER_START, request, timeout).await;
+        started = start().await;
     }
     started
 }
@@ -1689,6 +1720,18 @@ pub(crate) mod tests {
         IIIClient,
         tokio::sync::mpsc::UnboundedReceiver<(String, serde_json::Value)>,
     ) {
+        let (url, called) = fake_engine_url(answer).await;
+        let client = iii_sdk::register_worker(&url, iii_sdk::InitOptions::default());
+        (client, called)
+    }
+
+    /// [`fake_engine`]'s address, for an [`EngineClient`].
+    async fn fake_engine_url(
+        answer: impl Fn(&str, &serde_json::Value) -> serde_json::Value + Send + Sync + 'static,
+    ) -> (
+        String,
+        tokio::sync::mpsc::UnboundedReceiver<(String, serde_json::Value)>,
+    ) {
         use futures::{SinkExt, StreamExt};
         use serde_json::json;
         use tokio_tungstenite::tungstenite::{
@@ -1752,9 +1795,7 @@ pub(crate) mod tests {
                 });
             }
         });
-        let client =
-            iii_sdk::register_worker(&format!("ws://{address}"), iii_sdk::InitOptions::default());
-        (client, called)
+        (format!("ws://{address}"), called)
     }
 
     fn answered(result: impl serde::Serialize) -> serde_json::Value {
@@ -1889,7 +1930,7 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn a_start_that_finds_a_live_boot_stops_it_and_starts_again() {
         let starts = std::sync::atomic::AtomicUsize::new(0);
-        let (client, mut called) = fake_engine(move |function, _| match function {
+        let (url, mut called) = fake_engine_url(move |function, _| match function {
             "sandbox-builtin::worker::start"
                 if starts.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 =>
             {
@@ -1916,7 +1957,7 @@ pub(crate) mod tests {
         )
         .unwrap();
         let started = worker_start(
-            &client,
+            &EngineClient::connect(&url, "t", "t"),
             "sandbox-builtin",
             "shop",
             &request,
@@ -1934,6 +1975,164 @@ pub(crate) mod tests {
                 ("worker::start".to_string(), None)
             ]
         );
+    }
+
+    /// An external engine that restarts during a cold `worker::prepare` never
+    /// answers it: the start sends it again once the engine is back, and once
+    /// the adapter has registered again, so the VM comes up as in 0.25, whose
+    /// prepare did not need the bus. With the managed engine exited, the start
+    /// ends at once.
+    #[tokio::test]
+    async fn a_start_sends_a_dropped_call_again_once_the_engine_is_back() {
+        let prepares = std::sync::atomic::AtomicUsize::new(0);
+        let (url, mut called) = fake_engine_url(move |function, _| match function {
+            "sandbox-builtin::adapter::info" => answered(AdapterInfo {
+                adapter: "sandbox-builtin".into(),
+                adapter_version: "1.0.0".into(),
+                contract: ContractVersion {
+                    major: CONTRACT_MAJOR,
+                    minor: 0,
+                },
+            }),
+            "sandbox-builtin::worker::prepare" => {
+                match prepares.fetch_add(1, std::sync::atomic::Ordering::SeqCst) {
+                    0 | 3 => serde_json::Value::Null,
+                    // The adapter has not registered again yet.
+                    1 => not_found(),
+                    _ => answered(serde_json::json!({})),
+                }
+            }
+            "sandbox-builtin::worker::start" => {
+                answered(serde_json::json!({ "vm_id": "v", "instance": 1 }))
+            }
+            _ => not_found(),
+        })
+        .await;
+        let dir = tempfile::tempdir().unwrap();
+        let file = parse(dir.path(), "containers:\n  vm: {worker: path://./vm}\n");
+        let engine = EngineClient::connect(&url, "t", "t");
+        let (shutdown, post_runs, diagnostics) = Default::default();
+        let logs = crate::logs::LogStore::open(dir.path().join("logs")).unwrap();
+        let ctx = LifecycleCtx {
+            shutdown: &shutdown,
+            file: &file,
+            engine: &engine,
+            post_runs: &post_runs,
+            compose_namespace: "t",
+            project_namespace: "shop",
+            engine_url: &url,
+            package_cache: dir.path(),
+            logs: &logs,
+            state_dir: dir.path(),
+            sandbox_token: "t",
+            empty_env_diagnostics: &diagnostics,
+        };
+        let start = StartSpec::Vm(VmSpec::Local {
+            worker_dir: dir.path().join("vm"),
+            run_override: None,
+        });
+        let steps = |called: &mut tokio::sync::mpsc::UnboundedReceiver<_>| {
+            drain(called)
+                .into_iter()
+                .map(|(function, _)| function)
+                .filter(|function| {
+                    ["adapter::info", "worker::prepare", "worker::start"].contains(&&**function)
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let vm = tokio::time::timeout(
+            Duration::from_secs(10),
+            start_vm(&ctx, "vm", &start, BTreeMap::new()),
+        )
+        .await
+        .expect("the start must not wait out PREPARE_TIMEOUT");
+        assert_eq!(vm.map(|vm| vm.record.instance).ok(), Some(1));
+        // The dropped prepare was never answered, so only its re-sends show.
+        assert_eq!(
+            steps(&mut called),
+            [
+                "adapter::info",
+                "worker::prepare",
+                "worker::prepare",
+                "worker::start"
+            ]
+        );
+
+        engine.mark_exited();
+        let began = tokio::time::Instant::now();
+        let Err(error) = start_vm(&ctx, "vm", &start, BTreeMap::new()).await else {
+            panic!("a dropped call to an engine that exited was sent again");
+        };
+        assert_eq!(error.code(), "SPAWN_FAILED");
+        assert!(
+            began.elapsed() < Duration::from_secs(1),
+            "{:?}",
+            began.elapsed()
+        );
+    }
+
+    /// A `worker::start` whose reply was lost with its connection may still
+    /// have booted. Its re-send then meets that boot (S502), which is stopped
+    /// before the one retry, so exactly one VM runs.
+    #[tokio::test]
+    async fn a_re_sent_start_that_meets_the_dropped_boot_leaves_one_vm() {
+        // (boots so far, the live instance), as the adapter keeps them.
+        let vms = std::sync::Arc::new(std::sync::Mutex::new((0, None)));
+        let adapter = vms.clone();
+        let (url, _called) = fake_engine_url(move |function, payload| {
+            let (boots, live) = &mut *adapter.lock().unwrap();
+            match function {
+                "sandbox-builtin::worker::start" => match *live {
+                    Some(instance) => refused(SandboxErrorCode::S502, instance),
+                    None => {
+                        *boots += 1;
+                        *live = Some(*boots);
+                        if *boots == 1 {
+                            return serde_json::Value::Null;
+                        }
+                        answered(serde_json::json!({ "vm_id": "v", "instance": *boots }))
+                    }
+                },
+                "sandbox-builtin::worker::stop" => {
+                    if *live == payload["instance"].as_u64() {
+                        *live = None;
+                    }
+                    answered(status(State::Stopped, None, Some(15)))
+                }
+                _ => not_found(),
+            }
+        })
+        .await;
+        let local = StartSpec::Vm(VmSpec::Local {
+            worker_dir: "/srv/app/w".into(),
+            run_override: None,
+        });
+        let request = start_request(
+            "t",
+            Path::new("/srv/app/.iii/compose/shop"),
+            "ws://e",
+            "web",
+            &local,
+            BTreeMap::new(),
+        )
+        .unwrap();
+        let started = tokio::time::timeout(
+            Duration::from_secs(10),
+            worker_start(
+                &EngineClient::connect(&url, "t", "t"),
+                "sandbox-builtin",
+                "shop",
+                &request,
+                Duration::from_secs(8),
+                Duration::from_secs(1),
+            ),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(started.instance, 2);
+        assert_eq!(*vms.lock().unwrap(), (2, Some(2)));
     }
 
     /// An engine that dies or restarts with a call in flight never answers it:
