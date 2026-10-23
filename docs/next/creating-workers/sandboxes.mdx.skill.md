@@ -5,8 +5,8 @@ Sandboxes run untrusted or short-lived code in an isolated microVM and capture i
 for agent tool-calls, REPLs, and one-off jobs. The engine's `iii-sandbox` router serves the
 `sandbox::*` triggers and forwards each call to a sandbox adapter. The `sandbox-builtin` worker is
 the adapter that runs the VMs, and Compose installs it from the registry when a project needs it:
-when the compose file sets `engine.sandbox`, when it declares a worker that runs in a VM (a bundle
-worker, or a `path://` worker with `runtime.base_image`), or when you run
+when the compose file sets `engine.sandbox` for its own namespace, when it declares a worker that
+runs in a VM (a bundle worker, or a `path://` worker with `runtime.base_image`), or when you run
 `iii trigger compose::add worker=iii-sandbox`. To change which images the adapter allows, set its
 configuration under `containers.sandbox-builtin.config_override`:
 
@@ -150,7 +150,7 @@ larger payloads when called through an SDK.
 
 A failed `sandbox::*` call returns the same error shape whichever sandbox adapter serves it: a stable
 `code` (S-code), a `type`, and a `retryable` flag. The codes belong to the engine's sandbox contract:
-the router returns S301-S303 and every adapter returns the rest. The `docs_url` in the error payload
+the router returns S301-S304 and every adapter returns the rest. The `docs_url` in the error payload
 links to the matching entry below.
 
 - <a id="S001"></a>**S001** (validation): request payload failed validation (e.g. missing/malformed sandbox_id)

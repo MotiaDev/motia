@@ -54,16 +54,19 @@ defaults to the project's namespace. See [Compose](../using-iii/compose#engine-f
 ## Re-enter stored configuration
 
 Compose does not move a configuration entry that you stored under `iii-sandbox`, from the console or
-with `configuration::set`. Read it in its template form, then write it under the id Compose gives the
-new container, `<namespace>-sandbox-builtin`:
+with `configuration::set`. Read it in its template form:
 
 ```bash
 iii trigger configuration::get --json '{"id": "iii-sandbox", "raw": true}'
-iii trigger configuration::set --json '{"id": "default-sandbox-builtin", "value": {"image_allowlist": ["python", "node"]}}'
 ```
 
-Replace `default` with your project's namespace and the value with what the first command printed.
-Check the new worker before you delete the old entry. See [Configuration](../using-iii/configuration).
+Copy the keys it prints into the `config_override` of the `sandbox-builtin` container, as in the
+previous section. Do not store them under the adapter's id, `<namespace>-sandbox-builtin`: Compose
+sets that entry in memory at each start, from the package defaults and `config_override`, and
+storing it with `configuration::set` fails with `NOT_REGISTERED`. A running project reads the
+edited file on `compose::restart` without a `worker` argument. Check the adapter before you delete
+the old entry.
+See [Configuration precedence](../using-iii/compose#configuration-precedence).
 
 ## Engines that no Compose file manages
 
@@ -86,9 +89,9 @@ fail with S301, which names the namespace. Leaving an `iii-sandbox` entry in the
 ## Frozen installs
 
 `iii compose --up --frozen` and `iii compose build --frozen` never edit the compose file. A project
-that needs the adapter (it sets `engine.sandbox` or has a VM worker) but does not declare it fails
-with `SANDBOX_ADAPTER_NOT_DECLARED`. Run `iii compose --up` once without `--frozen`, so Compose
-writes the container and the lock, then commit both.
+that needs the adapter (it sets `engine.sandbox` for its own namespace or has a VM worker) but does
+not declare it fails with `SANDBOX_ADAPTER_NOT_DECLARED`. Run `iii compose --up` once without
+`--frozen`, so Compose writes the container and the lock, then commit both.
 
 ## VM workers from `path://`
 

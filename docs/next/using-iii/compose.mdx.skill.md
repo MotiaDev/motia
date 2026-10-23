@@ -676,8 +676,8 @@ the sandbox worker](../upgrading/sandbox-worker).
 
 `engine.sandbox` takes `adapter`, the adapter's function prefix (`sandbox-builtin` by default), and
 `namespace`, where the adapter runs (this project's namespace by default). A managed engine is
-bound to an adapter whether or not the section is present. Setting the section also makes Compose
-install that adapter, as does a bundle or `runtime.base_image` worker, or
+bound to an adapter whether or not the section is present. Setting the section, with `namespace`
+unset or this project's, also makes Compose install that adapter, as does a bundle or `runtime.base_image` worker, or
 `iii trigger compose::add worker=iii-sandbox`. See [Sandboxes](../creating-workers/sandboxes).
 
 <Warning title="Deprecated">
