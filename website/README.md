@@ -102,7 +102,8 @@ Every number in the page's text is computed from the same run its charts draw (`
 ```bash
 # in the workers repo, sandbox-builtin/
 target/release/iii-loadtest export target/loadtest/<run> --version <x.y.z>
-pnpm tsx scripts/generate-benchmarks.ts --snapshot --summary ../target/loadtest/<run>/summary.json \
+# here, in website/
+pnpm tsx scripts/generate-benchmarks.ts --snapshot --summary <workers>/sandbox-builtin/target/loadtest/<run>/summary.json \
   --micro <a copy of gh-pages dev/bench/data.js>
 ```
 
