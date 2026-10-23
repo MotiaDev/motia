@@ -9,7 +9,7 @@
 //! Compose reads only `scripts.start` and `runtime.base_image`. The manifest is
 //! another tool's file, so unknown keys are tolerated here — the opposite of
 //! the compose file's strictness. This parser is deliberately independent from
-//! `crates/iii-worker`: compose must not inherit the legacy lifecycle system.
+//! the legacy worker CLI: compose must not inherit the legacy lifecycle system.
 
 use std::path::{Path, PathBuf};
 
