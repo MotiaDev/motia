@@ -2,23 +2,37 @@
 
 
 Sandboxes run untrusted or short-lived code in an isolated microVM and capture its output, useful
-for agent tool-calls, REPLs, and one-off jobs. They are provided by the engine-owned `iii-sandbox`
-worker. Enable it in the managed Compose file before starting the engine:
+for agent tool-calls, REPLs, and one-off jobs. The engine's `iii-sandbox` router serves the
+`sandbox::*` triggers and forwards each call to a sandbox adapter. The `sandbox-builtin` worker is
+the adapter that runs the VMs, and Compose installs it from the registry when a project needs it:
+when the compose file sets `engine.sandbox`, when it declares a worker that runs in a VM (a bundle
+worker, or a `path://` worker with `runtime.base_image`), or when you run
+`iii trigger compose::add worker=iii-sandbox`. To change which images the adapter allows, set its
+configuration under `containers.sandbox-builtin.config_override`:
 
 ```yaml worker-compose.yaml
 engine:
-  workers:
-    iii-sandbox:
-      auto_install: true
+  sandbox:
+    adapter: sandbox-builtin
+containers:
+  sandbox-builtin:
+    worker: package://sandbox-builtin
+    version: "^1"
+    config_override:
       image_allowlist: [python, node]
 ```
 
+`image_allowlist` and `custom_images` set the images a sandbox can boot. An engine that no Compose
+file manages has no adapter bound, so its `sandbox::*` calls fail with [S303](#S303) until you set a
+top-level `sandbox:` section in its engine config. [Upgrading to the sandbox
+worker](../upgrading/sandbox-worker) covers that case and the move from the 0.24 setup.
+
 <Note>
-  This page is a quick tour of the sandbox worker. For the authoritative documentation, see the
-  [iii-sandbox worker docs](https://workers.iii.dev/workers/iii-sandbox).
+  This page is a quick tour of the sandbox triggers. For the adapter's own documentation, see the
+  [sandbox-builtin worker docs](https://workers.iii.dev/workers/sandbox-builtin).
 </Note>
 
-You drive sandboxes by invoking the worker's `sandbox::*` triggers, the same way you call any
+You drive sandboxes by invoking the `sandbox::*` triggers, the same way you call any
 function (see [Triggering functions](../using-iii/functions#triggering-invoking-functions)). Images
 are catalog names such as `python` or `node`, not arbitrary OCI references. The examples below
 capture the new sandbox's id with `jq` and stop the sandbox when done so nothing keeps running.
@@ -131,3 +145,39 @@ iii trigger sandbox::stop sandbox_id=$SB
 For programmatic file transfer, use `sandbox::fs::write` and `sandbox::fs::read` from the previous
 section. Both operations stream through iii data channels, so they are also suitable for binary or
 larger payloads when called through an SDK.
+
+## Error codes
+
+Sandbox errors carry a stable `code` (S-code), a `type`, and a `retryable` flag. The `docs_url` in
+the error payload links to the matching entry below.
+
+- <a id="S001"></a>**S001** (validation): request payload failed validation (e.g. missing/malformed sandbox_id)
+- <a id="S002"></a>**S002** (validation): sandbox uuid not found in registry
+- <a id="S003"></a>**S003** (validation): sandbox is at its exec concurrency cap (max_concurrent_exec_per_sandbox, default 4); a slot frees when any in-flight exec finishes, but detach foreground processes rather than waiting on them
+- <a id="S004"></a>**S004** (validation): sandbox already stopped; create a new one
+- <a id="S100"></a>**S100** (config): image not in catalog or allowlist
+- <a id="S101"></a>**S101** (internal): rootfs missing on disk; enable auto_install or pre-provision cache
+- <a id="S102"></a>**S102** (transient): auto-install pull/extract failed; retry
+- <a id="S200"></a>**S200** (execution): exec exceeded timeout_ms
+- <a id="S210"></a>**S210** (filesystem): fs op rejected by supervisor as invalid
+- <a id="S211"></a>**S211** (filesystem): path does not exist
+- <a id="S212"></a>**S212** (filesystem): path is wrong type (file vs dir)
+- <a id="S213"></a>**S213** (filesystem): path already exists
+- <a id="S214"></a>**S214** (filesystem): directory is not empty
+- <a id="S215"></a>**S215** (filesystem): permission denied
+- <a id="S216"></a>**S216** (filesystem): generic fs I/O failure
+- <a id="S217"></a>**S217** (filesystem): invalid regex/pattern in grep or sed
+- <a id="S218"></a>**S218** (transient): fs streaming channel aborted mid-flight; retry
+- <a id="S219"></a>**S219** (filesystem): fs op unsupported by this supervisor; upgrade the sandbox adapter
+- <a id="S300"></a>**S300** (platform): VM boot or supervisor session failure
+- <a id="S301"></a>**S301** (transient): AdapterUnavailable: the sandbox adapter is not connected; retry once it is up
+- <a id="S302"></a>**S302** (config): ContractMismatch: the adapter speaks a different contract major version than the engine
+- <a id="S303"></a>**S303** (config): NoAdapterConfigured: this engine has no sandbox adapter; set sandbox.adapter in its engine config
+- <a id="S304"></a>**S304** (platform): OperationUnsupported: the adapter does not implement this operation
+- <a id="S400"></a>**S400** (config): resource limit exceeded (cpu/memory/concurrency cap)
+- <a id="S501"></a>**S501** (validation): SourceRejected: bad manifest, or host_path outside the allowed roots
+- <a id="S502"></a>**S502** (validation): StateBusy: a VM already holds this state key; fix carries the live vm_id and instance
+- <a id="S503"></a>**S503** (validation): InstanceMismatch: the request names a different instance than the live VM; fix carries the live vm_id and instance
+- <a id="S504"></a>**S504** (validation): VmNotFound: no VM with this vm_id
+- <a id="S505"></a>**S505** (validation): Unauthorized: the request auth token does not match
+- <a id="S506"></a>**S506** (transient): PrepareFailed: worker::prepare failed; retry
