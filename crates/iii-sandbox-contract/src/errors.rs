@@ -132,7 +132,8 @@ pub fn error_payload(
 }
 
 /// Parses an `ErrorBody.message` and returns its `code`; `None` if it is not an S-code payload.
+/// Parses from the first `{`, since the SDK prefixes handler errors with `handler error: `.
 pub fn code_of(message: &str) -> Option<SandboxErrorCode> {
-    let v: Value = serde_json::from_str(message).ok()?;
+    let v: Value = serde_json::from_str(&message[message.find('{')?..]).ok()?;
     SandboxErrorCode::deserialize(v.as_object()?.get("code")?).ok()
 }
