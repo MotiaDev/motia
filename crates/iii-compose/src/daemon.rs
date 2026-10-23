@@ -3731,7 +3731,11 @@ containers:
         header.set_mode(0o755);
         header.set_cksum();
         archive
-            .append_data(&mut header, "sandbox-builtin", &script[..])
+            .append_data(
+                &mut header,
+                format!("sandbox-builtin{}", std::env::consts::EXE_SUFFIX),
+                &script[..],
+            )
             .unwrap();
         archive.into_inner().unwrap().finish().unwrap()
     }

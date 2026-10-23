@@ -1725,6 +1725,7 @@ pub(crate) mod tests {
 
     /// S503 on a status: the live boot it names is stopped, the status asked
     /// again, and a second S503 reads as superseded.
+    #[cfg(unix)]
     #[tokio::test]
     async fn a_superseded_vm_stops_the_live_boot_then_reads_an_exit_without_code() {
         let (client, mut called) =
@@ -1840,6 +1841,7 @@ pub(crate) mod tests {
 
     /// An adapter that is not there never answers: the stop gives up once
     /// STOP_RETRY has passed, with no code.
+    #[cfg(unix)]
     #[tokio::test]
     async fn a_stop_nobody_answers_ends_after_stop_retry() {
         let (client, _called) = fake_engine(|_, _| not_found()).await;
