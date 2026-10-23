@@ -43,27 +43,25 @@ pub static SELF_SPEC: BinarySpec = BinarySpec {
     tag_prefix: Some("iii"),
 };
 
-pub static REGISTRY: &[BinarySpec] = &[
-    BinarySpec {
-        name: "iii-cloud",
-        repo: "iii-hq/iii-cloud-cli",
-        has_checksum: true,
-        supported_targets: &[
-            "aarch64-apple-darwin",
-            "x86_64-apple-darwin",
-            "x86_64-pc-windows-msvc",
-            "aarch64-pc-windows-msvc",
-            "x86_64-unknown-linux-gnu",
-            "x86_64-unknown-linux-musl",
-            "aarch64-unknown-linux-gnu",
-        ],
-        commands: &[CommandMapping {
-            cli_command: "cloud",
-            binary_subcommand: None,
-        }],
-        tag_prefix: None,
-    },
-];
+pub static REGISTRY: &[BinarySpec] = &[BinarySpec {
+    name: "iii-cloud",
+    repo: "iii-hq/iii-cloud-cli",
+    has_checksum: true,
+    supported_targets: &[
+        "aarch64-apple-darwin",
+        "x86_64-apple-darwin",
+        "x86_64-pc-windows-msvc",
+        "aarch64-pc-windows-msvc",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-gnu",
+    ],
+    commands: &[CommandMapping {
+        cli_command: "cloud",
+        binary_subcommand: None,
+    }],
+    tag_prefix: None,
+}];
 
 pub fn resolve_command(
     command: &str,
