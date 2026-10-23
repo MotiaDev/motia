@@ -1222,7 +1222,7 @@ async fn start_one_until_shutdown(
         tokio::select! {
             biased;
             _ = signal.wait() => {
-                child.stop(ctx.file.stop_timeout).await;
+                stop_attempt(ctx, &child).await;
                 fire_post_run(ctx, &spawn_ctx, container).await;
                 return Err(StartFailure::Interrupted);
             }
@@ -1251,13 +1251,23 @@ async fn start_one_until_shutdown(
     if let Err(error) = readiness {
         // The child is ours whether or not it registered; it must not outlive
         // the failed attempt.
-        child.stop(ctx.file.stop_timeout).await;
+        stop_attempt(ctx, &child).await;
         fire_post_run(ctx, &spawn_ctx, container).await;
         return Err(StartFailure::Failed(error));
     }
 
     let record = ChildRecord::from_child(&child, ChildStatus::Ready);
     Ok((record, child))
+}
+
+/// Stops a child whose start did not finish. A VM is not asked over the bus of
+/// an engine that exited, which would wait out STOP_RETRY: it is in its
+/// adapter's process group, so stopping the adapter takes it, as in
+/// [`stop_one`].
+async fn stop_attempt(ctx: &LifecycleCtx<'_>, child: &Child) {
+    if !matches!(child, Child::Vm(_) if ctx.engine.has_exited()) {
+        child.stop(ctx.file.stop_timeout).await;
+    }
 }
 
 async fn stop_one(
@@ -1722,20 +1732,31 @@ containers:
             sandbox_token: "t",
             empty_env_diagnostics: &diagnostics,
         };
-        let vm = crate::sandbox::RemoteVm::spawn(
-            engine.client().clone(),
-            crate::state::VmRecord {
-                adapter: "sandbox-builtin".into(),
-                namespace: "t".into(),
-                vm_id: "v".into(),
-                instance: 1,
-            },
-            "t".into(),
-            None,
-        );
-        let mut children = Children::from([("vm".to_string(), Child::Vm(vm))]);
+        let vm = || {
+            Child::Vm(crate::sandbox::RemoteVm::spawn(
+                engine.client().clone(),
+                crate::state::VmRecord {
+                    adapter: "sandbox-builtin".into(),
+                    namespace: "t".into(),
+                    vm_id: "v".into(),
+                    instance: 1,
+                },
+                "t".into(),
+                None,
+            ))
+        };
+        let mut children = Children::from([("vm".to_string(), vm())]);
         let began = Instant::now();
         assert!(stop_one(&ctx, &mut children, &mut BTreeMap::new(), "vm").await);
+        assert!(
+            began.elapsed() < Duration::from_secs(1),
+            "{:?}",
+            began.elapsed()
+        );
+
+        // Nor when the engine died during the VM's own start.
+        let began = Instant::now();
+        stop_attempt(&ctx, &vm()).await;
         assert!(
             began.elapsed() < Duration::from_secs(1),
             "{:?}",

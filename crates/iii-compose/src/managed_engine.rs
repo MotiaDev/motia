@@ -208,6 +208,16 @@ impl ManagedEngine {
         self.process.poll()
     }
 
+    /// Its exit status once it has exited, recorded on `client` so teardown
+    /// stops asking over its bus.
+    pub fn poll_exit(&self, client: &crate::engine::EngineClient) -> Option<ExitStatus> {
+        let crate::process::Outcome::Exited(status) = self.poll() else {
+            return None;
+        };
+        client.mark_exited();
+        Some(status)
+    }
+
     pub async fn stop(&self, grace: Duration) -> ExitStatus {
         let status = self.process.stop(grace).await;
         self.finish_logging().await;
@@ -1465,5 +1475,33 @@ port: 60123
         let _status = engine.stop(Duration::from_secs(2)).await;
 
         assert!(!crate::process::is_running(pid));
+    }
+
+    /// Every exit Compose sees, during the initial `--up` or after it, marks
+    /// the client: that is what lets teardown skip `worker::stop`.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn an_engine_exit_is_recorded_on_the_client() {
+        let dir = tempfile::tempdir().unwrap();
+        let script = dir.path().join("fake-iii");
+        let config = dir.path().join("config.yaml");
+        let log = dir.path().join("engine.log");
+        write_executable(&script, "#!/bin/sh\nsleep 1\nexit 3\n");
+        let engine = ManagedEngine::spawn_with_paths(&script, &config, &log, "test")
+            .await
+            .unwrap();
+        let client = crate::engine::EngineClient::connect("ws://127.0.0.1:1", "t", "t");
+
+        assert!(engine.poll_exit(&client).is_none());
+        assert!(!client.has_exited());
+
+        tokio::time::timeout(Duration::from_secs(5), engine.wait())
+            .await
+            .expect("fake engine should exit");
+        assert_eq!(
+            engine.poll_exit(&client).and_then(|status| status.code()),
+            Some(3)
+        );
+        assert!(client.has_exited());
     }
 }
