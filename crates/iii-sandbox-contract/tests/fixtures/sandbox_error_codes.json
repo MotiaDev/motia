@@ -20,7 +20,7 @@
     {"code": "S216", "type": "filesystem", "retryable": false, "rust_variant": "FsIo", "summary": "generic fs I/O failure"},
     {"code": "S217", "type": "filesystem", "retryable": false, "rust_variant": "FsRegex", "summary": "invalid regex/pattern in grep or sed"},
     {"code": "S218", "type": "transient", "retryable": true, "rust_variant": "FsChannelAborted", "summary": "fs streaming channel aborted mid-flight; retry"},
-    {"code": "S219", "type": "filesystem", "retryable": false, "rust_variant": "FsUnsupported", "summary": "fs op unsupported by this supervisor; upgrade iii-worker"},
+    {"code": "S219", "type": "filesystem", "retryable": false, "rust_variant": "FsUnsupported", "summary": "fs op unsupported by this supervisor; upgrade the sandbox adapter"},
     {"code": "S300", "type": "platform", "retryable": false, "rust_variant": "BootFailed", "summary": "VM boot or supervisor session failure"},
     {"code": "S301", "type": "transient", "retryable": true, "rust_variant": null, "summary": "AdapterUnavailable: the sandbox adapter is not connected; retry once it is up"},
     {"code": "S302", "type": "config", "retryable": false, "rust_variant": null, "summary": "ContractMismatch: the adapter speaks a different contract major version than the engine"},
