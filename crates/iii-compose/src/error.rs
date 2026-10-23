@@ -53,7 +53,7 @@ pub enum ComposeError {
     /// The 0.24 `engine.workers.iii-sandbox` block. `replacement` is the
     /// `containers:` entry that carries its settings to `sandbox-builtin`.
     #[error(
-        "engine.workers.iii-sandbox was removed in iii 0.25: sandboxes now run in the \
+        "engine.workers.iii-sandbox was removed in iii 0.26: sandboxes now run in the \
          sandbox-builtin worker, which Compose installs for you. Replace the block with \
          `engine.sandbox.adapter: sandbox-builtin` (optional, the default) and move \
          image_allowlist/custom_images/default_* to `containers.sandbox-builtin.config_override`. \
