@@ -785,6 +785,8 @@ async fn serve_daemon(
         // seen, so no stop waits out `worker::stop` over its bus. It also ends
         // the startup: cancelled, not dropped, so the startup still rolls back
         // what it started while its calls to the dead bus are dropped at once.
+        // A start that failed first, on its call's dropped connection, still
+        // reports the exit.
         let note_engine_exit = || {
             let engine = managed_engine?;
             Some((engine, engine.poll_exit(daemon.engine())?))
@@ -807,7 +809,9 @@ async fn serve_daemon(
                 }
             }
         };
-        note_engine_exit();
+        if engine_exit.is_none() {
+            engine_exit = note_engine_exit();
+        }
         if daemon.engine().is_connected() {
             project.progress.engine_ready();
         }
