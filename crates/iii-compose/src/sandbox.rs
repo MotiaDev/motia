@@ -47,7 +47,7 @@ pub enum Need {
     VmBundle(String),
     /// A `path://` container whose manifest sets `runtime.base_image`, by key.
     VmLocal(String),
-    /// The file sets `engine.sandbox`.
+    /// The file sets `engine.sandbox`, bound to its own namespace.
     Explicit,
 }
 
@@ -72,10 +72,19 @@ pub fn needs(file: &ComposeFile) -> Vec<Need> {
                 .then(|| Need::VmLocal(key.clone())),
         })
         .collect();
+    // A binding to another namespace is served there: an adapter installed
+    // here would never be reached. shortcut: compares with the file's own
+    // namespace, not a `--namespace` override; pass the project namespace in
+    // if that case matters.
     if file
         .engine
         .as_ref()
-        .is_some_and(|engine| engine.sandbox.is_some())
+        .and_then(|engine| engine.sandbox.as_ref())
+        .is_some_and(|sandbox| {
+            sandbox.namespace.as_deref().is_none_or(|namespace| {
+                namespace == crate::namespace::project_namespace(None, file.namespace.as_deref())
+            })
+        })
     {
         needs.push(Need::Explicit);
     }
@@ -1085,6 +1094,37 @@ pub(crate) mod tests {
                 Need::VmLocal("local".into()),
                 Need::Explicit
             ]
+        );
+    }
+
+    #[test]
+    fn a_binding_to_another_namespace_needs_no_adapter_here() {
+        let dir = tempfile::tempdir().unwrap();
+        let explicit = |sandbox: &str| {
+            let file = parse(
+                dir.path(),
+                &format!(
+                    "namespace: shop\nengine: {{sandbox: {sandbox}}}\ncontainers:\n  app: {{worker: package://app, version: 1.0.0}}\n"
+                ),
+            );
+            needs(&file).contains(&Need::Explicit)
+        };
+        assert!(explicit("{}"));
+        assert!(explicit("{namespace: shop}"));
+        assert!(!explicit("{namespace: other}"));
+
+        // A VM still needs the adapter, in the project namespace.
+        let mut file = vm_project(dir.path());
+        file.engine
+            .as_mut()
+            .unwrap()
+            .sandbox
+            .as_mut()
+            .unwrap()
+            .namespace = Some("other".into());
+        assert_eq!(
+            needs(&file),
+            vec![Need::VmBundle("app".into()), Need::VmLocal("local".into())]
         );
     }
 
