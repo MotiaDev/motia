@@ -16,7 +16,7 @@
 
 mod common;
 
-use std::time::Duration;
+use std::{pin::Pin, time::Duration};
 
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -51,13 +51,18 @@ fn echo(input: EchoInput) -> Result<Value, Error> {
 
 struct NoopHandler;
 
-#[async_trait::async_trait]
 impl TriggerHandler for NoopHandler {
-    async fn register_trigger(&self, _: TriggerConfig) -> Result<(), iii_sdk::Error> {
-        Ok(())
+    fn register_trigger(
+        &self,
+        _: TriggerConfig,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
+        Box::pin(async { Ok(()) })
     }
-    async fn unregister_trigger(&self, _: TriggerConfig) -> Result<(), iii_sdk::Error> {
-        Ok(())
+    fn unregister_trigger(
+        &self,
+        _: TriggerConfig,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
+        Box::pin(async { Ok(()) })
     }
 }
 
