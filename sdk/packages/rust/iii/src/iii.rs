@@ -9,6 +9,7 @@ const JSON_FRAGMENT_BYTES: usize = 1024 * 1024;
 #[allow(deprecated)]
 mod json_size_tests {
     use super::*;
+    use std::pin::Pin;
 
     #[tokio::test]
     async fn local_rejection_preserves_result_fallback_and_following_messages() {
@@ -68,14 +69,19 @@ mod json_size_tests {
 
     struct TestTriggerHandler;
 
-    #[async_trait::async_trait]
     impl TriggerHandler for TestTriggerHandler {
-        async fn register_trigger(&self, _: TriggerConfig) -> Result<(), Error> {
-            Ok(())
+        fn register_trigger(
+            &self,
+            _: TriggerConfig,
+        ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
+            Box::pin(async { Ok(()) })
         }
 
-        async fn unregister_trigger(&self, _: TriggerConfig) -> Result<(), Error> {
-            Ok(())
+        fn unregister_trigger(
+            &self,
+            _: TriggerConfig,
+        ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
+            Box::pin(async { Ok(()) })
         }
     }
 
@@ -4376,10 +4382,10 @@ pub(crate) async fn internal_create_channel(
 #[cfg(test)]
 #[allow(deprecated)]
 mod tests {
+    use serde_json::json;
     use std::collections::HashMap;
     use std::ffi::OsString;
-
-    use serde_json::json;
+    use std::pin::Pin;
 
     use iii_helpers::http::{HttpInvocationConfig, HttpMethod};
 
@@ -4742,14 +4748,19 @@ mod tests {
 
     struct NoopTriggerHandler;
 
-    #[async_trait::async_trait]
     impl TriggerHandler for NoopTriggerHandler {
-        async fn register_trigger(&self, _: TriggerConfig) -> Result<(), Error> {
-            Ok(())
+        fn register_trigger(
+            &self,
+            _: TriggerConfig,
+        ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
+            Box::pin(async { Ok(()) })
         }
 
-        async fn unregister_trigger(&self, _: TriggerConfig) -> Result<(), Error> {
-            Ok(())
+        fn unregister_trigger(
+            &self,
+            _: TriggerConfig,
+        ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
+            Box::pin(async { Ok(()) })
         }
     }
 

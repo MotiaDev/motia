@@ -5,7 +5,10 @@
 
 mod common;
 
-use std::sync::{Arc, Mutex};
+use std::{
+    pin::Pin,
+    sync::{Arc, Mutex},
+};
 
 use serial_test::serial;
 
@@ -33,26 +36,35 @@ struct LifecycleTriggerHandler {
     state: LifecycleState,
 }
 
-#[async_trait]
 impl TriggerHandler for LifecycleTriggerHandler {
-    async fn register_trigger(&self, config: TriggerConfig) -> Result<(), Error> {
-        self.state.bindings.lock().unwrap().push(config.clone());
-        self.state.register_calls.lock().unwrap().push(config);
-        Ok(())
+    fn register_trigger(
+        &self,
+        config: TriggerConfig,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
+        Box::pin(async {
+            self.state.bindings.lock().unwrap().push(config.clone());
+            self.state.register_calls.lock().unwrap().push(config);
+            Ok(())
+        })
     }
 
-    async fn unregister_trigger(&self, config: TriggerConfig) -> Result<(), Error> {
-        let stored = {
-            let mut bindings = self.state.bindings.lock().unwrap();
-            let idx = bindings.iter().position(|b| b.id == config.id);
-            idx.map(|i| bindings.remove(i))
-        };
-        self.state
-            .unregister_calls
-            .lock()
-            .unwrap()
-            .push(stored.unwrap_or(config));
-        Ok(())
+    fn unregister_trigger(
+        &self,
+        config: TriggerConfig,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
+        Box::pin(async {
+            let stored = {
+                let mut bindings = self.state.bindings.lock().unwrap();
+                let idx = bindings.iter().position(|b| b.id == config.id);
+                idx.map(|i| bindings.remove(i))
+            };
+            self.state
+                .unregister_calls
+                .lock()
+                .unwrap()
+                .push(stored.unwrap_or(config));
+            Ok(())
+        })
     }
 }
 

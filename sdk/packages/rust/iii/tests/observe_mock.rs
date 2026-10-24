@@ -8,6 +8,7 @@
 mod common;
 
 use std::{
+    pin::Pin,
     sync::{
         Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
@@ -894,36 +895,49 @@ struct Recorder {
     observers: Arc<Mutex<Vec<Observer>>>,
 }
 
-#[async_trait]
 impl ObserveHandler for Recorder {
-    async fn on_observer_added(&self, obs: &Observer) -> Result<(), ObserveRejection> {
-        if let Some(delay) = obs.args_value().get("delay_ms").and_then(Value::as_u64) {
-            tokio::time::sleep(Duration::from_millis(delay)).await;
-        }
-        if let Some(code) = obs.args_value().get("reject").and_then(Value::as_str) {
+    fn on_observer_added<'a>(
+        &'a self,
+        obs: &Observer,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ObserveRejection>> + Send + 'a>> {
+        let obs = obs.clone();
+
+        Box::pin(async move {
+            if let Some(delay) = obs.args_value().get("delay_ms").and_then(Value::as_u64) {
+                tokio::time::sleep(Duration::from_millis(delay)).await;
+            }
+            if let Some(code) = obs.args_value().get("reject").and_then(Value::as_str) {
+                self.events
+                    .lock()
+                    .unwrap()
+                    .push(format!("reject {}", obs.id()));
+                return Err(ObserveRejection::new(code, "invalid day-of-week field"));
+            }
+            if obs.args_value().get("plain_error").is_some() {
+                return Err(Error::Handler("no".into()).into());
+            }
             self.events
                 .lock()
                 .unwrap()
-                .push(format!("reject {}", obs.id()));
-            return Err(ObserveRejection::new(code, "invalid day-of-week field"));
-        }
-        if obs.args_value().get("plain_error").is_some() {
-            return Err(Error::Handler("no".into()).into());
-        }
-        self.events
-            .lock()
-            .unwrap()
-            .push(format!("add {}", obs.id()));
-        self.observers.lock().unwrap().push(obs.clone());
-        Ok(())
+                .push(format!("add {}", obs.id()));
+            self.observers.lock().unwrap().push(obs.clone());
+            Ok(())
+        })
     }
 
-    async fn on_observer_removed(&self, obs: &Observer) {
-        self.events
-            .lock()
-            .unwrap()
-            .push(format!("remove {}", obs.id()));
-        self.observers.lock().unwrap().retain(|o| o != obs);
+    fn on_observer_removed<'a>(
+        &'a self,
+        obs: &Observer,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+        let obs = obs.clone();
+
+        Box::pin(async move {
+            self.events
+                .lock()
+                .unwrap()
+                .push(format!("remove {}", obs.id()));
+            self.observers.lock().unwrap().retain(|o| *o != obs);
+        })
     }
 }
 
@@ -1832,12 +1846,18 @@ struct HeldHook {
     release: Arc<tokio::sync::Notify>,
 }
 
-#[async_trait]
 impl ObserveHandler for HeldHook {
-    async fn on_observer_added(&self, obs: &Observer) -> Result<(), ObserveRejection> {
-        *self.seen.lock().unwrap() = Some(obs.clone());
-        self.release.notified().await;
-        Ok(())
+    fn on_observer_added<'a>(
+        &'a self,
+        obs: &Observer,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ObserveRejection>> + Send + 'a>> {
+        let obs = obs.clone();
+
+        Box::pin(async move {
+            *self.seen.lock().unwrap() = Some(obs.clone());
+            self.release.notified().await;
+            Ok(())
+        })
     }
 }
 
@@ -2082,14 +2102,25 @@ struct HeldAndRemoved {
     removed: Arc<Mutex<Vec<String>>>,
 }
 
-#[async_trait]
 impl ObserveHandler for HeldAndRemoved {
-    async fn on_observer_added(&self, obs: &Observer) -> Result<(), ObserveRejection> {
-        self.held.on_observer_added(obs).await
+    fn on_observer_added<'a>(
+        &'a self,
+        obs: &Observer,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ObserveRejection>> + Send + 'a>> {
+        let obs = obs.clone();
+
+        Box::pin(async move { self.held.on_observer_added(&obs).await })
     }
 
-    async fn on_observer_removed(&self, obs: &Observer) {
-        self.removed.lock().unwrap().push(obs.id().to_string());
+    fn on_observer_removed<'a>(
+        &'a self,
+        obs: &Observer,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+        let obs = obs.clone();
+
+        Box::pin(async move {
+            self.removed.lock().unwrap().push(obs.id().to_string());
+        })
     }
 }
 

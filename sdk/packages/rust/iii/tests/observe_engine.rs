@@ -7,6 +7,7 @@ mod common;
 
 use std::{
     collections::HashMap,
+    pin::Pin,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -764,28 +765,41 @@ impl Topics {
     }
 }
 
-#[async_trait]
 impl ObserveHandler for Topics {
-    async fn on_observer_added(&self, obs: &Observer) -> Result<(), ObserveRejection> {
-        self.added.lock().unwrap().push(obs.args_value().clone());
-        let TopicArgs { topic } = obs.args()?;
-        if topic == "forbidden" {
-            return Err(ObserveRejection::new("TOPIC_FORBIDDEN", "not this one"));
-        }
-        self.by_topic
-            .lock()
-            .unwrap()
-            .entry(topic)
-            .or_default()
-            .push(obs.clone());
-        Ok(())
+    fn on_observer_added<'a>(
+        &'a self,
+        obs: &Observer,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ObserveRejection>> + Send + 'a>> {
+        let obs = obs.clone();
+
+        Box::pin(async move {
+            self.added.lock().unwrap().push(obs.args_value().clone());
+            let TopicArgs { topic } = obs.args()?;
+            if topic == "forbidden" {
+                return Err(ObserveRejection::new("TOPIC_FORBIDDEN", "not this one"));
+            }
+            self.by_topic
+                .lock()
+                .unwrap()
+                .entry(topic)
+                .or_default()
+                .push(obs.clone());
+            Ok(())
+        })
     }
 
-    async fn on_observer_removed(&self, obs: &Observer) {
-        self.removed.lock().unwrap().push(obs.id().to_string());
-        for list in self.by_topic.lock().unwrap().values_mut() {
-            list.retain(|o| o != obs);
-        }
+    fn on_observer_removed<'a>(
+        &'a self,
+        obs: &Observer,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+        let obs = obs.clone();
+
+        Box::pin(async move {
+            self.removed.lock().unwrap().push(obs.id().to_string());
+            for list in self.by_topic.lock().unwrap().values_mut() {
+                list.retain(|o| *o != obs);
+            }
+        })
     }
 }
 

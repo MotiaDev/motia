@@ -3,7 +3,10 @@
 
 #![allow(deprecated)]
 
-use std::sync::{Arc, Mutex};
+use std::{
+    pin::Pin,
+    sync::{Arc, Mutex},
+};
 
 use serde_json::json;
 use tracing::{
@@ -50,13 +53,19 @@ impl Subscriber for Warnings {
 
 struct Noop;
 
-#[async_trait::async_trait]
 impl TriggerHandler for Noop {
-    async fn register_trigger(&self, _: TriggerConfig) -> Result<(), Error> {
-        Ok(())
+    fn register_trigger(
+        &self,
+        _: TriggerConfig,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
+        Box::pin(async { Ok(()) })
     }
-    async fn unregister_trigger(&self, _: TriggerConfig) -> Result<(), Error> {
-        Ok(())
+
+    fn unregister_trigger(
+        &self,
+        _: TriggerConfig,
+    ) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + '_>> {
+        Box::pin(async { Ok(()) })
     }
 }
 

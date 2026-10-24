@@ -1361,17 +1361,23 @@ mod tests {
 
     struct Hooks;
 
-    #[async_trait]
     impl ObserveHandler for Hooks {
-        async fn on_observer_added(&self, obs: &Observer) -> Result<(), ObserveRejection> {
-            match obs.id() {
-                "hangs" => {
-                    std::future::pending::<()>().await;
-                    Ok(())
+        fn on_observer_added<'a>(
+            &'a self,
+            obs: &Observer,
+        ) -> Pin<Box<dyn Future<Output = Result<(), ObserveRejection>> + Send + 'a>> {
+            let obs = obs.clone();
+
+            Box::pin(async move {
+                match obs.id() {
+                    "hangs" => {
+                        std::future::pending::<()>().await;
+                        Ok(())
+                    }
+                    "panics" => panic!("hook blew up"),
+                    _ => Ok(()),
                 }
-                "panics" => panic!("hook blew up"),
-                _ => Ok(()),
-            }
+            })
         }
     }
 
